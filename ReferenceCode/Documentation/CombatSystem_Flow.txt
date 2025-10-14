@@ -1,0 +1,11 @@
+StartBattle() →
+  Instantiate Party (from PartyManager.ActiveParty)
+  Instantiate Enemies (from EncounterData)
+  turnController.CalculateTurnOrder(all)
+  Loop:
+    actor = turnController.NextTurn()
+    battleUI.ShowCommandPanel(actor)
+    Wait for player/AI input
+    Resolve action via ActionResolver
+    Check victory/defeat
+EndBattle()

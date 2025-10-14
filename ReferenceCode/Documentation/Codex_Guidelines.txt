@@ -1,0 +1,15 @@
+# Codex Guidelines for Combat System Generation
+
+1. Mantén los nombres EXACTOS de las clases listadas en CombatSystem_UML.txt.
+2. Coloca cada clase en su propio archivo dentro de:
+   Assets/Scripts/Systems/Combat/
+3. Todos los campos Unity deben estar serializados con [SerializeField].
+4. Implementa logs temporales para confirmar flujo.
+5. Usa métodos públicos vacíos si la lógica aún no se define.
+6. Crea comentarios "TODO" para futuras integraciones (Keepsakes, CP, ChainSkills).
+7. Asegúrate de que el sistema funcione sin referencias circulares.
+8. No mezcles UI con lógica de combate directa (usa eventos).
+9. Respeta las dependencias de PartyManager y CharacterRuntime.
+
+Prompt sugerido:
+> Read all files in /Documentation and generate the entire Combat System in C# for Unity using the described architecture. Each class in its file. Use minimal placeholder code and serialized fields for Unity inspector. No gameplay logic yet — just structural flow and debugging logs.

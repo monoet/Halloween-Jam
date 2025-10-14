@@ -1,0 +1,32 @@
+[BattleManager]
+- List<CharacterRuntime> partyMembers
+- List<EnemyRuntime> enemies
+- TurnController turnController
+- BattleUIManager battleUI
++ StartBattle(EncounterData data)
++ EndBattle(bool victory)
+
+[TurnController]
+- Queue<CharacterRuntime> turnQueue
++ NextTurn()
++ CalculateTurnOrder(List<CharacterRuntime> allCombatants)
+
+[BattleUIManager]
++ ShowCommandPanel(CharacterRuntime actor)
++ ShowTargetSelector(List<CharacterRuntime> possibleTargets)
++ ShowKeepsakeOptions(CharacterRuntime actor)
+
+[ActionResolver]
++ ExecuteAction(CharacterRuntime actor, ActionData action, CharacterRuntime target)
++ ApplyDamage()
++ ApplyBuffDebuff()
+
+[EnemyRuntime]
+inherits CharacterRuntime
++ DecideAction()
++ ExecuteAI()
+
+[EncounterData]
+- string encounterName
+- List<EnemyArchetype> enemiesToSpawn
+- Vector3[] spawnPoints

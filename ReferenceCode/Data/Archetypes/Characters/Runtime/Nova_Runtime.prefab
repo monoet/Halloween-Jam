@@ -1,0 +1,85 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &7158594349234167406
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 3664349334863414813}
+  - component: {fileID: 1548185438639777115}
+  m_Layer: 0
+  m_Name: Nova_Runtime
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &3664349334863414813
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7158594349234167406}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1548185438639777115
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7158594349234167406}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 35d106eea4a349d48a40b29bc4f8e42e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  archetype: {fileID: 11400000, guid: e64c7e7892b43f046a0afc18730b0a03, type: 2}
+  core:
+    characterName: 
+    portrait: {fileID: 0}
+    Level: 0
+    CurrentEXP: 0
+    MaxEXP: 0
+    BaseSTR: 0
+    BaseRES: 0
+    BaseAGI: 0
+    BaseLCK: 0
+    BaseVIT: 0
+    BonusSTR: 0
+    BonusRES: 0
+    BonusAGI: 0
+    BonusLCK: 0
+    BonusVIT: 0
+    IsPoisoned: 0
+    IsStunned: 0
+    IsBuffed: 0
+  statFormula: {fileID: 11400000, guid: f92814b64ba963a419f8e8928e830608, type: 2}
+  derivedFormula: {fileID: 0}
+  final:
+    HP: 0
+    SP: 0
+    STR: 0
+    RES: 0
+    AGI: 0
+    LCK: 0
+    VIT: 0
+    Physical: 0
+    MagicPower: 0
+    PhysDefense: 0
+    MagDefense: 0
+    CritChance: 0
+    Speed: 0
+  OnStatsChanged:
+    m_PersistentCalls:
+      m_Calls: []
