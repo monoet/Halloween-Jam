@@ -22,7 +22,8 @@ namespace HalloweenJam.Combat
                 throw new ArgumentNullException(nameof(defender));
             }
 
-            var attackResult = attacker.AttackStrategy.Execute(attacker, defender);
+            var baseResult = attacker.AttackStrategy.Execute(attacker, defender);
+            var attackResult = TryResolveWithStats(attacker, defender, baseResult);
             defender.ReceiveDamage(attackResult.Damage);
 
             var logMessage = $"{attacker.DisplayName} {attackResult.Description}";
@@ -31,6 +32,30 @@ namespace HalloweenJam.Combat
             AttackResolved?.Invoke(context);
             return context;
         }
+
+        private static AttackResult TryResolveWithStats(ICombatEntity attacker, ICombatEntity defender, AttackResult fallback)
+        {
+            if (TryGetCharacterRuntime(attacker, out var attackerRuntime) &&
+                TryGetCharacterRuntime(defender, out var defenderRuntime))
+            {
+                var statsResult = StatsDamageCalculator.CalculateBasicAttack(attackerRuntime, defenderRuntime);
+                var description = string.IsNullOrWhiteSpace(fallback.Description) ? statsResult.Description : fallback.Description;
+                return new AttackResult(statsResult.Damage, description);
+            }
+
+            return fallback;
+        }
+
+        private static bool TryGetCharacterRuntime(ICombatEntity entity, out global::CharacterRuntime runtime)
+        {
+            if (entity is RuntimeCombatEntity runtimeEntity)
+            {
+                runtime = runtimeEntity.CharacterRuntime;
+                return runtime != null;
+            }
+
+            runtime = null;
+            return false;
+        }
     }
 }
-
