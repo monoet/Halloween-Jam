@@ -1,11 +1,11 @@
-using System.Collections.Generic;
 using UnityEngine;
+using System.Collections.Generic;
 
 [CreateAssetMenu(menuName = "RPG/Archetype")]
 public class Archetype : ScriptableObject
 {
     [Header("Identidad del Personaje")]
-    [Tooltip("ID unico para guardado y referencia")]
+    [Tooltip("ID único para guardado y referencia")]
     public string characterID = System.Guid.NewGuid().ToString();
     public string characterName;
     public Sprite portrait;
@@ -15,17 +15,23 @@ public class Archetype : ScriptableObject
     [Tooltip("Referencia a la clase base (controla growth rates globales)")]
     public ClassMastery classMastery;
 
-    [Header("Afinidad elemental / tematica")]
+    [Header("Afinidad elemental / temática")]
     public ElementalAffinity affinity = ElementalAffinity.None;
-    public Color auraColor = Color.white; // FX / UI / particulas
+    public Color auraColor = Color.white; // FX / UI / partículas
 
+    // ─────────────────────────────
+    // STATS BASE
+    // ─────────────────────────────
     [Header("Stats base (nivel 1)")]
-    public float baseSTR = 10f; // Fuerza
-    public float baseRES = 10f; // Resonancia (afecta SP y poder magico)
-    public float baseAGI = 10f; // Agilidad
-    public float baseLCK = 10f; // Suerte
-    public float baseVIT = 10f; // Vitalidad
+    public float baseSTR = 10; // Fuerza
+    public float baseRES = 10; // Resonancia (afecta SP y poder mágico)
+    public float baseAGI = 10; // Agilidad
+    public float baseLCK = 10; // Suerte
+    public float baseVIT = 10; // Vitalidad
 
+    // ─────────────────────────────
+    // CURVAS DE CRECIMIENTO
+    // ─────────────────────────────
     [Header("Curvas de crecimiento por stat base")]
     [Range(1, 99)] public int maxLevel = 50;
 
@@ -35,7 +41,10 @@ public class Archetype : ScriptableObject
     public AnimationCurve lckGrowth = AnimationCurve.Linear(1, 10, 50, 99);
     public AnimationCurve vitGrowth = AnimationCurve.Linear(1, 10, 50, 99);
 
-    [Header("Derivados: relacion de HP y SP con stats base")]
+    // ─────────────────────────────
+    // RELACIONES DERIVADAS
+    // ─────────────────────────────
+    [Header("Derivados: relación de HP y SP con stats base")]
     [Tooltip("Multiplicador de HP por punto de Vitalidad")]
     public float hpPerVit = 20f;
 
@@ -51,13 +60,20 @@ public class Archetype : ScriptableObject
         new Keyframe(50, 0.4f)
     );
 
-    [Header("Inicializacion")]
+    // ─────────────────────────────
+    // INICIALIZACIÓN
+    // ─────────────────────────────
+    [Header("Inicialización")]
     public List<AbilityData> startingAbilities = new();
     public List<EquipmentData> startingEquipment = new();
 
     [Header("Referencias visuales y FX (opcional)")]
     public GameObject battlePrefab;
     public GameObject overworldPrefab;
+
+    // ─────────────────────────────
+    // MÉTODOS DE CÁLCULO
+    // ─────────────────────────────
 
     public int GetHPFromVit(float vit)
     {
