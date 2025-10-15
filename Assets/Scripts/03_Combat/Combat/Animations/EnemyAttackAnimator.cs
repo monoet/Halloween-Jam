@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace HalloweenJam.Combat.Animations
 {
-    public class EnemyAttackAnimator : MonoBehaviour
+    public class EnemyAttackAnimator : MonoBehaviour, IAttackAnimator
     {
         [Header("References")]
         [SerializeField] private Transform modelRoot;

@@ -1,10 +1,17 @@
 using System;
 using DG.Tweening;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace HalloweenJam.Combat.Animations
 {
-    public class LiliaAttackAnimator : MonoBehaviour
+    /// <summary>
+    /// Controla la animación de ataque de Lilia en combate:
+    /// - Efectos de glow, retroceso y sacudida de cámara.
+    /// - Sincroniza sonido con el impacto real.
+    /// - Incluye modo de depuración de fases.
+    /// </summary>
+    public class LiliaAttackAnimator : MonoBehaviour, IAttackAnimator
     {
         [Header("References")]
         [SerializeField] private Transform modelRoot;
@@ -45,19 +52,19 @@ namespace HalloweenJam.Combat.Animations
         [Header("Debug")]
         [SerializeField] private bool autoPlayOnStart = false;
         [SerializeField] private bool enableDebugLogs = false;
+        [SerializeField] private bool showTimingOverlay = false;
 
         private Sequence attackSequence;
         private Vector3 modelStartPosition;
         private Color baseColor = Color.white;
         private Color enemyBaseColor = Color.white;
         private Material spriteMaterialInstance;
+        private Text debugOverlayText;
 
         private void Awake()
         {
             if (modelRoot == null)
-            {
                 modelRoot = transform;
-            }
 
             modelStartPosition = modelRoot.localPosition;
 
@@ -69,20 +76,32 @@ namespace HalloweenJam.Combat.Animations
             }
 
             if (enemySprite != null)
-            {
                 enemyBaseColor = enemySprite.color;
+
+            if (showTimingOverlay)
+            {
+                var canvasGO = new GameObject("DebugCanvas");
+                canvasGO.AddComponent<Canvas>().renderMode = RenderMode.ScreenSpaceOverlay;
+                var textGO = new GameObject("DebugText");
+                textGO.transform.SetParent(canvasGO.transform);
+                debugOverlayText = textGO.AddComponent<Text>();
+                debugOverlayText.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+                debugOverlayText.fontSize = 16;
+                debugOverlayText.color = Color.yellow;
+                debugOverlayText.alignment = TextAnchor.UpperLeft;
+                debugOverlayText.rectTransform.anchorMin = new Vector2(0, 1);
+                debugOverlayText.rectTransform.anchorMax = new Vector2(0, 1);
+                debugOverlayText.rectTransform.anchoredPosition = new Vector2(10, -10);
             }
         }
 
         private void Start()
         {
             if (autoPlayOnStart)
-            {
                 PlayAttack();
-            }
         }
 
-        public void PlayAttack(System.Action onImpact = null, System.Action onComplete = null)
+        public void PlayAttack(Action onImpact = null, Action onComplete = null)
         {
             attackSequence?.Kill();
             modelRoot.DOKill();
@@ -93,16 +112,16 @@ namespace HalloweenJam.Combat.Animations
             ResetVisualState();
 
             var startX = modelStartPosition.x;
-            System.Action impactCallback = onImpact;
-            System.Action completeCallback = onComplete;
+            Action impactCallback = onImpact;
+            Action completeCallback = onComplete;
 
             attackSequence = DOTween.Sequence();
 
-            // Phase 1: Charge (back-step + glow pulses)
+            // ---------------- PHASE 1: CHARGE ----------------
             attackSequence.AppendCallback(() =>
             {
                 PlaySfx(chargeSfx);
-                DebugLog("Phase 1: Charge started.");
+                DebugPhase("Phase 1: Charge started");
             });
 
             attackSequence.Append(modelRoot.DOLocalMoveX(startX + backStepDistance, backStepDuration)
@@ -110,47 +129,46 @@ namespace HalloweenJam.Combat.Animations
 
             if (spriteMaterialInstance != null)
             {
-                attackSequence.Join(spriteMaterialInstance.DOFloat(glowChargeIntensity, "_GlowIntensity", glowLoopDuration)
+                attackSequence.Join(spriteMaterialInstance
+                    .DOFloat(glowChargeIntensity, "_GlowIntensity", glowLoopDuration)
                     .SetEase(Ease.InOutSine)
                     .SetLoops(glowLoops, LoopType.Yoyo)
                     .From(0f));
             }
 
             if (chargeHoldDuration > 0f)
-            {
                 attackSequence.AppendInterval(chargeHoldDuration);
-            }
 
-            // Phase 2: Lunge and impact
+            // ---------------- PHASE 2: LUNGE + IMPACT ----------------
             attackSequence.AppendCallback(() =>
             {
-                PlaySfx(slashSfx);
-                DebugLog("Phase 2: Lunge started.");
+                DebugPhase("Phase 2: Lunge started");
             });
 
             var lungeTween = modelRoot.DOLocalMoveX(startX - lungeDistance, lungeDuration)
                 .SetEase(Ease.InExpo)
                 .OnComplete(() =>
                 {
-                    TriggerEnemyHitFeedback();
+                    TriggerEnemyHitFeedback(); // aquí suena el slash real
                     impactCallback?.Invoke();
                 });
 
             attackSequence.Append(lungeTween);
 
-            // Phase 3: Recover
+            // ---------------- PHASE 3: RECOVER ----------------
             attackSequence.Append(modelRoot.DOLocalMoveX(startX, recoverDuration)
                 .SetEase(Ease.OutCubic)
                 .OnComplete(() =>
                 {
                     PlaySfx(settleSfx);
-                    DebugLog("Phase 3: Recover complete.");
+                    DebugPhase("Phase 3: Recover complete");
                     completeCallback?.Invoke();
                 }));
 
             if (spriteMaterialInstance != null)
             {
-                attackSequence.Join(spriteMaterialInstance.DOFloat(0f, "_GlowIntensity", glowRecoverDuration)
+                attackSequence.Join(spriteMaterialInstance
+                    .DOFloat(0f, "_GlowIntensity", glowRecoverDuration)
                     .SetEase(Ease.InOutSine));
             }
 
@@ -159,20 +177,26 @@ namespace HalloweenJam.Combat.Animations
 
         private void TriggerEnemyHitFeedback()
         {
-            DebugLog("TriggerEnemyHitFeedback invoked.");
+            DebugPhase("TriggerEnemyHitFeedback invoked");
+
+            // 🔊 sonido sincronizado con el impacto
+            PlaySfx(slashSfx);
+
+            // knockback enemigo
             if (enemyRoot != null)
             {
                 enemyRoot.DOKill();
                 var direction = Mathf.Sign(enemyRoot.position.x - modelRoot.position.x);
-                if (Mathf.Approximately(direction, 0f))
-                {
-                    direction = 1f;
-                }
-                enemyRoot.DOLocalMoveX(enemyRoot.localPosition.x + enemyKnockbackDistance * direction, enemyKnockbackDuration)
+                if (Mathf.Approximately(direction, 0f)) direction = 1f;
+
+                enemyRoot.DOLocalMoveX(
+                        enemyRoot.localPosition.x + enemyKnockbackDistance * direction,
+                        enemyKnockbackDuration)
                     .SetEase(Ease.OutQuad)
                     .SetLoops(2, LoopType.Yoyo);
             }
 
+            // flash color
             if (enemySprite != null)
             {
                 enemySprite.DOKill();
@@ -181,19 +205,24 @@ namespace HalloweenJam.Combat.Animations
                     .SetEase(Ease.Linear);
             }
 
+            // shake cámara
             if (cameraTransform != null)
             {
                 cameraTransform.DOKill();
-                cameraTransform.DOShakePosition(cameraShakeDuration, cameraShakeStrength, vibrato: 10, randomness: 90f, snapping: false, fadeOut: true);
+                cameraTransform.DOShakePosition(
+                    cameraShakeDuration,
+                    cameraShakeStrength,
+                    vibrato: 10,
+                    randomness: 90f,
+                    snapping: false,
+                    fadeOut: true);
             }
         }
 
         private void PlaySfx(AudioClip clip)
         {
             if (audioSource == null || clip == null)
-            {
                 return;
-            }
 
             audioSource.PlayOneShot(clip);
         }
@@ -203,29 +232,30 @@ namespace HalloweenJam.Combat.Animations
             modelRoot.localPosition = modelStartPosition;
 
             if (spriteRenderer != null)
-            {
                 spriteRenderer.color = baseColor;
-            }
 
             if (spriteMaterialInstance != null)
-            {
                 spriteMaterialInstance.SetFloat("_GlowIntensity", 0f);
-            }
 
             if (enemySprite != null)
-            {
                 enemySprite.color = enemyBaseColor;
-            }
         }
 
-        private void DebugLog(string message)
+        private void DebugPhase(string message)
         {
-            if (!enableDebugLogs)
-            {
-                return;
-            }
+            if (!enableDebugLogs && !showTimingOverlay) return;
 
-            Debug.Log($"[LiliaAttackAnimator] {message}", this);
+            string full = $"[LiliaAttackAnimator] {message}";
+            if (enableDebugLogs) Debug.Log(full, this);
+
+            if (showTimingOverlay && debugOverlayText != null)
+            {
+                debugOverlayText.text = $"{DateTime.Now:HH:mm:ss.fff} - {message}\n" + debugOverlayText.text;
+                int maxLines = 10;
+                var lines = debugOverlayText.text.Split('\n');
+                if (lines.Length > maxLines)
+                    debugOverlayText.text = string.Join("\n", lines, 0, maxLines);
+            }
         }
     }
 }

@@ -1,155 +1,166 @@
-using System.Collections;
 using UnityEngine;
+using System.Collections;
 
 /// <summary>
-/// Controla las animaciones direccionales del jugador sin usar Animator Controller.
-/// Cambia los sprites según la dirección del movimiento y congela el último frame al detenerse.
+/// Movimiento clásico tipo Pokémon / Breath of Fire con control total del Animator por clip name.
 /// </summary>
-[RequireComponent(typeof(SpriteRenderer))]
-public class PlayerAnimator : MonoBehaviour
+[RequireComponent(typeof(SpriteRenderer), typeof(Animator))]
+public class GridMovementV3 : MonoBehaviour
 {
-    [Header("Directional Sprite Sets")]
-    [Tooltip("Frames de caminata hacia arriba.")]
-    public Sprite[] upSprites;
-    [Tooltip("Frames de caminata hacia abajo.")]
-    public Sprite[] downSprites;
-    [Tooltip("Frames de caminata hacia la izquierda.")]
-    public Sprite[] leftSprites;
-    [Tooltip("Frames de caminata hacia la derecha.")]
-    public Sprite[] rightSprites;
+    [Header("Grid movement")]
+    [SerializeField] private float gridSize = 1f;
+    [SerializeField] private float moveDuration = 0.15f;
 
-    [Header("Animation Settings")]
-    [SerializeField] private float frameRate = 0.12f;
+    private bool isMoving;
+    private Vector2 moveDir;
+    private Vector2 targetPosition;
+    private Vector2 lastMoveDir = Vector2.down;
 
-    private SpriteRenderer sr;
-    private Coroutine currentAnim;
-    private Vector2 lastDir = Vector2.down;
+    private SpriteRenderer spriteRenderer;
+    private Animator animator;
+    private string currentState;
 
-    private void Awake()
+    [Header("Animator States")]
+    [SerializeField] private string idleUp = "IdleUp";
+    [SerializeField] private string idleDown = "IdleDown";
+    [SerializeField] private string idleSide = "IdleSide";
+    [SerializeField] private string walkUp = "WalkUp";
+    [SerializeField] private string walkDown = "WalkDown";
+    [SerializeField] private string walkSide = "WalkSide";
+
+    [Header("Intro Settings")]
+    [SerializeField] private float introDelay = 1f;
+    [SerializeField] private float introDuration = 2f;
+    private bool introPlaying = true;
+
+    private void Start()
     {
-        sr = GetComponent<SpriteRenderer>();
-        Debug.Log($"[PlayerAnimator] Awake - SpriteRenderer found: {sr != null}");
-        Debug.Log($"[PlayerAnimator] Sprite Sets - Up: {upSprites?.Length ?? 0}, Down: {downSprites?.Length ?? 0}, Left: {leftSprites?.Length ?? 0}, Right: {rightSprites?.Length ?? 0}");
-        
-        if (sr != null && sr.sprite != null)
-        {
-            Debug.Log($"[PlayerAnimator] Initial sprite: {sr.sprite.name}");
-        }
-        else if (sr != null)
-        {
-            Debug.LogWarning("[PlayerAnimator] SpriteRenderer has no initial sprite assigned!");
-        }
+        targetPosition = SnapToGrid(transform.position);
+        transform.position = targetPosition;
+
+        animator = GetComponent<Animator>();
+        spriteRenderer = GetComponent<SpriteRenderer>();
+
+        ChangeAnimationState(idleDown);
+
+        if (introDuration > 0)
+            StartCoroutine(PlayIntro());
+        else
+            introPlaying = false;
     }
 
-    /// <summary>
-    /// Llama este método cada vez que el jugador se mueve.
-    /// </summary>
-    public void PlayMoveAnimation(Vector2 dir)
+    private void Update()
     {
-        Debug.Log($"[PlayerAnimator] PlayMoveAnimation called with direction: {dir}");
-        
-        if (dir != Vector2.zero)
-        {
-            lastDir = dir;
-            Debug.Log($"[PlayerAnimator] Updated lastDir to: {lastDir}");
-        }
+        if (introPlaying) return;
+        if (isMoving) return;
 
-        if (currentAnim != null)
-        {
-            Debug.Log("[PlayerAnimator] Stopping previous animation");
-            StopCoroutine(currentAnim);
-        }
+        moveDir = Vector2.zero;
 
-        Debug.Log($"[PlayerAnimator] Starting AnimateDirection coroutine");
-        currentAnim = StartCoroutine(AnimateDirection(dir));
-    }
+        // Input WASD
+        if (Input.GetKey(KeyCode.W)) moveDir = Vector2.up;
+        else if (Input.GetKey(KeyCode.S)) moveDir = Vector2.down;
+        else if (Input.GetKey(KeyCode.A)) moveDir = Vector2.left;
+        else if (Input.GetKey(KeyCode.D)) moveDir = Vector2.right;
 
-    /// <summary>
-    /// Llama este método cuando el jugador se detiene.
-    /// </summary>
-    public void StopAnimation()
-    {
-        Debug.Log($"[PlayerAnimator] StopAnimation called. LastDir: {lastDir}");
-        
-        if (currentAnim != null)
+        if (moveDir != Vector2.zero)
         {
-            Debug.Log("[PlayerAnimator] Stopping current animation coroutine");
-            StopCoroutine(currentAnim);
-            currentAnim = null;
-        }
-
-        Sprite[] set = GetSpriteSet(lastDir);
-        Debug.Log($"[PlayerAnimator] Selected sprite set length: {set?.Length ?? 0}");
-        
-        if (set != null && set.Length > 0)
-        {
-            sr.sprite = set[set.Length - 1]; // congela último frame
-            Debug.Log($"[PlayerAnimator] Set idle sprite: {sr.sprite.name} (last frame of set)");
+            targetPosition += moveDir * gridSize;
+            StartCoroutine(MoveToCell(targetPosition));
+            PlayWalkAnim(moveDir);
+            lastMoveDir = moveDir;
         }
         else
         {
-            Debug.LogWarning($"[PlayerAnimator] No sprite set available for direction {lastDir}!");
+            PlayIdleAnim();
         }
     }
 
-    private IEnumerator AnimateDirection(Vector2 dir)
+    private IEnumerator MoveToCell(Vector2 destination)
     {
-        Sprite[] set = GetSpriteSet(dir);
-        Debug.Log($"[PlayerAnimator] AnimateDirection started. Direction: {dir}, Sprite set length: {set?.Length ?? 0}");
-        
-        if (set == null || set.Length == 0)
+        isMoving = true;
+
+        Vector2 start = transform.position;
+        float elapsed = 0f;
+
+        while (elapsed < moveDuration)
         {
-            Debug.LogError($"[PlayerAnimator] No sprites available for direction {dir}! Animation cannot play.");
-            yield break;
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / moveDuration);
+            transform.position = Vector2.Lerp(start, destination, t);
+            yield return null;
         }
 
-        int index = 0;
-        int frameCount = 0;
-        while (true)
-        {
-            sr.sprite = set[index];
-            if (frameCount < 3) // Solo log los primeros 3 frames para no saturar
-            {
-                Debug.Log($"[PlayerAnimator] Frame {frameCount}: Displaying sprite '{set[index].name}' (index {index}/{set.Length})");
-            }
-            index = (index + 1) % set.Length;
-            frameCount++;
-            yield return new WaitForSeconds(frameRate);
-        }
+        transform.position = destination;
+        isMoving = false;
     }
 
-    private Sprite[] GetSpriteSet(Vector2 dir)
+    private IEnumerator PlayIntro()
     {
-        Sprite[] result = null;
-        string direction = "";
-        
-        if (dir.y > 0) 
+        yield return new WaitForSeconds(introDelay);
+
+        float elapsed = 0f;
+        while (elapsed < introDuration)
         {
-            result = upSprites;
-            direction = "UP";
+            targetPosition += Vector2.up * gridSize;
+            StartCoroutine(MoveToCell(targetPosition));
+            PlayWalkAnim(Vector2.up);
+            lastMoveDir = Vector2.up;
+
+            elapsed += moveDuration;
+            yield return new WaitForSeconds(moveDuration);
         }
-        else if (dir.y < 0) 
+
+        introPlaying = false;
+        PlayIdleAnim();
+    }
+
+    private void PlayWalkAnim(Vector2 dir)
+    {
+        if (dir == Vector2.up)
         {
-            result = downSprites;
-            direction = "DOWN";
+            ChangeAnimationState(walkUp);
         }
-        else if (dir.x > 0) 
+        else if (dir == Vector2.down)
         {
-            result = rightSprites;
-            direction = "RIGHT";
-        }
-        else if (dir.x < 0) 
-        {
-            result = leftSprites;
-            direction = "LEFT";
+            ChangeAnimationState(walkDown);
         }
         else
         {
-            result = downSprites;
-            direction = "DOWN (default)";
+            spriteRenderer.flipX = (dir == Vector2.left);
+            ChangeAnimationState(walkSide);
         }
-        
-        Debug.Log($"[PlayerAnimator] GetSpriteSet({dir}) -> {direction} sprites (count: {result?.Length ?? 0})");
-        return result;
+    }
+
+    private void PlayIdleAnim()
+    {
+        if (lastMoveDir == Vector2.up)
+        {
+            ChangeAnimationState(idleUp);
+        }
+        else if (lastMoveDir == Vector2.down)
+        {
+            ChangeAnimationState(idleDown);
+        }
+        else
+        {
+            spriteRenderer.flipX = (lastMoveDir == Vector2.left);
+            ChangeAnimationState(idleSide);
+        }
+    }
+
+    private void ChangeAnimationState(string newState)
+    {
+        if (animator == null || string.IsNullOrEmpty(newState)) return;
+        if (currentState == newState) return;
+
+        animator.Play(newState, 0, 0f);
+        currentState = newState;
+    }
+
+    private Vector2 SnapToGrid(Vector2 pos)
+    {
+        float snappedX = Mathf.Round(pos.x / gridSize) * gridSize;
+        float snappedY = Mathf.Round(pos.y / gridSize) * gridSize;
+        return new Vector2(snappedX, snappedY);
     }
 }
