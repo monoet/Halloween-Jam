@@ -62,7 +62,7 @@ namespace HalloweenJam.Combat
 
             battleOver = false;
             isPlayerTurn = true;
-            IsBusy = false;
+            SetBusy(false, "Initialize");
             PlayerTurnReady?.Invoke();
         }
 
@@ -74,7 +74,7 @@ namespace HalloweenJam.Combat
             }
 
             isPlayerTurn = false;
-            IsBusy = true;
+            SetBusy(true, "ExecutePlayerTurn");
             PlayerTurnCommitted?.Invoke();
 
             if (playerTurnRoutine != null)
@@ -93,7 +93,7 @@ namespace HalloweenJam.Combat
             }
 
             battleOver = true;
-            IsBusy = false;
+            SetBusy(false, "NotifyBattleEnded");
             StopActiveCoroutines();
             BattleEnded?.Invoke();
         }
@@ -101,6 +101,7 @@ namespace HalloweenJam.Combat
         public void Dispose()
         {
             StopActiveCoroutines();
+            SetBusy(false, "Dispose");
         }
 
         private IEnumerator PlayerTurnRoutine()
@@ -112,7 +113,7 @@ namespace HalloweenJam.Combat
 
             if (battleOver)
             {
-                IsBusy = false;
+                SetBusy(false, "PlayerTurnRoutine aborted (battle over)");
                 yield break;
             }
 
@@ -121,7 +122,7 @@ namespace HalloweenJam.Combat
 
         private void BeginEnemyTurn()
         {
-            IsBusy = true;
+            SetBusy(true, "BeginEnemyTurn");
             EnemyTurnStarted?.Invoke();
 
             if (enemyTurnRoutine != null)
@@ -147,12 +148,12 @@ namespace HalloweenJam.Combat
         {
             if (battleOver)
             {
-                IsBusy = false;
+                SetBusy(false, "EnterPlayerTurn (battle over)");
                 return;
             }
 
             isPlayerTurn = true;
-            IsBusy = false;
+            SetBusy(false, "EnterPlayerTurn");
             PlayerTurnReady?.Invoke();
         }
 
@@ -180,6 +181,17 @@ namespace HalloweenJam.Combat
                 coroutineRunner.StopCoroutine(enemyTurnRoutine);
                 enemyTurnRoutine = null;
             }
+        }
+
+        private void SetBusy(bool value, string reason)
+        {
+            if (IsBusy == value)
+            {
+                return;
+            }
+
+            IsBusy = value;
+            Debug.LogFormat("[BattleOrchestrator] IsBusy -> {0} ({1})", value, reason);
         }
     }
 }

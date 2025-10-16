@@ -72,7 +72,7 @@ public class BattleRuntimeDebug : MonoBehaviour
         float y = margin;
         Rect rect = new Rect(x, y, buttonSize.x, buttonSize.y);
 
-        if (GUI.Button(rect, "⚔ Attack", buttonStyle))
+        if (GUI.Button(rect, "Attack", buttonStyle))
         {
             Debug.Log("[BattleRuntimeDebug] Manual attack trigger pressed.");
             battleManager.OnAttackButton();
@@ -85,7 +85,7 @@ public class BattleRuntimeDebug : MonoBehaviour
         float y = margin + buttonSize.y + 5f;
         Rect rect = new Rect(x, y, buttonSize.x, buttonSize.y);
 
-        if (GUI.Button(rect, "☠ Enemy Turn", buttonStyle))
+        if (GUI.Button(rect, "Enemy Turn", buttonStyle))
         {
             if (orchestrator == null)
             {
@@ -121,10 +121,10 @@ public class BattleRuntimeDebug : MonoBehaviour
         GUI.Box(box, GUIContent.none);
 
         GUILayout.BeginArea(box);
-        GUILayout.Label("⚙ Battle State", headerStyle);
+        GUILayout.Label("Battle State", headerStyle);
         GUILayout.Space(5);
 
-        bool isBusy = !orchestrator.CanPlayerAct && !orchestrator.BattleOver;
+        bool isBusy = orchestrator.IsBusy;
         GUILayout.Label($"IsBusy: {(isBusy ? "TRUE" : "false")}", Colorize(isBusy));
         GUILayout.Label($"CanPlayerAct: {orchestrator.CanPlayerAct}", Colorize(orchestrator.CanPlayerAct));
         GUILayout.Label($"BattleOver: {orchestrator.BattleOver}", Colorize(orchestrator.BattleOver));
@@ -139,3 +139,7 @@ public class BattleRuntimeDebug : MonoBehaviour
         return style;
     }
 }
+
+
+
+
