@@ -118,7 +118,7 @@ namespace HalloweenJam.Combat
         {
             if (combatantState != null && characterRuntime != null)
             {
-                combatantState.InitializeFrom(characterRuntime);
+                combatantState.EnsureInitialized(characterRuntime);
             }
         }
 
@@ -156,6 +156,11 @@ namespace HalloweenJam.Combat
 
         private void HandleStatsChanged()
         {
+            if (combatantState != null && characterRuntime != null)
+            {
+                combatantState.InitializeFrom(characterRuntime, preserveCurrentFraction: true);
+            }
+
             RaiseHealthChanged();
         }
 
