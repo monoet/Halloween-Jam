@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
 
@@ -33,20 +34,7 @@ public class CharacterRuntime : MonoBehaviour
 
     private void Awake()
     {
-        if (archetype != null)
-        {
-            core.Level = 1;
-
-            core.BaseSTR = archetype.baseSTR;
-            core.BaseRES = archetype.baseRES;
-            core.BaseAGI = archetype.baseAGI;
-            core.BaseLCK = archetype.baseLCK;
-            core.BaseVIT = archetype.baseVIT;
-
-            core.characterName = archetype.characterName;
-            core.portrait = archetype.portrait;
-        }
-
+        InitializeFromArchetype();
         Recalc();
     }
 
@@ -57,6 +45,8 @@ public class CharacterRuntime : MonoBehaviour
             Debug.LogWarning(name + ": No LinearFormula assigned!");
             return;
         }
+
+        ApplyGrowthFromArchetype();
 
         final.STR = statFormula.STR(core);
         final.RES = statFormula.RES(core);
@@ -72,12 +62,22 @@ public class CharacterRuntime : MonoBehaviour
 
         if (derivedFormula != null)
         {
-            final.Physical    = derivedFormula.AttackPower(core);
-            final.MagicPower  = derivedFormula.MagicPower(core);
-            final.PhysDefense = derivedFormula.PhysDefense(core);
-            final.MagDefense  = derivedFormula.MagDefense(core);
-            final.CritChance  = derivedFormula.CritChance(core);
-            final.Speed       = derivedFormula.Speed(core);
+            var baseStats = final;
+            final.Physical    = derivedFormula.AttackPower(baseStats);
+            final.MagicPower  = derivedFormula.MagicPower(baseStats);
+            final.PhysDefense = derivedFormula.PhysDefense(baseStats);
+            final.MagDefense  = derivedFormula.MagDefense(baseStats);
+            final.CritChance  = derivedFormula.CritChance(baseStats);
+            final.Speed       = derivedFormula.Speed(baseStats);
+        }
+        else
+        {
+            final.Physical = final.STR;
+            final.MagicPower = final.RES;
+            final.PhysDefense = final.VIT;
+            final.MagDefense = final.RES;
+            final.CritChance = final.LCK * 0.01f;
+            final.Speed = final.AGI;
         }
 
         OnStatsChanged?.Invoke();
@@ -105,5 +105,139 @@ public class CharacterRuntime : MonoBehaviour
 
     public int Level => core.Level;
     public float BaseSTR => core.BaseSTR;
-}
 
+    private void InitializeFromArchetype()
+    {
+        if (archetype == null)
+        {
+            return;
+        }
+
+        if (core.Level <= 0)
+        {
+            core.Level = 1;
+        }
+
+        core.characterName = archetype.characterName;
+        core.portrait = archetype.portrait;
+    }
+
+    private void ApplyGrowthFromArchetype()
+    {
+        if (archetype == null)
+        {
+            return;
+        }
+
+        int safeMaxLevel = StatGrowthCalculator.GetSafeMaxLevel(archetype.maxLevel);
+        int level = StatGrowthCalculator.ClampLevel(core.Level, safeMaxLevel);
+
+        if (level != core.Level)
+        {
+            Debug.LogWarning($"{name}: Level clamped from {core.Level} to {level} for archetype {archetype.name}.", this);
+            core.Level = level;
+        }
+
+        core.BaseSTR = StatGrowthCalculator.CalculateStat(archetype.baseSTR, archetype.strGrowth, level, safeMaxLevel);
+        core.BaseRES = StatGrowthCalculator.CalculateStat(archetype.baseRES, archetype.resGrowth, level, safeMaxLevel);
+        core.BaseAGI = StatGrowthCalculator.CalculateStat(archetype.baseAGI, archetype.agiGrowth, level, safeMaxLevel);
+        core.BaseLCK = StatGrowthCalculator.CalculateStat(archetype.baseLCK, archetype.lckGrowth, level, safeMaxLevel);
+        core.BaseVIT = StatGrowthCalculator.CalculateStat(archetype.baseVIT, archetype.vitGrowth, level, safeMaxLevel);
+    }
+
+    private static class StatGrowthCalculator
+    {
+        private const int AbsoluteMaxLevel = 999;
+
+        private static readonly Dictionary<AnimationCurve, CacheEntry> CurveCache = new();
+
+        public static int GetSafeMaxLevel(int archetypeMaxLevel)
+        {
+            return Mathf.Clamp(archetypeMaxLevel, 1, AbsoluteMaxLevel);
+        }
+
+        public static int ClampLevel(int level, int safeMaxLevel)
+        {
+            return Mathf.Clamp(level, 1, Mathf.Max(1, safeMaxLevel));
+        }
+
+        public static float CalculateStat(float baseValue, AnimationCurve curve, int level, int safeMaxLevel)
+        {
+            if (curve == null)
+            {
+                return baseValue;
+            }
+
+            int clampedLevel = ClampLevel(level, safeMaxLevel);
+            float growth = GetCumulativeGrowth(curve, clampedLevel, safeMaxLevel);
+            return baseValue + growth;
+        }
+
+        private static float GetCumulativeGrowth(AnimationCurve curve, int level, int safeMaxLevel)
+        {
+            int requiredHash = ComputeCurveHash(curve);
+
+            if (!CurveCache.TryGetValue(curve, out var entry) ||
+                entry.CurveHash != requiredHash ||
+                entry.MaxLevelComputed < safeMaxLevel)
+            {
+                entry = BuildEntry(curve, safeMaxLevel, requiredHash);
+                CurveCache[curve] = entry;
+            }
+
+            int index = Mathf.Clamp(level, 1, entry.Values.Length - 1);
+            return entry.Values[index];
+        }
+
+        private static CacheEntry BuildEntry(AnimationCurve curve, int safeMaxLevel, int curveHash)
+        {
+            int length = Mathf.Max(safeMaxLevel + 1, 2);
+            var values = new float[length];
+            float running = 0f;
+            values[0] = 0f;
+            values[1] = 0f;
+
+            for (int lvl = 2; lvl < length; lvl++)
+            {
+                running += curve.Evaluate(lvl);
+                values[lvl] = running;
+            }
+
+            return new CacheEntry(curveHash, safeMaxLevel, values);
+        }
+
+        private static int ComputeCurveHash(AnimationCurve curve)
+        {
+            unchecked
+            {
+                int hash = 17;
+                foreach (var key in curve.keys)
+                {
+                    hash = hash * 31 + key.time.GetHashCode();
+                    hash = hash * 31 + key.value.GetHashCode();
+                    hash = hash * 31 + key.inTangent.GetHashCode();
+                    hash = hash * 31 + key.outTangent.GetHashCode();
+                    hash = hash * 31 + key.inWeight.GetHashCode();
+                    hash = hash * 31 + key.outWeight.GetHashCode();
+                    hash = hash * 31 + ((int)key.weightedMode);
+                }
+
+                return hash;
+            }
+        }
+
+        private sealed class CacheEntry
+        {
+            public CacheEntry(int curveHash, int maxLevelComputed, float[] values)
+            {
+                CurveHash = curveHash;
+                MaxLevelComputed = maxLevelComputed;
+                Values = values;
+            }
+
+            public int CurveHash { get; }
+            public int MaxLevelComputed { get; }
+            public float[] Values { get; }
+        }
+    }
+}
