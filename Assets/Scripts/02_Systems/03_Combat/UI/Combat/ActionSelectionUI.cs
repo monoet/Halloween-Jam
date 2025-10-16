@@ -48,7 +48,7 @@ namespace HalloweenJam.UI.Combat
             if (actions == null || actions.Count == 0)
             {
                 Debug.LogWarning("[ActionSelectionUI] Entity has no available actions.");
-                callback?.Invoke(entity.DefaultAction);
+                EnsureActive(false);
                 return;
             }
 

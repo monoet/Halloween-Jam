@@ -158,9 +158,16 @@ namespace HalloweenJam.Combat
                 return;
             }
 
-            QueueDefaultAction();
-            playerActionMenu?.HideMenu();
-            orchestrator.ExecutePlayerTurn();
+            if (playerEntity is RuntimeCombatEntity runtime && runtime.AvailableActions != null && runtime.AvailableActions.Count > 0)
+            {
+                runtime.QueueAction(runtime.AvailableActions[0]);
+                playerActionMenu?.HideMenu();
+                orchestrator.ExecutePlayerTurn();
+            }
+            else
+            {
+                DebugLog("OnAttackButton: No available actions to queue and selector unavailable. Turn skipped.");
+            }
         }
 
         private void InitializeBattle()
@@ -176,15 +183,6 @@ namespace HalloweenJam.Combat
 
             uiController.ShowEngagementMessage();
             musicController?.PlayBattleMusic();
-        }
-
-        private void QueueDefaultAction()
-        {
-            if (playerEntity is RuntimeCombatEntity runtime)
-            {
-                var defaultAction = runtime.DefaultAction;
-                runtime.QueueAction(defaultAction);
-            }
         }
 
         private bool TryHandlePlayerActionSelection()
@@ -209,8 +207,13 @@ namespace HalloweenJam.Combat
 
             actionSelectionUI.Show(runtime, selected =>
             {
-                var chosen = selected ?? runtime.DefaultAction;
-                runtime.QueueAction(chosen);
+                if (selected == null)
+                {
+                    DebugLog("OnAttackButton: Selection UI returned null action. Turn cancelled.");
+                    return;
+                }
+
+                runtime.QueueAction(selected);
                 orchestrator.ExecutePlayerTurn();
             });
 
