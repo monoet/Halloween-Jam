@@ -1,4 +1,5 @@
 using System;
+using System;
 using System.Collections;
 using HalloweenJam.Combat.Animations;
 using HalloweenJam.Combat.Strategies;
@@ -25,6 +26,8 @@ namespace HalloweenJam.Combat
         private Coroutine enemyTurnRoutine;
         private bool battleOver;
         private bool isPlayerTurn;
+
+        public bool IsBusy { get; private set; }
 
         public BattleOrchestrator(
             MonoBehaviour coroutineRunner,
@@ -60,17 +63,19 @@ namespace HalloweenJam.Combat
 
             battleOver = false;
             isPlayerTurn = true;
+            IsBusy = false;
             PlayerTurnReady?.Invoke();
         }
 
         public void ExecutePlayerTurn()
         {
-            if (!CanPlayerAct)
+            if (!CanPlayerAct || IsBusy)
             {
                 return;
             }
 
             isPlayerTurn = false;
+            IsBusy = true;
             PlayerTurnCommitted?.Invoke();
 
             if (playerTurnRoutine != null)
@@ -89,6 +94,7 @@ namespace HalloweenJam.Combat
             }
 
             battleOver = true;
+            IsBusy = false;
             StopActiveCoroutines();
             BattleEnded?.Invoke();
         }
@@ -107,6 +113,7 @@ namespace HalloweenJam.Combat
 
             if (battleOver)
             {
+                IsBusy = false;
                 yield break;
             }
 
@@ -115,6 +122,7 @@ namespace HalloweenJam.Combat
 
         private void BeginEnemyTurn()
         {
+            IsBusy = true;
             EnemyTurnStarted?.Invoke();
 
             if (enemyTurnRoutine != null)
@@ -140,10 +148,12 @@ namespace HalloweenJam.Combat
         {
             if (battleOver)
             {
+                IsBusy = false;
                 return;
             }
 
             isPlayerTurn = true;
+            IsBusy = false;
             PlayerTurnReady?.Invoke();
         }
 
@@ -174,4 +184,3 @@ namespace HalloweenJam.Combat
         }
     }
 }
-

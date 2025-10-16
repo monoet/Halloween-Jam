@@ -145,9 +145,15 @@ namespace HalloweenJam.Combat
 
         public void OnAttackButton()
         {
-            if (orchestrator == null || !orchestrator.CanPlayerAct)
+            if (orchestrator == null)
             {
-                DebugLog("OnAttackButton ignored: orchestrator ready? {0}", orchestrator != null);
+                DebugLog("OnAttackButton ignored: orchestrator missing.");
+                return;
+            }
+
+            if (!orchestrator.CanPlayerAct || orchestrator.IsBusy)
+            {
+                DebugLog("OnAttackButton ignored: CanPlayerAct={0}, IsBusy={1}", orchestrator.CanPlayerAct, orchestrator.IsBusy);
                 return;
             }
 
@@ -158,11 +164,24 @@ namespace HalloweenJam.Combat
                 return;
             }
 
+            if (orchestrator.IsBusy)
+            {
+                DebugLog("OnAttackButton: Orchestrator became busy before queuing fallback action.");
+                return;
+            }
+
             if (playerEntity is RuntimeCombatEntity runtime && runtime.AvailableActions != null && runtime.AvailableActions.Count > 0)
             {
                 runtime.QueueAction(runtime.AvailableActions[0]);
                 playerActionMenu?.HideMenu();
-                orchestrator.ExecutePlayerTurn();
+                if (!orchestrator.IsBusy)
+                {
+                    orchestrator.ExecutePlayerTurn();
+                }
+                else
+                {
+                    DebugLog("OnAttackButton: Skipped ExecutePlayerTurn because orchestrator became busy.");
+                }
             }
             else
             {
@@ -205,6 +224,8 @@ namespace HalloweenJam.Combat
 
             playerActionMenu?.HideMenu();
 
+            actionSelectionUI.SetInteractionGuard(() => orchestrator != null && orchestrator.IsBusy);
+
             actionSelectionUI.Show(runtime, selected =>
             {
                 if (selected == null)
@@ -214,7 +235,14 @@ namespace HalloweenJam.Combat
                 }
 
                 runtime.QueueAction(selected);
-                orchestrator.ExecutePlayerTurn();
+                if (!orchestrator.IsBusy)
+                {
+                    orchestrator.ExecutePlayerTurn();
+                }
+                else
+                {
+                    DebugLog("OnAttackButton: Execute skipped because orchestrator is busy.");
+                }
             });
 
             return true;

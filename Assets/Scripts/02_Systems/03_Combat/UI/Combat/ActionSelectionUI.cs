@@ -22,6 +22,7 @@ namespace HalloweenJam.UI.Combat
 
         private readonly List<Button> spawnedButtons = new();
         private Action<ActionData> onSelection;
+        private Func<bool> interactionGuard;
 
         private void Awake()
         {
@@ -85,6 +86,11 @@ namespace HalloweenJam.UI.Combat
             }
         }
 
+        public void SetInteractionGuard(Func<bool> guard)
+        {
+            interactionGuard = guard;
+        }
+
         public void Hide()
         {
             ClearButtons();
@@ -94,6 +100,12 @@ namespace HalloweenJam.UI.Combat
 
         private void HandleSelection(ActionData action)
         {
+            if (interactionGuard != null && interactionGuard())
+            {
+                Debug.Log("[ActionSelectionUI] Selection ignored because interaction is locked.");
+                return;
+            }
+
             Hide();
             onSelection?.Invoke(action);
         }
