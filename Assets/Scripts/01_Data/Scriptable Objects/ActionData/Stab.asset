@@ -10,22 +10,22 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 1772b1d6e0900de4ca4e14a530149a6c, type: 3}
-  m_Name: Fireball
+  m_Name: Stab
   m_EditorClassIdentifier: Assembly-CSharp::ActionData
   actionId: 
-  actionName: 
+  actionName: Stab
   spCost: 0
   cpCost: 0
-  basePower: 10
-  strScaling: 1
+  basePower: 0
+  strScaling: 0
   resScaling: 0
-  agiScaling: 0
+  agiScaling: 1
   lckScaling: 0
   vitScaling: 0
   physicalScaling: 0
   magicScaling: 0
   description: 
-  cpGain: 0
+  cpGain: 1
   hitChance: 1
   isTimedHit: 0
   timedDuration: 1

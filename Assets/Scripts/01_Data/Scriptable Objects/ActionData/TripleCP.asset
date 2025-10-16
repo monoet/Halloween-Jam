@@ -10,10 +10,10 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 1772b1d6e0900de4ca4e14a530149a6c, type: 3}
-  m_Name: ActionData
+  m_Name: TripleCP
   m_EditorClassIdentifier: Assembly-CSharp::ActionData
   actionId: 
-  actionName: Basic Attack
+  actionName: TripleCp
   spCost: 0
   cpCost: 0
   basePower: 0
@@ -25,9 +25,9 @@ MonoBehaviour:
   physicalScaling: 0
   magicScaling: 0
   description: 
-  cpGain: 1
+  cpGain: 3
   hitChance: 1
-  isTimedHit: 0
+  isTimedHit: 1
   timedDuration: 1
   timedTarget: 0.5
   timedPerfectWindow: 0.06

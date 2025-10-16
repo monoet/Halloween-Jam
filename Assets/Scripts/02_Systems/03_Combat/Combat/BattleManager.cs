@@ -129,18 +129,21 @@ namespace HalloweenJam.Combat
         private void OnDisable()
         {
             playerActionMenu?.ClearAttackCallbacks();
-            uiController?.Detach();
+
+            if (uiController != null)
+            {
+                try
+                {
+                    uiController.Detach();
+                }
+                catch (MissingReferenceException)
+                {
+                    // Ignorar: la UI ya fue destruida
+                }
+            }
+
             outcomeController?.Dispose();
             orchestrator?.Dispose();
-            actionSelectionUI?.Hide();
-        }
-
-        private void OnDestroy()
-        {
-            if (outcomeController != null)
-            {
-                outcomeController.BattleFinished -= OnBattleFinished;
-            }
         }
 
         public void OnAttackButton()
@@ -151,18 +154,94 @@ namespace HalloweenJam.Combat
                 return;
             }
 
-            DebugLog("OnAttackButton: Player initiated attack.");
+            var selector = ResolveActionSelector();
+            if (selector != null)
+            {
+                var runtimePlayer = playerEntity as RuntimeCombatEntity;
+                if (runtimePlayer == null)
+                {
+                    DebugLog("OnAttackButton: Player entity is not RuntimeCombatEntity, using default action.");
+                    orchestrator.ExecutePlayerTurn();
+                    return;
+                }
 
-            if (TryHandlePlayerActionSelection())
+        bool selectorInsideActionMenu = false;
+        if (playerActionMenu != null)
+        {
+            var selectorRoot = selector.RootTransform;
+            var selectorContainer = selector.ButtonContainer;
+
+            if (selectorRoot != null && selectorRoot.IsChildOf(playerActionMenu.transform))
+            {
+                selectorInsideActionMenu = true;
+            }
+            else if (selectorContainer != null && selectorContainer.IsChildOf(playerActionMenu.transform))
+            {
+                selectorInsideActionMenu = true;
+            }
+        }
+
+        DebugLog("OnAttackButton: selectorInsideActionMenu={0}", selectorInsideActionMenu);
+        bool? previousAutoHide = null;
+
+        if (playerActionMenu != null)
+        {
+            previousAutoHide = playerActionMenu.AutoHideOnConfirm;
+
+            if (selectorInsideActionMenu)
+            {
+                playerActionMenu.AutoHideOnConfirm = false;
+            }
+            else if (previousAutoHide.Value)
+            {
+                // When the selector lives outside the action menu we can safely hide it right away.
+                playerActionMenu.HideMenu();
+            }
+        }
+
+        void RestoreMenuState()
+        {
+            if (playerActionMenu == null || !previousAutoHide.HasValue)
             {
                 return;
             }
 
-            QueueDefaultAction();
-            playerActionMenu?.HideMenu();
-            orchestrator.ExecutePlayerTurn();
+            playerActionMenu.AutoHideOnConfirm = previousAutoHide.Value;
+
+            if (selectorInsideActionMenu && previousAutoHide.Value)
+            {
+                playerActionMenu.HideMenu();
+            }
         }
 
+                DebugLog("OnAttackButton: Opening ActionSelectionUI for player.");
+                try
+                {
+                    selector.Show(runtimePlayer, selectedAction =>
+                    {
+                        DebugLog("Action selected: {0}", selectedAction != null ? selectedAction.name : "null");
+
+                        if (selectedAction != null)
+                {
+                    runtimePlayer.QueueAction(selectedAction);
+                }
+
+                orchestrator.ExecutePlayerTurn();
+                RestoreMenuState();
+            });
+        }
+        catch
+        {
+            RestoreMenuState();
+            throw;
+        }
+
+                return;
+            }
+
+            DebugLog("OnAttackButton: No ActionSelectionUI assigned, using default action.");
+            orchestrator.ExecutePlayerTurn();
+        }
         private void InitializeBattle()
         {
             uiController.Initialize(playerEntity, enemyEntity);
@@ -176,45 +255,6 @@ namespace HalloweenJam.Combat
 
             uiController.ShowEngagementMessage();
             musicController?.PlayBattleMusic();
-        }
-
-        private void QueueDefaultAction()
-        {
-            if (playerEntity is RuntimeCombatEntity runtime)
-            {
-                var defaultAction = runtime.DefaultAction;
-                runtime.QueueAction(defaultAction);
-            }
-        }
-
-        private bool TryHandlePlayerActionSelection()
-        {
-            if (actionSelectionUI == null)
-            {
-                return false;
-            }
-
-            if (playerEntity is not RuntimeCombatEntity runtime)
-            {
-                return false;
-            }
-
-            var actions = runtime.AvailableActions;
-            if (actions == null || actions.Count == 0)
-            {
-                return false;
-            }
-
-            playerActionMenu?.HideMenu();
-
-            actionSelectionUI.Show(runtime, selected =>
-            {
-                var chosen = selected ?? runtime.DefaultAction;
-                runtime.QueueAction(chosen);
-                orchestrator.ExecutePlayerTurn();
-            });
-
-            return true;
         }
 
         private void OnBattleFinished(BattleOutcome outcome)
@@ -282,5 +322,27 @@ namespace HalloweenJam.Combat
                 Debug.Log("[BattleManager] " + message);
             }
         }
+
+        private ActionSelectionUI ResolveActionSelector()
+        {
+            if (actionSelectionUI != null)
+            {
+                return actionSelectionUI;
+            }
+
+            if (playerActionMenu != null)
+            {
+                actionSelectionUI = playerActionMenu.GetComponentInChildren<ActionSelectionUI>(true);
+                if (actionSelectionUI != null)
+                {
+                    return actionSelectionUI;
+                }
+            }
+
+            actionSelectionUI = GetComponentInChildren<ActionSelectionUI>(true);
+            return actionSelectionUI;
+        }
     }
 }
+
+

@@ -23,6 +23,22 @@ namespace HalloweenJam.UI.Combat
         private readonly List<Button> spawnedButtons = new();
         private Action<ActionData> onSelection;
 
+        public Transform RootTransform
+        {
+            get
+            {
+                if (panelRoot != null)
+                    return panelRoot.transform;
+
+                if (buttonContainer != null)
+                    return buttonContainer;
+
+                return transform;
+            }
+        }
+
+        public Transform ButtonContainer => buttonContainer != null ? buttonContainer : transform;
+
         private void Awake()
         {
             if (panelRoot == null && buttonContainer != null)
@@ -36,6 +52,9 @@ namespace HalloweenJam.UI.Combat
             }
         }
 
+        /// <summary>
+        /// Muestra el listado de acciones disponibles para un combat entity.
+        /// </summary>
         public void Show(RuntimeCombatEntity entity, Action<ActionData> callback)
         {
             if (entity == null)
@@ -45,10 +64,30 @@ namespace HalloweenJam.UI.Combat
             }
 
             var actions = entity.AvailableActions;
-            if (actions == null || actions.Count == 0)
+            var renderList = new List<ActionData>();
+
+            if (actions != null)
             {
-                Debug.LogWarning("[ActionSelectionUI] Entity has no available actions.");
-                callback?.Invoke(entity.DefaultAction);
+                foreach (var action in actions)
+                {
+                    if (action != null)
+                    {
+                        renderList.Add(action);
+                    }
+                }
+            }
+
+            if (renderList.Count == 0 && entity.DefaultAction != null)
+            {
+                Debug.LogWarning("[ActionSelectionUI] No available actions found; adding default action as fallback.");
+                renderList.Add(entity.DefaultAction);
+            }
+
+            Debug.LogFormat("[ActionSelectionUI] Show called for {0}. Rendering {1} actions.", entity.DisplayName, renderList.Count);
+            if (renderList.Count == 0)
+            {
+                Debug.LogWarning("[ActionSelectionUI] Unable to render actions: list is empty.");
+                EnsureActive(false);
                 return;
             }
 
@@ -57,12 +96,9 @@ namespace HalloweenJam.UI.Combat
             ClearButtons();
             EnsureActive(true);
 
-            foreach (var action in actions)
+            foreach (var action in renderList)
             {
-                if (action == null)
-                {
-                    continue;
-                }
+                if (action == null) continue;
 
                 var button = CreateButton();
                 spawnedButtons.Add(button);
@@ -76,9 +112,7 @@ namespace HalloweenJam.UI.Combat
                 {
                     var uiLabel = button.GetComponentInChildren<Text>();
                     if (uiLabel != null)
-                    {
                         uiLabel.text = action.ActionName;
-                    }
                 }
 
                 button.onClick.AddListener(() => HandleSelection(action));
@@ -101,17 +135,11 @@ namespace HalloweenJam.UI.Combat
         private void EnsureActive(bool active)
         {
             if (panelRoot != null)
-            {
                 panelRoot.SetActive(active);
-            }
             else if (buttonContainer != null)
-            {
                 buttonContainer.gameObject.SetActive(active);
-            }
             else
-            {
                 gameObject.SetActive(active);
-            }
         }
 
         private void ClearButtons()
@@ -137,10 +165,9 @@ namespace HalloweenJam.UI.Combat
             }
 
             if (buttonPrefab != null)
-            {
                 return Instantiate(buttonPrefab, buttonContainer);
-            }
 
+            // Fallback manual button creation
             var buttonGO = new GameObject("ActionButton", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
             var rect = buttonGO.GetComponent<RectTransform>();
             rect.SetParent(buttonContainer, false);
@@ -162,6 +189,23 @@ namespace HalloweenJam.UI.Combat
             image.color = new Color(0.2f, 0.25f, 0.3f, 0.9f);
 
             return buttonGO.GetComponent<Button>();
+        }
+
+        /// <summary>
+        /// Wrapper para aceptar una entidad genérica (ICombatEntity).
+        /// Solo procede si es RuntimeCombatEntity.
+        /// </summary>
+        public void ShowForEntity(ICombatEntity entity, Action<ActionData> onActionSelected)
+        {
+            if (entity is RuntimeCombatEntity runtimeEntity)
+            {
+                Show(runtimeEntity, onActionSelected);
+            }
+            else
+            {
+                Debug.LogWarning("[ActionSelectionUI] Tried to show for entity that is not RuntimeCombatEntity.");
+                gameObject.SetActive(false);
+            }
         }
     }
 }

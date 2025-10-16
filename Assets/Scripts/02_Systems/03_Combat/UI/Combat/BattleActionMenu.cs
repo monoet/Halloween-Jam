@@ -82,6 +82,12 @@ namespace HalloweenJam.UI.Combat
             OnAttackConfirmed = null;
         }
 
+        public bool AutoHideOnConfirm
+        {
+            get => autoHideOnConfirm;
+            set => autoHideOnConfirm = value;
+        }
+
         public void ShowMenu()
         {
             menuActive = true;
@@ -207,11 +213,17 @@ namespace HalloweenJam.UI.Combat
 
         private void TriggerAttackConfirm()
         {
+            Debug.LogFormat("[BattleActionMenu] TriggerAttackConfirm (autoHideOnConfirm={0})", autoHideOnConfirm);
             OnAttackConfirmed?.Invoke();
 
             if (autoHideOnConfirm)
             {
+                Debug.Log("[BattleActionMenu] autoHideOnConfirm active, hiding menu.");
                 HideMenu();
+            }
+            else
+            {
+                Debug.Log("[BattleActionMenu] autoHideOnConfirm disabled, keeping menu open.");
             }
         }
 
