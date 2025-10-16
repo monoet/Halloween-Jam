@@ -20,6 +20,7 @@ namespace HalloweenJam.Combat
         [SerializeField] private BattleHUD enemyHud;
         [SerializeField] private TMP_Text battleLogText;
         [SerializeField] private BattleActionMenu playerActionMenu;
+        [SerializeField] private ActionSelectionUI actionSelectionUI;
         [SerializeField, FormerlySerializedAs("playerAttackAnimator")] private MonoBehaviour playerAttackAnimatorSource;
         [SerializeField, FormerlySerializedAs("enemyAttackAnimator")] private MonoBehaviour enemyAttackAnimatorSource;
         [SerializeField] private GameObject victoryScreen;
@@ -131,6 +132,7 @@ namespace HalloweenJam.Combat
             uiController?.Detach();
             outcomeController?.Dispose();
             orchestrator?.Dispose();
+            actionSelectionUI?.Hide();
         }
 
         private void OnDestroy()
@@ -150,6 +152,14 @@ namespace HalloweenJam.Combat
             }
 
             DebugLog("OnAttackButton: Player initiated attack.");
+
+            if (TryHandlePlayerActionSelection())
+            {
+                return;
+            }
+
+            QueueDefaultAction();
+            playerActionMenu?.HideMenu();
             orchestrator.ExecutePlayerTurn();
         }
 
@@ -166,6 +176,45 @@ namespace HalloweenJam.Combat
 
             uiController.ShowEngagementMessage();
             musicController?.PlayBattleMusic();
+        }
+
+        private void QueueDefaultAction()
+        {
+            if (playerEntity is RuntimeCombatEntity runtime)
+            {
+                var defaultAction = runtime.DefaultAction;
+                runtime.QueueAction(defaultAction);
+            }
+        }
+
+        private bool TryHandlePlayerActionSelection()
+        {
+            if (actionSelectionUI == null)
+            {
+                return false;
+            }
+
+            if (playerEntity is not RuntimeCombatEntity runtime)
+            {
+                return false;
+            }
+
+            var actions = runtime.AvailableActions;
+            if (actions == null || actions.Count == 0)
+            {
+                return false;
+            }
+
+            playerActionMenu?.HideMenu();
+
+            actionSelectionUI.Show(runtime, selected =>
+            {
+                var chosen = selected ?? runtime.DefaultAction;
+                runtime.QueueAction(chosen);
+                orchestrator.ExecutePlayerTurn();
+            });
+
+            return true;
         }
 
         private void OnBattleFinished(BattleOutcome outcome)
