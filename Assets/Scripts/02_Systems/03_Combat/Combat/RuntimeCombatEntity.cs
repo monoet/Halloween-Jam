@@ -14,6 +14,7 @@ namespace HalloweenJam.Combat
         [Header("Stats Runtime")]
         [SerializeField] private CharacterRuntime characterRuntime;
         [SerializeField] private CombatantState combatantState;
+        [SerializeField] private ActionData defaultAction;
 
         [Header("Combat Behavior")]
         [SerializeField] private AttackStrategyBase attackStrategy;
@@ -24,6 +25,7 @@ namespace HalloweenJam.Combat
 
         public CharacterRuntime CharacterRuntime => characterRuntime;
         public CombatantState CombatantState => combatantState;
+        public ActionData DefaultAction => defaultAction;
 
         public string DisplayName
         {

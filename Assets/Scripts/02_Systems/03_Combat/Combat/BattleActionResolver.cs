@@ -1,5 +1,6 @@
 using System;
 using HalloweenJam.Combat.Strategies;
+using UnityEngine;
 
 namespace HalloweenJam.Combat
 {
@@ -22,8 +23,7 @@ namespace HalloweenJam.Combat
                 throw new ArgumentNullException(nameof(defender));
             }
 
-            var baseResult = attacker.AttackStrategy.Execute(attacker, defender);
-            var attackResult = TryResolveWithStats(attacker, defender, baseResult);
+            var attackResult = Resolve(attacker, defender);
             defender.ReceiveDamage(attackResult.Damage);
 
             var logMessage = $"{attacker.DisplayName} {attackResult.Description}";
@@ -31,6 +31,86 @@ namespace HalloweenJam.Combat
 
             AttackResolved?.Invoke(context);
             return context;
+        }
+
+        private AttackResult Resolve(ICombatEntity attacker, ICombatEntity defender)
+        {
+            if (TryResolveWithAction(attacker, defender, out var actionResult))
+            {
+                return actionResult;
+            }
+
+            var baseResult = attacker.AttackStrategy.Execute(attacker, defender);
+            return TryResolveWithStats(attacker, defender, baseResult);
+        }
+
+        private bool TryResolveWithAction(ICombatEntity attacker, ICombatEntity defender, out AttackResult result)
+        {
+            result = default;
+
+            if (!(attacker is RuntimeCombatEntity attackerRuntimeEntity) ||
+                !(defender is RuntimeCombatEntity defenderRuntimeEntity))
+            {
+                return false;
+            }
+
+            var action = attackerRuntimeEntity.DefaultAction;
+            var attackerRuntime = attackerRuntimeEntity.CharacterRuntime;
+            var defenderRuntime = defenderRuntimeEntity.CharacterRuntime;
+
+            if (action == null || attackerRuntime == null || defenderRuntime == null)
+            {
+                return false;
+            }
+
+            var attackerState = attackerRuntimeEntity.CombatantState;
+            var defenderState = defenderRuntimeEntity.CombatantState;
+
+            attackerState?.EnsureInitialized(attackerRuntime);
+            defenderState?.EnsureInitialized(defenderRuntime);
+
+            if (action.CpCost > 0)
+            {
+                attackerState?.SpendCP(action.CpCost);
+            }
+
+            bool isHit = UnityEngine.Random.value <= Mathf.Clamp01(action.HitChance);
+            if (!isHit)
+            {
+                result = new AttackResult(0, $"misses with {action.ActionName}.");
+                if (action.CpGain > 0)
+                {
+                    attackerState?.AddCP(action.CpGain);
+                }
+
+                return true;
+            }
+
+            bool isCrit = ActionResolver.RollCritStatic(attackerRuntime);
+            float power = ActionResolver.CalculateActionPower(attackerRuntime, action, logDetails: false);
+            if (isCrit)
+            {
+                power *= 1.5f;
+            }
+
+            int damage = Mathf.Max(1, Mathf.CeilToInt(power));
+
+            if (action.CpGain > 0)
+            {
+                attackerState?.AddCP(action.CpGain);
+            }
+
+            var description = string.IsNullOrWhiteSpace(action.ActionName)
+                ? $"strikes for {damage} damage."
+                : $"uses {action.ActionName} for {damage} damage.";
+
+            if (isCrit)
+            {
+                description = $"lands a critical hit with {action.ActionName} for {damage} damage.";
+            }
+
+            result = new AttackResult(damage, description);
+            return true;
         }
 
         private static AttackResult TryResolveWithStats(ICombatEntity attacker, ICombatEntity defender, AttackResult fallback)
