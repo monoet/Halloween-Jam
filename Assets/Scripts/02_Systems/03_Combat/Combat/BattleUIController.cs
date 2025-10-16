@@ -68,6 +68,8 @@ namespace HalloweenJam.Combat
             HideActionMenu();
             ClearBattleLog();
             HideVictoryScreen();
+            playerHud?.ForceRefresh();
+            enemyHud?.ForceRefresh();
         }
 
         public void Attach(BattleOrchestrator targetOrchestrator, BattleActionResolver resolver)
@@ -192,6 +194,8 @@ namespace HalloweenJam.Combat
                 context.Defender.DisplayName,
                 context.Defender.CurrentHp,
                 context.Defender.MaxHp);
+            playerHud?.ForceRefresh();
+            enemyHud?.ForceRefresh();
         }
 
         private void HandlePlayerTurnReady()
@@ -279,4 +283,3 @@ namespace HalloweenJam.Combat
         }
     }
 }
-

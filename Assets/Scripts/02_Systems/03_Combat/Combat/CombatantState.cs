@@ -24,6 +24,9 @@ public class CombatantState : MonoBehaviour
     [Header("Eventos")]
     public UnityEngine.Events.UnityEvent OnVitalsChanged = new UnityEngine.Events.UnityEvent();
 
+    [Header("Debug Options")]
+    [SerializeField] private bool enableDebugLogs = false; // ✅ toggle global
+
     public int MaxHP => maxHP;
     public int CurrentHP => currentHP;
     public int MaxSP => maxSP;
@@ -68,16 +71,14 @@ public class CombatantState : MonoBehaviour
         }
 
         initialized = true;
-        Debug.Log($"[CombatantState] Inicializado HP: {currentHP}/{maxHP} en {name}");
+        Log($"Inicializado HP: {currentHP}/{maxHP} en {name}");
         OnVitalsChanged.Invoke();
     }
 
     public void EnsureInitialized(CharacterRuntime character)
     {
         if (initialized)
-        {
             return;
-        }
 
         InitializeFrom(character, preserveCurrentFraction: false);
     }
@@ -85,35 +86,32 @@ public class CombatantState : MonoBehaviour
     public void TakeDamage(int amount)
     {
         if (amount < 0) amount = 0;
-
         if (!initialized)
         {
-            Debug.LogWarning($"[CombatantState] {name} recibe daño sin estar inicializado. Forzando inicialización con fallback.");
+            LogWarning($"{name} recibe daño sin estar inicializado. Forzando inicialización con fallback.");
             InitializeFrom(null);
         }
 
         currentHP = Mathf.Max(0, currentHP - amount);
-        Debug.Log($"[CombatantState] {name} recibe {amount} daño. HP: {currentHP}/{maxHP}");
+        Log($"{name} recibe {amount} daño. HP: {currentHP}/{maxHP}");
+
         if (currentHP == 0)
-        {
-            Debug.Log($"[CombatantState] {name} ha caído.");
-            // TODO: Triggers de muerte (animaciones, drops, flags de turno).
-        }
+            Log($"{name} ha caído.");
+
         OnVitalsChanged.Invoke();
     }
 
     public void Heal(int amount)
     {
         if (amount < 0) amount = 0;
-
         if (!initialized)
         {
-            Debug.LogWarning($"[CombatantState] {name} intenta curarse sin estar inicializado. Forzando inicialización con fallback.");
+            LogWarning($"{name} intenta curarse sin estar inicializado. Forzando inicialización con fallback.");
             InitializeFrom(null);
         }
 
         currentHP = Mathf.Min(maxHP, currentHP + amount);
-        Debug.Log($"[CombatantState] {name} cura {amount}. HP: {currentHP}/{maxHP}");
+        Log($"{name} cura {amount}. HP: {currentHP}/{maxHP}");
         OnVitalsChanged.Invoke();
     }
 
@@ -122,11 +120,13 @@ public class CombatantState : MonoBehaviour
         if (amount <= 0) return true;
         if (currentCP < amount)
         {
-            Debug.LogWarning($"[CombatantState] {name} no tiene CP suficientes ({currentCP}/{amount}).");
+            LogWarning($"{name} no tiene CP suficientes ({currentCP}/{amount}).");
             return false;
         }
+
         currentCP -= amount;
-        Debug.Log($"[CombatantState] {name} gasta {amount} CP. CP: {currentCP}/{maxCP}");
+        Log($"{name} gasta {amount} CP. CP: {currentCP}/{maxCP}");
+        OnVitalsChanged.Invoke();
         return true;
     }
 
@@ -136,8 +136,12 @@ public class CombatantState : MonoBehaviour
         int before = currentCP;
         currentCP = Mathf.Min(maxCP, currentCP + amount);
         int gained = currentCP - before;
+
         if (gained > 0)
-            Debug.Log($"[CombatantState] {name} gana {gained} CP. CP: {currentCP}/{maxCP}");
+        {
+            Log($"{name} gana {gained} CP. CP: {currentCP}/{maxCP}");
+            OnVitalsChanged.Invoke();
+        }
     }
 
     public bool SpendSP(int amount)
@@ -145,11 +149,12 @@ public class CombatantState : MonoBehaviour
         if (amount <= 0) return true;
         if (currentSP < amount)
         {
-            Debug.LogWarning($"[CombatantState] {name} no tiene SP suficientes ({currentSP}/{amount}).");
+            LogWarning($"{name} no tiene SP suficientes ({currentSP}/{amount}).");
             return false;
         }
+
         currentSP -= amount;
-        Debug.Log($"[CombatantState] {name} gasta {amount} SP. SP: {currentSP}/{maxSP}");
+        Log($"{name} gasta {amount} SP. SP: {currentSP}/{maxSP}");
         OnVitalsChanged.Invoke();
         return true;
     }
@@ -160,14 +165,27 @@ public class CombatantState : MonoBehaviour
         int before = currentSP;
         currentSP = Mathf.Min(maxSP, currentSP + amount);
         int gained = currentSP - before;
+
         if (gained > 0)
         {
-            Debug.Log($"[CombatantState] {name} recupera {gained} SP. SP: {currentSP}/{maxSP}");
+            Log($"{name} recupera {gained} SP. SP: {currentSP}/{maxSP}");
             OnVitalsChanged.Invoke();
         }
     }
 
-    // 🟦 DEBUG VISUAL EN PANTALLA -----------------------------
+    // 🔹 Métodos auxiliares de logging -----------------------------
+    private void Log(string message)
+    {
+        if (enableDebugLogs)
+            Debug.Log($"[CombatantState] {message}");
+    }
+
+    private void LogWarning(string message)
+    {
+        if (enableDebugLogs)
+            Debug.LogWarning($"[CombatantState] {message}");
+    }
+
 #if UNITY_EDITOR
     private void OnGUI()
     {
