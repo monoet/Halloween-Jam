@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using HalloweenJam.Combat.Strategies;
 using UnityEngine;
 
@@ -15,6 +16,7 @@ namespace HalloweenJam.Combat
         [SerializeField] private CharacterRuntime characterRuntime;
         [SerializeField] private CombatantState combatantState;
         [SerializeField] private ActionData defaultAction;
+        [SerializeField] private ActionData[] availableActions = Array.Empty<ActionData>();
 
         [Header("Combat Behavior")]
         [SerializeField] private AttackStrategyBase attackStrategy;
@@ -26,6 +28,7 @@ namespace HalloweenJam.Combat
         public CharacterRuntime CharacterRuntime => characterRuntime;
         public CombatantState CombatantState => combatantState;
         public ActionData DefaultAction => defaultAction;
+        public IReadOnlyList<ActionData> AvailableActions => availableActions;
 
         public string DisplayName
         {
@@ -58,6 +61,8 @@ namespace HalloweenJam.Combat
 
         public event Action<ICombatEntity> OnHealthChanged;
         public event Action<ICombatEntity> OnDefeated;
+
+        private ActionData queuedAction;
 
         private void Awake()
         {
@@ -180,6 +185,29 @@ namespace HalloweenJam.Combat
             }
 
             previousAliveState = currentlyAlive;
+        }
+
+        public void QueueAction(ActionData action)
+        {
+            queuedAction = action;
+        }
+
+        public ActionData ConsumeQueuedAction()
+        {
+            var action = queuedAction != null ? queuedAction : defaultAction;
+            queuedAction = null;
+            return action;
+        }
+
+        public void SetAvailableActions(IEnumerable<ActionData> actions)
+        {
+            if (actions == null)
+            {
+                availableActions = Array.Empty<ActionData>();
+                return;
+            }
+
+            availableActions = actions is ActionData[] array ? array : new List<ActionData>(actions).ToArray();
         }
 
         private sealed class FallbackAttackStrategy : IAttackStrategy

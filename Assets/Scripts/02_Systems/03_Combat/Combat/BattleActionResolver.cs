@@ -54,7 +54,7 @@ namespace HalloweenJam.Combat
                 return false;
             }
 
-            var action = attackerRuntimeEntity.DefaultAction;
+            var action = attackerRuntimeEntity.ConsumeQueuedAction();
             var attackerRuntime = attackerRuntimeEntity.CharacterRuntime;
             var defenderRuntime = defenderRuntimeEntity.CharacterRuntime;
 
