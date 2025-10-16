@@ -1,5 +1,4 @@
 using System;
-using System;
 using System.Collections;
 using HalloweenJam.Combat.Animations;
 using HalloweenJam.Combat.Strategies;

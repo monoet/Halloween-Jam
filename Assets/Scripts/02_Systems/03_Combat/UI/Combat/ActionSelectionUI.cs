@@ -106,8 +106,12 @@ namespace HalloweenJam.UI.Combat
                 return;
             }
 
+            var callback = onSelection;
+            onSelection = null;
+
             Hide();
-            onSelection?.Invoke(action);
+
+            callback?.Invoke(action);
         }
 
         private void EnsureActive(bool active)
