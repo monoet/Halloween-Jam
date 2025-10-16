@@ -3550,7 +3550,6 @@ MonoBehaviour:
   enemyHud: {fileID: 1929732882}
   battleLogText: {fileID: 2112282772}
   playerActionMenu: {fileID: 1941987470}
-  actionSelectionUI: {fileID: 0}
   playerAttackAnimatorSource: {fileID: 2077095904618654864}
   enemyAttackAnimatorSource: {fileID: 1724910508}
   victoryScreen: {fileID: 815779778}
@@ -4257,7 +4256,7 @@ MonoBehaviour:
   core:
     characterName: Lilia
     portrait: {fileID: 0}
-    Level: 1
+    Level: 2
     CurrentEXP: 0
     MaxEXP: 0
     BaseSTR: 0
@@ -4306,7 +4305,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::HalloweenJam.Combat.RuntimeCombatEntity
   characterRuntime: {fileID: 2077095904618654867}
   combatantState: {fileID: 2077095904618654866}
-  availableActions: []
+  defaultAction: {fileID: 11400000, guid: 8d272fdaa2dbc4a488a77a752fe45448, type: 2}
   attackStrategy: {fileID: 11400000, guid: 04c831de83be67c41b3e574193b3742b, type: 2}
   initializeOnAwake: 1
 --- !u!4 &4257266329076552794 stripped
@@ -4328,7 +4327,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::HalloweenJam.Combat.RuntimeCombatEntity
   characterRuntime: {fileID: 4257266329076552798}
   combatantState: {fileID: 4257266329076552799}
-  availableActions: []
+  defaultAction: {fileID: 11400000, guid: 30ad268b142f7fe4b86d304a035173fd, type: 2}
   attackStrategy: {fileID: 11400000, guid: 04c831de83be67c41b3e574193b3742b, type: 2}
   initializeOnAwake: 1
 --- !u!114 &4257266329076552798

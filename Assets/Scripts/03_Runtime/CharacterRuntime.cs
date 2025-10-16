@@ -58,6 +58,15 @@ public class CharacterRuntime : MonoBehaviour
         {
             final.HP = archetype.GetHPFromVit(final.VIT);
             final.SP = archetype.GetSPFromRes(final.RES);
+            if (archetype != null)
+            
+            {
+                final.HP = archetype.GetHPFromVit(final.VIT);
+                final.SP = archetype.GetSPFromRes(final.RES);
+                Debug.Log($"[Recalc] {archetype.characterName}: VIT={final.VIT:F1} → HP={final.HP} (hpPerVit={archetype.hpPerVit})");
+            }
+
+
         }
 
         if (derivedFormula != null)

@@ -15,7 +15,6 @@ namespace HalloweenJam.Combat
         [Header("Stats Runtime")]
         [SerializeField] private CharacterRuntime characterRuntime;
         [SerializeField] private CombatantState combatantState;
-        [SerializeField] private ActionData defaultAction;
         [SerializeField] private ActionData[] availableActions = Array.Empty<ActionData>();
 
         [Header("Combat Behavior")]
@@ -27,7 +26,6 @@ namespace HalloweenJam.Combat
 
         public CharacterRuntime CharacterRuntime => characterRuntime;
         public CombatantState CombatantState => combatantState;
-        public ActionData DefaultAction => defaultAction;
         public IReadOnlyList<ActionData> AvailableActions => availableActions;
 
         public string DisplayName
@@ -194,7 +192,7 @@ namespace HalloweenJam.Combat
 
         public ActionData ConsumeQueuedAction()
         {
-            var action = queuedAction != null ? queuedAction : defaultAction;
+            var action = queuedAction;
             queuedAction = null;
             return action;
         }

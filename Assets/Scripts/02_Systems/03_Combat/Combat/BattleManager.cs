@@ -145,9 +145,15 @@ namespace HalloweenJam.Combat
 
         public void OnAttackButton()
         {
-            if (orchestrator == null || !orchestrator.CanPlayerAct)
+            if (orchestrator == null)
             {
-                DebugLog("OnAttackButton ignored: orchestrator ready? {0}", orchestrator != null);
+                DebugLog("OnAttackButton ignored: orchestrator missing.");
+                return;
+            }
+
+            if (!orchestrator.CanPlayerAct || orchestrator.IsBusy)
+            {
+                DebugLog("OnAttackButton ignored: CanPlayerAct={0}, IsBusy={1}", orchestrator.CanPlayerAct, orchestrator.IsBusy);
                 return;
             }
 
@@ -158,9 +164,29 @@ namespace HalloweenJam.Combat
                 return;
             }
 
-            QueueDefaultAction();
-            playerActionMenu?.HideMenu();
-            orchestrator.ExecutePlayerTurn();
+            if (orchestrator.IsBusy)
+            {
+                DebugLog("OnAttackButton: Orchestrator became busy before queuing fallback action.");
+                return;
+            }
+
+            if (playerEntity is RuntimeCombatEntity runtime && runtime.AvailableActions != null && runtime.AvailableActions.Count > 0)
+            {
+                runtime.QueueAction(runtime.AvailableActions[0]);
+                playerActionMenu?.HideMenu();
+                if (!orchestrator.IsBusy)
+                {
+                    orchestrator.ExecutePlayerTurn();
+                }
+                else
+                {
+                    DebugLog("OnAttackButton: Skipped ExecutePlayerTurn because orchestrator became busy.");
+                }
+            }
+            else
+            {
+                DebugLog("OnAttackButton: No available actions to queue and selector unavailable. Turn skipped.");
+            }
         }
 
         private void InitializeBattle()
@@ -176,15 +202,6 @@ namespace HalloweenJam.Combat
 
             uiController.ShowEngagementMessage();
             musicController?.PlayBattleMusic();
-        }
-
-        private void QueueDefaultAction()
-        {
-            if (playerEntity is RuntimeCombatEntity runtime)
-            {
-                var defaultAction = runtime.DefaultAction;
-                runtime.QueueAction(defaultAction);
-            }
         }
 
         private bool TryHandlePlayerActionSelection()
@@ -207,11 +224,25 @@ namespace HalloweenJam.Combat
 
             playerActionMenu?.HideMenu();
 
+            actionSelectionUI.SetInteractionGuard(() => orchestrator != null && orchestrator.IsBusy);
+
             actionSelectionUI.Show(runtime, selected =>
             {
-                var chosen = selected ?? runtime.DefaultAction;
-                runtime.QueueAction(chosen);
-                orchestrator.ExecutePlayerTurn();
+                if (selected == null)
+                {
+                    DebugLog("OnAttackButton: Selection UI returned null action. Turn cancelled.");
+                    return;
+                }
+
+                runtime.QueueAction(selected);
+                if (!orchestrator.IsBusy)
+                {
+                    orchestrator.ExecutePlayerTurn();
+                }
+                else
+                {
+                    DebugLog("OnAttackButton: Execute skipped because orchestrator is busy.");
+                }
             });
 
             return true;
