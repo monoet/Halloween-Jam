@@ -166,4 +166,27 @@ public class CombatantState : MonoBehaviour
             OnVitalsChanged.Invoke();
         }
     }
+
+    // 🟦 DEBUG VISUAL EN PANTALLA -----------------------------
+#if UNITY_EDITOR
+    private void OnGUI()
+    {
+        if (!Application.isPlaying || !gameObject.activeInHierarchy)
+            return;
+
+        GUIStyle style = new GUIStyle(GUI.skin.label)
+        {
+            fontSize = 14,
+            normal = { textColor = Color.cyan }
+        };
+
+        float offsetY = 10 + (transform.GetSiblingIndex() * 100);
+        GUILayout.BeginArea(new Rect(10, offsetY, 250, 100), GUI.skin.box);
+        GUILayout.Label($"<b>{name}</b>", style);
+        GUILayout.Label($"HP: {currentHP}/{maxHP}", style);
+        GUILayout.Label($"SP: {currentSP}/{maxSP}", style);
+        GUILayout.Label($"CP: {currentCP}/{maxCP}", style);
+        GUILayout.EndArea();
+    }
+#endif
 }
