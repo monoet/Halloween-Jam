@@ -31,22 +31,67 @@ public class CombatantState : MonoBehaviour
     public bool IsAlive => currentHP > 0;
     public int MaxCP => maxCP;
     public int CurrentCP => currentCP;
+    public bool Initialized => initialized;
 
-    public void InitializeFrom(CharacterRuntime character)
+    private bool initialized;
+
+    public void InitializeFrom(CharacterRuntime character, bool preserveCurrentFraction = false)
     {
         int providedHP = character != null ? character.Final.HP : 0;
         int providedSP = character != null ? character.Final.SP : 0;
-        maxHP = providedHP > 0 ? providedHP : fallbackMaxHP;
-        currentHP = maxHP;
-        maxSP = Mathf.Max(0, providedSP);
-        currentSP = maxSP;
+
+        int targetMaxHp = providedHP > 0 ? providedHP : fallbackMaxHP;
+        int targetMaxSp = Mathf.Max(0, providedSP);
+
+        if (preserveCurrentFraction && initialized && maxHP > 0)
+        {
+            float hpFraction = Mathf.Clamp01(currentHP / (float)maxHP);
+            maxHP = targetMaxHp;
+            currentHP = Mathf.RoundToInt(hpFraction * maxHP);
+        }
+        else
+        {
+            maxHP = targetMaxHp;
+            currentHP = maxHP;
+        }
+
+        if (preserveCurrentFraction && initialized && maxSP > 0)
+        {
+            float spFraction = Mathf.Clamp01(currentSP / (float)maxSP);
+            maxSP = targetMaxSp;
+            currentSP = Mathf.RoundToInt(spFraction * maxSP);
+        }
+        else
+        {
+            maxSP = targetMaxSp;
+            currentSP = maxSP;
+        }
+
+        initialized = true;
         Debug.Log($"[CombatantState] Inicializado HP: {currentHP}/{maxHP} en {name}");
         OnVitalsChanged.Invoke();
+    }
+
+    public void EnsureInitialized(CharacterRuntime character)
+    {
+        if (initialized)
+        {
+            return;
+        }
+
+        InitializeFrom(character, preserveCurrentFraction: false);
     }
 
     public void TakeDamage(int amount)
     {
         if (amount < 0) amount = 0;
+
+        if (!initialized)
+        {
+            Debug.LogWarning($"[CombatantState] {name} recibe daño sin estar inicializado. Forzando inicialización con fallback.");
+            InitializeFrom(null);
+        }
+
         currentHP = Mathf.Max(0, currentHP - amount);
         Debug.Log($"[CombatantState] {name} recibe {amount} daño. HP: {currentHP}/{maxHP}");
         if (currentHP == 0)
@@ -60,6 +105,13 @@ public class CombatantState : MonoBehaviour
     public void Heal(int amount)
     {
         if (amount < 0) amount = 0;
+
+        if (!initialized)
+        {
+            Debug.LogWarning($"[CombatantState] {name} intenta curarse sin estar inicializado. Forzando inicialización con fallback.");
+            InitializeFrom(null);
+        }
+
         currentHP = Mathf.Min(maxHP, currentHP + amount);
         Debug.Log($"[CombatantState] {name} cura {amount}. HP: {currentHP}/{maxHP}");
         OnVitalsChanged.Invoke();
