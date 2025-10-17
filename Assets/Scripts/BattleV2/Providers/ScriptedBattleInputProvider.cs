@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using BattleV2.Actions;
+using BattleV2.Charge;
 using BattleV2.Core;
 using UnityEngine;
 
@@ -14,6 +15,7 @@ namespace BattleV2.Providers
     {
         [SerializeField] private List<BattleActionData> playlist = new();
         [SerializeField] private bool loopPlaylist = true;
+        [SerializeField] private ChargeProfile defaultChargeProfile;
 
         private int cursor;
 
@@ -29,7 +31,8 @@ namespace BattleV2.Providers
             if (playlist.Count == 0)
             {
                 BattleLogger.Warn("ScriptedProvider", "Playlist empty; falling back to first available action.");
-                onSelected?.Invoke(new BattleSelection(context.AvailableActions[0]));
+                var fallback = context.AvailableActions[0];
+                onSelected?.Invoke(new BattleSelection(fallback, 0, ResolveProfile(context, fallback)));
                 return;
             }
 
@@ -41,7 +44,7 @@ namespace BattleV2.Providers
             }
 
             BattleLogger.Log("ScriptedProvider", $"Auto-selecting {action.id} (step {cursor}).");
-            onSelected?.Invoke(new BattleSelection(action));
+            onSelected?.Invoke(new BattleSelection(action, 0, ResolveProfile(context, action)));
         }
 
         private BattleActionData GetNextAction(IReadOnlyList<BattleActionData> available)
@@ -81,6 +84,13 @@ namespace BattleV2.Providers
             }
 
             return null;
+        }
+
+        private ChargeProfile ResolveProfile(BattleActionContext context, BattleActionData action)
+        {
+            var catalog = context?.Context?.Catalog;
+            var impl = catalog != null ? catalog.Resolve(action) : null;
+            return impl != null ? impl.ChargeProfile : defaultChargeProfile;
         }
 
         private void OnEnable()

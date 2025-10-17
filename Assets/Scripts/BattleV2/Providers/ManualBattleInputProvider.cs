@@ -1,5 +1,6 @@
 using System;
 using BattleV2.Actions;
+using BattleV2.Charge;
 using BattleV2.Core;
 using UnityEngine;
 
@@ -10,6 +11,8 @@ namespace BattleV2.Providers
     /// </summary>
     public class ManualBattleInputProvider : MonoBehaviour, IBattleInputProvider
     {
+        [SerializeField] private ChargeProfile defaultChargeProfile;
+
         public void RequestAction(BattleActionContext context, Action<BattleSelection> onSelected, Action onCancel)
         {
             if (context == null || context.AvailableActions == null || context.AvailableActions.Count == 0)
@@ -19,8 +22,17 @@ namespace BattleV2.Providers
                 return;
             }
 
+            var action = context.AvailableActions[0];
+            var profile = ResolveProfile(context, action) ?? defaultChargeProfile;
             BattleLogger.Log("Provider", "Manual provider degrading to auto (UI pending).");
-            onSelected?.Invoke(new BattleSelection(context.AvailableActions[0]));
+            onSelected?.Invoke(new BattleSelection(action, 0, profile));
+        }
+
+        private ChargeProfile ResolveProfile(BattleActionContext context, BattleActionData action)
+        {
+            var catalog = context?.Context?.Catalog;
+            var impl = catalog != null ? catalog.Resolve(action) : null;
+            return impl != null ? impl.ChargeProfile : null;
         }
     }
 }

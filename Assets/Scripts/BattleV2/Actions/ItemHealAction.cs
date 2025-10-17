@@ -1,4 +1,5 @@
 using System;
+using BattleV2.Charge;
 using BattleV2.Core;
 using HalloweenJam.Combat;
 using UnityEngine;
@@ -14,10 +15,12 @@ namespace BattleV2.Actions
         [SerializeField] private int costSp;
         [SerializeField] private int costCp;
         [SerializeField] private bool consumable = true;
+        [SerializeField] private ChargeProfile chargeProfile;
 
         public string Id => actionId;
         public int CostSP => costSp;
         public int CostCP => costCp;
+        public ChargeProfile ChargeProfile => chargeProfile;
 
         public IAction Get() => this;
 

@@ -1,18 +1,21 @@
 using System;
 using BattleV2.Actions;
+using BattleV2.Charge;
 using BattleV2.Core;
 using UnityEngine;
 
 namespace BattleV2.Providers
 {
     /// <summary>
-    /// Runtime keyboard-driven provider intended for early manual testing.
-    /// Allows CP charge adjustment via keyboard notches before confirming the action.
+    /// Keyboard-driven charge provider that relies on a notched (incremental) strategy.
     /// </summary>
     public class ManualBattleInputProviderV2 : MonoBehaviour, IBattleInputProvider
     {
-        [Header("Input")]
+        [Header("Action Selection")]
         [SerializeField] private KeyCode cancelKey = KeyCode.Escape;
+        [SerializeField] private ChargeProfile defaultChargeProfile;
+
+        [Header("Charge Controls")]
         [SerializeField] private KeyCode confirmKey = KeyCode.Return;
         [SerializeField] private KeyCode increaseChargeKey = KeyCode.R;
         [SerializeField] private KeyCode decreaseChargeKey = KeyCode.F;
@@ -20,20 +23,12 @@ namespace BattleV2.Providers
         private BattleActionContext pendingContext;
         private Action<BattleSelection> pendingOnSelected;
         private Action pendingOnCancel;
+
         private bool awaitingChoice;
-        private bool awaitingCharge;
-        private BattleActionData pendingAction;
-        private int pendingCharge;
-        private int maxCharge;
+        private IChargeStrategy activeStrategy;
 
         public void RequestAction(BattleActionContext context, Action<BattleSelection> onSelected, Action onCancel)
         {
-            if (awaitingChoice || awaitingCharge)
-            {
-                BattleLogger.Warn("ProviderV2", "Already awaiting manual choice; cancelling previous request.");
-                CancelPending();
-            }
-
             if (context == null || context.AvailableActions == null || context.AvailableActions.Count == 0)
             {
                 BattleLogger.Warn("ProviderV2", "Manual provider received no actions. Cancelling.");
@@ -45,21 +40,14 @@ namespace BattleV2.Providers
             pendingOnSelected = onSelected;
             pendingOnCancel = onCancel;
             awaitingChoice = true;
-            awaitingCharge = false;
-            pendingAction = null;
-            pendingCharge = 0;
-            maxCharge = 0;
+            ClearStrategy();
 
             PrintOptions();
         }
 
         private void Update()
         {
-            if (awaitingCharge)
-            {
-                HandleChargeInput();
-                return;
-            }
+            activeStrategy?.Tick(Time.deltaTime);
 
             if (!awaitingChoice || pendingContext == null)
             {
@@ -77,8 +65,7 @@ namespace BattleV2.Providers
 
             if (Input.GetKeyDown(cancelKey))
             {
-                BattleLogger.Log("ProviderV2", "Manual selection cancelled via key.");
-                CancelPending();
+                CancelRequest();
             }
         }
 
@@ -96,64 +83,85 @@ namespace BattleV2.Providers
             }
 
             var action = pendingContext.AvailableActions[index];
-            awaitingChoice = false;
-
-            int availableCp = pendingContext.Player != null ? pendingContext.Player.CurrentCP : 0;
-            int baseCost = Mathf.Max(0, action.costCP);
-            maxCharge = Mathf.Max(0, availableCp - baseCost);
-            pendingCharge = 0;
-            pendingAction = action;
-
-            if (maxCharge <= 0)
-            {
-                BattleLogger.Log("ProviderV2", $"Manual selecting {action.id} (slot {index + 1}) with CP Charge 0.");
-                SubmitSelection(action, 0);
-            }
-            else
-            {
-                awaitingCharge = true;
-                BattleLogger.Log("ProviderV2", $"Selected {action.id}. Use {increaseChargeKey}/{decreaseChargeKey} to adjust CP Charge (0-{maxCharge}), {confirmKey} to confirm, {cancelKey} to cancel.");
-                PrintChargeStatus();
-            }
+            BattleLogger.Log("ProviderV2", $"Selected {action.id} (slot {index + 1}).");
+            StartChargeSequence(action);
         }
 
-        private void HandleChargeInput()
+        private void StartChargeSequence(BattleActionData action)
         {
-            if (pendingContext == null || pendingAction == null)
+            awaitingChoice = false;
+
+            var request = BuildChargeRequest(action);
+            var bindings = new NotchedChargeStrategy.KeyBindings
             {
-                awaitingCharge = false;
-                awaitingChoice = true;
-                PrintOptions();
+                Increase = increaseChargeKey,
+                Decrease = decreaseChargeKey,
+                Confirm = confirmKey,
+                Cancel = cancelKey
+            };
+
+            var strategy = new NotchedChargeStrategy(bindings, true, msg => BattleLogger.Log("ProviderV2", msg));
+            activeStrategy = strategy;
+            strategy.Begin(request, HandleChargeCompleted, HandleChargeCancelled);
+        }
+
+        private ChargeRequest BuildChargeRequest(BattleActionData action)
+        {
+            int availableCp = pendingContext.Player != null ? pendingContext.Player.CurrentCP : 0;
+            int baseCost = Mathf.Max(0, action.costCP);
+            var profile = ResolveChargeProfile(action) ?? defaultChargeProfile;
+            return new ChargeRequest(pendingContext, action, profile, availableCp, baseCost);
+        }
+
+        private ChargeProfile ResolveChargeProfile(BattleActionData action)
+        {
+            var catalog = pendingContext?.Context?.Catalog;
+            var impl = catalog != null ? catalog.Resolve(action) : null;
+            return impl != null ? impl.ChargeProfile : null;
+        }
+
+        private void HandleChargeCompleted(BattleSelection selection)
+        {
+            ClearStrategy();
+            awaitingChoice = false;
+            var callback = pendingOnSelected;
+            ClearPending();
+            callback?.Invoke(selection);
+        }
+
+        private void HandleChargeCancelled()
+        {
+            ClearStrategy();
+            awaitingChoice = true;
+            BattleLogger.Log("ProviderV2", "Charge cancelled. Choose another action.");
+            PrintOptions();
+        }
+
+        private void CancelRequest()
+        {
+            if (activeStrategy != null)
+            {
+                activeStrategy.Cancel();
                 return;
             }
 
-            if (Input.GetKeyDown(increaseChargeKey))
-            {
-                pendingCharge = Mathf.Min(maxCharge, pendingCharge + 1);
-                PrintChargeStatus();
-            }
+            var cancel = pendingOnCancel;
+            ClearPending();
+            cancel?.Invoke();
+        }
 
-            if (Input.GetKeyDown(decreaseChargeKey))
-            {
-                pendingCharge = Mathf.Max(0, pendingCharge - 1);
-                PrintChargeStatus();
-            }
+        private void ClearStrategy()
+        {
+            activeStrategy = null;
+        }
 
-            if (Input.GetKeyDown(confirmKey))
-            {
-                BattleLogger.Log("ProviderV2", $"Confirming {pendingAction.id} with CP Charge {pendingCharge}.");
-                SubmitSelection(pendingAction, pendingCharge);
-            }
-
-            if (Input.GetKeyDown(cancelKey))
-            {
-                BattleLogger.Log("ProviderV2", "Charge selection cancelled. Returning to action list.");
-                awaitingCharge = false;
-                awaitingChoice = true;
-                pendingAction = null;
-                pendingCharge = 0;
-                PrintOptions();
-            }
+        private void ClearPending()
+        {
+            pendingContext = null;
+            pendingOnSelected = null;
+            pendingOnCancel = null;
+            awaitingChoice = false;
+            ClearStrategy();
         }
 
         private void PrintOptions()
@@ -172,39 +180,6 @@ namespace BattleV2.Providers
             }
 
             BattleLogger.Log("ProviderV2", $"Press 1-{Mathf.Min(9, pendingContext.AvailableActions.Count)} to select, {cancelKey} to cancel.");
-        }
-
-        private void PrintChargeStatus()
-        {
-            BattleLogger.Log("ProviderV2", $"CP Charge: {pendingCharge}/{maxCharge}");
-        }
-
-        private void SubmitSelection(BattleActionData action, int cpCharge)
-        {
-            awaitingCharge = false;
-            awaitingChoice = false;
-            var callback = pendingOnSelected;
-            ClearPending();
-            callback?.Invoke(new BattleSelection(action, cpCharge));
-        }
-
-        private void CancelPending()
-        {
-            var cancel = pendingOnCancel;
-            ClearPending();
-            cancel?.Invoke();
-        }
-
-        private void ClearPending()
-        {
-            pendingContext = null;
-            pendingOnSelected = null;
-            pendingOnCancel = null;
-            awaitingChoice = false;
-            awaitingCharge = false;
-            pendingAction = null;
-            pendingCharge = 0;
-            maxCharge = 0;
         }
     }
 }

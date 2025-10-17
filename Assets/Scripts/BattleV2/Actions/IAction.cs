@@ -1,4 +1,5 @@
 using System;
+using BattleV2.Charge;
 using BattleV2.Core;
 
 namespace BattleV2.Actions
@@ -8,6 +9,7 @@ namespace BattleV2.Actions
         string Id { get; }
         int CostSP { get; }
         int CostCP { get; }
+        ChargeProfile ChargeProfile { get; }
 
         bool CanExecute(CombatantState actor, CombatContext context, int cpCharge);
 

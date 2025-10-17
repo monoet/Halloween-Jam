@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using BattleV2.Actions;
+using BattleV2.Charge;
 using BattleV2.Core;
 using TMPro;
 using UnityEngine;
@@ -9,22 +10,17 @@ using UnityEngine.UI;
 namespace BattleV2.Providers
 {
     /// <summary>
-    /// Manual input provider that renders the available actions into UI buttons and supports CP charge adjustment.
+    /// UI-driven manual provider that supports CP charge adjustment through a notched strategy.
     /// </summary>
     public class ManualBattleInputProviderUI : MonoBehaviour, IBattleInputProvider
     {
         [Header("UI Elements")]
-        [Tooltip("Parent container where action buttons will be spawned.")]
         [SerializeField] private Transform buttonRoot;
-        [Tooltip("Prefab containing a Button (and label) that will be cloned per action.")]
         [SerializeField] private GameObject buttonTemplate;
-        [Tooltip("Optional cancel button that triggers the fallback callback.")]
-        [SerializeField] private Button cancelButton;
-        [Tooltip("Optional panel GameObject to toggle visibility while awaiting input.")]
         [SerializeField] private GameObject actionPanel;
+        [SerializeField] private Button cancelButton;
 
-        [Header("Charge Controls")]
-        [Tooltip("Panel shown while adjusting CP charge.")]
+        [Header("Charge UI")]
         [SerializeField] private GameObject chargePanel;
         [SerializeField] private TMP_Text chargeLabel;
         [SerializeField] private Button increaseChargeButton;
@@ -36,46 +32,41 @@ namespace BattleV2.Providers
         [SerializeField] private string costFormat = " (SP {0}/CP {1})";
         [SerializeField] private string chargeFormat = "CP Charge: {0}/{1}";
 
-        [Header("Keyboard Shortcuts")]
+        [Header("Input Shortcuts")]
         [SerializeField] private KeyCode cancelKey = KeyCode.Escape;
         [SerializeField] private KeyCode confirmKey = KeyCode.Return;
         [SerializeField] private KeyCode increaseChargeKey = KeyCode.R;
         [SerializeField] private KeyCode decreaseChargeKey = KeyCode.F;
 
+        [Header("Defaults")]
+        [SerializeField] private ChargeProfile defaultChargeProfile;
+
         private readonly List<Button> spawnedButtons = new();
         private BattleActionContext pendingContext;
         private Action<BattleSelection> pendingOnSelected;
         private Action pendingOnCancel;
+
         private bool awaitingChoice;
-        private bool awaitingCharge;
-        private BattleActionData pendingAction;
-        private int pendingCharge;
-        private int maxCharge;
+        private NotchedChargeStrategy activeStrategy;
+        private int currentCharge;
+        private int currentMaxCharge;
 
         public void RequestAction(BattleActionContext context, Action<BattleSelection> onSelected, Action onCancel)
         {
-            if (awaitingCharge)
-            {
-                CancelChargeSelection();
-            }
-
-            ClearButtons();
-
             if (context == null || context.AvailableActions == null || context.AvailableActions.Count == 0)
             {
-                BattleLogger.Warn("ProviderUI", "No actions available for manual UI. Cancelling.");
+                BattleLogger.Warn("ProviderUI", "No actions available. Cancelling.");
                 onCancel?.Invoke();
                 return;
             }
+
+            ClearStrategy();
+            ClearButtons();
 
             pendingContext = context;
             pendingOnSelected = onSelected;
             pendingOnCancel = onCancel;
             awaitingChoice = true;
-            awaitingCharge = false;
-            pendingAction = null;
-            pendingCharge = 0;
-            maxCharge = 0;
 
             BuildButtons(context.AvailableActions);
             SetActionPanelActive(true);
@@ -96,17 +87,17 @@ namespace BattleV2.Providers
 
             if (increaseChargeButton != null)
             {
-                increaseChargeButton.onClick.AddListener(() => AdjustCharge(1));
+                increaseChargeButton.onClick.AddListener(() => activeStrategy?.AdjustCharge(1));
             }
 
             if (decreaseChargeButton != null)
             {
-                decreaseChargeButton.onClick.AddListener(() => AdjustCharge(-1));
+                decreaseChargeButton.onClick.AddListener(() => activeStrategy?.AdjustCharge(-1));
             }
 
             if (confirmChargeButton != null)
             {
-                confirmChargeButton.onClick.AddListener(ConfirmChargeSelection);
+                confirmChargeButton.onClick.AddListener(() => activeStrategy?.Confirm());
             }
 
             SetActionPanelActive(false);
@@ -138,10 +129,11 @@ namespace BattleV2.Providers
 
         private void Update()
         {
-            if (awaitingCharge)
+            activeStrategy?.Tick(Time.deltaTime);
+
+            if (awaitingChoice && pendingContext != null && Input.GetKeyDown(cancelKey))
             {
-                HandleChargeInput();
-                return;
+                CancelRequest();
             }
 
             if (!awaitingChoice || pendingContext == null)
@@ -149,10 +141,7 @@ namespace BattleV2.Providers
                 return;
             }
 
-            if (Input.GetKeyDown(cancelKey))
-            {
-                HandleCancelClicked();
-            }
+            // Buttons handle selection; keyboard shortcut for numbers can be added if needed.
         }
 
         private void BuildButtons(IReadOnlyList<BattleActionData> actions)
@@ -191,139 +180,113 @@ namespace BattleV2.Providers
                 }
 
                 SetButtonLabel(instance, label);
-                int capturedIndex = i;
-                button.onClick.AddListener(() => HandleButtonClicked(capturedIndex));
+                var capturedAction = action;
+                button.onClick.AddListener(() => HandleActionButtonClicked(capturedAction));
                 spawnedButtons.Add(button);
             }
         }
 
-        private void HandleButtonClicked(int index)
+        private void HandleActionButtonClicked(BattleActionData action)
         {
-            if (!awaitingChoice || pendingContext == null)
+            if (!awaitingChoice)
             {
                 return;
             }
 
-            if (index < 0 || index >= pendingContext.AvailableActions.Count)
-            {
-                BattleLogger.Warn("ProviderUI", $"Clicked index {index} out of range.");
-                return;
-            }
-
-            var action = pendingContext.AvailableActions[index];
-            int availableCp = pendingContext.Player != null ? pendingContext.Player.CurrentCP : 0;
-            int baseCost = Mathf.Max(0, action.costCP);
-            pendingCharge = 0;
-            maxCharge = Mathf.Max(0, availableCp - baseCost);
-            pendingAction = action;
-
-            if (maxCharge <= 0 || chargePanel == null)
-            {
-                SubmitSelection(action, 0);
-            }
-            else
-            {
-                awaitingChoice = false;
-                awaitingCharge = true;
-                SetActionPanelActive(false);
-                SetChargePanelActive(true);
-                UpdateChargeLabel();
-            }
+            awaitingChoice = false;
+            StartChargeSequence(action);
         }
 
-        private void HandleChargeInput()
+        private void StartChargeSequence(BattleActionData action)
         {
-            if (Input.GetKeyDown(increaseChargeKey))
+            var request = BuildChargeRequest(action);
+            var bindings = new NotchedChargeStrategy.KeyBindings
             {
-                AdjustCharge(1);
-            }
+                Increase = increaseChargeKey,
+                Decrease = decreaseChargeKey,
+                Confirm = confirmKey,
+                Cancel = cancelKey
+            };
 
-            if (Input.GetKeyDown(decreaseChargeKey))
-            {
-                AdjustCharge(-1);
-            }
+            activeStrategy = new NotchedChargeStrategy(bindings, true, msg => BattleLogger.Log("ProviderUI", msg), OnChargeChanged);
+            activeStrategy.Begin(request, HandleChargeCompleted, HandleChargeCancelled);
 
-            if (Input.GetKeyDown(confirmKey))
-            {
-                ConfirmChargeSelection();
-            }
-
-            if (Input.GetKeyDown(cancelKey))
-            {
-                CancelChargeSelection();
-            }
-        }
-
-        private void AdjustCharge(int delta)
-        {
-            if (!awaitingCharge)
+            if (activeStrategy == null)
             {
                 return;
             }
 
-            pendingCharge = Mathf.Clamp(pendingCharge + delta, 0, maxCharge);
+            SetActionPanelActive(false);
+            SetChargePanelActive(true);
             UpdateChargeLabel();
         }
 
-        private void ConfirmChargeSelection()
+        private ChargeRequest BuildChargeRequest(BattleActionData action)
         {
-            if (!awaitingCharge || pendingAction == null)
-            {
-                return;
-            }
-
-            SubmitSelection(pendingAction, pendingCharge);
+            int availableCp = pendingContext.Player != null ? pendingContext.Player.CurrentCP : 0;
+            int baseCost = Mathf.Max(0, action.costCP);
+            var profile = ResolveChargeProfile(action) ?? defaultChargeProfile;
+            return new ChargeRequest(pendingContext, action, profile, availableCp, baseCost);
         }
 
-        private void CancelChargeSelection()
+        private ChargeProfile ResolveChargeProfile(BattleActionData action)
         {
-            if (!awaitingCharge)
-            {
-                CancelPending();
-                return;
-            }
-
-            awaitingCharge = false;
-            awaitingChoice = true;
-            pendingAction = null;
-            pendingCharge = 0;
-            SetChargePanelActive(false);
-            SetActionPanelActive(true);
+            var catalog = pendingContext?.Context?.Catalog;
+            var impl = catalog != null ? catalog.Resolve(action) : null;
+            return impl != null ? impl.ChargeProfile : null;
         }
 
-        private void SubmitSelection(BattleActionData action, int cpCharge)
+        private void HandleChargeCompleted(BattleSelection selection)
         {
-            awaitingCharge = false;
-            awaitingChoice = false;
+            ClearStrategy();
             SetChargePanelActive(false);
             SetActionPanelActive(false);
             ClearButtons();
 
             var callback = pendingOnSelected;
             ClearPending();
-            callback?.Invoke(new BattleSelection(action, cpCharge));
+            callback?.Invoke(selection);
+        }
+
+        private void HandleChargeCancelled()
+        {
+            ClearStrategy();
+            awaitingChoice = true;
+            SetChargePanelActive(false);
+            SetActionPanelActive(true);
         }
 
         private void HandleCancelClicked()
         {
-            if (awaitingCharge)
+            if (activeStrategy != null)
             {
-                CancelChargeSelection();
+                activeStrategy.Cancel();
             }
             else
             {
-                CancelPending();
+                CancelRequest();
             }
         }
 
-        private void CancelPending()
+        private void CancelRequest()
         {
-            ClearButtons();
-            SetActionPanelActive(false);
-            SetChargePanelActive(false);
             var cancel = pendingOnCancel;
             ClearPending();
             cancel?.Invoke();
+        }
+
+        private void ClearPending()
+        {
+            ClearStrategy();
+            ClearButtons();
+            SetActionPanelActive(false);
+            SetChargePanelActive(false);
+            pendingContext = null;
+            pendingOnSelected = null;
+            pendingOnCancel = null;
+            awaitingChoice = false;
+            currentCharge = 0;
+            currentMaxCharge = 0;
         }
 
         private void ClearButtons()
@@ -338,6 +301,45 @@ namespace BattleV2.Providers
             }
 
             spawnedButtons.Clear();
+        }
+
+        private void ClearStrategy()
+        {
+            activeStrategy = null;
+            currentCharge = 0;
+            currentMaxCharge = 0;
+            UpdateChargeLabel();
+        }
+
+        private void OnChargeChanged(int current, int max)
+        {
+            currentCharge = current;
+            currentMaxCharge = max;
+            UpdateChargeLabel();
+        }
+
+        private void UpdateChargeLabel()
+        {
+            if (chargeLabel != null)
+            {
+                chargeLabel.text = string.Format(chargeFormat, currentCharge, currentMaxCharge);
+            }
+        }
+
+        private void SetActionPanelActive(bool active)
+        {
+            if (actionPanel != null)
+            {
+                actionPanel.SetActive(active);
+            }
+        }
+
+        private void SetChargePanelActive(bool active)
+        {
+            if (chargePanel != null)
+            {
+                chargePanel.SetActive(active);
+            }
         }
 
         private void SetButtonLabel(GameObject buttonObject, string text)
@@ -359,42 +361,6 @@ namespace BattleV2.Providers
             {
                 uiText.text = text;
             }
-        }
-
-        private void UpdateChargeLabel()
-        {
-            if (chargeLabel != null)
-            {
-                chargeLabel.text = string.Format(chargeFormat, pendingCharge, maxCharge);
-            }
-        }
-
-        private void SetActionPanelActive(bool active)
-        {
-            if (actionPanel != null)
-            {
-                actionPanel.SetActive(active);
-            }
-        }
-
-        private void SetChargePanelActive(bool active)
-        {
-            if (chargePanel != null)
-            {
-                chargePanel.SetActive(active);
-            }
-        }
-
-        private void ClearPending()
-        {
-            pendingContext = null;
-            pendingOnSelected = null;
-            pendingOnCancel = null;
-            awaitingChoice = false;
-            awaitingCharge = false;
-            pendingAction = null;
-            pendingCharge = 0;
-            maxCharge = 0;
         }
     }
 }

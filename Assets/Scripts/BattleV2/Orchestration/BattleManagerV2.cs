@@ -1,5 +1,6 @@
 using System;
 using BattleV2.Actions;
+using BattleV2.Charge;
 using BattleV2.Core;
 using BattleV2.Providers;
 using HalloweenJam.Combat;
@@ -289,7 +290,18 @@ namespace BattleV2.Orchestration
         {
             var fallback = actionCatalog.Fallback(player, context);
             BattleLogger.Log("Fallback", $"Executing fallback action {fallback.id}");
-            ExecuteAction(new BattleSelection(fallback, 0));
+            ExecuteAction(new BattleSelection(fallback, 0, ResolveChargeProfile(fallback)));
+        }
+
+        private ChargeProfile ResolveChargeProfile(BattleActionData action)
+        {
+            if (actionCatalog == null || action == null)
+            {
+                return null;
+            }
+
+            var impl = actionCatalog.Resolve(action);
+            return impl != null ? impl.ChargeProfile : null;
         }
     }
 }
