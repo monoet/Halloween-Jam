@@ -14,7 +14,6 @@ namespace BattleV2.Orchestration
     {
         [Header("Core")]
         [SerializeField] private BattleStateController state;
-        [SerializeField] private BattleOrchestrator orchestrator;
         [SerializeField] private BattleConfig config;
         [SerializeField] private ActionCatalog actionCatalog;
         [SerializeField] private ScriptableObject inputProviderBehaviour;
