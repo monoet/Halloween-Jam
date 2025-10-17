@@ -1,5 +1,4 @@
 using System;
-using System;
 using System.Collections;
 using HalloweenJam.Combat.Animations;
 using HalloweenJam.Combat.Strategies;
@@ -115,8 +114,15 @@ namespace HalloweenJam.Combat
 
         private IEnumerator PlayerTurnRoutine()
         {
-            var context = CreateContext(playerEntity, enemyEntity, playerAnimator, 0f);
-            yield return ExecuteTurnRoutine(playerStrategy, context, BeginEnemyTurn, "Player turn");
+            yield return ResolveTurn(
+                attacker: playerEntity,
+                defender: enemyEntity,
+                strategy: playerStrategy,
+                animator: playerAnimator,
+                preDelay: 0f,
+                onTurnCompleted: BeginEnemyTurn,
+                label: "Player turn");
+
             playerTurnRoutine = null;
         }
 
@@ -135,8 +141,15 @@ namespace HalloweenJam.Combat
 
         private IEnumerator EnemyTurnRoutine()
         {
-            var context = CreateContext(enemyEntity, playerEntity, enemyAnimator, enemyTurnDelay);
-            yield return ExecuteTurnRoutine(enemyStrategy, context, CompleteEnemyTurn, "Enemy turn");
+            yield return ResolveTurn(
+                attacker: enemyEntity,
+                defender: playerEntity,
+                strategy: enemyStrategy,
+                animator: enemyAnimator,
+                preDelay: enemyTurnDelay,
+                onTurnCompleted: CompleteEnemyTurn,
+                label: "Enemy turn");
+
             enemyTurnRoutine = null;
         }
 
@@ -179,9 +192,12 @@ namespace HalloweenJam.Combat
             }
         }
 
-        private IEnumerator ExecuteTurnRoutine(
+        private IEnumerator ResolveTurn(
+            ICombatEntity attacker,
+            ICombatEntity defender,
             BattleTurnStrategyBase strategy,
-            BattleTurnContext context,
+            IAttackAnimator animator,
+            float preDelay,
             Action onTurnCompleted,
             string label)
         {
@@ -190,6 +206,8 @@ namespace HalloweenJam.Combat
                 Debug.LogWarning("[BattleOrchestrator] Turn strategy missing: " + label);
                 yield break;
             }
+
+            var context = CreateContext(attacker, defender, animator, preDelay);
 
             yield return strategy.ExecuteTurn(context);
 
@@ -258,3 +276,9 @@ namespace HalloweenJam.Combat
         }
     }
 }
+
+
+
+
+
+
