@@ -25,6 +25,8 @@ namespace BattleV2.Orchestration
         private IBattleInputProvider inputProvider;
         private CombatContext context;
 
+        public ActionData LastExecutedAction { get; private set; }
+
         private void Awake()
         {
             inputProvider = inputProviderBehaviour as IBattleInputProvider;
@@ -106,6 +108,7 @@ namespace BattleV2.Orchestration
                 return;
             }
 
+            LastExecutedAction = selected;
             BattleLogger.Log("Execute", $"Action {selected.id} starting.");
             state.Set(BattleState.Resolving);
 

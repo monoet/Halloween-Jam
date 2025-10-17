@@ -8,19 +8,27 @@ namespace BattleV2.Core
     /// </summary>
     public static class BattleLogger
     {
+        public static event System.Action<string, string> OnLogged;
+
         public static void Log(string tag, string message)
         {
-            Debug.Log($"[Battle:{tag}] {message}");
+            var formatted = $"[Battle:{tag}] {message}";
+            Debug.Log(formatted);
+            OnLogged?.Invoke(tag, message);
         }
 
         public static void Warn(string tag, string message)
         {
-            Debug.LogWarning($"[Battle:{tag}] {message}");
+            var formatted = $"[Battle:{tag}] {message}";
+            Debug.LogWarning(formatted);
+            OnLogged?.Invoke(tag, $"WARN: {message}");
         }
 
         public static void Error(string tag, string message)
         {
-            Debug.LogError($"[Battle:{tag}] {message}");
+            var formatted = $"[Battle:{tag}] {message}";
+            Debug.LogError(formatted);
+            OnLogged?.Invoke(tag, $"ERROR: {message}");
         }
     }
 }
