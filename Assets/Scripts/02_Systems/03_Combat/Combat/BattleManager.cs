@@ -165,26 +165,7 @@ namespace HalloweenJam.Combat
                 return;
             }
 
-            if (orchestrator.IsBusy)
-            {
-                DebugLog("OnAttackButton: Orchestrator became busy before queuing fallback action.");
-                return;
-            }
-
-            if (playerEntity is RuntimeCombatEntity runtime && runtime.AvailableActions != null && runtime.AvailableActions.Count > 0)
-            {
-                runtime.QueueAction(runtime.AvailableActions[0]);
-                playerActionMenu?.HideMenu();
-                if (!orchestrator.IsBusy)
-                {
-                    orchestrator.ExecutePlayerTurn();
-                }
-                else
-                {
-                    DebugLog("OnAttackButton: Skipped ExecutePlayerTurn because orchestrator became busy.");
-                }
-            }
-            else
+            if (!TryQueueAndExecuteFallbackAction("OnAttackButton fallback"))
             {
                 DebugLog("OnAttackButton: No available actions to queue and selector unavailable. Turn skipped.");
             }
@@ -197,24 +178,67 @@ namespace HalloweenJam.Combat
                 return;
             }
 
-            if (!TryHandlePlayerActionSelection())
+            if (!orchestrator.CanPlayerAct || orchestrator.IsBusy)
             {
-                if (orchestrator.IsBusy)
+                return;
+            }
+
+            DebugLog("AutoOpenPlayerTurn: attempting to start player turn.");
+
+            if (TryHandlePlayerActionSelection())
+            {
+                DebugLog("AutoOpenPlayerTurn: selection UI shown.");
+                return;
+            }
+
+            if (!TryQueueAndExecuteFallbackAction("AutoOpenPlayerTurn"))
+            {
+                DebugLog("AutoOpenPlayerTurn: fallback failed (no actions?).");
+            }
+        }
+
+        private bool TryQueueAndExecuteFallbackAction(string label)
+        {
+            if (orchestrator == null)
+            {
+                return false;
+            }
+
+            if (orchestrator.IsBusy)
+            {
+                DebugLog("{0}: orchestrator busy, skipping fallback.", label);
+                return false;
+            }
+
+            if (playerEntity is RuntimeCombatEntity runtime && runtime.AvailableActions != null && runtime.AvailableActions.Count > 0)
+            {
+                var fallbackAction = runtime.AvailableActions[0];
+                if (fallbackAction == null)
                 {
-                    DebugLog("AutoOpenPlayerTurn: skipped fallback because orchestrator is busy.");
-                    return;
+                    DebugLog("{0}: fallback action is null.", label);
+                    return false;
                 }
 
-                if (playerEntity is RuntimeCombatEntity runtime && runtime.AvailableActions != null && runtime.AvailableActions.Count > 0)
+                runtime.QueueAction(fallbackAction);
+                playerActionMenu?.HideMenu();
+
+                if (!orchestrator.IsBusy)
                 {
-                    runtime.QueueAction(runtime.AvailableActions[0]);
-                    playerActionMenu?.HideMenu();
-                    if (!orchestrator.IsBusy)
-                    {
-                        orchestrator.ExecutePlayerTurn();
-                    }
+                    DebugLog("{0}: executing fallback action {1}.", label, fallbackAction.name);
+                    orchestrator.ExecutePlayerTurn();
+                    return true;
+                }
+                else
+                {
+                    DebugLog("{0}: orchestrator became busy before execute.", label);
                 }
             }
+            else
+            {
+                DebugLog("{0}: runtime has no available actions.", label);
+            }
+
+            return false;
         }
 
         private void InitializeBattle()
@@ -343,3 +367,4 @@ namespace HalloweenJam.Combat
         }
     }
 }
+
