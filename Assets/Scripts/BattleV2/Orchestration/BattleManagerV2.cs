@@ -111,6 +111,20 @@ namespace BattleV2.Orchestration
 
             try
             {
+                if (impl.CostSP > 0 && !player.SpendSP(impl.CostSP))
+                {
+                    BattleLogger.Warn("BattleManager", $"Not enough SP for {selected.id}; using fallback.");
+                    ExecuteAutoFallback();
+                    return;
+                }
+
+                if (impl.CostCP > 0 && !player.SpendCP(impl.CostCP))
+                {
+                    BattleLogger.Warn("BattleManager", $"Not enough CP for {selected.id}; using fallback.");
+                    ExecuteAutoFallback();
+                    return;
+                }
+
                 impl.Execute(player, context, () =>
                 {
                     BattleLogger.Log("Resolve", "Enemy turn resolving...");
