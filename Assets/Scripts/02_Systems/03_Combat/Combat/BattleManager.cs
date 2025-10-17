@@ -183,7 +183,13 @@ namespace HalloweenJam.Combat
                 return;
             }
 
-            DebugLog("AutoOpenPlayerTurn: attempting to start player turn (bypass UI).");
+            DebugLog("AutoOpenPlayerTurn: attempting to start player turn.");
+            if (TryHandlePlayerActionSelection())
+            {
+                DebugLog("AutoOpenPlayerTurn: selection UI shown.");
+                return;
+            }
+
             if (!TryQueueAndExecuteFallbackAction("AutoOpenPlayerTurn"))
             {
                 DebugLog("AutoOpenPlayerTurn: fallback failed (no actions?).");
@@ -272,8 +278,6 @@ namespace HalloweenJam.Combat
             {
                 return false;
             }
-
-            playerActionMenu?.HideMenu();
 
             actionSelectionUI.SetInteractionGuard(() => orchestrator != null && orchestrator.IsBusy);
 
@@ -367,4 +371,5 @@ namespace HalloweenJam.Combat
         }
     }
 }
+
 

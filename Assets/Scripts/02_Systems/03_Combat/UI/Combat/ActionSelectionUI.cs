@@ -1,4 +1,5 @@
 using System;
+using System;
 using System.Collections.Generic;
 using DG.Tweening;
 using HalloweenJam.Combat;
@@ -119,9 +120,7 @@ namespace HalloweenJam.UI.Combat
         {
             ClearButtons();
             EnsureActive(false);
-            onSelection = null;
-            currentEntity = null;
-            state = SelectionState.Idle;
+            onSelection = null;            state = SelectionState.Idle;
         }
 
         private void HandleButtonClick(ActionData action, Button button, bool canAfford)
@@ -286,5 +285,6 @@ namespace HalloweenJam.UI.Combat
         }
     }
 }
+
 
 
