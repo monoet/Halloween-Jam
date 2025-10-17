@@ -256,6 +256,12 @@ namespace HalloweenJam.Combat
                 return false;
             }
 
+            if (!actionSelectionUI.CanShow)
+            {
+                DebugLog("TryHandlePlayerActionSelection: UI currently busy; skipping fallback.");
+                return true;
+            }
+
             if (playerEntity is not RuntimeCombatEntity runtime)
             {
                 return false;
@@ -279,6 +285,7 @@ namespace HalloweenJam.Combat
                     return;
                 }
 
+                DebugLog("Player action selected: {0}", selected.name);
                 runtime.QueueAction(selected);
                 if (!orchestrator.IsBusy)
                 {
