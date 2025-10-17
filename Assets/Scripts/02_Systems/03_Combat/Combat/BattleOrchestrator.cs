@@ -116,17 +116,8 @@ namespace HalloweenJam.Combat
         private IEnumerator PlayerTurnRoutine()
         {
             var context = CreateContext(playerEntity, enemyEntity, playerAnimator, 0f);
-            yield return playerStrategy.ExecuteTurn(context);
-
+            yield return ExecuteTurnRoutine(playerStrategy, context, BeginEnemyTurn, "Player turn");
             playerTurnRoutine = null;
-
-            if (battleOver)
-            {
-                SetBusy(false, "PlayerTurnRoutine aborted (battle over)");
-                yield break;
-            }
-
-            BeginEnemyTurn();
         }
 
         private void BeginEnemyTurn()
@@ -145,12 +136,8 @@ namespace HalloweenJam.Combat
         private IEnumerator EnemyTurnRoutine()
         {
             var context = CreateContext(enemyEntity, playerEntity, enemyAnimator, enemyTurnDelay);
-            yield return enemyStrategy.ExecuteTurn(context);
-
+            yield return ExecuteTurnRoutine(enemyStrategy, context, CompleteEnemyTurn, "Enemy turn");
             enemyTurnRoutine = null;
-            EnemyTurnCompleted?.Invoke();
-
-            EnterPlayerTurn();
         }
 
         private void EnterPlayerTurn()
@@ -190,6 +177,35 @@ namespace HalloweenJam.Combat
                 coroutineRunner.StopCoroutine(enemyTurnRoutine);
                 enemyTurnRoutine = null;
             }
+        }
+
+        private IEnumerator ExecuteTurnRoutine(
+            BattleTurnStrategyBase strategy,
+            BattleTurnContext context,
+            Action onTurnCompleted,
+            string label)
+        {
+            if (strategy == null)
+            {
+                Debug.LogWarning("[BattleOrchestrator] Turn strategy missing: " + label);
+                yield break;
+            }
+
+            yield return strategy.ExecuteTurn(context);
+
+            if (battleOver)
+            {
+                SetBusy(false, $"{label} aborted (battle over)");
+                yield break;
+            }
+
+            onTurnCompleted?.Invoke();
+        }
+
+        private void CompleteEnemyTurn()
+        {
+            EnemyTurnCompleted?.Invoke();
+            EnterPlayerTurn();
         }
 
         private void SetBusy(bool value, string reason)

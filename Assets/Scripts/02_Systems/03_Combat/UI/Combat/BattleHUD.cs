@@ -127,11 +127,7 @@ namespace HalloweenJam.UI.Combat
                     }
                     break;
                 case AttackAnimationPhase.Impact:
-                    if (isActor)
-                    {
-                        feedback.PlayImpactCue();
-                    }
-                    else
+                    if (!isActor)
                     {
                         feedback.PlayIncomingDamageCue();
                     }
