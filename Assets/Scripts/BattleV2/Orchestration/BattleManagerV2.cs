@@ -136,20 +136,6 @@ namespace BattleV2.Orchestration
 
             try
             {
-                if (impl.CostSP > 0 && !player.SpendSP(impl.CostSP))
-                {
-                    BattleLogger.Warn("BattleManager", $"Not enough SP for {selected.id}; using fallback.");
-                    ExecuteAutoFallback();
-                    return;
-                }
-
-                if (impl.CostCP > 0 && !player.SpendCP(impl.CostCP))
-                {
-                    BattleLogger.Warn("BattleManager", $"Not enough CP for {selected.id}; using fallback.");
-                    ExecuteAutoFallback();
-                    return;
-                }
-
                 impl.Execute(player, context, () =>
                 {
                     BattleLogger.Log("Resolve", "Enemy turn resolving...");
@@ -161,6 +147,55 @@ namespace BattleV2.Orchestration
                 BattleLogger.Error("BattleManager", $"Action {selected.id} threw exception: {ex}");
                 ExecuteAutoFallback();
             }
+        }
+
+        private void ExecuteEnemyTurn(Action onComplete)
+        {
+            var enemyContext = new CombatContext(enemy, player, context.Services, actionCatalog);
+            var available = actionCatalog.BuildAvailableFor(enemy, enemyContext);
+            if (available.Count == 0)
+            {
+                BattleLogger.Warn("Enemy", "Enemy has no actions; skipping turn.");
+                onComplete?.Invoke();
+                return;
+            }
+
+            var action = available[0];
+            var impl = actionCatalog.Resolve(action);
+            if (impl == null)
+            {
+                BattleLogger.Warn("Enemy", $"Action {action.id} missing implementation; skipping turn.");
+                onComplete?.Invoke();
+                return;
+            }
+
+            if (!impl.CanExecute(enemy, enemyContext))
+            {
+                BattleLogger.Warn("Enemy", $"Action {action.id} cannot execute; skipping turn.");
+                onComplete?.Invoke();
+                return;
+            }
+
+            if (impl.CostSP > 0 && !enemy.SpendSP(impl.CostSP))
+            {
+                BattleLogger.Warn("Enemy", $"Not enough SP for {action.id}; skipping turn.");
+                onComplete?.Invoke();
+                return;
+            }
+
+            if (impl.CostCP > 0 && !enemy.SpendCP(impl.CostCP))
+            {
+                BattleLogger.Warn("Enemy", $"Not enough CP for {action.id}; skipping turn.");
+                onComplete?.Invoke();
+                return;
+            }
+
+            BattleLogger.Log("Enemy", $"Executing {action.id}");
+
+            impl.Execute(enemy, enemyContext, () =>
+            {
+                onComplete?.Invoke();
+            });
         }
 
         private void HandlePostEnemyTurn()
