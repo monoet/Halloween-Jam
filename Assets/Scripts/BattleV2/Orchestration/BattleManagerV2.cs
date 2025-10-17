@@ -15,6 +15,7 @@ namespace BattleV2.Orchestration
         [Header("Core")]
         [SerializeField] private BattleStateController state;
         [SerializeField] private BattleOrchestrator orchestrator;
+        [SerializeField] private BattleConfig config;
         [SerializeField] private ActionCatalog actionCatalog;
         [SerializeField] private ScriptableObject inputProviderBehaviour;
 
@@ -29,6 +30,19 @@ namespace BattleV2.Orchestration
 
         private void Awake()
         {
+            if (config != null)
+            {
+                if (actionCatalog == null)
+                {
+                    actionCatalog = config.actionCatalog;
+                }
+
+                if (inputProviderBehaviour == null)
+                {
+                    inputProviderBehaviour = config.inputProvider;
+                }
+            }
+
             inputProvider = inputProviderBehaviour as IBattleInputProvider;
 
             if (inputProvider == null)
@@ -40,7 +54,7 @@ namespace BattleV2.Orchestration
             context = new CombatContext(
                 player,
                 enemy,
-                new BattleServices(),
+                config != null ? config.services : new BattleServices(),
                 actionCatalog);
         }
 
@@ -53,7 +67,15 @@ namespace BattleV2.Orchestration
 
         public void ResetBattle()
         {
-            context = new CombatContext(player, enemy, context.Services, actionCatalog);
+            if (context == null)
+            {
+                context = new CombatContext(player, enemy, config != null ? config.services : new BattleServices(), actionCatalog);
+            }
+            else
+            {
+                context = new CombatContext(player, enemy, context.Services, actionCatalog);
+            }
+
             state.ResetToIdle();
         }
 
