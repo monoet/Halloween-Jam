@@ -23,6 +23,7 @@ namespace HalloweenJam.Combat
         private readonly string playerVictoryMessage;
         private readonly string playerDefeatMessage;
         private readonly Action<string, object[]> debugLogger;
+        private readonly Action onRequestPlayerAutoAction;
 
         private ICombatEntity playerEntity;
         private ICombatEntity enemyEntity;
@@ -41,7 +42,8 @@ namespace HalloweenJam.Combat
             string defeatRewardText,
             string playerVictoryMessage,
             string playerDefeatMessage,
-            Action<string, object[]> debugLogger)
+            Action<string, object[]> debugLogger,
+            Action onRequestPlayerAutoAction = null)
         {
             this.playerHud = playerHud;
             this.enemyHud = enemyHud;
@@ -55,6 +57,7 @@ namespace HalloweenJam.Combat
             this.playerVictoryMessage = playerVictoryMessage;
             this.playerDefeatMessage = playerDefeatMessage;
             this.debugLogger = debugLogger;
+            this.onRequestPlayerAutoAction = onRequestPlayerAutoAction;
         }
 
         public void Initialize(ICombatEntity player, ICombatEntity enemy)
@@ -207,6 +210,7 @@ namespace HalloweenJam.Combat
         {
             ShowActionMenu();
             Debug("Player turn ready.");
+            AutoOpenPlayerTurn();
         }
 
         private void HandlePlayerTurnCommitted()
@@ -230,6 +234,14 @@ namespace HalloweenJam.Combat
         {
             HideActionMenu();
             Debug("Battle ended.");
+        }
+
+        private void AutoOpenPlayerTurn()
+        {
+            if (onRequestPlayerAutoAction != null)
+            {
+                onRequestPlayerAutoAction();
+            }
         }
 
         private void HandlePlayerAnimationPhaseChanged(AttackAnimationPhase phase)

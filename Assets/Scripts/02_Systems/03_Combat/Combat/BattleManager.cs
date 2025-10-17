@@ -85,7 +85,8 @@ namespace HalloweenJam.Combat
                 defeatRewardText,
                 playerVictoryMessage,
                 playerDefeatMessage,
-                DebugLog);
+                DebugLog,
+                AutoOpenPlayerTurn);
 
             musicController = new BattleMusicController(musicSource, battleMusicClip, victoryMusicClip);
 
@@ -186,6 +187,33 @@ namespace HalloweenJam.Combat
             else
             {
                 DebugLog("OnAttackButton: No available actions to queue and selector unavailable. Turn skipped.");
+            }
+        }
+
+        private void AutoOpenPlayerTurn()
+        {
+            if (orchestrator == null)
+            {
+                return;
+            }
+
+            if (!TryHandlePlayerActionSelection())
+            {
+                if (orchestrator.IsBusy)
+                {
+                    DebugLog("AutoOpenPlayerTurn: skipped fallback because orchestrator is busy.");
+                    return;
+                }
+
+                if (playerEntity is RuntimeCombatEntity runtime && runtime.AvailableActions != null && runtime.AvailableActions.Count > 0)
+                {
+                    runtime.QueueAction(runtime.AvailableActions[0]);
+                    playerActionMenu?.HideMenu();
+                    if (!orchestrator.IsBusy)
+                    {
+                        orchestrator.ExecutePlayerTurn();
+                    }
+                }
             }
         }
 
