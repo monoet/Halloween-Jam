@@ -16,7 +16,8 @@ namespace BattleV2.Orchestration
         [SerializeField] private BattleStateController state;
         [SerializeField] private BattleConfig config;
         [SerializeField] private ActionCatalog actionCatalog;
-        [SerializeField] private ScriptableObject inputProviderBehaviour;
+        [SerializeField] private ScriptableObject inputProviderAsset;
+        [SerializeField] private MonoBehaviour inputProviderComponent;
 
         [Header("Entities")]
         [SerializeField] private CombatantState player;
@@ -25,7 +26,7 @@ namespace BattleV2.Orchestration
         private IBattleInputProvider inputProvider;
         private CombatContext context;
 
-        public ActionData LastExecutedAction { get; private set; }
+        public BattleActionData LastExecutedAction { get; private set; }
 
         private void Awake()
         {
@@ -36,13 +37,20 @@ namespace BattleV2.Orchestration
                     actionCatalog = config.actionCatalog;
                 }
 
-                if (inputProviderBehaviour == null)
+                if (inputProviderAsset == null && inputProviderComponent == null && config.inputProvider != null)
                 {
-                    inputProviderBehaviour = config.inputProvider;
+                    if (config.inputProvider is MonoBehaviour comp)
+                    {
+                        inputProviderComponent = comp;
+                    }
+                    else if (config.inputProvider is ScriptableObject asset)
+                    {
+                        inputProviderAsset = asset;
+                    }
                 }
             }
 
-            inputProvider = inputProviderBehaviour as IBattleInputProvider;
+            inputProvider = ResolveProvider();
 
             if (inputProvider == null)
             {
@@ -55,6 +63,44 @@ namespace BattleV2.Orchestration
                 enemy,
                 config != null ? config.services : new BattleServices(),
                 actionCatalog);
+        }
+
+        private IBattleInputProvider ResolveProvider()
+        {
+            if (inputProviderComponent != null)
+            {
+                if (inputProviderComponent is IBattleInputProvider componentProvider)
+                {
+                    return componentProvider;
+                }
+                BattleLogger.Warn("BattleManager", $"Input provider component '{inputProviderComponent.name}' does not implement IBattleInputProvider.");
+            }
+
+            if (inputProviderAsset != null)
+            {
+                if (inputProviderAsset is IBattleInputProvider assetProvider)
+                {
+                    return assetProvider;
+                }
+                BattleLogger.Warn("BattleManager", $"Input provider asset '{inputProviderAsset.name}' does not implement IBattleInputProvider.");
+            }
+
+            if (config != null && config.inputProvider != null)
+            {
+                if (config.inputProvider is MonoBehaviour configComponent)
+                {
+                    inputProviderComponent = configComponent;
+                    return ResolveProvider();
+                }
+                if (config.inputProvider is ScriptableObject configAsset)
+                {
+                    inputProviderAsset = configAsset;
+                    return ResolveProvider();
+                }
+                BattleLogger.Warn("BattleManager", $"Config input provider '{config.inputProvider.name}' is not a valid provider type.");
+            }
+
+            return null;
         }
 
         public void StartBattle()
@@ -99,14 +145,17 @@ namespace BattleV2.Orchestration
                 Player = player,
                 Enemy = enemy,
                 AvailableActions = available,
-                Context = context
+                Context = context,
+                MaxCpCharge = player != null ? player.CurrentCP : 0
             };
 
             inputProvider.RequestAction(actionContext, ExecuteAction, ExecuteAutoFallback);
         }
 
-        private void ExecuteAction(ActionData selected)
+        private void ExecuteAction(BattleSelection selection)
         {
+            var selected = selection.Action;
+
             if (selected == null)
             {
                 BattleLogger.Warn("BattleManager", "Selected action null; using fallback.");
@@ -122,7 +171,21 @@ namespace BattleV2.Orchestration
                 return;
             }
 
-            if (!impl.CanExecute(player, context))
+            if (player == null)
+            {
+                BattleLogger.Error("BattleManager", "Player missing; cannot execute action.");
+                return;
+            }
+
+            int totalCpRequired = impl.CostCP + Mathf.Max(0, selection.CpCharge);
+            if (player.CurrentCP < totalCpRequired)
+            {
+                BattleLogger.Warn("BattleManager", $"Not enough CP for {selected.id} (needs {totalCpRequired}, has {player.CurrentCP}).");
+                ExecuteAutoFallback();
+                return;
+            }
+
+            if (!impl.CanExecute(player, context, selection.CpCharge))
             {
                 BattleLogger.Warn("BattleManager", $"Action {selected.id} cannot execute; using fallback.");
                 ExecuteAutoFallback();
@@ -135,7 +198,7 @@ namespace BattleV2.Orchestration
 
             try
             {
-                impl.Execute(player, context, () =>
+                impl.Execute(player, context, selection.CpCharge, () =>
                 {
                     BattleLogger.Log("Resolve", "Enemy turn resolving...");
                     ExecuteEnemyTurn(HandlePostEnemyTurn);
@@ -168,7 +231,7 @@ namespace BattleV2.Orchestration
                 return;
             }
 
-            if (!impl.CanExecute(enemy, enemyContext))
+            if (!impl.CanExecute(enemy, enemyContext, 0))
             {
                 BattleLogger.Warn("Enemy", $"Action {action.id} cannot execute; skipping turn.");
                 onComplete?.Invoke();
@@ -191,7 +254,7 @@ namespace BattleV2.Orchestration
 
             BattleLogger.Log("Enemy", $"Executing {action.id}");
 
-            impl.Execute(enemy, enemyContext, () =>
+            impl.Execute(enemy, enemyContext, 0, () =>
             {
                 onComplete?.Invoke();
             });
@@ -226,7 +289,7 @@ namespace BattleV2.Orchestration
         {
             var fallback = actionCatalog.Fallback(player, context);
             BattleLogger.Log("Fallback", $"Executing fallback action {fallback.id}");
-            ExecuteAction(fallback);
+            ExecuteAction(new BattleSelection(fallback, 0));
         }
     }
 }

@@ -1,23 +1,49 @@
+using BattleV2.Core;
 using UnityEngine;
 
 namespace BattleV2.Orchestration
 {
     /// <summary>
-    /// Temporary helper to start BattleManagerV2 on scene load.
+    /// Starts and optionally resets the battle at runtime.
     /// </summary>
     public class BattleBootstrapper : MonoBehaviour
     {
         [SerializeField] private BattleManagerV2 battleManager;
         [SerializeField] private bool autoStart = true;
+        [SerializeField] private KeyCode resetKey = KeyCode.R;
 
         private void Start()
         {
-            if (!autoStart || battleManager == null)
+            if (autoStart && battleManager != null)
             {
-                return;
+                BattleLogger.Log("Bootstrap", "Starting battle (auto-start enabled).");
+                battleManager.ResetBattle();
+                battleManager.StartBattle();
             }
+        }
 
-            BattleLogger.Log("Bootstrap", "Starting battle (auto-start enabled).");
+        private void Update()
+        {
+            if (battleManager == null)
+                return;
+
+            if (Input.GetKeyDown(resetKey))
+            {
+                BattleLogger.Log("Bootstrap", $"Manual reset triggered with {resetKey}.");
+                battleManager.ResetBattle();
+                battleManager.StartBattle();
+            }
+        }
+
+        /// <summary>
+        /// Public API to reset battle from UI or other scripts.
+        /// </summary>
+        public void TriggerReset()
+        {
+            if (battleManager == null)
+                return;
+
+            BattleLogger.Log("Bootstrap", "Manual reset triggered (via UI).");
             battleManager.ResetBattle();
             battleManager.StartBattle();
         }

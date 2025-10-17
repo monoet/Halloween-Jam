@@ -8,7 +8,7 @@ namespace BattleV2.Core
     public class BattleConfig : ScriptableObject
     {
         public ActionCatalog actionCatalog;
-        public ScriptableObject inputProvider;
+        public Object inputProvider;
         public BattleServices services = new();
     }
 }

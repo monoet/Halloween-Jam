@@ -1,0 +1,42 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 691bc41ca508e7b4b830423829393225, type: 3}
+  m_Name: Action Catalog
+  m_EditorClassIdentifier: Assembly-CSharp::BattleV2.Actions.ActionCatalog
+  basic:
+  - id: 
+    displayName: SimpleAttackAction
+    costSP: 0
+    costCP: 0
+    actionImpl: {fileID: 11400000, guid: d1241046b26176b47bc4092e3017b62d, type: 2}
+  - id: 
+    displayName: SimpleAttackAction
+    costSP: 0
+    costCP: 0
+    actionImpl: {fileID: 11400000, guid: 6933c3a7aa3e7f04b8a7776457e9c400, type: 2}
+  - id: 
+    displayName: SimpleAttackAction
+    costSP: 0
+    costCP: 0
+    actionImpl: {fileID: 11400000, guid: 5508ffdf989ae5c4498ab0444089b831, type: 2}
+  magic:
+  - id: 
+    displayName: MAGICMISSLESTRONG
+    costSP: 0
+    costCP: 3
+    actionImpl: {fileID: 11400000, guid: 45b5c0ac06cae82449ed9e6dd1e74156, type: 2}
+  items:
+  - id: 
+    displayName: MinorHealthpot
+    costSP: 0
+    costCP: 0
+    actionImpl: {fileID: 11400000, guid: 3c5fb851f85748e449f0542693efc519, type: 2}

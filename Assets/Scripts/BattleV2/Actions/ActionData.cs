@@ -3,7 +3,7 @@ using UnityEngine;
 namespace BattleV2.Actions
 {
     [System.Serializable]
-    public class ActionData
+    public class BattleActionData
     {
         public string id;
         public string displayName;

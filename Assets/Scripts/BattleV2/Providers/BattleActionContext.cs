@@ -8,7 +8,8 @@ namespace BattleV2.Providers
     {
         public CombatantState Player;
         public CombatantState Enemy;
-        public IReadOnlyList<ActionData> AvailableActions;
+        public IReadOnlyList<BattleActionData> AvailableActions;
         public CombatContext Context;
+        public int MaxCpCharge;
     }
 }

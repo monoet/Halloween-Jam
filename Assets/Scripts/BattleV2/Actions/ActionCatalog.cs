@@ -8,18 +8,18 @@ namespace BattleV2.Actions
     [CreateAssetMenu(menuName = "Battle/Action Catalog")]
     public class ActionCatalog : ScriptableObject
     {
-        [SerializeField] private List<ActionData> basic = new();
-        [SerializeField] private List<ActionData> magic = new();
-        [SerializeField] private List<ActionData> items = new();
+        [SerializeField] private List<BattleActionData> basic = new();
+        [SerializeField] private List<BattleActionData> magic = new();
+        [SerializeField] private List<BattleActionData> items = new();
 
-        public IReadOnlyList<ActionData> BuildAvailableFor(CombatantState actor, CombatContext context)
+        public IReadOnlyList<BattleActionData> BuildAvailableFor(CombatantState actor, CombatContext context)
         {
-            var all = new List<ActionData>();
+            var all = new List<BattleActionData>();
             all.AddRange(basic);
             all.AddRange(magic);
             all.AddRange(items);
 
-            var filtered = new List<ActionData>();
+            var filtered = new List<BattleActionData>();
 
             foreach (var data in all)
             {
@@ -37,7 +37,7 @@ namespace BattleV2.Actions
                         continue;
                     }
 
-                    if (impl.CanExecute(actor, context))
+                    if (impl.CanExecute(actor, context, 0))
                     {
                         filtered.Add(data);
                     }
@@ -51,7 +51,7 @@ namespace BattleV2.Actions
             return filtered;
         }
 
-        public IAction Resolve(ActionData data)
+        public IAction Resolve(BattleActionData data)
         {
             if (data == null || data.actionImpl == null)
             {
@@ -67,7 +67,7 @@ namespace BattleV2.Actions
             return null;
         }
 
-        public ActionData Fallback(CombatantState actor, CombatContext context)
+        public BattleActionData Fallback(CombatantState actor, CombatContext context)
         {
             var available = BuildAvailableFor(actor, context);
             if (available.Count > 0)

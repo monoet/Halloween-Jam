@@ -32,6 +32,7 @@ public class CombatantState : MonoBehaviour
     public int MaxSP => maxSP;
     public int CurrentSP => currentSP;
     public bool IsAlive => currentHP > 0;
+    public bool IsDead() => !IsAlive;
     public int MaxCP => maxCP;
     public int CurrentCP => currentCP;
     public bool Initialized => initialized;

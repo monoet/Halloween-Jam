@@ -8,18 +8,18 @@ namespace BattleV2.Providers
     [CreateAssetMenu(menuName = "Battle/Input Provider/Auto")]
     public class AutoBattleInputProvider : ScriptableObject, IBattleInputProvider
     {
-        public void RequestAction(BattleActionContext context, System.Action<ActionData> onSelected, System.Action onCancel)
+        public void RequestAction(BattleActionContext context, System.Action<BattleSelection> onSelected, System.Action onCancel)
         {
             if (context.AvailableActions == null || context.AvailableActions.Count == 0)
             {
-                BattleLogger.Warn("AutoProvider", "No available actions – cancelling.");
+                BattleLogger.Warn("AutoProvider", "No available actions; cancelling.");
                 onCancel?.Invoke();
                 return;
             }
 
             var chosen = context.AvailableActions.First();
             BattleLogger.Log("AutoProvider", $"Auto-selecting {chosen.id}");
-            onSelected?.Invoke(chosen);
+            onSelected?.Invoke(new BattleSelection(chosen));
         }
     }
 }

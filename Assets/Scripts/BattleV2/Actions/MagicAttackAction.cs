@@ -5,14 +5,15 @@ using UnityEngine;
 
 namespace BattleV2.Actions
 {
-    [CreateAssetMenu(menuName = "Battle/Actions/Simple Attack")]
-    public class SimpleAttackAction : ScriptableObject, IAction, IActionProvider
+    [CreateAssetMenu(menuName = "Battle/Actions/Magic Attack")]
+    public class MagicAttackAction : ScriptableObject, IAction, IActionProvider
     {
-        [SerializeField] private string actionId = "simple_attack";
-        [SerializeField] private int costSp;
+        [Header("Base Info")]
+        [SerializeField] private string actionId = "magic_attack";
+        [SerializeField] private int costSp = 5;
         [SerializeField] private int costCp;
-        [SerializeField] private int damage = 5;
-        [SerializeField] private int cpGain = 1;
+        [SerializeField] private int damage = 15;
+        [SerializeField] private string element = "Fire";
 
         public string Id => actionId;
         public int CostSP => costSp;
@@ -22,12 +23,12 @@ namespace BattleV2.Actions
 
         public bool CanExecute(CombatantState actor, CombatContext context, int cpCharge)
         {
-            if (actor == null || context == null)
+            if (actor == null || context?.Enemy == null)
             {
                 return false;
             }
 
-            if (context.Enemy == null || !context.Enemy.IsAlive)
+            if (!context.Enemy.IsAlive)
             {
                 return false;
             }
@@ -41,14 +42,14 @@ namespace BattleV2.Actions
         {
             if (context?.Enemy == null)
             {
-                BattleLogger.Warn("Action", "SimpleAttackAction executed with missing enemy.");
+                BattleLogger.Warn("MagicAttack", "No target for magic attack.");
                 onComplete?.Invoke();
                 return;
             }
 
             if (costSp > 0 && !actor.SpendSP(costSp))
             {
-                BattleLogger.Warn("Action", $"{actor.name} lacks SP ({actor.CurrentSP}/{costSp}) for SimpleAttack.");
+                BattleLogger.Warn("MagicAttack", $"{actor.name} tried to cast {element} without enough SP.");
                 onComplete?.Invoke();
                 return;
             }
@@ -56,22 +57,19 @@ namespace BattleV2.Actions
             int totalCpCost = costCp + Mathf.Max(0, cpCharge);
             if (totalCpCost > 0 && !actor.SpendCP(totalCpCost))
             {
-                BattleLogger.Warn("Action", $"{actor.name} lacks CP ({actor.CurrentCP}/{totalCpCost}) for SimpleAttack.");
+                BattleLogger.Warn("MagicAttack", $"{actor.name} tried to cast {element} without enough CP.");
                 onComplete?.Invoke();
                 return;
             }
 
-            int totalDamage = damage; // TODO: add scaling per cpCharge if desired.
+            int totalDamage = damage; // TODO: scale damage with cpCharge if desired.
 
-            BattleLogger.Log("Action", $"SimpleAttack dealing {totalDamage} damage (CP Charge: {cpCharge}).");
+            BattleLogger.Log("MagicAttack", $"{actor.name} casts {element} dealing {totalDamage} damage! (CP Charge: {cpCharge})");
             context.Enemy.TakeDamage(totalDamage);
 
-            if (cpGain > 0 && costCp == 0 && cpCharge == 0)
-            {
-                actor.AddCP(cpGain);
-            }
+            // TODO: context.Services?.SpawnVFX($"{element}SpellFX", context.Enemy.Position);
+            // TODO: Add animations or sound hooks
 
-            // TODO: integrate animations via context.Services.GetAnimatorFor(actor)
             onComplete?.Invoke();
         }
     }

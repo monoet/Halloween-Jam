@@ -10,7 +10,7 @@ namespace BattleV2.Providers
     /// </summary>
     public class ManualBattleInputProvider : MonoBehaviour, IBattleInputProvider
     {
-        public void RequestAction(BattleActionContext context, Action<ActionData> onSelected, Action onCancel)
+        public void RequestAction(BattleActionContext context, Action<BattleSelection> onSelected, Action onCancel)
         {
             if (context == null || context.AvailableActions == null || context.AvailableActions.Count == 0)
             {
@@ -20,7 +20,7 @@ namespace BattleV2.Providers
             }
 
             BattleLogger.Log("Provider", "Manual provider degrading to auto (UI pending).");
-            onSelected?.Invoke(context.AvailableActions[0]);
+            onSelected?.Invoke(new BattleSelection(context.AvailableActions[0]));
         }
     }
 }
