@@ -1,0 +1,26 @@
+using System;
+using BattleV2.Actions;
+using BattleV2.Core;
+using UnityEngine;
+
+namespace BattleV2.Providers
+{
+    /// <summary>
+    /// Temporary manual provider that degrades to auto until the new UI is in place.
+    /// </summary>
+    public class ManualBattleInputProvider : MonoBehaviour, IBattleInputProvider
+    {
+        public void RequestAction(BattleActionContext context, Action<ActionData> onSelected, Action onCancel)
+        {
+            if (context == null || context.AvailableActions == null || context.AvailableActions.Count == 0)
+            {
+                BattleLogger.Warn("Provider", "Manual provider received no actions. Cancelling.");
+                onCancel?.Invoke();
+                return;
+            }
+
+            BattleLogger.Log("Provider", "Manual provider degrading to auto (UI pending).");
+            onSelected?.Invoke(context.AvailableActions[0]);
+        }
+    }
+}
