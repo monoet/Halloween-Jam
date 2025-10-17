@@ -84,6 +84,11 @@ namespace HalloweenJam.UI.Combat
             TriggerShake();
         }
 
+        public void PlayIncomingDamageCue()
+        {
+            TriggerShake();
+        }
+
         public void PlayRecoverCue()
         {
             // Placeholder for future polish; currently no additional feedback.

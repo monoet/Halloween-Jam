@@ -133,7 +133,7 @@ namespace HalloweenJam.UI.Combat
                     }
                     else
                     {
-                        feedback.PlayIncomingImpactCue();
+                        feedback.PlayIncomingDamageCue();
                     }
                     break;
                 case AttackAnimationPhase.Recover:

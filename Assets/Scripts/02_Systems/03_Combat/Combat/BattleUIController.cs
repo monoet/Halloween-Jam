@@ -234,21 +234,33 @@ namespace HalloweenJam.Combat
 
         private void HandlePlayerAnimationPhaseChanged(AttackAnimationPhase phase)
         {
-            playerHud?.PlayPhaseCue(phase, isActor: true);
-
-            if (phase == AttackAnimationPhase.Impact)
+            switch (phase)
             {
-                enemyHud?.PlayPhaseCue(phase, isActor: false);
+                case AttackAnimationPhase.Charge:
+                case AttackAnimationPhase.Lunge:
+                case AttackAnimationPhase.Recover:
+                    playerHud?.PlayPhaseCue(phase, isActor: true);
+                    break;
+                case AttackAnimationPhase.Impact:
+                    playerHud?.PlayPhaseCue(phase, isActor: true);
+                    enemyHud?.PlayPhaseCue(phase, isActor: false);
+                    break;
             }
         }
 
         private void HandleEnemyAnimationPhaseChanged(AttackAnimationPhase phase)
         {
-            enemyHud?.PlayPhaseCue(phase, isActor: true);
-
-            if (phase == AttackAnimationPhase.Impact)
+            switch (phase)
             {
-                playerHud?.PlayPhaseCue(phase, isActor: false);
+                case AttackAnimationPhase.Charge:
+                case AttackAnimationPhase.Lunge:
+                case AttackAnimationPhase.Recover:
+                    enemyHud?.PlayPhaseCue(phase, isActor: true);
+                    break;
+                case AttackAnimationPhase.Impact:
+                    enemyHud?.PlayPhaseCue(phase, isActor: true);
+                    playerHud?.PlayPhaseCue(phase, isActor: false);
+                    break;
             }
         }
 
