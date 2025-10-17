@@ -453,7 +453,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2671832292077362661, guid: 917a478280df7664da1d9921c7c733db, type: 3}
       propertyPath: m_Name
-      value: CharacterSlotUI Player
+      value: HUD_Player
       objectReference: {fileID: 0}
     - target: {fileID: 2944788314347440176, guid: 917a478280df7664da1d9921c7c733db, type: 3}
       propertyPath: m_AnchorMax.y
@@ -613,19 +613,19 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8698498106251069893, guid: 917a478280df7664da1d9921c7c733db, type: 3}
       propertyPath: m_AnchorMax.y
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 8698498106251069893, guid: 917a478280df7664da1d9921c7c733db, type: 3}
       propertyPath: m_AnchorMin.y
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 8698498106251069893, guid: 917a478280df7664da1d9921c7c733db, type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: 0
+      value: 50
       objectReference: {fileID: 0}
     - target: {fileID: 8698498106251069893, guid: 917a478280df7664da1d9921c7c733db, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: 0
+      value: 13
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -661,7 +661,7 @@ GameObject:
   - component: {fileID: 487101184}
   - component: {fileID: 487101187}
   m_Layer: 5
-  m_Name: ActionPanel
+  m_Name: ActionSelector_Root
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1156,7 +1156,7 @@ GameObject:
   - component: {fileID: 620816449}
   - component: {fileID: 620816451}
   m_Layer: 5
-  m_Name: Panel
+  m_Name: VictoryPanel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1249,7 +1249,7 @@ GameObject:
   - component: {fileID: 732375290}
   - component: {fileID: 732375291}
   m_Layer: 0
-  m_Name: Music
+  m_Name: MusicSource
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2160,7 +2160,7 @@ GameObject:
   - component: {fileID: 1340563574}
   - component: {fileID: 1340563576}
   m_Layer: 5
-  m_Name: 'Combat Log:'
+  m_Name: CombatLogText
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2866,8 +2866,9 @@ GameObject:
   - component: {fileID: 1814074716}
   - component: {fileID: 1814074715}
   - component: {fileID: 1814074714}
+  - component: {fileID: 1814074717}
   m_Layer: 5
-  m_Name: Battle Action Menu
+  m_Name: ActionMenu_Root
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2962,6 +2963,34 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1814074712}
   m_CullTransparentMesh: 1
+--- !u!114 &1814074717
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1814074712}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4d738026a97fecb488668a8ee67b09cc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::HalloweenJam.UI.Combat.BattleActionMenu
+  rootMenuRoot: {fileID: 1814074712}
+  attackButton: {fileID: 1458729078}
+  itemButton: {fileID: 573831576}
+  magicButton: {fileID: 1053217040}
+  defendButton: {fileID: 928430631}
+  fleeButton: {fileID: 51855335}
+  attackMenuRoot: {fileID: 487101182}
+  attackConfirmButton: {fileID: 0}
+  attackBackButton: {fileID: 0}
+  actionDescriptionLabel: {fileID: 1049608798}
+  autoHideOnConfirm: 1
+  showDuration: 0.25
+  hideDuration: 0.15
+  showScaleEase: 27
+  showFadeEase: 6
+  hideEase: 5
 --- !u!1 &1885329793 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 7724848432755533274, guid: 153292bed16af9d49be6bdbd3d87a8b8, type: 3}
@@ -2980,7 +3009,7 @@ GameObject:
   - component: {fileID: 1885587350}
   - component: {fileID: 1885587349}
   m_Layer: 5
-  m_Name: Reward
+  m_Name: VictoryRewardText
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -3357,7 +3386,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2671832292077362661, guid: 917a478280df7664da1d9921c7c733db, type: 3}
       propertyPath: m_Name
-      value: CharacterSlotUI ENEMY
+      value: HUD_Enemy
       objectReference: {fileID: 0}
     - target: {fileID: 2944788314347440176, guid: 917a478280df7664da1d9921c7c733db, type: 3}
       propertyPath: m_AnchorMax.y
@@ -3633,19 +3662,19 @@ PrefabInstance:
       objectReference: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
     - target: {fileID: 8698498106251069893, guid: 917a478280df7664da1d9921c7c733db, type: 3}
       propertyPath: m_AnchorMax.y
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 8698498106251069893, guid: 917a478280df7664da1d9921c7c733db, type: 3}
       propertyPath: m_AnchorMin.y
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 8698498106251069893, guid: 917a478280df7664da1d9921c7c733db, type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: 0
+      value: 50
       objectReference: {fileID: 0}
     - target: {fileID: 8698498106251069893, guid: 917a478280df7664da1d9921c7c733db, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: 0
+      value: 13
       objectReference: {fileID: 0}
     - target: {fileID: 8732219476042477866, guid: 917a478280df7664da1d9921c7c733db, type: 3}
       propertyPath: m_Enabled
@@ -3694,9 +3723,8 @@ GameObject:
   m_Component:
   - component: {fileID: 1941987469}
   - component: {fileID: 1941987468}
-  - component: {fileID: 1941987470}
   m_Layer: 0
-  m_Name: BattleManager
+  m_Name: BattleManagerRoot
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -3719,7 +3747,7 @@ MonoBehaviour:
   playerHud: {fileID: 433580561}
   enemyHud: {fileID: 1929732882}
   battleLogText: {fileID: 2112282772}
-  playerActionMenu: {fileID: 1941987470}
+  playerActionMenu: {fileID: 1814074717}
   actionSelectionUI: {fileID: 487101187}
   playerAttackAnimatorSource: {fileID: 2077095904618654864}
   enemyAttackAnimatorSource: {fileID: 1724910508}
@@ -3756,34 +3784,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1941987470
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1941987467}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4d738026a97fecb488668a8ee67b09cc, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  rootMenuRoot: {fileID: 1814074712}
-  attackButton: {fileID: 1458729078}
-  itemButton: {fileID: 573831576}
-  magicButton: {fileID: 1053217040}
-  defendButton: {fileID: 928430631}
-  fleeButton: {fileID: 51855335}
-  attackMenuRoot: {fileID: 487101182}
-  attackConfirmButton: {fileID: 0}
-  attackBackButton: {fileID: 0}
-  actionDescriptionLabel: {fileID: 1049608798}
-  autoHideOnConfirm: 1
-  showDuration: 0.25
-  hideDuration: 0.15
-  showScaleEase: 27
-  showFadeEase: 6
-  hideEase: 5
 --- !u!1 &1987719219
 GameObject:
   m_ObjectHideFlags: 0
@@ -3797,7 +3797,7 @@ GameObject:
   - component: {fileID: 1987719222}
   - component: {fileID: 1987719221}
   m_Layer: 5
-  m_Name: Victory Gains
+  m_Name: VictoryMessageText
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -4310,7 +4310,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8280905549616643392, guid: fbe2b53f72af3bd4db2163709bec3213, type: 3}
       propertyPath: m_Name
-      value: lilia large-export_0
+      value: PlayerEntity
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -4629,7 +4629,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7724848432755533274, guid: 153292bed16af9d49be6bdbd3d87a8b8, type: 3}
       propertyPath: m_Name
-      value: Square
+      value: EnemyEntity
       objectReference: {fileID: 0}
     - target: {fileID: 9155731212041119625, guid: 153292bed16af9d49be6bdbd3d87a8b8, type: 3}
       propertyPath: impactSfx

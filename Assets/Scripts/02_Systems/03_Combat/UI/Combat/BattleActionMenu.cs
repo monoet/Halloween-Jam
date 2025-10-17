@@ -45,7 +45,7 @@ namespace HalloweenJam.UI.Combat
         [SerializeField] private Ease hideEase = Ease.InQuad;
 
         public event Action OnAttackConfirmed;
-        public event Action OnCancel;
+        public event Action OnCancel;\n\n        public bool AutoHideOnConfirm\n        {\n            get => autoHideOnConfirm;\n            set => autoHideOnConfirm = value;\n        }\n\n        public bool AutoHideOnConfirm\n        {\n            get => autoHideOnConfirm;\n            set => autoHideOnConfirm = value;\n        }
 
         private readonly List<Button> orderedButtons = new();
         private readonly Dictionary<Button, UnityAction> clickHandlers = new();
@@ -492,3 +492,6 @@ namespace HalloweenJam.UI.Combat
         }
     }
 }
+
+
+

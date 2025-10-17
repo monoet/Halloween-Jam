@@ -279,6 +279,13 @@ namespace HalloweenJam.Combat
                 return false;
             }
 
+            bool? previousAutoHide = null;
+            if (playerActionMenu != null)
+            {
+                previousAutoHide = playerActionMenu.AutoHideOnConfirm;
+                playerActionMenu.AutoHideOnConfirm = false;
+            }
+
             actionSelectionUI.SetInteractionGuard(() => orchestrator != null && orchestrator.IsBusy);
 
             actionSelectionUI.Show(runtime, selected =>
@@ -286,6 +293,7 @@ namespace HalloweenJam.Combat
                 if (selected == null)
                 {
                     DebugLog("OnAttackButton: Selection UI returned null action. Turn cancelled.");
+                    RestoreActionMenuAutoHide(previousAutoHide);
                     return;
                 }
 
@@ -299,9 +307,31 @@ namespace HalloweenJam.Combat
                 {
                     DebugLog("OnAttackButton: Execute skipped because orchestrator is busy.");
                 }
+
+                RestoreActionMenuAutoHide(previousAutoHide);
             });
 
+            if (!actionSelectionUI.IsAwaitingSelection)
+            {
+                RestoreActionMenuAutoHide(previousAutoHide);
+            }
+
             return true;
+        }
+
+        private void RestoreActionMenuAutoHide(bool? previousAutoHide)
+        {
+            if (!previousAutoHide.HasValue || playerActionMenu == null)
+            {
+                return;
+            }
+
+            playerActionMenu.AutoHideOnConfirm = previousAutoHide.Value;
+
+            if (previousAutoHide.Value)
+            {
+                playerActionMenu.HideMenu();
+            }
         }
 
         private void OnBattleFinished(BattleOutcome outcome)
@@ -371,5 +401,6 @@ namespace HalloweenJam.Combat
         }
     }
 }
+
 
 
