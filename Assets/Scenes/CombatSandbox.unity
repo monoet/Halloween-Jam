@@ -613,19 +613,19 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8698498106251069893, guid: 917a478280df7664da1d9921c7c733db, type: 3}
       propertyPath: m_AnchorMax.y
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 8698498106251069893, guid: 917a478280df7664da1d9921c7c733db, type: 3}
       propertyPath: m_AnchorMin.y
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 8698498106251069893, guid: 917a478280df7664da1d9921c7c733db, type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: 50
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 8698498106251069893, guid: 917a478280df7664da1d9921c7c733db, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: 13
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -661,7 +661,7 @@ GameObject:
   - component: {fileID: 487101184}
   - component: {fileID: 487101187}
   m_Layer: 5
-  m_Name: ActionSelector_Root
+  m_Name: AttackSelector_Root
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -3662,19 +3662,19 @@ PrefabInstance:
       objectReference: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
     - target: {fileID: 8698498106251069893, guid: 917a478280df7664da1d9921c7c733db, type: 3}
       propertyPath: m_AnchorMax.y
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 8698498106251069893, guid: 917a478280df7664da1d9921c7c733db, type: 3}
       propertyPath: m_AnchorMin.y
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 8698498106251069893, guid: 917a478280df7664da1d9921c7c733db, type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: 50
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 8698498106251069893, guid: 917a478280df7664da1d9921c7c733db, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: 13
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 8732219476042477866, guid: 917a478280df7664da1d9921c7c733db, type: 3}
       propertyPath: m_Enabled
