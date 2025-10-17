@@ -11,14 +11,14 @@ namespace BattleV2.Providers
     /// </summary>
     public class HoldChargeInputProvider : MonoBehaviour, IBattleInputProvider
     {
-        [SerializeField] private KeyCode confirmKey = KeyCode.Return;
+        [SerializeField] private KeyCode holdKey = KeyCode.R;
         [SerializeField] private KeyCode cancelKey = KeyCode.Escape;
         [SerializeField] private ChargeProfile defaultChargeProfile;
 
         private BattleActionContext pendingContext;
         private Action<BattleSelection> pendingOnSelected;
         private Action pendingOnCancel;
-        private HoldChargeStrategy strategy = new HoldChargeStrategy();
+        private HoldChargeStrategy strategy;
         private bool awaitingResult;
 
         public void RequestAction(BattleActionContext context, Action<BattleSelection> onSelected, Action onCancel)
@@ -34,9 +34,10 @@ namespace BattleV2.Providers
             pendingOnSelected = onSelected;
             pendingOnCancel = onCancel;
             awaitingResult = true;
+            strategy = new HoldChargeStrategy(holdKey);
 
             var action = context.AvailableActions[0];
-            BattleLogger.Log("HoldProvider", $"Auto-selecting {action.id}. Hold key to charge.");
+            BattleLogger.Log("HoldProvider", $"Auto-selecting {action.id}. Hold {holdKey} to charge.");
 
             var request = BuildChargeRequest(action);
             strategy.Begin(request, HandleCompleted, HandleCancelled);
@@ -49,16 +50,12 @@ namespace BattleV2.Providers
                 return;
             }
 
-            strategy.Tick(Time.deltaTime);
-
-            if (Input.GetKeyDown(confirmKey))
-            {
-                strategy.Cancel();
-            }
+            strategy?.Tick(Time.deltaTime);
 
             if (Input.GetKeyDown(cancelKey))
             {
                 awaitingResult = false;
+                strategy?.Cancel();
                 pendingOnCancel?.Invoke();
                 ClearPending();
             }
@@ -99,6 +96,7 @@ namespace BattleV2.Providers
             pendingContext = null;
             pendingOnSelected = null;
             pendingOnCancel = null;
+            strategy = null;
         }
     }
 }

@@ -1,4 +1,5 @@
 using System;
+using BattleV2.Core;
 using BattleV2.Providers;
 using UnityEngine;
 
@@ -9,7 +10,7 @@ namespace BattleV2.Charge
     /// </summary>
     public sealed class HoldChargeStrategy : IChargeStrategy
     {
-        [SerializeField] private KeyCode holdKey = KeyCode.R;
+        private KeyCode holdKey;
 
         private ChargeRequest request;
         private Action<BattleSelection> onCompleted;
@@ -17,6 +18,11 @@ namespace BattleV2.Charge
         private bool charging;
         private float elapsed;
         private int cachedCharge;
+
+        public HoldChargeStrategy(KeyCode holdKey = KeyCode.R)
+        {
+            this.holdKey = holdKey;
+        }
 
         public void Begin(ChargeRequest request, Action<BattleSelection> onCompleted, Action onCancelled)
         {
@@ -65,6 +71,11 @@ namespace BattleV2.Charge
             elapsed = 0f;
             cachedCharge = 0;
             onCancelled?.Invoke();
+        }
+
+        public void ForceComplete()
+        {
+            Complete(cachedCharge);
         }
 
         private void Complete(int cpCharge)

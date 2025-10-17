@@ -12,6 +12,10 @@ namespace BattleV2.Charge
         public event Action<int, int, bool> OnPhaseResolved;
         public event Action<TimedHitResult> OnSequenceCompleted;
 
+        public static event Action<int, int> GlobalPhaseStarted;
+        public static event Action<int, int, bool> GlobalPhaseResolved;
+        public static event Action<TimedHitResult> GlobalSequenceCompleted;
+
         public void StartSequence(Ks1TimedHitProfile profile, int cpCharge)
         {
             if (profile == null)
@@ -28,12 +32,14 @@ namespace BattleV2.Charge
             for (int i = 0; i < totalHits; i++)
             {
                 OnPhaseStarted?.Invoke(i + 1, totalHits);
+                GlobalPhaseStarted?.Invoke(i + 1, totalHits);
                 bool success = SimulateHit();
                 if (success)
                 {
                     hitsSucceeded++;
                 }
                 OnPhaseResolved?.Invoke(i + 1, totalHits, success);
+                GlobalPhaseResolved?.Invoke(i + 1, totalHits, success);
             }
 
             int refund = Mathf.Clamp(hitsSucceeded, 0, tier.RefundMax);
@@ -49,6 +55,7 @@ namespace BattleV2.Charge
         private void Complete(TimedHitResult result)
         {
             OnSequenceCompleted?.Invoke(result);
+            GlobalSequenceCompleted?.Invoke(result);
         }
     }
 }

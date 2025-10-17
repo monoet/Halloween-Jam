@@ -28,6 +28,8 @@ namespace BattleV2.Orchestration
         private CombatContext context;
 
         public BattleActionData LastExecutedAction { get; private set; }
+        public event Action<BattleSelection, int> OnPlayerActionSelected;
+        public event Action<BattleSelection, int, int> OnPlayerActionResolved;
 
         private void Awake()
         {
@@ -196,12 +198,16 @@ namespace BattleV2.Orchestration
             LastExecutedAction = selected;
             BattleLogger.Log("Execute", $"Action {selected.id} starting.");
             state.Set(BattleState.Resolving);
+            int cpBefore = player.CurrentCP;
+            OnPlayerActionSelected?.Invoke(selection, cpBefore);
 
             try
             {
                 impl.Execute(player, context, selection.CpCharge, () =>
                 {
                     BattleLogger.Log("Resolve", "Enemy turn resolving...");
+                    int cpAfter = player.CurrentCP;
+                    OnPlayerActionResolved?.Invoke(selection, cpBefore, cpAfter);
                     ExecuteEnemyTurn(HandlePostEnemyTurn);
                 });
             }
@@ -303,6 +309,11 @@ namespace BattleV2.Orchestration
 
             var impl = actionCatalog.Resolve(action);
             return impl != null ? impl.ChargeProfile : null;
+        }
+
+        public void SetRuntimeInputProvider(IBattleInputProvider provider)
+        {
+            inputProvider = provider ?? ResolveProvider();
         }
     }
 }

@@ -14,9 +14,6 @@ namespace BattleV2.Charge
         private ChargeRequest request;
         private Action<BattleSelection> onCompleted;
         private Action onCancelled;
-        private bool waitingTimedHits;
-        private BattleSelection cachedSelection;
-
         public event Action<int, int> OnPhaseStarted
         {
             add => timedHitModule.OnPhaseStarted += value;
@@ -40,40 +37,29 @@ namespace BattleV2.Charge
             this.request = request;
             this.onCompleted = onCompleted;
             this.onCancelled = onCancelled;
-            waitingTimedHits = false;
-            cachedSelection = default;
 
             holdStrategy.Begin(request, HandleChargeCompleted, HandleChargeCancelled);
         }
 
         public void Tick(float deltaTime)
         {
-            if (!waitingTimedHits)
-            {
-                holdStrategy.Tick(deltaTime);
-                return;
-            }
-
-            timedHitModule.StartSequence(request.Profile as Ks1TimedHitProfile, cachedSelection.CpCharge);
-            Complete(cachedSelection);
+            holdStrategy.Tick(deltaTime);
         }
 
         public void Cancel()
         {
-            if (!waitingTimedHits)
-            {
-                holdStrategy.Cancel();
-                return;
-            }
-
-            waitingTimedHits = false;
-            onCancelled?.Invoke();
+            holdStrategy.Cancel();
         }
 
         private void HandleChargeCompleted(BattleSelection selection)
         {
-            waitingTimedHits = true;
-            cachedSelection = selection;
+            var profile = request.Profile as Ks1TimedHitProfile;
+            if (profile != null)
+            {
+                timedHitModule.StartSequence(profile, selection.CpCharge);
+            }
+
+            Complete(selection);
         }
 
         private void HandleChargeCancelled()
@@ -83,7 +69,6 @@ namespace BattleV2.Charge
 
         private void Complete(BattleSelection selection)
         {
-            waitingTimedHits = false;
             onCompleted?.Invoke(selection);
         }
     }
