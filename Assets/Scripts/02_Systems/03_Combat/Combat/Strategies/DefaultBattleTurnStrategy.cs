@@ -10,7 +10,7 @@ namespace HalloweenJam.Combat.Strategies
     [CreateAssetMenu(menuName = "Combat/Battle/Default Turn Strategy")]
     public sealed class DefaultBattleTurnStrategy : BattleTurnStrategyBase
     {
-        public override IEnumerator ExecuteTurn(BattleTurnContext context)
+        public override IEnumerator ExecuteTurn(Legacy.CombatV1.Combat.BattleTurnContext context)
         {
             if (context.IsBattleOver())
             {
