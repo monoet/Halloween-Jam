@@ -53,22 +53,26 @@ namespace HalloweenJam.UI.Combat
 
         public void Show(RuntimeCombatEntity entity, Action<ActionData> callback)
         {
-            if (!CanShow)
-            {
-                Debug.LogWarning("[ActionSelectionUI] Show called while already showing. Resetting.");
-                Hide();
-            }
-
             if (entity == null)
             {
                 Debug.LogWarning("[ActionSelectionUI] No combat entity provided.");
                 return;
             }
 
-            var actions = entity.AvailableActions;
+            Show(entity.AvailableActions, entity.CombatantState, callback);
+        }
+
+        public void Show(IReadOnlyList<ActionData> actions, CombatantState actorState, Action<ActionData> callback)
+        {
+            if (!CanShow)
+            {
+                Debug.LogWarning("[ActionSelectionUI] Show called while already showing. Resetting.");
+                Hide();
+            }
+
             if (actions == null || actions.Count == 0)
             {
-                Debug.LogWarning("[ActionSelectionUI] Entity has no available actions.");
+                Debug.LogWarning("[ActionSelectionUI] No actions provided.");
                 EnsureActive(false);
                 return;
             }
@@ -79,8 +83,8 @@ namespace HalloweenJam.UI.Combat
             ClearButtons();
             EnsureActive(true);
 
-            int availableCp = entity.CombatantState != null ? entity.CombatantState.CurrentCP : 0;
-            int availableSp = entity.CombatantState != null ? entity.CombatantState.CurrentSP : int.MaxValue;
+            int availableCp = actorState != null ? actorState.CurrentCP : int.MaxValue;
+            int availableSp = actorState != null ? actorState.CurrentSP : int.MaxValue;
 
             foreach (var action in actions)
             {
