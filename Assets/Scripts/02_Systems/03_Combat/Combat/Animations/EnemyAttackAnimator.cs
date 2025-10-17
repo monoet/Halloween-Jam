@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace HalloweenJam.Combat.Animations
 {
-    public class EnemyAttackAnimator : MonoBehaviour, IAttackAnimator
+    public class EnemyAttackAnimator : MonoBehaviour, IAttackAnimator, IAttackAnimationPhases
     {
         [Header("References")]
         [SerializeField] private Transform modelRoot;
@@ -43,6 +43,7 @@ namespace HalloweenJam.Combat.Animations
         private Vector3 targetStartPosition;
         private Color targetBaseColor = Color.white;
         private Sequence currentSequence;
+        public event Action<AttackAnimationPhase> PhaseChanged;
 
         private void Awake()
         {
@@ -101,6 +102,7 @@ namespace HalloweenJam.Combat.Animations
             {
                 PlaySfx(windupSfx);
                 DebugLog("Enemy Attack: Windup.");
+                PhaseChanged?.Invoke(AttackAnimationPhase.Charge);
             });
 
             currentSequence.Append(modelRoot.DOLocalMoveX(modelStartPosition.x - direction * windupDistance, windupDuration)
@@ -111,6 +113,7 @@ namespace HalloweenJam.Combat.Animations
             {
                 PlaySfx(impactSfx);
                 DebugLog("Enemy Attack: Lunge.");
+                PhaseChanged?.Invoke(AttackAnimationPhase.Lunge);
             });
 
             var lungeTween = modelRoot.DOLocalMoveX(modelStartPosition.x + direction * lungeDistance, lungeDuration)
@@ -118,6 +121,7 @@ namespace HalloweenJam.Combat.Animations
                 .OnComplete(() =>
                 {
                     TriggerTargetFeedback(direction);
+                    PhaseChanged?.Invoke(AttackAnimationPhase.Impact);
                     impactCallback?.Invoke();
                 });
 
@@ -131,6 +135,7 @@ namespace HalloweenJam.Combat.Animations
             currentSequence.OnComplete(() =>
             {
                 DebugLog("Enemy Attack: Completed.");
+                PhaseChanged?.Invoke(AttackAnimationPhase.Recover);
                 completeCallback?.Invoke();
                 ResetVisuals();
             });

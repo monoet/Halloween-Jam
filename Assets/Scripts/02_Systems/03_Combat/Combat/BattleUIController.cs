@@ -1,4 +1,5 @@
 using System;
+using HalloweenJam.Combat.Animations;
 using HalloweenJam.UI.Combat;
 using TMPro;
 using UnityEngine;
@@ -91,6 +92,8 @@ namespace HalloweenJam.Combat
                 orchestrator.EnemyTurnStarted += HandleEnemyTurnStarted;
                 orchestrator.EnemyTurnCompleted += HandleEnemyTurnCompleted;
                 orchestrator.BattleEnded += HandleBattleEnded;
+                orchestrator.PlayerAnimationPhaseChanged += HandlePlayerAnimationPhaseChanged;
+                orchestrator.EnemyAnimationPhaseChanged += HandleEnemyAnimationPhaseChanged;
             }
         }
 
@@ -109,6 +112,8 @@ namespace HalloweenJam.Combat
                 orchestrator.EnemyTurnStarted -= HandleEnemyTurnStarted;
                 orchestrator.EnemyTurnCompleted -= HandleEnemyTurnCompleted;
                 orchestrator.BattleEnded -= HandleBattleEnded;
+                orchestrator.PlayerAnimationPhaseChanged -= HandlePlayerAnimationPhaseChanged;
+                orchestrator.EnemyAnimationPhaseChanged -= HandleEnemyAnimationPhaseChanged;
                 orchestrator = null;
             }
         }
@@ -225,6 +230,26 @@ namespace HalloweenJam.Combat
         {
             HideActionMenu();
             Debug("Battle ended.");
+        }
+
+        private void HandlePlayerAnimationPhaseChanged(AttackAnimationPhase phase)
+        {
+            playerHud?.PlayPhaseCue(phase, isActor: true);
+
+            if (phase == AttackAnimationPhase.Impact)
+            {
+                enemyHud?.PlayPhaseCue(phase, isActor: false);
+            }
+        }
+
+        private void HandleEnemyAnimationPhaseChanged(AttackAnimationPhase phase)
+        {
+            enemyHud?.PlayPhaseCue(phase, isActor: true);
+
+            if (phase == AttackAnimationPhase.Impact)
+            {
+                playerHud?.PlayPhaseCue(phase, isActor: false);
+            }
         }
 
         private void ClearBattleLog()

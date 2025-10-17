@@ -1,4 +1,5 @@
 using System;
+using System;
 using System.Collections;
 using HalloweenJam.Combat.Animations;
 using HalloweenJam.Combat.Strategies;
@@ -17,6 +18,8 @@ namespace HalloweenJam.Combat
         private readonly BattleTurnStrategyBase enemyStrategy;
         private readonly IAttackAnimator playerAnimator;
         private readonly IAttackAnimator enemyAnimator;
+        private readonly IAttackAnimationPhases playerAnimatorPhases;
+        private readonly IAttackAnimationPhases enemyAnimatorPhases;
         private readonly float enemyTurnDelay;
 
         private ICombatEntity playerEntity;
@@ -44,6 +47,8 @@ namespace HalloweenJam.Combat
             this.playerAnimator = playerAnimator;
             this.enemyAnimator = enemyAnimator;
             this.enemyTurnDelay = Mathf.Max(0f, enemyTurnDelay);
+            playerAnimatorPhases = playerAnimator as IAttackAnimationPhases;
+            enemyAnimatorPhases = enemyAnimator as IAttackAnimationPhases;
         }
 
         public event Action PlayerTurnReady;
@@ -51,6 +56,8 @@ namespace HalloweenJam.Combat
         public event Action EnemyTurnStarted;
         public event Action EnemyTurnCompleted;
         public event Action BattleEnded;
+        public event Action<AttackAnimationPhase> PlayerAnimationPhaseChanged;
+        public event Action<AttackAnimationPhase> EnemyAnimationPhaseChanged;
 
         public bool BattleOver => battleOver;
         public bool CanPlayerAct => !battleOver && isPlayerTurn;
@@ -63,6 +70,7 @@ namespace HalloweenJam.Combat
             battleOver = false;
             isPlayerTurn = true;
             SetBusy(false, "Initialize");
+            AttachAnimationPhaseEvents();
             PlayerTurnReady?.Invoke();
         }
 
@@ -102,6 +110,7 @@ namespace HalloweenJam.Combat
         {
             StopActiveCoroutines();
             SetBusy(false, "Dispose");
+            DetachAnimationPhaseEvents();
         }
 
         private IEnumerator PlayerTurnRoutine()
@@ -192,6 +201,44 @@ namespace HalloweenJam.Combat
 
             IsBusy = value;
             Debug.LogFormat("[BattleOrchestrator] IsBusy -> {0} ({1})", value, reason);
+        }
+
+        private void AttachAnimationPhaseEvents()
+        {
+            if (playerAnimatorPhases != null)
+            {
+                playerAnimatorPhases.PhaseChanged -= HandlePlayerAnimationPhaseChanged;
+                playerAnimatorPhases.PhaseChanged += HandlePlayerAnimationPhaseChanged;
+            }
+
+            if (enemyAnimatorPhases != null)
+            {
+                enemyAnimatorPhases.PhaseChanged -= HandleEnemyAnimationPhaseChanged;
+                enemyAnimatorPhases.PhaseChanged += HandleEnemyAnimationPhaseChanged;
+            }
+        }
+
+        private void DetachAnimationPhaseEvents()
+        {
+            if (playerAnimatorPhases != null)
+            {
+                playerAnimatorPhases.PhaseChanged -= HandlePlayerAnimationPhaseChanged;
+            }
+
+            if (enemyAnimatorPhases != null)
+            {
+                enemyAnimatorPhases.PhaseChanged -= HandleEnemyAnimationPhaseChanged;
+            }
+        }
+
+        private void HandlePlayerAnimationPhaseChanged(AttackAnimationPhase phase)
+        {
+            PlayerAnimationPhaseChanged?.Invoke(phase);
+        }
+
+        private void HandleEnemyAnimationPhaseChanged(AttackAnimationPhase phase)
+        {
+            EnemyAnimationPhaseChanged?.Invoke(phase);
         }
     }
 }

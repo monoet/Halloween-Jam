@@ -1,4 +1,5 @@
 using HalloweenJam.Combat;
+using HalloweenJam.Combat.Animations;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
@@ -102,6 +103,46 @@ namespace HalloweenJam.UI.Combat
         public void ForceRefresh()
         {
             Refresh();
+        }
+
+        public void PlayPhaseCue(AttackAnimationPhase phase, bool isActor)
+        {
+            if (feedback == null)
+            {
+                return;
+            }
+
+            switch (phase)
+            {
+                case AttackAnimationPhase.Charge:
+                    if (isActor)
+                    {
+                        feedback.PlayChargeCue();
+                    }
+                    break;
+                case AttackAnimationPhase.Lunge:
+                    if (isActor)
+                    {
+                        feedback.PlayLungeCue();
+                    }
+                    break;
+                case AttackAnimationPhase.Impact:
+                    if (isActor)
+                    {
+                        feedback.PlayImpactCue();
+                    }
+                    else
+                    {
+                        feedback.PlayIncomingImpactCue();
+                    }
+                    break;
+                case AttackAnimationPhase.Recover:
+                    if (isActor)
+                    {
+                        feedback.PlayRecoverCue();
+                    }
+                    break;
+            }
         }
 
         private void HandleHealthChanged(ICombatEntity _)

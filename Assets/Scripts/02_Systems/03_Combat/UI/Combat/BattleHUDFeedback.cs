@@ -64,6 +64,31 @@ namespace HalloweenJam.UI.Combat
             TriggerCpFlash(delta > 0 ? cpGainColor : cpSpendColor);
         }
 
+        public void PlayChargeCue()
+        {
+            TriggerMinorShake();
+        }
+
+        public void PlayLungeCue()
+        {
+            TriggerMinorShake();
+        }
+
+        public void PlayImpactCue()
+        {
+            TriggerShake();
+        }
+
+        public void PlayIncomingImpactCue()
+        {
+            TriggerShake();
+        }
+
+        public void PlayRecoverCue()
+        {
+            // Placeholder for future polish; currently no additional feedback.
+        }
+
         private void TriggerShake()
         {
             if (shakeTarget == null)
@@ -89,6 +114,41 @@ namespace HalloweenJam.UI.Combat
                 elapsed += Time.unscaledDeltaTime;
                 float offsetX = Random.Range(-shakeMagnitude, shakeMagnitude);
                 float offsetY = Random.Range(-shakeMagnitude, shakeMagnitude);
+                shakeTarget.anchoredPosition = originalAnchoredPosition + new Vector2(offsetX, offsetY);
+                yield return null;
+            }
+
+            shakeTarget.anchoredPosition = originalAnchoredPosition;
+            shakeRoutine = null;
+        }
+
+        private void TriggerMinorShake()
+        {
+            if (shakeTarget == null)
+            {
+                return;
+            }
+
+            if (shakeRoutine != null)
+            {
+                StopCoroutine(shakeRoutine);
+            }
+
+            shakeRoutine = StartCoroutine(MinorShakeRoutine());
+        }
+
+        private IEnumerator MinorShakeRoutine()
+        {
+            var originalAnchoredPosition = shakeTarget.anchoredPosition;
+            float elapsed = 0f;
+            float duration = Mathf.Max(0.05f, shakeDuration * 0.5f);
+            float magnitude = shakeMagnitude * 0.4f;
+
+            while (elapsed < duration)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                float offsetX = Random.Range(-magnitude, magnitude);
+                float offsetY = Random.Range(-magnitude, magnitude);
                 shakeTarget.anchoredPosition = originalAnchoredPosition + new Vector2(offsetX, offsetY);
                 yield return null;
             }
