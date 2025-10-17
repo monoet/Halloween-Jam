@@ -8,7 +8,7 @@ namespace HalloweenJam.Combat.Strategies
     /// </summary>
     public abstract class BattleTurnStrategyBase : ScriptableObject
     {
-        public abstract IEnumerator ExecuteTurn(Legacy.CombatV1.Combat.BattleTurnContext context);
+        public abstract IEnumerator ExecuteTurn(BattleTurnContext context);
     }
 }
 
