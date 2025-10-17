@@ -18,9 +18,7 @@ namespace BattleV2.Orchestration
                 return;
             }
 
-            // TODO: Integrate with the actual enemy turn routine once V2 orchestrator is ready.
-            BattleLogger.Warn("Orchestrator", "ResolveEnemyTurn stub invoked – integrate with enemy routines.");
-            onComplete?.Invoke();
+            orchestrator.NotifyTurnCompleted(onComplete);
         }
     }
 }
