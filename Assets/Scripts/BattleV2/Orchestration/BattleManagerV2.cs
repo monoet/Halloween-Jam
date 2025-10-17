@@ -290,7 +290,8 @@ namespace BattleV2.Orchestration
         {
             var fallback = actionCatalog.Fallback(player, context);
             BattleLogger.Log("Fallback", $"Executing fallback action {fallback.id}");
-            ExecuteAction(new BattleSelection(fallback, 0, ResolveChargeProfile(fallback)));
+            var profile = ResolveChargeProfile(fallback) ?? ChargeProfile.CreateRuntimeDefault();
+            ExecuteAction(new BattleSelection(fallback, 0, profile));
         }
 
         private ChargeProfile ResolveChargeProfile(BattleActionData action)

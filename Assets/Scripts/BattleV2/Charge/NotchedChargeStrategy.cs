@@ -34,6 +34,9 @@ namespace BattleV2.Charge
             this.onChargeChanged = onChargeChanged;
         }
 
+        public int CurrentCharge => currentCharge;
+        public int MaxCharge => maxCharge;
+
         public void Begin(ChargeRequest request, Action<BattleSelection> onCompleted, Action onCancelled)
         {
             this.request = request;

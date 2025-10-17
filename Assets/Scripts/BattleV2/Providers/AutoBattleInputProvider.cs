@@ -29,7 +29,17 @@ namespace BattleV2.Providers
         {
             var catalog = context?.Context?.Catalog;
             var impl = catalog != null ? catalog.Resolve(action) : null;
-            return impl != null ? impl.ChargeProfile : defaultChargeProfile;
+            if (impl != null && impl.ChargeProfile != null)
+            {
+                return impl.ChargeProfile;
+            }
+
+            if (defaultChargeProfile != null)
+            {
+                return defaultChargeProfile;
+            }
+
+            return ChargeProfile.CreateRuntimeDefault();
         }
     }
 }

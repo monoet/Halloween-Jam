@@ -15,5 +15,18 @@ namespace BattleV2.Charge
 
         public float MaxChargeTime => maxChargeTime;
         public float MaxCpSpendFactor => maxCpSpendFactor;
+
+        public void Initialize(float chargeTime, float cpFactor)
+        {
+            maxChargeTime = Mathf.Max(0f, chargeTime);
+            maxCpSpendFactor = Mathf.Clamp(cpFactor, 0f, 5f);
+        }
+
+        public static ChargeProfile CreateRuntimeDefault()
+        {
+            var profile = CreateInstance<ChargeProfile>();
+            profile.Initialize(1f, 1f);
+            return profile;
+        }
     }
 }

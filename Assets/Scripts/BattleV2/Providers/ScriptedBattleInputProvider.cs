@@ -51,14 +51,7 @@ namespace BattleV2.Providers
         {
             if (cursor >= playlist.Count)
             {
-                if (!loopPlaylist)
-                {
-                    cursor = playlist.Count - 1;
-                }
-                else
-                {
-                    cursor = 0;
-                }
+                cursor = loopPlaylist ? 0 : playlist.Count - 1;
             }
 
             if (playlist.Count == 0)
@@ -90,7 +83,17 @@ namespace BattleV2.Providers
         {
             var catalog = context?.Context?.Catalog;
             var impl = catalog != null ? catalog.Resolve(action) : null;
-            return impl != null ? impl.ChargeProfile : defaultChargeProfile;
+            if (impl != null && impl.ChargeProfile != null)
+            {
+                return impl.ChargeProfile;
+            }
+
+            if (defaultChargeProfile != null)
+            {
+                return defaultChargeProfile;
+            }
+
+            return ChargeProfile.CreateRuntimeDefault();
         }
 
         private void OnEnable()

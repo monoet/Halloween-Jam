@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using BattleV2.Actions;
 using BattleV2.Charge;
 using BattleV2.Core;
+using BattleV2.UI;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -21,16 +22,11 @@ namespace BattleV2.Providers
         [SerializeField] private Button cancelButton;
 
         [Header("Charge UI")]
-        [SerializeField] private GameObject chargePanel;
-        [SerializeField] private TMP_Text chargeLabel;
-        [SerializeField] private Button increaseChargeButton;
-        [SerializeField] private Button decreaseChargeButton;
-        [SerializeField] private Button confirmChargeButton;
+        [SerializeField] private ChargeUIController chargeUI;
 
         [Header("Formatting")]
         [SerializeField] private string labelFormat = "{0}";
         [SerializeField] private string costFormat = " (SP {0}/CP {1})";
-        [SerializeField] private string chargeFormat = "CP Charge: {0}/{1}";
 
         [Header("Input Shortcuts")]
         [SerializeField] private KeyCode cancelKey = KeyCode.Escape;
@@ -70,7 +66,7 @@ namespace BattleV2.Providers
 
             BuildButtons(context.AvailableActions);
             SetActionPanelActive(true);
-            SetChargePanelActive(false);
+            chargeUI?.Hide();
         }
 
         private void Awake()
@@ -85,23 +81,8 @@ namespace BattleV2.Providers
                 cancelButton.onClick.AddListener(HandleCancelClicked);
             }
 
-            if (increaseChargeButton != null)
-            {
-                increaseChargeButton.onClick.AddListener(() => activeStrategy?.AdjustCharge(1));
-            }
-
-            if (decreaseChargeButton != null)
-            {
-                decreaseChargeButton.onClick.AddListener(() => activeStrategy?.AdjustCharge(-1));
-            }
-
-            if (confirmChargeButton != null)
-            {
-                confirmChargeButton.onClick.AddListener(() => activeStrategy?.Confirm());
-            }
-
             SetActionPanelActive(false);
-            SetChargePanelActive(false);
+            chargeUI?.Hide();
         }
 
         private void OnDestroy()
@@ -109,21 +90,6 @@ namespace BattleV2.Providers
             if (cancelButton != null)
             {
                 cancelButton.onClick.RemoveListener(HandleCancelClicked);
-            }
-
-            if (increaseChargeButton != null)
-            {
-                increaseChargeButton.onClick.RemoveAllListeners();
-            }
-
-            if (decreaseChargeButton != null)
-            {
-                decreaseChargeButton.onClick.RemoveAllListeners();
-            }
-
-            if (confirmChargeButton != null)
-            {
-                confirmChargeButton.onClick.RemoveAllListeners();
             }
         }
 
@@ -135,13 +101,6 @@ namespace BattleV2.Providers
             {
                 CancelRequest();
             }
-
-            if (!awaitingChoice || pendingContext == null)
-            {
-                return;
-            }
-
-            // Buttons handle selection; keyboard shortcut for numbers can be added if needed.
         }
 
         private void BuildButtons(IReadOnlyList<BattleActionData> actions)
@@ -217,15 +176,15 @@ namespace BattleV2.Providers
             }
 
             SetActionPanelActive(false);
-            SetChargePanelActive(true);
-            UpdateChargeLabel();
+            chargeUI?.Show(activeStrategy, () => activeStrategy.Confirm(), CancelChargeSelection);
+            chargeUI?.UpdateCharge(activeStrategy.CurrentCharge, activeStrategy.MaxCharge);
         }
 
         private ChargeRequest BuildChargeRequest(BattleActionData action)
         {
             int availableCp = pendingContext.Player != null ? pendingContext.Player.CurrentCP : 0;
             int baseCost = Mathf.Max(0, action.costCP);
-            var profile = ResolveChargeProfile(action) ?? defaultChargeProfile;
+            var profile = ResolveChargeProfile(action) ?? defaultChargeProfile ?? ChargeProfile.CreateRuntimeDefault();
             return new ChargeRequest(pendingContext, action, profile, availableCp, baseCost);
         }
 
@@ -239,7 +198,7 @@ namespace BattleV2.Providers
         private void HandleChargeCompleted(BattleSelection selection)
         {
             ClearStrategy();
-            SetChargePanelActive(false);
+            chargeUI?.Hide();
             SetActionPanelActive(false);
             ClearButtons();
 
@@ -251,8 +210,8 @@ namespace BattleV2.Providers
         private void HandleChargeCancelled()
         {
             ClearStrategy();
+            chargeUI?.Hide();
             awaitingChoice = true;
-            SetChargePanelActive(false);
             SetActionPanelActive(true);
         }
 
@@ -260,11 +219,23 @@ namespace BattleV2.Providers
         {
             if (activeStrategy != null)
             {
-                activeStrategy.Cancel();
+                CancelChargeSelection();
             }
             else
             {
                 CancelRequest();
+            }
+        }
+
+        private void CancelChargeSelection()
+        {
+            if (activeStrategy != null)
+            {
+                activeStrategy.Cancel();
+            }
+            else
+            {
+                HandleChargeCancelled();
             }
         }
 
@@ -279,8 +250,8 @@ namespace BattleV2.Providers
         {
             ClearStrategy();
             ClearButtons();
+            chargeUI?.Hide();
             SetActionPanelActive(false);
-            SetChargePanelActive(false);
             pendingContext = null;
             pendingOnSelected = null;
             pendingOnCancel = null;
@@ -308,22 +279,14 @@ namespace BattleV2.Providers
             activeStrategy = null;
             currentCharge = 0;
             currentMaxCharge = 0;
-            UpdateChargeLabel();
+            chargeUI?.UpdateCharge(currentCharge, currentMaxCharge);
         }
 
         private void OnChargeChanged(int current, int max)
         {
             currentCharge = current;
             currentMaxCharge = max;
-            UpdateChargeLabel();
-        }
-
-        private void UpdateChargeLabel()
-        {
-            if (chargeLabel != null)
-            {
-                chargeLabel.text = string.Format(chargeFormat, currentCharge, currentMaxCharge);
-            }
+            chargeUI?.UpdateCharge(currentCharge, currentMaxCharge);
         }
 
         private void SetActionPanelActive(bool active)
@@ -331,14 +294,6 @@ namespace BattleV2.Providers
             if (actionPanel != null)
             {
                 actionPanel.SetActive(active);
-            }
-        }
-
-        private void SetChargePanelActive(bool active)
-        {
-            if (chargePanel != null)
-            {
-                chargePanel.SetActive(active);
             }
         }
 

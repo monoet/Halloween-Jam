@@ -109,7 +109,7 @@ namespace BattleV2.Providers
         {
             int availableCp = pendingContext.Player != null ? pendingContext.Player.CurrentCP : 0;
             int baseCost = Mathf.Max(0, action.costCP);
-            var profile = ResolveChargeProfile(action) ?? defaultChargeProfile;
+            var profile = ResolveChargeProfile(action) ?? defaultChargeProfile ?? ChargeProfile.CreateRuntimeDefault();
             return new ChargeRequest(pendingContext, action, profile, availableCp, baseCost);
         }
 

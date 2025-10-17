@@ -23,7 +23,7 @@ namespace BattleV2.Providers
             }
 
             var action = context.AvailableActions[0];
-            var profile = ResolveProfile(context, action) ?? defaultChargeProfile;
+            var profile = ResolveProfile(context, action);
             BattleLogger.Log("Provider", "Manual provider degrading to auto (UI pending).");
             onSelected?.Invoke(new BattleSelection(action, 0, profile));
         }
@@ -32,7 +32,7 @@ namespace BattleV2.Providers
         {
             var catalog = context?.Context?.Catalog;
             var impl = catalog != null ? catalog.Resolve(action) : null;
-            return impl != null ? impl.ChargeProfile : null;
+            return impl != null ? impl.ChargeProfile : (defaultChargeProfile != null ? defaultChargeProfile : ChargeProfile.CreateRuntimeDefault());
         }
     }
 }
