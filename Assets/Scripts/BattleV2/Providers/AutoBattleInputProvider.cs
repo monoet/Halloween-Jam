@@ -21,25 +21,43 @@ namespace BattleV2.Providers
             }
 
             var chosen = context.AvailableActions.First();
+            ResolveProfiles(context, chosen, out var chargeProfile, out var timedProfile);
+
             BattleLogger.Log("AutoProvider", $"Auto-selecting {chosen.id}");
-            onSelected?.Invoke(new BattleSelection(chosen, 0, ResolveProfile(context, chosen)));
+            onSelected?.Invoke(new BattleSelection(chosen, 0, chargeProfile, timedProfile));
         }
 
-        private ChargeProfile ResolveProfile(BattleActionContext context, BattleActionData action)
+        private void ResolveProfiles(
+            BattleActionContext context,
+            BattleActionData action,
+            out ChargeProfile chargeProfile,
+            out Ks1TimedHitProfile timedProfile)
         {
+            chargeProfile = defaultChargeProfile;
+            timedProfile = null;
+
             var catalog = context?.Context?.Catalog;
             var impl = catalog != null ? catalog.Resolve(action) : null;
-            if (impl != null && impl.ChargeProfile != null)
+
+            if (impl != null)
             {
-                return impl.ChargeProfile;
+                if (impl.ChargeProfile != null)
+                {
+                    chargeProfile = impl.ChargeProfile;
+                }
+
+                if (impl is ITimedHitAction timedHitAction)
+                {
+                    timedProfile = timedHitAction.TimedHitProfile;
+                }
             }
 
-            if (defaultChargeProfile != null)
+            if (chargeProfile == null)
             {
-                return defaultChargeProfile;
+                chargeProfile = defaultChargeProfile != null
+                    ? defaultChargeProfile
+                    : ChargeProfile.CreateRuntimeDefault();
             }
-
-            return ChargeProfile.CreateRuntimeDefault();
         }
     }
 }

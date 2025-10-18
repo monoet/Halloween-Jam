@@ -32,7 +32,8 @@ namespace BattleV2.Providers
             {
                 BattleLogger.Warn("ScriptedProvider", "Playlist empty; falling back to first available action.");
                 var fallback = context.AvailableActions[0];
-                onSelected?.Invoke(new BattleSelection(fallback, 0, ResolveProfile(context, fallback)));
+                ResolveProfiles(context, fallback, out var chargeProfile, out var timedProfile);
+                onSelected?.Invoke(new BattleSelection(fallback, 0, chargeProfile, timedProfile));
                 return;
             }
 
@@ -43,8 +44,10 @@ namespace BattleV2.Providers
                 action = context.AvailableActions[0];
             }
 
+            ResolveProfiles(context, action, out var selectedChargeProfile, out var selectedTimedProfile);
+
             BattleLogger.Log("ScriptedProvider", $"Auto-selecting {action.id} (step {cursor}).");
-            onSelected?.Invoke(new BattleSelection(action, 0, ResolveProfile(context, action)));
+            onSelected?.Invoke(new BattleSelection(action, 0, selectedChargeProfile, selectedTimedProfile));
         }
 
         private BattleActionData GetNextAction(IReadOnlyList<BattleActionData> available)
@@ -79,21 +82,37 @@ namespace BattleV2.Providers
             return null;
         }
 
-        private ChargeProfile ResolveProfile(BattleActionContext context, BattleActionData action)
+        private void ResolveProfiles(
+            BattleActionContext context,
+            BattleActionData action,
+            out ChargeProfile chargeProfile,
+            out Ks1TimedHitProfile timedProfile)
         {
             var catalog = context?.Context?.Catalog;
             var impl = catalog != null ? catalog.Resolve(action) : null;
-            if (impl != null && impl.ChargeProfile != null)
+
+            chargeProfile = defaultChargeProfile;
+            timedProfile = null;
+
+            if (impl != null)
             {
-                return impl.ChargeProfile;
+                if (impl.ChargeProfile != null)
+                {
+                    chargeProfile = impl.ChargeProfile;
+                }
+
+                if (impl is ITimedHitAction timedHitAction)
+                {
+                    timedProfile = timedHitAction.TimedHitProfile;
+                }
             }
 
-            if (defaultChargeProfile != null)
+            if (chargeProfile == null)
             {
-                return defaultChargeProfile;
+                chargeProfile = defaultChargeProfile != null
+                    ? defaultChargeProfile
+                    : ChargeProfile.CreateRuntimeDefault();
             }
-
-            return ChargeProfile.CreateRuntimeDefault();
         }
 
         private void OnEnable()

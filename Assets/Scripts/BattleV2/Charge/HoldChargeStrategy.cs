@@ -55,7 +55,10 @@ namespace BattleV2.Charge
             if (charging)
             {
                 elapsed += deltaTime;
-                cachedCharge = Mathf.Clamp(Mathf.FloorToInt((elapsed / Mathf.Max(0.0001f, request.Profile?.MaxChargeTime ?? 1f)) * request.MaxCharge), 0, request.MaxCharge);
+                cachedCharge = Mathf.Clamp(
+                    Mathf.FloorToInt((elapsed / Mathf.Max(0.0001f, request.ChargeProfile?.MaxChargeTime ?? 1f)) * request.MaxCharge),
+                    0,
+                    request.MaxCharge);
             }
 
             if (charging && Input.GetKeyUp(holdKey))
@@ -80,7 +83,7 @@ namespace BattleV2.Charge
 
         private void Complete(int cpCharge)
         {
-            onCompleted?.Invoke(new BattleSelection(request.Action, cpCharge, request.Profile));
+            onCompleted?.Invoke(new BattleSelection(request.Action, cpCharge, request.ChargeProfile, request.TimedHitProfile));
         }
     }
 }

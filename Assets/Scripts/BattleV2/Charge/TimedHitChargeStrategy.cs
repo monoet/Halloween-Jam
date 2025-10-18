@@ -8,12 +8,14 @@ namespace BattleV2.Charge
     /// </summary>
     public sealed class TimedHitChargeStrategy : IChargeStrategy
     {
-        private readonly HoldChargeStrategy holdStrategy = new HoldChargeStrategy();
-        private readonly TimedHitModule timedHitModule = new TimedHitModule();
+        private readonly HoldChargeStrategy holdStrategy;
+        private readonly TimedHitModule timedHitModule;
 
         private ChargeRequest request;
         private Action<BattleSelection> onCompleted;
         private Action onCancelled;
+        private Ks1TimedHitProfile overrideTimedHitProfile;
+
         public event Action<int, int> OnPhaseStarted
         {
             add => timedHitModule.OnPhaseStarted += value;
@@ -30,6 +32,13 @@ namespace BattleV2.Charge
         {
             add => timedHitModule.OnSequenceCompleted += value;
             remove => timedHitModule.OnSequenceCompleted -= value;
+        }
+
+        public TimedHitChargeStrategy(Ks1TimedHitProfile profile = null)
+        {
+            holdStrategy = new HoldChargeStrategy();
+            timedHitModule = new TimedHitModule();
+            overrideTimedHitProfile = profile;
         }
 
         public void Begin(ChargeRequest request, Action<BattleSelection> onCompleted, Action onCancelled)
@@ -53,7 +62,7 @@ namespace BattleV2.Charge
 
         private void HandleChargeCompleted(BattleSelection selection)
         {
-            var profile = request.Profile as Ks1TimedHitProfile;
+            var profile = overrideTimedHitProfile ?? request.TimedHitProfile;
             if (profile != null)
             {
                 timedHitModule.StartSequence(profile, selection.CpCharge);

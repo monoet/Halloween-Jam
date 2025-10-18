@@ -1,4 +1,5 @@
 using System;
+using BattleV2.Providers;
 
 namespace BattleV2.Charge
 {
@@ -9,3 +10,4 @@ namespace BattleV2.Charge
         void Cancel();
     }
 }
+

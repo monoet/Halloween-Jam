@@ -65,15 +65,45 @@ namespace BattleV2.Providers
         {
             int availableCp = pendingContext.Player != null ? pendingContext.Player.CurrentCP : 0;
             int baseCost = Mathf.Max(0, action.costCP);
-            var profile = ResolveChargeProfile(action) ?? defaultChargeProfile ?? ChargeProfile.CreateRuntimeDefault();
-            return new ChargeRequest(pendingContext, action, profile, availableCp, baseCost);
+
+            ResolveProfiles(action, out var chargeProfile, out var timedProfile);
+
+            return new ChargeRequest(
+                pendingContext,
+                action,
+                chargeProfile,
+                availableCp,
+                baseCost,
+                timedProfile);
         }
 
-        private ChargeProfile ResolveChargeProfile(BattleActionData action)
+        private void ResolveProfiles(BattleActionData action, out ChargeProfile chargeProfile, out Ks1TimedHitProfile timedProfile)
         {
+            chargeProfile = defaultChargeProfile;
+            timedProfile = null;
+
             var catalog = pendingContext?.Context?.Catalog;
             var impl = catalog != null ? catalog.Resolve(action) : null;
-            return impl != null ? impl.ChargeProfile : null;
+
+            if (impl != null)
+            {
+                if (impl.ChargeProfile != null)
+                {
+                    chargeProfile = impl.ChargeProfile;
+                }
+
+                if (impl is ITimedHitAction timedHitAction)
+                {
+                    timedProfile = timedHitAction.TimedHitProfile;
+                }
+            }
+
+            if (chargeProfile == null)
+            {
+                chargeProfile = defaultChargeProfile != null
+                    ? defaultChargeProfile
+                    : ChargeProfile.CreateRuntimeDefault();
+            }
         }
 
         private void HandleCompleted(BattleSelection selection)

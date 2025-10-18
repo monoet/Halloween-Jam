@@ -23,16 +23,41 @@ namespace BattleV2.Providers
             }
 
             var action = context.AvailableActions[0];
-            var profile = ResolveProfile(context, action);
+            ResolveProfiles(context, action, out var chargeProfile, out var timedProfile);
             BattleLogger.Log("Provider", "Manual provider degrading to auto (UI pending).");
-            onSelected?.Invoke(new BattleSelection(action, 0, profile));
+            onSelected?.Invoke(new BattleSelection(action, 0, chargeProfile, timedProfile));
         }
 
-        private ChargeProfile ResolveProfile(BattleActionContext context, BattleActionData action)
+        private void ResolveProfiles(
+            BattleActionContext context,
+            BattleActionData action,
+            out ChargeProfile chargeProfile,
+            out Ks1TimedHitProfile timedProfile)
         {
             var catalog = context?.Context?.Catalog;
             var impl = catalog != null ? catalog.Resolve(action) : null;
-            return impl != null ? impl.ChargeProfile : (defaultChargeProfile != null ? defaultChargeProfile : ChargeProfile.CreateRuntimeDefault());
+            chargeProfile = defaultChargeProfile;
+            timedProfile = null;
+
+            if (impl != null)
+            {
+                if (impl.ChargeProfile != null)
+                {
+                    chargeProfile = impl.ChargeProfile;
+                }
+
+                if (impl is ITimedHitAction timedHitAction)
+                {
+                    timedProfile = timedHitAction.TimedHitProfile;
+                }
+            }
+
+            if (chargeProfile == null)
+            {
+                chargeProfile = defaultChargeProfile != null
+                    ? defaultChargeProfile
+                    : ChargeProfile.CreateRuntimeDefault();
+            }
         }
     }
 }

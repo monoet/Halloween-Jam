@@ -6,7 +6,7 @@ using UnityEngine;
 namespace BattleV2.Actions
 {
     [CreateAssetMenu(menuName = "Battle/Actions/KS1 Lunar Chain")]
-    public class LunarChainAction : ScriptableObject, IAction, IActionProvider
+    public class LunarChainAction : ScriptableObject, IAction, IActionProvider, ITimedHitAction
     {
         [SerializeField] private string actionId = "ks1_lunar_chain";
         [SerializeField] private int costSp;
