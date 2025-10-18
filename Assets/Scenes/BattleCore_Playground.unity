@@ -152,9 +152,9 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 1503599338}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 100, y: -175}
   m_SizeDelta: {x: 200, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &13168441
@@ -423,7 +423,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &339160766
 RectTransform:
   m_ObjectHideFlags: 0
@@ -459,20 +459,16 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BattleV2.Providers.ManualBattleInputProviderUI
   buttonRoot: {fileID: 1820836868}
   buttonTemplate: {fileID: 2032098619}
-  cancelButton: {fileID: 559498917}
   actionPanel: {fileID: 0}
-  chargePanel: {fileID: 1503599337}
-  chargeLabel: {fileID: 673486155}
-  increaseChargeButton: {fileID: 842161612}
-  decreaseChargeButton: {fileID: 813531729}
-  confirmChargeButton: {fileID: 13168441}
+  cancelButton: {fileID: 559498917}
+  chargeUI: {fileID: 0}
   labelFormat: '{0}'
   costFormat: ' (SP {0}/CP {1})'
-  chargeFormat: 'CP Charge: {0}/{1}'
   cancelKey: 27
   confirmKey: 13
   increaseChargeKey: 114
   decreaseChargeKey: 102
+  defaultChargeProfile: {fileID: 0}
 --- !u!114 &339160768
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1603,9 +1599,9 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 1503599338}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 100, y: -25}
   m_SizeDelta: {x: 200, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &673486155
@@ -1869,9 +1865,9 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 1503599338}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 100, y: -125}
   m_SizeDelta: {x: 200, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &813531729
@@ -2230,9 +2226,9 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 1503599338}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 100, y: -75}
   m_SizeDelta: {x: 200, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &842161612
@@ -2403,6 +2399,55 @@ MonoBehaviour:
   m_FlexibleWidth: -1
   m_FlexibleHeight: -1
   m_LayoutPriority: 1
+--- !u!1 &1195841756
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1195841758}
+  - component: {fileID: 1195841757}
+  m_Layer: 0
+  m_Name: inputproviderv2
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1195841757
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1195841756}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 88b68c48128e7cf4a92411c7f35d2d8a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BattleV2.Providers.ManualBattleInputProviderV2
+  cancelKey: 27
+  defaultChargeProfile: {fileID: 0}
+  confirmKey: 13
+  increaseChargeKey: 114
+  decreaseChargeKey: 102
+--- !u!4 &1195841758
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1195841756}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 755.29803, y: 375.01932, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1272012518
 GameObject:
   m_ObjectHideFlags: 0
@@ -2632,6 +2677,72 @@ CanvasGroup:
   m_Interactable: 1
   m_BlocksRaycasts: 0
   m_IgnoreParentGroups: 0
+--- !u!1 &1347349165
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1347349167}
+  - component: {fileID: 1347349166}
+  - component: {fileID: 1347349168}
+  m_Layer: 0
+  m_Name: ChargeDebugSuite
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1347349166
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1347349165}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f99ea37955797514c974ef580a44706c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BattleV2.Debugging.ChargeDebugSuite
+  battleManager: {fileID: 1941987470}
+  notchedProvider: {fileID: 1195841757}
+  holdProvider: {fileID: 1347349168}
+  uiProvider: {fileID: 0}
+  showOverlay: 1
+  windowTitle: Charge Debug
+--- !u!4 &1347349167
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1347349165}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 755.29803, y: 375.01932, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1347349168
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1347349165}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 456f0df64844ada40af68130623a0dd2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BattleV2.Providers.HoldChargeInputProvider
+  holdKey: 114
+  cancelKey: 27
+  defaultChargeProfile: {fileID: 0}
 --- !u!1 &1372632076
 GameObject:
   m_ObjectHideFlags: 0
@@ -4715,6 +4826,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 8280905549616643392, guid: fbe2b53f72af3bd4db2163709bec3213, type: 3}
       insertIndex: -1
       addedObject: {fileID: 2077095904618654868}
+    - targetCorrespondingSourceObject: {fileID: 8280905549616643392, guid: fbe2b53f72af3bd4db2163709bec3213, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 2077095904618654870}
   m_SourcePrefab: {fileID: 100100000, guid: fbe2b53f72af3bd4db2163709bec3213, type: 3}
 --- !u!212 &2077095904618654862 stripped
 SpriteRenderer:
@@ -4858,6 +4972,21 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 8d272fdaa2dbc4a488a77a752fe45448, type: 2}
   attackStrategy: {fileID: 11400000, guid: 04c831de83be67c41b3e574193b3742b, type: 2}
   initializeOnAwake: 1
+--- !u!114 &2077095904618654870
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2100915889}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8448065db93cd6d4dbfd313e44a7a6ee, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BattleV2.Anim.BattleAnimationController
+  model: {fileID: 2077095904618654863}
+  profile: {fileID: 11400000, guid: ef5308e0b6beea24bbc1312786e83756, type: 2}
+  defaultAnchor: {fileID: 2077095904618654863}
 --- !u!4 &4257266329076552794 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 3274385974015024892, guid: 153292bed16af9d49be6bdbd3d87a8b8, type: 3}
@@ -4954,6 +5083,21 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   enableDebugLogs: 1
+--- !u!114 &4257266329076552803
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1885329793}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8448065db93cd6d4dbfd313e44a7a6ee, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BattleV2.Anim.BattleAnimationController
+  model: {fileID: 4257266329076552794}
+  profile: {fileID: 11400000, guid: ef5308e0b6beea24bbc1312786e83756, type: 2}
+  defaultAnchor: {fileID: 2077095904618654863}
 --- !u!1001 &5965213343232748360
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -5051,6 +5195,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 7724848432755533274, guid: 153292bed16af9d49be6bdbd3d87a8b8, type: 3}
       insertIndex: -1
       addedObject: {fileID: 4257266329076552797}
+    - targetCorrespondingSourceObject: {fileID: 7724848432755533274, guid: 153292bed16af9d49be6bdbd3d87a8b8, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 4257266329076552803}
   m_SourcePrefab: {fileID: 100100000, guid: 153292bed16af9d49be6bdbd3d87a8b8, type: 3}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
@@ -5065,3 +5212,5 @@ SceneRoots:
   - {fileID: 216218941}
   - {fileID: 1495472033}
   - {fileID: 1922216903}
+  - {fileID: 1347349167}
+  - {fileID: 1195841758}
