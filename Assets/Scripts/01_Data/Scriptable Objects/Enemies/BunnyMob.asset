@@ -145,7 +145,7 @@ MonoBehaviour:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
-  hpPerVit: 20
+  hpPerVit: 200
   spPerRes: 2
   gainCurve:
     serializedVersion: 2

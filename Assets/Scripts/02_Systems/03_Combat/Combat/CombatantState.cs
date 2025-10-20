@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Events;
 
 /// <summary>
 /// Estado de combate por entidad (HP runtime, banderas de vida).
@@ -6,6 +7,11 @@ using UnityEngine;
 /// </summary>
 public class CombatantState : MonoBehaviour
 {
+    [Header("Stat Runtime Source")]
+    [SerializeField] private CharacterRuntime characterRuntime;
+    [SerializeField] private bool autoInitializeFromRuntime = true;
+    [SerializeField] private bool preserveFractionOnRuntimeUpdate = true;
+
     [Header("HP Runtime")]
     [SerializeField] private int maxHP;
     [SerializeField] private int currentHP;
@@ -22,10 +28,14 @@ public class CombatantState : MonoBehaviour
     [SerializeField, Range(0, 10)] private int currentCP = 0;
 
     [Header("Eventos")]
-    public UnityEngine.Events.UnityEvent OnVitalsChanged = new UnityEngine.Events.UnityEvent();
+    public UnityEvent OnVitalsChanged = new UnityEvent();
 
     [Header("Debug Options")]
-    [SerializeField] private bool enableDebugLogs = false; // ✅ toggle global
+    [SerializeField] private bool enableDebugLogs;
+
+    private bool initialized;
+    private UnityAction runtimeStatsListener;
+    private string displayName;
 
     public int MaxHP => maxHP;
     public int CurrentHP => currentHP;
@@ -36,11 +46,42 @@ public class CombatantState : MonoBehaviour
     public int MaxCP => maxCP;
     public int CurrentCP => currentCP;
     public bool Initialized => initialized;
+    public CharacterRuntime CharacterRuntime => characterRuntime;
+    public FinalStats FinalStats => characterRuntime != null ? characterRuntime.Final : default;
+    public string DisplayName => string.IsNullOrWhiteSpace(displayName) ? name : displayName;
+    public Sprite Portrait => characterRuntime?.Core.portrait ?? characterRuntime?.Archetype?.portrait;
 
-    private bool initialized;
+    private void Awake()
+    {
+        runtimeStatsListener = HandleRuntimeStatsChanged;
+
+        if (characterRuntime == null)
+        {
+            characterRuntime = GetComponent<CharacterRuntime>();
+        }
+
+        AttachRuntime(characterRuntime);
+
+        if (autoInitializeFromRuntime && characterRuntime != null)
+        {
+            InitializeFrom(characterRuntime, preserveCurrentFraction: false);
+        }
+    }
+
+    private void OnEnable()
+    {
+        SubscribeRuntime();
+    }
+
+    private void OnDisable()
+    {
+        UnsubscribeRuntime();
+    }
 
     public void InitializeFrom(CharacterRuntime character, bool preserveCurrentFraction = false)
     {
+        AttachRuntime(character);
+
         int providedHP = character != null ? character.Final.HP : 0;
         int providedSP = character != null ? character.Final.SP : 0;
 
@@ -72,126 +113,249 @@ public class CombatantState : MonoBehaviour
         }
 
         initialized = true;
-        Log($"Inicializado HP: {currentHP}/{maxHP} en {name}");
+        Log($"Inicializado HP: {currentHP}/{maxHP} en {DisplayName}");
         OnVitalsChanged.Invoke();
     }
 
     public void EnsureInitialized(CharacterRuntime character)
     {
-        if (initialized)
+        if (!initialized)
+        {
+            InitializeFrom(character, preserveCurrentFraction: false);
             return;
+        }
 
-        InitializeFrom(character, preserveCurrentFraction: false);
+        AttachRuntime(character);
+    }
+
+    public void SetCharacterRuntime(CharacterRuntime runtime, bool initialize = true, bool preserveVitals = false)
+    {
+        AttachRuntime(runtime);
+
+        if (initialize)
+        {
+            InitializeFrom(runtime, preserveVitals);
+        }
     }
 
     public void TakeDamage(int amount)
     {
-        if (amount < 0) amount = 0;
+        if (amount < 0)
+        {
+            amount = 0;
+        }
+
         if (!initialized)
         {
-            LogWarning($"{name} recibe daño sin estar inicializado. Forzando inicialización con fallback.");
+            LogWarning($"{DisplayName} recibe dano sin estar inicializado. Forzando inicializacion con fallback.");
             InitializeFrom(null);
         }
 
         currentHP = Mathf.Max(0, currentHP - amount);
-        Log($"{name} recibe {amount} daño. HP: {currentHP}/{maxHP}");
+        Log($"{DisplayName} recibe {amount} dano. HP: {currentHP}/{maxHP}");
 
         if (currentHP == 0)
-            Log($"{name} ha caído.");
+        {
+            Log($"{DisplayName} ha caido.");
+        }
 
         OnVitalsChanged.Invoke();
     }
 
     public void Heal(int amount)
     {
-        if (amount < 0) amount = 0;
+        if (amount < 0)
+        {
+            amount = 0;
+        }
+
         if (!initialized)
         {
-            LogWarning($"{name} intenta curarse sin estar inicializado. Forzando inicialización con fallback.");
+            LogWarning($"{DisplayName} intenta curarse sin estar inicializado. Forzando inicializacion con fallback.");
             InitializeFrom(null);
         }
 
         currentHP = Mathf.Min(maxHP, currentHP + amount);
-        Log($"{name} cura {amount}. HP: {currentHP}/{maxHP}");
+        Log($"{DisplayName} cura {amount}. HP: {currentHP}/{maxHP}");
         OnVitalsChanged.Invoke();
     }
 
     public bool SpendCP(int amount)
     {
-        if (amount <= 0) return true;
+        if (amount <= 0)
+        {
+            return true;
+        }
+
         if (currentCP < amount)
         {
-            LogWarning($"{name} no tiene CP suficientes ({currentCP}/{amount}).");
+            LogWarning($"{DisplayName} no tiene CP suficientes ({currentCP}/{amount}).");
             return false;
         }
 
         currentCP -= amount;
-        Log($"{name} gasta {amount} CP. CP: {currentCP}/{maxCP}");
+        Log($"{DisplayName} gasta {amount} CP. CP: {currentCP}/{maxCP}");
         OnVitalsChanged.Invoke();
         return true;
     }
 
     public void AddCP(int amount)
     {
-        if (amount <= 0) return;
+        if (amount <= 0)
+        {
+            return;
+        }
+
         int before = currentCP;
         currentCP = Mathf.Min(maxCP, currentCP + amount);
         int gained = currentCP - before;
 
         if (gained > 0)
         {
-            Log($"{name} gana {gained} CP. CP: {currentCP}/{maxCP}");
+            Log($"{DisplayName} gana {gained} CP. CP: {currentCP}/{maxCP}");
             OnVitalsChanged.Invoke();
         }
     }
 
     public bool SpendSP(int amount)
     {
-        if (amount <= 0) return true;
+        if (amount <= 0)
+        {
+            return true;
+        }
+
         if (currentSP < amount)
         {
-            LogWarning($"{name} no tiene SP suficientes ({currentSP}/{amount}).");
+            LogWarning($"{DisplayName} no tiene SP suficientes ({currentSP}/{amount}).");
             return false;
         }
 
         currentSP -= amount;
-        Log($"{name} gasta {amount} SP. SP: {currentSP}/{maxSP}");
+        Log($"{DisplayName} gasta {amount} SP. SP: {currentSP}/{maxSP}");
         OnVitalsChanged.Invoke();
         return true;
     }
 
     public void RestoreSP(int amount)
     {
-        if (amount <= 0) return;
+        if (amount <= 0)
+        {
+            return;
+        }
+
         int before = currentSP;
         currentSP = Mathf.Min(maxSP, currentSP + amount);
         int gained = currentSP - before;
 
         if (gained > 0)
         {
-            Log($"{name} recupera {gained} SP. SP: {currentSP}/{maxSP}");
+            Log($"{DisplayName} recupera {gained} SP. SP: {currentSP}/{maxSP}");
             OnVitalsChanged.Invoke();
         }
     }
 
-    // 🔹 Métodos auxiliares de logging -----------------------------
+    private void AttachRuntime(CharacterRuntime runtime)
+    {
+        runtimeStatsListener ??= HandleRuntimeStatsChanged;
+
+        if (ReferenceEquals(characterRuntime, runtime))
+        {
+            RefreshMetadataFromRuntime();
+            return;
+        }
+
+        UnsubscribeRuntime();
+        characterRuntime = runtime;
+        RefreshMetadataFromRuntime();
+        SubscribeRuntime();
+    }
+
+    private void SubscribeRuntime()
+    {
+        if (characterRuntime == null || runtimeStatsListener == null)
+        {
+            return;
+        }
+
+        if (characterRuntime.OnStatsChanged == null)
+        {
+            characterRuntime.OnStatsChanged = new UnityEvent();
+        }
+
+        characterRuntime.OnStatsChanged.RemoveListener(runtimeStatsListener);
+        characterRuntime.OnStatsChanged.AddListener(runtimeStatsListener);
+    }
+
+    private void UnsubscribeRuntime()
+    {
+        if (characterRuntime == null || runtimeStatsListener == null)
+        {
+            return;
+        }
+
+        if (characterRuntime.OnStatsChanged != null)
+        {
+            characterRuntime.OnStatsChanged.RemoveListener(runtimeStatsListener);
+        }
+    }
+
+    private void HandleRuntimeStatsChanged()
+    {
+        if (characterRuntime == null)
+        {
+            return;
+        }
+
+        InitializeFrom(characterRuntime, preserveFractionOnRuntimeUpdate);
+    }
+
+    private void RefreshMetadataFromRuntime()
+    {
+        if (characterRuntime == null)
+        {
+            displayName = gameObject.name;
+            return;
+        }
+
+        var runtimeName = characterRuntime.Core.characterName;
+        if (!string.IsNullOrWhiteSpace(runtimeName))
+        {
+            displayName = runtimeName;
+            return;
+        }
+
+        if (characterRuntime.Archetype != null && !string.IsNullOrWhiteSpace(characterRuntime.Archetype.characterName))
+        {
+            displayName = characterRuntime.Archetype.characterName;
+            return;
+        }
+
+        displayName = gameObject.name;
+    }
+
     private void Log(string message)
     {
         if (enableDebugLogs)
+        {
             Debug.Log($"[CombatantState] {message}");
+        }
     }
 
     private void LogWarning(string message)
     {
         if (enableDebugLogs)
+        {
             Debug.LogWarning($"[CombatantState] {message}");
+        }
     }
 
 #if UNITY_EDITOR
     private void OnGUI()
     {
         if (!Application.isPlaying || !gameObject.activeInHierarchy)
+        {
             return;
+        }
 
         GUIStyle style = new GUIStyle(GUI.skin.label)
         {
@@ -201,7 +365,7 @@ public class CombatantState : MonoBehaviour
 
         float offsetY = 10 + (transform.GetSiblingIndex() * 100);
         GUILayout.BeginArea(new Rect(10, offsetY, 250, 100), GUI.skin.box);
-        GUILayout.Label($"<b>{name}</b>", style);
+        GUILayout.Label($"<b>{DisplayName}</b>", style);
         GUILayout.Label($"HP: {currentHP}/{maxHP}", style);
         GUILayout.Label($"SP: {currentSP}/{maxSP}", style);
         GUILayout.Label($"CP: {currentCP}/{maxCP}", style);

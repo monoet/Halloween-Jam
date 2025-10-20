@@ -21,6 +21,9 @@ This folder contains the new modular battle core.
   - `ManualBattleInputProvider` - placeholder que por ahora degrada a auto hasta que el UI V2 este listo.
   - `ManualBattleInputProviderV2` - componente para debug que espera input de teclado (1-9 / Escape).
   - `ScriptedBattleInputProvider` - ScriptableObject que reproduce una lista fija de acciones para smoketests.
+- `Charge/`
+  - `ChargeProfile` - parametros de carga/notches (tiempo vs CP).
+  - `ComboPointScalingProfile` - curva editable que define el multiplicador final segun los CP gastados (con soporte para soft caps).
 - `Orchestration/`
   - `BattleManagerV2` - orquesta el loop, usa providers + catalog y maneja fallback/resolucion de enemigo.
   - `BattleBootstrapper` - helper para auto-start en escenas de prueba.
@@ -35,6 +38,7 @@ This folder contains the new modular battle core.
    - Para usar el auto, crea un asset via `Create/Battle/Input Provider/Auto` y arrastralo al campo `inputProvider` del config; funciona tanto en modo asset como si dejas el script como `ScriptableObject` suelto en test scenes.
    - Si queres input manual, agrega `ManualBattleInputProviderV2` a un GameObject en escena y referencia ese componente en `BattleConfig`. Para secuencias deterministas usa el asset `ScriptedBattleInputProvider`.
    - Opcional: ajusta `BattleServices` dentro del config (por defecto crea uno nuevo).
+   - Opcional: crea un asset `ComboPointScalingProfile` (menu: `Create/Battle/Charge/Combo Point Profile`) y arrastralo al campo `comboPointScaling` del `BattleConfig` para editar la curva de CP (multiplicadores, caps, extrapolacion).
 
 2. **Scene setup**
    - Crea un GameObject vacio llamado `BattleManagerRoot` (GameObject > Create Empty) y dejalo en la raiz de la escena.
@@ -64,5 +68,37 @@ This folder contains the new modular battle core.
 - Implementar el `ManualBattleInputProvider` real que conecte `BattleActionMenu` + `ActionSelectionUI` usando la nueva API.
 - Agregar mas acciones (`Magic`, `Items`, `Defend`, `Flee`) con sus propias estrategias `IAction`.
 - Reemplazar la logica automatica del enemigo con un provider/IA dedicado.
+
+## Runtime Integration Checklist
+
+Antes de volver a invertir en UI conviene asegurar que el runtime alimente correctamente al sistema V2:
+
+1. **CombatantState ← CharacterRuntime**
+   - Confirma que `CombatantState.InitializeFrom` se ejecuta para cada combatiente cuando cargás la escena o al iniciar batalla.
+   - Verifica que nombre, HP, SP y CP reflejen los valores guardados en el runtime (agrega logs temporales o un test simple).
+   - Si manejás múltiples personajes, documentá dónde se resuelve cada `CharacterRuntime` y en qué momento se asigna al `CombatantState`.
+
+2. **Catálogo + loadouts**
+   - Define qué catálogo usa cada combatiente (uno global o por personaje). Si empleás loadouts, filtra las acciones antes de llamar a `Present`.
+   - Asegurá que `ActionCatalog.BuildAvailableFor` respete los desbloqueos y que `CanExecute`/`Resolve` devuelvan implementaciones válidas.
+
+3. **Charge & CP**
+   - Usa el harness para mandar `BattleSelection` con `cpCharge` > 0 y confirmar que `ChargeProfile` y `NotchedChargeStrategy` producen los multiplicadores esperados.
+   - Ajusta el overlay para permitir fijar manualmente el charge o invocar la estrategia real; así validás tus perfiles sin UI final.
+
+4. **Telemetría**
+   - Añade logs o asserts alrededor de `OnPlayerActionSelected/Resolved` para capturar daño final, gasto de CP/SP y estado del turno. Facilita detectar discrepancias cuando conectes la UI definitiva.
+
+Completar estos pasos deja el backend sólido y reduce sorpresas cuando regreses a la capa visual.
+
+## Battle Debug Harness Overlay
+
+Para depurar sin depender de la UI de producción, hay un harness en `Debug/BattleDebugHarness.cs`:
+
+- Añade el componente a un GameObject vacío en escena.
+- Al iniciar Play, detecta `BattleManagerV2`, se registra como `IBattleInputProvider` y abre una ventana OnGUI flotante (toggle con `~`).
+- Muestra HP/SP/CP de player/enemy, lista acciones (Attack/Magic/Item), permite lanzar acciones con un clic, cancelar turnos, y muestra un log.
+- Sirve para validar el flujo completo (acciones, daño, CP) sin wiring de menús. Puedes extenderlo con controles de charge, perfiles, etc.
+- No requiere Canvas ni prefabs; es un overlay puramente en código. Cuando la UI final esté lista, puedes desactivarlo o dejarlo como herramienta de QA.
 
 Esto deberia cubrir el primer wiring en Unity sin tropiezos.

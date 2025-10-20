@@ -12,6 +12,8 @@ namespace BattleV2.Actions
         [SerializeField] private int costSp;
         [SerializeField] private int costCp;
         [SerializeField] private int baseDamage;
+        [SerializeField] private float attackPowerMultiplier = 1f;
+        [SerializeField] private int minimumDamage = 1;
         [SerializeField] private ChargeProfile chargeProfile;
         [SerializeField] private float baseMultiplier = 1.5f;
         [SerializeField] private float multiplierPerCp = 0.1f;
@@ -63,7 +65,20 @@ namespace BattleV2.Actions
             }
 
             float multiplier = baseMultiplier + multiplierPerCp * Mathf.Max(0, totalCpCost);
-            int finalDamage = Mathf.RoundToInt(baseDamage * multiplier);
+            float cpMultiplier = ComboPointScaling.GetDamageMultiplier(cpCharge);
+
+            float scaledDamage = baseDamage;
+            var stats = context != null ? context.PlayerStats : default;
+            if (attackPowerMultiplier != 0f)
+            {
+                scaledDamage += stats.Physical * attackPowerMultiplier;
+            }
+
+            int finalDamage = Mathf.Max(minimumDamage, Mathf.RoundToInt(scaledDamage * multiplier * cpMultiplier));
+
+            BattleLogger.Log(
+                "KS2",
+                $"Critical Burst hits for {finalDamage} damage (Base {baseDamage}, AP {stats.Physical:F1}, Mult {multiplier:F2}, ChargeMult {cpMultiplier:F2}).");
 
             // Critical strike (placeholder): apply boosted damage directly.
             context.Enemy.TakeDamage(finalDamage);

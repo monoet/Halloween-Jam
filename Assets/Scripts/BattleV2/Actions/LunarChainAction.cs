@@ -12,6 +12,8 @@ namespace BattleV2.Actions
         [SerializeField] private int costSp;
         [SerializeField] private int costCp;
         [SerializeField] private int baseDamage;
+        [SerializeField] private float attackPowerMultiplier = 1f;
+        [SerializeField] private int minimumDamage = 1;
         [SerializeField] private ChargeProfile chargeProfile;
         [SerializeField] private Ks1TimedHitProfile timedHitProfile;
 
@@ -65,11 +67,30 @@ namespace BattleV2.Actions
             var tier = timedHitProfile != null ? timedHitProfile.GetTierForCharge(cpCharge) : default;
             int hits = Mathf.Max(0, tier.Hits);
             float damageMultiplier = tier.DamageMultiplier > 0f ? tier.DamageMultiplier : 1f;
-            int damagePerHit = Mathf.Max(0, baseDamage);
+            float scaledBaseDamage = baseDamage;
+            var stats = context != null ? context.PlayerStats : default;
+            if (attackPowerMultiplier != 0f)
+            {
+                scaledBaseDamage += stats.Physical * attackPowerMultiplier;
+            }
+
+            float chargeMultiplier = ComboPointScaling.GetDamageMultiplier(cpCharge);
+            int damagePerHit = Mathf.Max(minimumDamage, Mathf.RoundToInt(scaledBaseDamage * chargeMultiplier));
+
+            int totalDamage = 0;
 
             for (int i = 0; i < hits; i++)
             {
-                context.Enemy.TakeDamage(Mathf.RoundToInt(damagePerHit * damageMultiplier));
+                int hitDamage = Mathf.RoundToInt(damagePerHit * damageMultiplier);
+                totalDamage += hitDamage;
+                context.Enemy.TakeDamage(hitDamage);
+            }
+
+            if (hits > 0)
+            {
+                BattleLogger.Log(
+                    "KS1",
+                    $"Lunar Chain dealt {totalDamage} total damage over {hits} hit(s) (Base {baseDamage}, AP {stats.Physical:F1}, Mult {damageMultiplier:F2}, ChargeMult {chargeMultiplier:F2}).");
             }
 
             int refund = Mathf.Clamp(hits, 0, tier.RefundMax);

@@ -13,11 +13,11 @@ MonoBehaviour:
   m_Name: Action Catalog
   m_EditorClassIdentifier: Assembly-CSharp::BattleV2.Actions.ActionCatalog
   basic:
-  - id: 
+  - id: Attack
     displayName: SimpleAttackAction
     costSP: 0
     costCP: 0
-    actionImpl: {fileID: 11400000, guid: d1241046b26176b47bc4092e3017b62d, type: 2}
+    actionImpl: {fileID: 11400000, guid: f0f651f828acbb44ea549ce8531934d2, type: 2}
   - id: 
     displayName: SimpleAttackAction
     costSP: 0

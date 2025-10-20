@@ -107,7 +107,7 @@ namespace BattleV2.UI
             }
 
             SetLabels(
-                source.name,
+                source.DisplayName,
                 string.Format(hpFormat, source.CurrentHP, source.MaxHP),
                 string.Format(spFormat, source.CurrentSP, source.MaxSP),
                 string.Format(cpFormat, source.CurrentCP, source.MaxCP));

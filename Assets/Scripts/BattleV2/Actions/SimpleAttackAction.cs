@@ -12,7 +12,9 @@ namespace BattleV2.Actions
         [SerializeField] private string actionId = "simple_attack";
         [SerializeField] private int costSp;
         [SerializeField] private int costCp;
-        [SerializeField] private int damage = 5;
+        [SerializeField] private int baseDamage = 5;
+        [SerializeField] private float attackPowerMultiplier = 1f;
+        [SerializeField] private int minimumDamage = 1;
         [SerializeField] private int cpGain = 1;
         [SerializeField] private ChargeProfile chargeProfile;
 
@@ -64,9 +66,20 @@ namespace BattleV2.Actions
                 return;
             }
 
-            int totalDamage = damage; // TODO: add scaling per cpCharge if desired.
+            float scaledDamage = baseDamage;
+            var stats = context != null ? context.PlayerStats : default;
+            if (attackPowerMultiplier != 0f)
+            {
+                scaledDamage += stats.Physical * attackPowerMultiplier;
+            }
 
-            BattleLogger.Log("Action", $"SimpleAttack dealing {totalDamage} damage (CP Charge: {cpCharge}).");
+            float cpMultiplier = ComboPointScaling.GetDamageMultiplier(cpCharge);
+
+            int totalDamage = Mathf.Max(minimumDamage, Mathf.RoundToInt(scaledDamage * cpMultiplier));
+
+            BattleLogger.Log(
+                "Action",
+                $"SimpleAttack dealing {totalDamage} damage (Base {baseDamage}, AP {stats.Physical:F1}, Charge {cpCharge}, Mult {cpMultiplier:F2}).");
             context.Enemy.TakeDamage(totalDamage);
 
             if (cpGain > 0 && costCp == 0 && cpCharge == 0)

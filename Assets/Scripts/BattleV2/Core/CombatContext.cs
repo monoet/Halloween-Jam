@@ -9,13 +9,25 @@ namespace BattleV2.Core
     {
         public CombatantState Player { get; }
         public CombatantState Enemy { get; }
+        public CharacterRuntime PlayerRuntime { get; }
+        public CharacterRuntime EnemyRuntime { get; }
+        public FinalStats PlayerStats => PlayerRuntime != null ? PlayerRuntime.Final : default;
+        public FinalStats EnemyStats => EnemyRuntime != null ? EnemyRuntime.Final : default;
         public BattleServices Services { get; }
         public ActionCatalog Catalog { get; }
 
-        public CombatContext(CombatantState player, CombatantState enemy, BattleServices services, ActionCatalog catalog)
+        public CombatContext(
+            CombatantState player,
+            CombatantState enemy,
+            CharacterRuntime playerRuntime,
+            CharacterRuntime enemyRuntime,
+            BattleServices services,
+            ActionCatalog catalog)
         {
             Player = player;
             Enemy = enemy;
+            PlayerRuntime = playerRuntime;
+            EnemyRuntime = enemyRuntime;
             Services = services;
             Catalog = catalog;
         }

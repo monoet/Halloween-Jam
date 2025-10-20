@@ -70,7 +70,7 @@ namespace BattleV2.UI
 
             if (nameLabel != null)
             {
-                nameLabel.text = target.name;
+                nameLabel.text = target.DisplayName;
             }
 
             if (hpLabel != null)

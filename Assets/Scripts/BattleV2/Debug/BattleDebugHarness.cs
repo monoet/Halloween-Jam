@@ -31,6 +31,7 @@ namespace BattleV2.Debugging
         private bool suppressWindow;
         private GUIStyle boldLabelStyle;
         private GUIStyle headerStyle;
+        private readonly Dictionary<BattleActionData, int> chargeSelections = new();
 
         private void Awake()
         {
@@ -73,6 +74,7 @@ namespace BattleV2.Debugging
             currentOnCancel = onCancel;
             cachedPlayer = context?.Player;
             cachedEnemy = context?.Enemy;
+            chargeSelections.Clear();
 
             int count = context?.AvailableActions?.Count ?? 0;
             statusLine = $"Awaiting player command ({count} action(s) available).";
@@ -84,6 +86,7 @@ namespace BattleV2.Debugging
             currentContext = null;
             currentOnSelected = null;
             currentOnCancel = null;
+            chargeSelections.Clear();
         }
 
         private void OnGUI()
@@ -242,10 +245,53 @@ namespace BattleV2.Debugging
             foreach (var action in actions)
             {
                 var display = !string.IsNullOrEmpty(action.displayName) ? action.displayName : action.id;
-                if (GUILayout.Button(display))
+                if (action == null)
                 {
-                    TriggerAction(action, 0);
+                    continue;
                 }
+
+                int maxCharge = GetMaxChargeFor(action);
+                int currentCharge = GetChargeSelection(action);
+
+                GUILayout.BeginHorizontal();
+
+                if (GUILayout.Button(display, GUILayout.ExpandWidth(true)))
+                {
+                    TriggerAction(action, currentCharge);
+                }
+
+                if (maxCharge > 0)
+                {
+                    GUILayout.Label($"CP {currentCharge}/{maxCharge}", GUILayout.Width(100f));
+
+                    if (GUILayout.Button("-", GUILayout.Width(24f)))
+                    {
+                        AdjustChargeSelection(action, -1);
+                    }
+
+                    if (GUILayout.Button("+", GUILayout.Width(24f)))
+                    {
+                        AdjustChargeSelection(action, 1);
+                    }
+                }
+                else
+                {
+                    GUILayout.Label("CP 0", GUILayout.Width(60f));
+                }
+
+                GUILayout.EndHorizontal();
+
+                if (maxCharge > 0)
+                {
+                    float sliderValue = GUILayout.HorizontalSlider(currentCharge, 0f, maxCharge);
+                    int sliderCharge = Mathf.RoundToInt(sliderValue);
+                    if (sliderCharge != currentCharge)
+                    {
+                        SetChargeSelection(action, sliderCharge);
+                    }
+                }
+
+                GUILayout.Space(3f);
             }
         }
 
@@ -319,6 +365,63 @@ namespace BattleV2.Debugging
                     padding = new RectOffset(0, 0, 6, 2)
                 };
             }
+        }
+
+        private int GetChargeSelection(BattleActionData action)
+        {
+            if (action == null)
+            {
+                return 0;
+            }
+
+            if (!chargeSelections.TryGetValue(action, out int value))
+            {
+                value = 0;
+                chargeSelections[action] = value;
+            }
+
+            int max = GetMaxChargeFor(action);
+            if (value > max)
+            {
+                value = max;
+                chargeSelections[action] = value;
+            }
+
+            return value;
+        }
+
+        private void SetChargeSelection(BattleActionData action, int value)
+        {
+            if (action == null)
+            {
+                return;
+            }
+
+            int max = GetMaxChargeFor(action);
+            chargeSelections[action] = Mathf.Clamp(value, 0, max);
+        }
+
+        private void AdjustChargeSelection(BattleActionData action, int delta)
+        {
+            if (action == null)
+            {
+                return;
+            }
+
+            int current = GetChargeSelection(action);
+            SetChargeSelection(action, current + delta);
+        }
+
+        private int GetMaxChargeFor(BattleActionData action)
+        {
+            if (currentContext?.Player == null || action == null)
+            {
+                return 0;
+            }
+
+            int availableCp = Mathf.Max(0, currentContext.Player.CurrentCP);
+            int baseCost = Mathf.Max(0, action.costCP);
+            return Mathf.Max(0, availableCp - baseCost);
         }
     }
 }

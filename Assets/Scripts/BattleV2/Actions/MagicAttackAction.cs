@@ -13,7 +13,9 @@ namespace BattleV2.Actions
         [SerializeField] private string actionId = "magic_attack";
         [SerializeField] private int costSp = 5;
         [SerializeField] private int costCp;
-        [SerializeField] private int damage = 15;
+        [SerializeField] private int baseDamage = 15;
+        [SerializeField] private float magicPowerMultiplier = 1f;
+        [SerializeField] private int minimumDamage = 1;
         [SerializeField] private string element = "Fire";
         [SerializeField] private ChargeProfile chargeProfile;
 
@@ -65,9 +67,20 @@ namespace BattleV2.Actions
                 return;
             }
 
-            int totalDamage = damage; // TODO: scale damage with cpCharge if desired.
+            float scaledDamage = baseDamage;
+            var stats = context != null ? context.PlayerStats : default;
+            if (magicPowerMultiplier != 0f)
+            {
+                scaledDamage += stats.MagicPower * magicPowerMultiplier;
+            }
 
-            BattleLogger.Log("MagicAttack", $"{actor.name} casts {element} dealing {totalDamage} damage! (CP Charge: {cpCharge})");
+            float cpMultiplier = ComboPointScaling.GetDamageMultiplier(cpCharge);
+
+            int totalDamage = Mathf.Max(minimumDamage, Mathf.RoundToInt(scaledDamage * cpMultiplier));
+
+            BattleLogger.Log(
+                "MagicAttack",
+                $"{actor.name} casts {element} dealing {totalDamage} damage (Base {baseDamage}, MP {stats.MagicPower:F1}, Charge {cpCharge}, Mult {cpMultiplier:F2}).");
             context.Enemy.TakeDamage(totalDamage);
 
             // TODO: context.Services?.SpawnVFX($"{element}SpellFX", context.Enemy.Position);

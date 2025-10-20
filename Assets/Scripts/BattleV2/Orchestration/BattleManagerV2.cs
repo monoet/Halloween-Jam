@@ -23,7 +23,9 @@ namespace BattleV2.Orchestration
 
         [Header("Entities")]
         [SerializeField] private CombatantState player;
+        [SerializeField] private CharacterRuntime playerRuntime;
         [SerializeField] private CombatantState enemy;
+        [SerializeField] private CharacterRuntime enemyRuntime;
 
         private IBattleInputProvider inputProvider;
         private CombatContext context;
@@ -69,10 +71,17 @@ namespace BattleV2.Orchestration
                 inputProvider = ScriptableObject.CreateInstance<AutoBattleInputProvider>();
             }
 
+            ComboPointScaling.Configure(config != null ? config.comboPointScaling : null);
+
+            BindCombatants(preservePlayerVitals: false, preserveEnemyVitals: false);
+
+            var services = config != null ? config.services : new BattleServices();
             context = new CombatContext(
                 player,
                 enemy,
-                config != null ? config.services : new BattleServices(),
+                playerRuntime,
+                enemyRuntime,
+                services,
                 actionCatalog);
         }
 
@@ -133,6 +142,60 @@ namespace BattleV2.Orchestration
             return null;
         }
 
+        private void BindCombatants(bool preservePlayerVitals, bool preserveEnemyVitals)
+        {
+            playerRuntime = ResolveRuntimeReference(player, playerRuntime);
+            enemyRuntime = ResolveRuntimeReference(enemy, enemyRuntime);
+
+            if (player != null)
+            {
+                if (playerRuntime != null)
+                {
+                    player.SetCharacterRuntime(playerRuntime, initialize: true, preserveVitals: preservePlayerVitals);
+                    playerRuntime = player.CharacterRuntime;
+                }
+                else
+                {
+                    BattleLogger.Warn("BattleManager", "Player runtime missing; using fallback vitals.");
+                    player.InitializeFrom(null, preservePlayerVitals);
+                }
+            }
+
+            if (enemy != null)
+            {
+                if (enemyRuntime != null)
+                {
+                    enemy.SetCharacterRuntime(enemyRuntime, initialize: true, preserveVitals: preserveEnemyVitals);
+                    enemyRuntime = enemy.CharacterRuntime;
+                }
+                else
+                {
+                    BattleLogger.Warn("BattleManager", "Enemy runtime missing; using fallback vitals.");
+                    enemy.InitializeFrom(null, preserveEnemyVitals);
+                }
+            }
+        }
+
+        private static CharacterRuntime ResolveRuntimeReference(CombatantState combatant, CharacterRuntime overrideRuntime)
+        {
+            if (overrideRuntime != null)
+            {
+                return overrideRuntime;
+            }
+
+            if (combatant == null)
+            {
+                return null;
+            }
+
+            if (combatant.CharacterRuntime != null)
+            {
+                return combatant.CharacterRuntime;
+            }
+
+            return combatant.GetComponent<CharacterRuntime>();
+        }
+
         public void StartBattle()
         {
             state.ResetToIdle();
@@ -142,14 +205,21 @@ namespace BattleV2.Orchestration
 
         public void ResetBattle()
         {
-            if (context == null)
-            {
-                context = new CombatContext(player, enemy, config != null ? config.services : new BattleServices(), actionCatalog);
-            }
-            else
-            {
-                context = new CombatContext(player, enemy, context.Services, actionCatalog);
-            }
+            ComboPointScaling.Configure(config != null ? config.comboPointScaling : null);
+
+            BindCombatants(preservePlayerVitals: false, preserveEnemyVitals: false);
+
+            var services = context != null
+                ? context.Services
+                : (config != null ? config.services : new BattleServices());
+
+            context = new CombatContext(
+                player,
+                enemy,
+                playerRuntime,
+                enemyRuntime,
+                services,
+                actionCatalog);
 
             state.ResetToIdle();
         }
@@ -173,10 +243,14 @@ namespace BattleV2.Orchestration
             var actionContext = new BattleActionContext
             {
                 Player = player,
+                PlayerRuntime = playerRuntime ?? player?.CharacterRuntime,
                 Enemy = enemy,
+                EnemyRuntime = enemyRuntime ?? enemy?.CharacterRuntime,
                 AvailableActions = available,
                 Context = context,
-                MaxCpCharge = player != null ? player.CurrentCP : 0
+                MaxCpCharge = player != null ? player.CurrentCP : 0,
+                PlayerStats = player != null ? player.FinalStats : default,
+                EnemyStats = enemy != null ? enemy.FinalStats : default
             };
 
             inputProvider.RequestAction(actionContext, ExecuteAction, ExecuteAutoFallback);
@@ -307,7 +381,13 @@ namespace BattleV2.Orchestration
 
         private void ExecuteEnemyTurn(Action onComplete)
         {
-            var enemyContext = new CombatContext(enemy, player, context.Services, actionCatalog);
+            var enemyContext = new CombatContext(
+                enemy,
+                player,
+                enemyRuntime ?? enemy?.CharacterRuntime,
+                playerRuntime ?? player?.CharacterRuntime,
+                context.Services,
+                actionCatalog);
             var available = actionCatalog.BuildAvailableFor(enemy, enemyContext);
             if (available.Count == 0)
             {

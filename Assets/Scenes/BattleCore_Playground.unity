@@ -1717,6 +1717,57 @@ MonoBehaviour:
   m_FlexibleWidth: -1
   m_FlexibleHeight: -1
   m_LayoutPriority: 1
+--- !u!1 &448140808
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 448140810}
+  - component: {fileID: 448140809}
+  m_Layer: 0
+  m_Name: _BattledebuHarness
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &448140809
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 448140808}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2a71362a55b8d4549be3b21f2aca5a08, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BattleV2.Debugging.BattleDebugHarness
+  windowRect:
+    serializedVersion: 2
+    x: 20
+    y: 20
+    width: 360
+    height: 540
+  maxLogEntries: 30
+--- !u!4 &448140810
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 448140808}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -1.02753, y: 2.53819, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &478308384
 GameObject:
   m_ObjectHideFlags: 0
@@ -7914,7 +7965,9 @@ MonoBehaviour:
   inputProviderAsset: {fileID: 0}
   inputProviderComponent: {fileID: 339160767}
   player: {fileID: 2077095904618654866}
+  playerRuntime: {fileID: 2077095904618654867}
   enemy: {fileID: 4257266329076552799}
+  enemyRuntime: {fileID: 4257266329076552798}
 --- !u!114 &1941987471
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -7966,7 +8019,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &1967643526
 RectTransform:
   m_ObjectHideFlags: 0
@@ -8097,11 +8150,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b92a573804f33fa4c98c4907ce5fc973, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BattleV2.UI.MenuInputNavigator
-  eventSystem: {fileID: 1440837548}
-  upKey: 119
-  downKey: 115
-  leftKey: 97
-  rightKey: 100
 --- !u!114 &1967643533
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -8114,9 +8162,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 51ecca338bdad9a49b281763c0c6fc26, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BattleV2.UI.SlideTransitionDOTween
-  hiddenOffset: {x: -100, y: 0}
-  duration: 0.3
-  ease: 6
 --- !u!114 &1967643534
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -8129,8 +8174,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fa5cdd02732ba4f4f9cb35d0e03b308f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BattleV2.UI.FadeTransitionDOTween
-  duration: 0.25
-  ease: 6
 --- !u!1 &1987719219
 GameObject:
   m_ObjectHideFlags: 0
@@ -9411,6 +9454,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 53bf100e9cae8d24a87191891014ebd1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CombatantState
+  characterRuntime: {fileID: 0}
+  autoInitializeFromRuntime: 1
+  preserveFractionOnRuntimeUpdate: 1
   maxHP: 50
   currentHP: 0
   maxSP: 10
@@ -9438,7 +9484,7 @@ MonoBehaviour:
   core:
     characterName: Lilia
     portrait: {fileID: 0}
-    Level: 5
+    Level: 10
     CurrentEXP: 0
     MaxEXP: 0
     BaseSTR: 0
@@ -9592,6 +9638,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 53bf100e9cae8d24a87191891014ebd1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CombatantState
+  characterRuntime: {fileID: 0}
+  autoInitializeFromRuntime: 1
+  preserveFractionOnRuntimeUpdate: 1
   maxHP: 15
   currentHP: 0
   maxSP: 10
@@ -9744,3 +9793,4 @@ SceneRoots:
   - {fileID: 1440837549}
   - {fileID: 833976877}
   - {fileID: 1293378298}
+  - {fileID: 448140810}
