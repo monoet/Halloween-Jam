@@ -7956,10 +7956,7 @@ GameObject:
   - component: {fileID: 1967643527}
   - component: {fileID: 1967643530}
   - component: {fileID: 1967643529}
-  - component: {fileID: 1967643532}
   - component: {fileID: 1967643531}
-  - component: {fileID: 1967643534}
-  - component: {fileID: 1967643533}
   m_Layer: 5
   m_Name: BattleUI_Orchestrator
   m_TagString: Untagged
@@ -8085,52 +8082,6 @@ MonoBehaviour:
   downKey: 115
   leftKey: 97
   rightKey: 100
---- !u!114 &1967643532
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1967643525}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b92a573804f33fa4c98c4907ce5fc973, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BattleV2.UI.MenuInputNavigator
-  eventSystem: {fileID: 1440837548}
-  upKey: 119
-  downKey: 115
-  leftKey: 97
-  rightKey: 100
---- !u!114 &1967643533
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1967643525}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 51ecca338bdad9a49b281763c0c6fc26, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BattleV2.UI.SlideTransitionDOTween
-  hiddenOffset: {x: -100, y: 0}
-  duration: 0.3
-  ease: 6
---- !u!114 &1967643534
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1967643525}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fa5cdd02732ba4f4f9cb35d0e03b308f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BattleV2.UI.FadeTransitionDOTween
-  duration: 0.25
-  ease: 6
 --- !u!1 &1987719219
 GameObject:
   m_ObjectHideFlags: 0

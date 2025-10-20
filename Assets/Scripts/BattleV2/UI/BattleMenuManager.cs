@@ -25,6 +25,20 @@ namespace BattleV2.UI
             }
         }
 
+        public GameObject CurrentMenu
+        {
+            get
+            {
+                if (openStack.Count == 0)
+                {
+                    return defaultMenu;
+                }
+
+                var top = openStack.Peek();
+                return top != null ? top : defaultMenu;
+            }
+        }
+
         private const string DebugTag = "[BattleMenu]";
         private readonly Stack<GameObject> openStack = new();
 

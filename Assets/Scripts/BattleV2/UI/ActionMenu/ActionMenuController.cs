@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
+using BattleV2.UI;
 
 namespace BattleV2.UI.ActionMenu
 {
@@ -46,6 +48,7 @@ namespace BattleV2.UI.ActionMenu
                     UnityAction listener = () => HandleOption(captured);
                     entry.button.onClick.AddListener(listener);
                     registeredActions.Add((entry.button, listener));
+                    EnsureFocusTween(entry.button.gameObject);
                 }
             }
 
@@ -54,7 +57,13 @@ namespace BattleV2.UI.ActionMenu
                 UnityAction backListener = HandleBack;
                 backButton.onClick.AddListener(backListener);
                 registeredActions.Add((backButton, backListener));
+                EnsureFocusTween(backButton.gameObject);
             }
+        }
+
+        private void OnEnable()
+        {
+            TrySetInitialSelection();
         }
 
         private void OnDestroy()
@@ -82,6 +91,52 @@ namespace BattleV2.UI.ActionMenu
             Debug.Log($"{DebugTag} Back to HUD");
             OnBackRequested?.Invoke();
             menuManager?.CloseCurrent();
+        }
+
+        private void EnsureFocusTween(GameObject buttonObject)
+        {
+            if (buttonObject == null)
+            {
+                return;
+            }
+
+            if (!buttonObject.TryGetComponent<ButtonFocusTween>(out _))
+            {
+                buttonObject.AddComponent<ButtonFocusTween>();
+            }
+        }
+
+        private void TrySetInitialSelection()
+        {
+            if (options == null || options.Length == 0)
+            {
+                return;
+            }
+
+            var eventSystem = EventSystem.current;
+            if (eventSystem == null)
+            {
+                return;
+            }
+
+            foreach (var entry in options)
+            {
+                var button = entry.button;
+                if (button == null || !button.gameObject.activeInHierarchy || !button.interactable)
+                {
+                    continue;
+                }
+
+                eventSystem.SetSelectedGameObject(button.gameObject);
+                button.Select();
+                return;
+            }
+
+            if (backButton != null && backButton.gameObject.activeInHierarchy && backButton.interactable)
+            {
+                eventSystem.SetSelectedGameObject(backButton.gameObject);
+                backButton.Select();
+            }
         }
     }
 }

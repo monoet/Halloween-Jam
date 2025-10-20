@@ -1,7 +1,9 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 using TMPro;
+using BattleV2.UI;
 
 namespace BattleV2.UI.ActionMenu
 {
@@ -57,6 +59,7 @@ namespace BattleV2.UI.ActionMenu
                 }
 
                 spawnedButtons.Add(go);
+                EnsureFocusTween(go);
             }
 
             HighlightCurrent();
@@ -121,15 +124,22 @@ namespace BattleV2.UI.ActionMenu
 
         private void HighlightCurrent()
         {
+            Selectable selected = null;
             for (int i = 0; i < spawnedButtons.Count; i++)
             {
                 if (spawnedButtons[i] != null && spawnedButtons[i].TryGetComponent(out Selectable selectable))
                 {
                     if (i == currentIndex)
                     {
+                        selected = selectable;
                         selectable.Select();
                     }
                 }
+            }
+
+            if (selected != null && EventSystem.current != null)
+            {
+                EventSystem.current.SetSelectedGameObject(selected.gameObject);
             }
         }
 
@@ -143,6 +153,19 @@ namespace BattleV2.UI.ActionMenu
                 }
             }
             spawnedButtons.Clear();
+        }
+
+        private void EnsureFocusTween(GameObject buttonObject)
+        {
+            if (buttonObject == null)
+            {
+                return;
+            }
+
+            if (!buttonObject.TryGetComponent<ButtonFocusTween>(out _))
+            {
+                buttonObject.AddComponent<ButtonFocusTween>();
+            }
         }
     }
 }
