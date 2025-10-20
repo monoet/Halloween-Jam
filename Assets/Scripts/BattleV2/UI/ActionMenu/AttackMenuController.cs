@@ -99,10 +99,10 @@ namespace BattleV2.UI.ActionMenu
             activeStrategy?.Hide();
             activeStrategy = useAlternateStrategy ? alternateStrategy : defaultStrategy;
 
-            if (optionBuffer.Count > 0 && activeStrategy != null)
+            if (activeStrategy != null)
             {
                 activeStrategy.Show(optionBuffer);
-                Debug.Log($"{DebugTag} RefreshActiveStrategy -> {activeStrategy.GetType().Name}");
+                Debug.Log($"{DebugTag} RefreshActiveStrategy -> {activeStrategy.GetType().Name} (options={optionBuffer.Count})");
             }
         }
     }

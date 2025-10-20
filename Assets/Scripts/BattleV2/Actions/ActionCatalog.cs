@@ -78,5 +78,24 @@ namespace BattleV2.Actions
             BattleLogger.Error("Catalog", "No fallback action available.");
             throw new System.InvalidOperationException("ActionCatalog has no fallback action configured.");
         }
+
+        public bool IsBasic(BattleActionData data)
+        {
+            return data != null && basic.Contains(data);
+        }
+
+        public bool IsMagic(BattleActionData data)
+        {
+            return data != null && magic.Contains(data);
+        }
+
+        public bool IsItem(BattleActionData data)
+        {
+            return data != null && items.Contains(data);
+        }
+
+        public IReadOnlyList<BattleActionData> Basic => basic;
+        public IReadOnlyList<BattleActionData> Magic => magic;
+        public IReadOnlyList<BattleActionData> Items => items;
     }
 }

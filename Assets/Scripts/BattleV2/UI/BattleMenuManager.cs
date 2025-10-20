@@ -11,6 +11,7 @@ namespace BattleV2.UI
         [SerializeField] private GameObject defaultMenu;
         [SerializeField] private GameObject rootMenu;
         [SerializeField] private List<GameObject> menus = new();
+        [SerializeField] private MenuScaleFadeTransition menuTransition;
 
         public bool IsHUDActive
         {
@@ -163,35 +164,78 @@ namespace BattleV2.UI
             }
         }
 
-        private static void ApplyMenuState(GameObject menu, bool isActive)
+        private void ApplyMenuState(GameObject menu, bool isActive)
         {
             if (menu == null)
             {
                 return;
             }
 
-            menu.SetActive(isActive);
+            bool canAnimate = menuTransition != null && menu != defaultMenu;
 
-            if (!menu.TryGetComponent(out CanvasGroup canvasGroup))
+            if (isActive)
+            {
+                menu.SetActive(true);
+                if (canAnimate)
+                {
+                    menuTransition.PlayOpen(menu);
+                }
+                else if (menu.TryGetComponent(out CanvasGroup activeGroup))
+                {
+                    activeGroup.alpha = 1f;
+                    activeGroup.interactable = true;
+                    activeGroup.blocksRaycasts = true;
+                }
+
+                EnsureMenuSelection(menu);
+                return;
+            }
+            else
+            {
+                if (canAnimate)
+                {
+                    menuTransition.PlayClose(menu, () =>
+                    {
+                        menu.SetActive(false);
+                    });
+                    return;
+                }
+
+                if (menu.TryGetComponent(out CanvasGroup inactiveGroup))
+                {
+                    inactiveGroup.interactable = false;
+                    inactiveGroup.blocksRaycasts = false;
+                    inactiveGroup.alpha = 0f;
+                }
+
+                if (menu != defaultMenu)
+                {
+                    menu.SetActive(false);
+                }
+            }
+        }
+
+        private void EnsureMenuSelection(GameObject menu)
+        {
+            if (menu == null)
             {
                 return;
             }
 
-            if (isActive)
+            var eventSystem = UnityEngine.EventSystems.EventSystem.current;
+            if (eventSystem == null)
             {
-                canvasGroup.alpha = 1f;
-                canvasGroup.interactable = true;
-                canvasGroup.blocksRaycasts = true;
+                return;
             }
-            else
+
+            var selectable = menu.GetComponentInChildren<UnityEngine.UI.Selectable>();
+            if (selectable == null || !selectable.gameObject.activeInHierarchy || !selectable.interactable)
             {
-                canvasGroup.interactable = false;
-                canvasGroup.blocksRaycasts = false;
-                if (canvasGroup.alpha > 0f)
-                {
-                    canvasGroup.alpha = 0f;
-                }
+                return;
             }
+
+            eventSystem.SetSelectedGameObject(selectable.gameObject);
+            selectable.Select();
         }
 
         private void LogStack(string action)

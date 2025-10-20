@@ -21,6 +21,19 @@ namespace BattleV2.UI
         private Tween activeTween;
         private bool isFocused;
 
+        public RectTransform Target => target;
+        public float FocusScale
+        {
+            get => focusScale;
+            set => focusScale = value;
+        }
+
+        public float TweenDuration
+        {
+            get => tweenDuration;
+            set => tweenDuration = Mathf.Max(0f, value);
+        }
+
         private void Awake()
         {
             if (target == null)
@@ -50,16 +63,63 @@ namespace BattleV2.UI
             isFocused = false;
         }
 
+        public void SetTarget(RectTransform newTarget)
+        {
+            if (newTarget == null)
+            {
+                return;
+            }
+
+            target = newTarget;
+            defaultScale = target.localScale == Vector3.zero ? Vector3.one : target.localScale;
+        }
+
+        public void Configure(float scaleMultiplier, float durationSeconds, Ease easing)
+        {
+            focusScale = scaleMultiplier;
+            tweenDuration = Mathf.Max(0f, durationSeconds);
+            ease = easing;
+        }
+
+        public void ResetImmediate()
+        {
+            KillTween();
+            if (target != null)
+            {
+                target.localScale = defaultScale;
+            }
+            isFocused = false;
+        }
+
+        public void ApplyState(bool focused, bool instant = false)
+        {
+            isFocused = focused;
+            if (target == null)
+            {
+                return;
+            }
+
+            var targetScale = focused ? defaultScale * focusScale : defaultScale;
+
+            if (instant)
+            {
+                KillTween();
+                target.localScale = targetScale;
+            }
+            else
+            {
+                PlayTween(targetScale);
+            }
+        }
+
         public void OnSelect(BaseEventData eventData)
         {
-            isFocused = true;
-            PlayTween(defaultScale * focusScale);
+            ApplyState(true);
         }
 
         public void OnDeselect(BaseEventData eventData)
         {
-            isFocused = false;
-            PlayTween(defaultScale);
+            ApplyState(false);
         }
 
         public void OnPointerEnter(PointerEventData eventData)

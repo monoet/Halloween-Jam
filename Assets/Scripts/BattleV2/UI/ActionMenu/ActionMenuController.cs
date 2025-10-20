@@ -5,6 +5,7 @@ using UnityEngine.Events;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using BattleV2.UI;
+using TMPro;
 
 namespace BattleV2.UI.ActionMenu
 {
@@ -49,6 +50,7 @@ namespace BattleV2.UI.ActionMenu
                     entry.button.onClick.AddListener(listener);
                     registeredActions.Add((entry.button, listener));
                     EnsureFocusTween(entry.button.gameObject);
+                    EnsureConfirmTween(entry.button.gameObject);
                 }
             }
 
@@ -58,6 +60,7 @@ namespace BattleV2.UI.ActionMenu
                 backButton.onClick.AddListener(backListener);
                 registeredActions.Add((backButton, backListener));
                 EnsureFocusTween(backButton.gameObject);
+                EnsureConfirmTween(backButton.gameObject);
             }
         }
 
@@ -100,9 +103,29 @@ namespace BattleV2.UI.ActionMenu
                 return;
             }
 
-            if (!buttonObject.TryGetComponent<ButtonFocusTween>(out _))
+            var focusTween = buttonObject.GetComponent<ButtonFocusTween>();
+            if (focusTween == null)
             {
-                buttonObject.AddComponent<ButtonFocusTween>();
+                focusTween = buttonObject.AddComponent<ButtonFocusTween>();
+            }
+
+            var text = buttonObject.GetComponentInChildren<TMPro.TMP_Text>();
+            if (text != null)
+            {
+                focusTween.SetTarget(text.rectTransform);
+            }
+        }
+
+        private void EnsureConfirmTween(GameObject buttonObject)
+        {
+            if (buttonObject == null)
+            {
+                return;
+            }
+
+            if (!buttonObject.TryGetComponent<ButtonConfirmTween>(out _))
+            {
+                buttonObject.AddComponent<ButtonConfirmTween>();
             }
         }
 
@@ -136,6 +159,25 @@ namespace BattleV2.UI.ActionMenu
             {
                 eventSystem.SetSelectedGameObject(backButton.gameObject);
                 backButton.Select();
+            }
+        }
+
+        public void SetOptionInteractable(string id, bool interactable)
+        {
+            if (options == null)
+            {
+                return;
+            }
+
+            foreach (var entry in options)
+            {
+                if (entry.button == null || entry.id != id)
+                {
+                    continue;
+                }
+
+                entry.button.interactable = interactable;
+                break;
             }
         }
     }
