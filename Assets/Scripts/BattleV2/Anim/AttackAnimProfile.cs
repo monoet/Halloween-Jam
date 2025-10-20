@@ -20,10 +20,13 @@ namespace BattleV2.Anim
         public float lungeTime = 0.12f;
         public Ease lungeEase = Ease.OutExpo;
 
-        [Header("Impact Feedback")]
-        public float hitFreeze = 0.035f;
-        public float enemyHitShakeTime = 0.18f;
-        public float enemyHitShakeStrength = 0.25f;
+    [Header("Impact Feedback")]
+    public float hitFreeze = 0.035f;
+    public float hitPushDistance = 0.2f;
+    public float hitPushDuration = 0.08f;
+    public Ease hitPushEase = Ease.OutQuad;
+    public float hitReturnDuration = 0.12f;
+    public Ease hitReturnEase = Ease.OutSine;
 
         [Header("Recover (Return to Idle)")]
         public float recoverTime = 0.22f;

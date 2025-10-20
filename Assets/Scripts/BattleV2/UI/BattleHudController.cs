@@ -1,139 +1,160 @@
-using BattleV2.Actions;
-using BattleV2.Core;
-using BattleV2.Orchestration;
-using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
+using TMPro;
 
 namespace BattleV2.UI
 {
     /// <summary>
-    /// Coordinates high-level HUD feedback (state/last action) and forwards CombatantState refs to widgets.
+    /// Updates HUD elements for a combatant.
     /// </summary>
-    public class BattleHudController : MonoBehaviour
+    public class BattleHUDController : MonoBehaviour
     {
-        [Header("Core References")]
-        [SerializeField] private BattleStateController stateController;
-        [SerializeField] private BattleManagerV2 battleManager;
-
-        [Header("Combatants")]
-        [SerializeField] private CombatantState playerState;
-        [SerializeField] private CombatantState enemyState;
-        [SerializeField] private CombatantHudWidget playerWidget;
-        [SerializeField] private CombatantHudWidget enemyWidget;
-
-        [Header("Labels")]
-        [SerializeField] private TMP_Text stateLabel;
-        [SerializeField] private TMP_Text lastActionLabel;
-        [SerializeField] private string stateFormat = "State: {0}";
-        [SerializeField] private string lastActionFormat = "Last Action: {0}";
-        [SerializeField] private string noActionText = "(none)";
-
-        private BattleActionData cachedAction;
-
-        private void Awake()
-        {
-            ApplyWidgets();
-            UpdateStateLabel(stateController != null ? stateController.State : BattleState.Idle);
-            UpdateLastAction(null);
-        }
+        [SerializeField] private CombatantState state;
+        [SerializeField] private TMP_Text nameLabel;
+        [SerializeField] private TMP_Text hpLabel;
+        [SerializeField] private TMP_Text spLabel;
+        [SerializeField] private TMP_Text cpLabel;
+        [SerializeField] private Slider hpSlider;
+        [SerializeField] private Slider spSlider;
+        [SerializeField] private Slider cpSlider;
 
         private void OnEnable()
         {
-            if (stateController != null)
+            if (state != null)
             {
-                stateController.OnChanged += HandleStateChanged;
+                state.OnVitalsChanged.AddListener(HandleVitalsChanged);
+                RefreshFromState(state);
             }
         }
 
         private void OnDisable()
         {
-            if (stateController != null)
+            if (state != null)
             {
-                stateController.OnChanged -= HandleStateChanged;
+                state.OnVitalsChanged.RemoveListener(HandleVitalsChanged);
             }
         }
 
-        private void Update()
+        public void SetState(CombatantState newState)
         {
-            if (battleManager == null)
+            if (state == newState)
             {
                 return;
             }
 
-            var latest = battleManager.LastExecutedAction;
-            if (!ReferenceEquals(latest, cachedAction))
+            if (state != null)
             {
-                UpdateLastAction(latest);
+                state.OnVitalsChanged.RemoveListener(HandleVitalsChanged);
+            }
+
+            state = newState;
+
+            if (state != null)
+            {
+                state.OnVitalsChanged.AddListener(HandleVitalsChanged);
+                RefreshFromState(state);
+            }
+            else
+            {
+                Clear();
             }
         }
 
-        public void SetBattleManager(BattleManagerV2 manager)
+        public void RefreshFromState(CombatantState target)
         {
-            battleManager = manager;
-            ApplyWidgets();
-        }
-
-        public void SetStateController(BattleStateController controller)
-        {
-            if (stateController != null)
+            if (target == null)
             {
-                stateController.OnChanged -= HandleStateChanged;
+                Clear();
+                return;
             }
 
-            stateController = controller;
-
-            if (stateController != null)
+            if (nameLabel != null)
             {
-                stateController.OnChanged += HandleStateChanged;
-                UpdateStateLabel(stateController.State);
-            }
-        }
-
-        public void SetCombatants(CombatantState player, CombatantState enemy)
-        {
-            playerState = player;
-            enemyState = enemy;
-            ApplyWidgets();
-        }
-
-        private void ApplyWidgets()
-        {
-            if (playerWidget != null)
-            {
-                playerWidget.SetSource(playerState);
+                nameLabel.text = target.name;
             }
 
-            if (enemyWidget != null)
+            if (hpLabel != null)
             {
-                enemyWidget.SetSource(enemyState);
+                hpLabel.text = $"{target.CurrentHP}/{target.MaxHP}";
             }
-        }
 
-        private void HandleStateChanged(BattleState newState)
-        {
-            UpdateStateLabel(newState);
-        }
-
-        private void UpdateStateLabel(BattleState state)
-        {
-            if (stateLabel != null)
+            if (spLabel != null)
             {
-                stateLabel.text = string.Format(stateFormat, state);
+                spLabel.text = $"{target.CurrentSP}/{target.MaxSP}";
+            }
+
+            if (cpLabel != null)
+            {
+                cpLabel.text = $"{target.CurrentCP}/{target.MaxCP}";
+            }
+
+            if (hpSlider != null)
+            {
+                hpSlider.value = SafeRatio(target.CurrentHP, target.MaxHP);
+            }
+
+            if (spSlider != null)
+            {
+                spSlider.value = SafeRatio(target.CurrentSP, target.MaxSP);
+            }
+
+            if (cpSlider != null)
+            {
+                cpSlider.value = SafeRatio(target.CurrentCP, target.MaxCP);
             }
         }
 
-        private void UpdateLastAction(BattleActionData action)
+        private void Clear()
         {
-            cachedAction = action;
-
-            if (lastActionLabel != null)
+            if (nameLabel != null)
             {
-                string display = action != null
-                    ? (!string.IsNullOrWhiteSpace(action.displayName) ? action.displayName : action.id)
-                    : noActionText;
-
-                lastActionLabel.text = string.Format(lastActionFormat, display);
+                nameLabel.text = "--";
             }
+
+            if (hpLabel != null)
+            {
+                hpLabel.text = "--/--";
+            }
+
+            if (spLabel != null)
+            {
+                spLabel.text = "--/--";
+            }
+
+            if (cpLabel != null)
+            {
+                cpLabel.text = "--/--";
+            }
+
+            if (hpSlider != null)
+            {
+                hpSlider.value = 0f;
+            }
+
+            if (spSlider != null)
+            {
+                spSlider.value = 0f;
+            }
+
+            if (cpSlider != null)
+            {
+                cpSlider.value = 0f;
+            }
+        }
+
+        private void HandleVitalsChanged()
+        {
+            RefreshFromState(state);
+        }
+
+        private static float SafeRatio(int current, int max)
+        {
+            if (max <= 0)
+            {
+                return 0f;
+            }
+
+            return Mathf.Clamp01(current / (float)max);
         }
     }
 }

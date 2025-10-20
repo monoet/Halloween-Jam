@@ -82,7 +82,7 @@ namespace BattleV2.UI
 
         private void Subscribe(CombatantState target)
         {
-            if (target != null)
+            if (target != null && target.OnVitalsChanged != null)
             {
                 target.OnVitalsChanged.AddListener(vitalsListener);
             }
@@ -90,7 +90,7 @@ namespace BattleV2.UI
 
         private void Unsubscribe(CombatantState target)
         {
-            if (target != null)
+            if (target != null && target.OnVitalsChanged != null)
             {
                 target.OnVitalsChanged.RemoveListener(vitalsListener);
             }

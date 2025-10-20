@@ -29,11 +29,6 @@ namespace BattleV2.Orchestration
         private CombatContext context;
         private bool animationLocked;
         private Action pendingEnemyTurn;
-        private BattleSelection pendingPlayerSelection;
-        private IAction pendingPlayerAction;
-        private int pendingPlayerCpBefore;
-        private bool waitingForPlayerAnimation;
-        private bool waitingForEnemyAnimation;
 
         public BattleActionData LastExecutedAction { get; private set; }
         public event Action<BattleSelection, int> OnPlayerActionSelected;
@@ -79,20 +74,13 @@ namespace BattleV2.Orchestration
         private void OnEnable()
         {
             BattleEvents.OnLockChanged += HandleAnimationLockChanged;
-            BattleEvents.OnAnimationStageCompleted += HandleAnimationStageCompleted;
         }
 
         private void OnDisable()
         {
             BattleEvents.OnLockChanged -= HandleAnimationLockChanged;
-            BattleEvents.OnAnimationStageCompleted -= HandleAnimationStageCompleted;
             pendingEnemyTurn = null;
             animationLocked = false;
-            waitingForPlayerAnimation = false;
-            waitingForEnemyAnimation = false;
-            pendingPlayerAction = null;
-            pendingPlayerSelection = default;
-            pendingPlayerCpBefore = 0;
         }
 
         private IBattleInputProvider ResolveProvider()
@@ -225,14 +213,24 @@ namespace BattleV2.Orchestration
             LastExecutedAction = selected;
             BattleLogger.Log("Execute", $"Action {selected.id} starting.");
             state.Set(BattleState.Resolving);
+            int cpBefore = player.CurrentCP;
+            OnPlayerActionSelected?.Invoke(selection, cpBefore);
 
-            pendingPlayerSelection = selection;
-            pendingPlayerAction = impl;
-            pendingPlayerCpBefore = player.CurrentCP;
-            waitingForPlayerAnimation = true;
-
-            OnPlayerActionSelected?.Invoke(selection, pendingPlayerCpBefore);
-            TryExecutePendingPlayerAction();
+            try
+            {
+                impl.Execute(player, context, selection.CpCharge, () =>
+                {
+                    BattleLogger.Log("Resolve", "Enemy turn resolving...");
+                    int cpAfter = player.CurrentCP;
+                    OnPlayerActionResolved?.Invoke(selection, cpBefore, cpAfter);
+                    QueueEnemyTurn(() => ExecuteEnemyTurn(HandlePostEnemyTurn));
+                });
+            }
+            catch (Exception ex)
+            {
+                BattleLogger.Error("BattleManager", $"Action {selected.id} threw exception: {ex}");
+                ExecuteAutoFallback();
+            }
         }
 
         private void QueueEnemyTurn(Action execute)
@@ -242,67 +240,13 @@ namespace BattleV2.Orchestration
                 return;
             }
 
-            pendingEnemyTurn += execute;
-            TryExecutePendingEnemyTurn();
-        }
-
-        private void TryExecutePendingPlayerAction()
-        {
-            if (pendingPlayerAction == null)
+            if (animationLocked)
             {
+                pendingEnemyTurn += execute;
                 return;
             }
 
-            if (waitingForPlayerAnimation || animationLocked)
-            {
-                return;
-            }
-
-            waitingForPlayerAnimation = false;
-            var selection = pendingPlayerSelection;
-            var impl = pendingPlayerAction;
-            int cpBefore = pendingPlayerCpBefore;
-
-            pendingPlayerAction = null;
-            pendingPlayerSelection = default;
-            pendingPlayerCpBefore = 0;
-
-            try
-            {
-                impl.Execute(player, context, selection.CpCharge, () =>
-                {
-                    BattleLogger.Log("Resolve", "Enemy turn resolving...");
-                    waitingForEnemyAnimation = true;
-                    int cpAfter = player.CurrentCP;
-                    OnPlayerActionResolved?.Invoke(selection, cpBefore, cpAfter);
-                    QueueEnemyTurn(() => ExecuteEnemyTurn(HandlePostEnemyTurn));
-                    TryExecutePendingEnemyTurn();
-                });
-            }
-            catch (Exception ex)
-            {
-                BattleLogger.Error("BattleManager", $"Action {selection.Action?.id ?? "unknown"} threw exception: {ex}");
-                pendingPlayerAction = null;
-                ExecuteAutoFallback();
-            }
-        }
-
-        private void TryExecutePendingEnemyTurn()
-        {
-            if (pendingEnemyTurn == null)
-            {
-                return;
-            }
-
-            if (waitingForEnemyAnimation || animationLocked)
-            {
-                return;
-            }
-
-            waitingForEnemyAnimation = false;
-            var execute = pendingEnemyTurn;
-            pendingEnemyTurn = null;
-            execute?.Invoke();
+            execute();
         }
 
         private void ExecuteEnemyTurn(Action onComplete)
@@ -407,25 +351,11 @@ namespace BattleV2.Orchestration
         {
             animationLocked = locked;
 
-            if (!animationLocked)
+            if (!animationLocked && pendingEnemyTurn != null)
             {
-                TryExecutePendingPlayerAction();
-                TryExecutePendingEnemyTurn();
-            }
-        }
-
-        private void HandleAnimationStageCompleted(BattleAnimationStage stage)
-        {
-            switch (stage)
-            {
-                case BattleAnimationStage.PlayerAttack:
-                    waitingForPlayerAnimation = false;
-                    TryExecutePendingPlayerAction();
-                    break;
-                case BattleAnimationStage.EnemyAttack:
-                    waitingForEnemyAnimation = false;
-                    TryExecutePendingEnemyTurn();
-                    break;
+                var execute = pendingEnemyTurn;
+                pendingEnemyTurn = null;
+                execute?.Invoke();
             }
         }
     }

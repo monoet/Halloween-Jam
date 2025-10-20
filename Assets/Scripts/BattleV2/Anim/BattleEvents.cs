@@ -16,11 +16,17 @@ namespace BattleV2.Anim
         // --- Estado global ---
         public static event Action OnCombatReset;
         public static event Action<bool> OnLockChanged;
+        public static event Action<BattleAnimationStage> OnAnimationStageCompleted;
+        public static event Action PlayerAttackStrike;
+        public static event Action EnemyAttackStrike;
 
         // Emitters (helpers)
         public static void EmitPlayerTurnCommitted() => PlayerTurnCommitted?.Invoke();
         public static void EmitActionResolving() => ActionResolving?.Invoke();
         public static void EmitCombatReset() => OnCombatReset?.Invoke();
         public static void EmitLockChanged(bool locked) => OnLockChanged?.Invoke(locked);
+        public static void EmitAnimationStageCompleted(BattleAnimationStage stage) => OnAnimationStageCompleted?.Invoke(stage);
+        public static void EmitPlayerAttackStrike() => PlayerAttackStrike?.Invoke();
+        public static void EmitEnemyAttackStrike() => EnemyAttackStrike?.Invoke();
     }
 }

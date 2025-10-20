@@ -20,8 +20,6 @@ namespace BattleV2.Anim
         private BattleAnimationContext context;
         private Coroutine lockCoroutine;
         private bool lockActive;
-        private BattleAnimationStage currentLockStage = BattleAnimationStage.None;
-        private bool stageCompletionSignaled;
 
         private BattleAnimationStrategy PlayerStrategy => playerStrategyOverride != null ? playerStrategyOverride : sharedStrategy;
         private BattleAnimationStrategy EnemyStrategy => enemyStrategyOverride != null ? enemyStrategyOverride : sharedStrategy;
@@ -59,7 +57,6 @@ namespace BattleV2.Anim
             manager.OnPlayerActionSelected += HandlePlayerActionSelected;
             manager.OnPlayerActionResolved += HandlePlayerActionResolved;
             BattleEvents.OnCombatReset += HandleCombatReset;
-            BattleEvents.OnAnimationStageCompleted += HandleAnimationStageCompleted;
         }
 
         private void Unsubscribe()
@@ -71,7 +68,6 @@ namespace BattleV2.Anim
             }
 
             BattleEvents.OnCombatReset -= HandleCombatReset;
-            BattleEvents.OnAnimationStageCompleted -= HandleAnimationStageCompleted;
         }
 
         private void HandlePlayerActionSelected(BattleSelection selection, int cpBefore)
@@ -109,11 +105,6 @@ namespace BattleV2.Anim
 
         private void ApplyResult(BattleAnimationResult result)
         {
-            if (result.Stage != BattleAnimationStage.None && !result.RequestLock)
-            {
-                BattleEvents.EmitAnimationStageCompleted(result.Stage);
-            }
-
             if (!result.RequestLock)
             {
                 return;
@@ -124,8 +115,6 @@ namespace BattleV2.Anim
                 StopCoroutine(lockCoroutine);
             }
 
-            currentLockStage = result.Stage;
-            stageCompletionSignaled = false;
             lockCoroutine = StartCoroutine(HandleLock(result.LockDurationSeconds));
         }
 
@@ -137,25 +126,10 @@ namespace BattleV2.Anim
                 BattleEvents.EmitLockChanged(true);
             }
 
-            float wait = Mathf.Max(0f, durationSeconds);
-            if (wait > 0f)
-            {
-                yield return new WaitForSeconds(wait);
-            }
-            else
-            {
-                yield return null;
-            }
-
-            if (!stageCompletionSignaled && currentLockStage != BattleAnimationStage.None)
-            {
-                stageCompletionSignaled = true;
-                BattleEvents.EmitAnimationStageCompleted(currentLockStage);
-            }
+            yield return new WaitForSeconds(Mathf.Max(0f, durationSeconds));
 
             lockActive = false;
             BattleEvents.EmitLockChanged(false);
-            currentLockStage = BattleAnimationStage.None;
             lockCoroutine = null;
         }
 
@@ -172,25 +146,6 @@ namespace BattleV2.Anim
                 lockActive = false;
                 BattleEvents.EmitLockChanged(false);
             }
-
-            currentLockStage = BattleAnimationStage.None;
-            stageCompletionSignaled = true;
-        }
-
-        private void HandleAnimationStageCompleted(BattleAnimationStage stage)
-        {
-            if (stage == BattleAnimationStage.None)
-            {
-                return;
-            }
-
-            if (currentLockStage != BattleAnimationStage.None && stage != currentLockStage)
-            {
-                return;
-            }
-
-            stageCompletionSignaled = true;
-            ReleaseLockImmediate();
         }
 
         private void OnValidate()
@@ -199,3 +154,4 @@ namespace BattleV2.Anim
         }
     }
 }
+

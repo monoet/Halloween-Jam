@@ -1,0 +1,1444 @@
+# Battle UI Scripts Snapshot
+
+## BattleMenuManager.cs
+
+```csharp
+using System.Collections.Generic;
+using UnityEngine;
+
+namespace BattleV2.UI
+{
+    /// <summary>
+    /// Centralised controller that keeps track of battle menus without relying on nested hierarchies.
+    /// </summary>
+    public class BattleMenuManager : MonoBehaviour
+    {
+        [SerializeField] private GameObject defaultMenu;
+        [SerializeField] private GameObject rootMenu;
+        [SerializeField] private List<GameObject> menus = new();
+
+        public bool IsHUDActive => openStack.Count == 0 ? defaultMenu == null : openStack.Peek() == defaultMenu;
+
+        private const string DebugTag = "[BattleMenu]";
+        private readonly Stack<GameObject> openStack = new();
+
+        private void Awake()
+        {
+            foreach (var menu in menus)
+            {
+                if (menu != null)
+                {
+                    menu.SetActive(menu == defaultMenu);
+                }
+            }
+
+            if (defaultMenu != null)
+            {
+                defaultMenu.SetActive(true);
+                openStack.Push(defaultMenu);
+            }
+
+            LogStack("Awake");
+        }
+
+        public void Open(GameObject menu)
+        {
+            if (menu == null || (openStack.Count > 0 && openStack.Peek() == menu))
+            {
+                return;
+            }
+
+            CloseCurrentInternal(pushToStack: false);
+            menu.SetActive(true);
+            openStack.Push(menu);
+
+            LogStack($"Open -> {menu.name}");
+        }
+
+        public void OpenRootMenu()
+        {
+            if (rootMenu == null)
+            {
+                Debug.LogWarning("[BattleMenuManager] Root menu not assigned.");
+                return;
+            }
+
+            Open(rootMenu);
+        }
+
+        public void CloseCurrent()
+        {
+            CloseCurrentInternal(pushToStack: true);
+        }
+
+        public void CloseAll()
+        {
+            while (openStack.Count > 0)
+            {
+                var menu = openStack.Pop();
+                if (menu != null)
+                {
+                    menu.SetActive(menu == defaultMenu);
+                }
+            }
+
+            if (defaultMenu != null)
+            {
+                defaultMenu.SetActive(true);
+                openStack.Push(defaultMenu);
+            }
+
+            LogStack("CloseAll");
+        }
+
+        private void CloseCurrentInternal(bool pushToStack)
+        {
+            if (openStack.Count == 0)
+            {
+                return;
+            }
+
+            var current = openStack.Pop();
+            if (current != null)
+            {
+                current.SetActive(false);
+            }
+
+            string closedName = current != null ? current.name : "(null)";
+
+            if (pushToStack && defaultMenu != null && current != defaultMenu)
+            {
+                defaultMenu.SetActive(true);
+                openStack.Push(defaultMenu);
+            }
+            else if (openStack.Count > 0 && openStack.Peek() != null)
+            {
+                openStack.Peek().SetActive(true);
+            }
+
+            LogStack($"Close -> {closedName}");
+        }
+
+        private void LogStack(string action)
+        {
+            var current = openStack.Count > 0 ? openStack.Peek() : null;
+            string currentName = current != null ? current.name : "(none)";
+            Debug.Log($"{DebugTag} {action}. Current: {currentName}");
+        }
+    }
+}
+```
+
+## BattleUIOrchestrator.cs
+
+```csharp
+using System.Collections;
+using System.Collections.Generic;
+using BattleV2.Anim;
+using DG.Tweening;
+using UnityEngine;
+
+namespace BattleV2.UI
+{
+    /// <summary>
+    /// Handles visual transitions between battle menus and responds to combat locks.
+    /// </summary>
+    public class BattleUIOrchestrator : MonoBehaviour
+    {
+        [SerializeField] private float fadeTime = 0.25f;
+        [SerializeField] private Ease fadeEase = Ease.OutQuad;
+        [SerializeField] private CanvasGroup[] menuGroups;
+
+        private const string DebugTag = "[BattleUI]";
+
+        private readonly Dictionary<string, CanvasGroup> menuLookup = new();
+        private CanvasGroup current;
+        private bool locked;
+        private Coroutine switchRoutine;
+
+        private void Awake()
+        {
+            foreach (var group in menuGroups)
+            {
+                if (group == null)
+                {
+                    continue;
+                }
+
+                var key = group.gameObject.name;
+                if (!menuLookup.ContainsKey(key))
+                {
+                    menuLookup.Add(key, group);
+                }
+
+                group.alpha = group.gameObject.activeSelf ? 1f : 0f;
+                group.blocksRaycasts = group.gameObject.activeSelf;
+
+                if (group.gameObject.activeSelf)
+                {
+                    current = group;
+                }
+            }
+        }
+
+        private void OnEnable()
+        {
+            BattleEvents.OnLockChanged += HandleLockChanged;
+        }
+
+        private void OnDisable()
+        {
+            BattleEvents.OnLockChanged -= HandleLockChanged;
+            if (switchRoutine != null)
+            {
+                StopCoroutine(switchRoutine);
+                switchRoutine = null;
+            }
+        }
+
+        public void ShowMenu(string menuName)
+        {
+            if (locked || string.IsNullOrWhiteSpace(menuName))
+            {
+                return;
+            }
+
+            if (!menuLookup.TryGetValue(menuName, out var next))
+            {
+                Debug.LogWarning($"[BattleUI] Menu '{menuName}' not registered.");
+                return;
+            }
+
+            ShowMenu(next);
+        }
+
+        public void ShowMenu(CanvasGroup next)
+        {
+            if (locked || next == null || next == current)
+            {
+                return;
+            }
+
+            if (switchRoutine != null)
+            {
+                StopCoroutine(switchRoutine);
+            }
+
+            switchRoutine = StartCoroutine(SwitchRoutine(next));
+        }
+
+        private IEnumerator SwitchRoutine(CanvasGroup next)
+        {
+            Debug.Log($"{DebugTag} Switch -> {next.name}");
+            if (current != null)
+            {
+                yield return FadeOut(current);
+            }
+
+            current = next;
+            yield return FadeIn(current);
+            switchRoutine = null;
+        }
+
+        private IEnumerator FadeIn(CanvasGroup target)
+        {
+            
+            target.blocksRaycasts = true;
+            Debug.Log($"{DebugTag} FadeIn {target.name}");
+            yield return target.DOFade(1f, fadeTime).SetEase(fadeEase).WaitForCompletion();
+        }
+
+        private IEnumerator FadeOut(CanvasGroup target)
+        {
+            target.blocksRaycasts = false;
+            Debug.Log($"{DebugTag} FadeOut {target.name}");
+            yield return target.DOFade(0f, fadeTime).SetEase(fadeEase).WaitForCompletion();
+        }
+
+        private void HandleLockChanged(bool isLocked)
+        {
+            locked = isLocked;
+            if (locked)
+            {
+                foreach (var group in menuLookup.Values)
+                {
+                    if (group != null)
+                    {
+                        group.interactable = false;
+                    }
+                }
+            }
+            else
+            {
+                foreach (var group in menuLookup.Values)
+                {
+                    if (group != null)
+                    {
+                        group.interactable = true;
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+
+
+```
+
+## BattleMenuInputPoller.cs
+
+```csharp
+using UnityEngine;
+
+namespace BattleV2.UI
+{
+    /// <summary>
+    /// Polls raw input (keyboard/gamepad) to drive HUD ? Root menu transitions.
+    /// </summary>
+    public class BattleMenuInputPoller : MonoBehaviour
+    {
+        [Header("References")]
+        [SerializeField] private BattleMenuManager menuManager;
+
+        [Header("Keys")]
+        [SerializeField] private KeyCode confirmKey = KeyCode.V;
+        [SerializeField] private KeyCode backKey = KeyCode.C;
+        [SerializeField] private KeyCode upKey = KeyCode.W;
+        [SerializeField] private KeyCode downKey = KeyCode.S;
+        [SerializeField] private KeyCode leftKey = KeyCode.A;
+        [SerializeField] private KeyCode rightKey = KeyCode.D;
+
+        private void Update()
+        {
+            if (menuManager == null)
+            {
+                return;
+            }
+
+            bool confirm = Input.GetKeyDown(confirmKey) || Input.GetButtonDown("Submit");
+            bool cancel = Input.GetKeyDown(backKey) || Input.GetButtonDown("Cancel");
+
+            if (menuManager.IsHUDActive)
+            {
+                if (confirm)
+                {
+                    Debug.Log("[BattleMenuInput] Confirm from HUD -> RootMenu");
+                    menuManager.OpenRootMenu();
+                    return;
+                }
+            }
+            else
+            {
+                if (cancel)
+                {
+                    Debug.Log("[BattleMenuInput] Cancel -> CloseCurrent");
+                    menuManager.CloseCurrent();
+                    return;
+                }
+            }
+
+            // TODO: route WASD / stick navigation to the currently focused menu.
+        }
+    }
+}
+
+```
+
+## ActionMenuController.cs
+
+```csharp
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.Events;
+using UnityEngine.UI;
+
+namespace BattleV2.UI.ActionMenu
+{
+    /// <summary>
+    /// Controls the root action menu (Attack, Skill, Guard, Item) and forwards navigation to submenus.
+    /// </summary>
+    public class ActionMenuController : MonoBehaviour
+    {
+        [Serializable]
+        private struct RootMenuOption
+        {
+            public string id;
+            public Button button;
+            public GameObject targetMenu;
+        }
+
+        private const string DebugTag = "[ActionMenu]";
+
+        [Header("References")]
+        [SerializeField] private BattleMenuManager menuManager;
+        [SerializeField] private RootMenuOption[] options;
+        [SerializeField] private Button backButton;
+
+        public event Action<string> OnOptionSelected;
+        public event Action OnBackRequested;
+
+        private readonly List<(Button button, UnityAction action)> registeredActions = new();
+
+        private void Awake()
+        {
+            if (options != null)
+            {
+                foreach (var entry in options)
+                {
+                    if (entry.button == null)
+                    {
+                        continue;
+                    }
+
+                    var captured = entry;
+                    UnityAction listener = () => HandleOption(captured);
+                    entry.button.onClick.AddListener(listener);
+                    registeredActions.Add((entry.button, listener));
+                }
+            }
+
+            if (backButton != null)
+            {
+                UnityAction backListener = HandleBack;
+                backButton.onClick.AddListener(backListener);
+                registeredActions.Add((backButton, backListener));
+            }
+        }
+
+        private void OnDestroy()
+        {
+            foreach (var (button, action) in registeredActions)
+            {
+                button?.onClick.RemoveListener(action);
+            }
+            registeredActions.Clear();
+        }
+
+        private void HandleOption(RootMenuOption option)
+        {
+            Debug.Log($"{DebugTag} Selected {option.id}");
+            OnOptionSelected?.Invoke(option.id);
+
+            if (option.targetMenu != null && menuManager != null)
+            {
+                menuManager.Open(option.targetMenu);
+            }
+        }
+
+        public void HandleBack()
+        {
+            Debug.Log($"{DebugTag} Back to HUD");
+            OnBackRequested?.Invoke();
+            menuManager?.CloseCurrent();
+        }
+    }
+}
+```
+
+## ActionMenuContext.cs
+
+```csharp
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+
+namespace BattleV2.UI.ActionMenu
+{
+    /// <summary>
+    /// Shared context passed to action menu strategies.
+    /// </summary>
+    [Serializable]
+    public class ActionMenuContext
+    {
+        [SerializeField] private RectTransform container;
+        [SerializeField] private BattleMenuManager menuManager;
+        [SerializeField] private BattleUIOrchestrator uiOrchestrator;
+
+        public RectTransform Container => container;
+        public BattleMenuManager MenuManager => menuManager;
+        public BattleUIOrchestrator UIOrchestrator => uiOrchestrator;
+        public Action<ActionMenuOption> OnOptionSelected { get; set; }
+        public Action OnBackRequested { get; set; }
+        public Action OnChargeRequested { get; set; }
+    }
+}
+```
+
+## ActionMenuInput.cs
+
+```csharp
+namespace BattleV2.UI.ActionMenu
+{
+    public readonly struct ActionMenuInput
+    {
+        public ActionMenuInput(int vertical, int horizontal, bool confirm, bool cancel, bool charge, bool leftBumper, bool rightBumper)
+        {
+            Vertical = vertical;
+            Horizontal = horizontal;
+            ConfirmPressed = confirm;
+            CancelPressed = cancel;
+            ChargeHeld = charge;
+            LeftBumper = leftBumper;
+            RightBumper = rightBumper;
+        }
+
+        public int Vertical { get; }
+        public int Horizontal { get; }
+        public bool ConfirmPressed { get; }
+        public bool CancelPressed { get; }
+        public bool ChargeHeld { get; }
+        public bool LeftBumper { get; }
+        public bool RightBumper { get; }
+
+        public static ActionMenuInput Empty => new ActionMenuInput(0, 0, false, false, false, false, false);
+    }
+}
+```
+
+## ActionMenuOption.cs
+
+```csharp
+using BattleV2.Actions;
+
+namespace BattleV2.UI.ActionMenu
+{
+    /// <summary>
+    /// Lightweight data entry for each action option rendered by the menu.
+    /// </summary>
+    public readonly struct ActionMenuOption
+    {
+        public ActionMenuOption(string displayName, string description, BattleActionData actionData)
+        {
+            DisplayName = displayName;
+            Description = description;
+            ActionData = actionData;
+        }
+
+        public string DisplayName { get; }
+        public string Description { get; }
+        public BattleActionData ActionData { get; }
+    }
+}
+```
+
+## IAttackSubmenuStrategy.cs
+
+```csharp
+using System.Collections.Generic;
+
+namespace BattleV2.UI.ActionMenu
+{
+    /// <summary>
+    /// Strategy contract for rendering and handling user interaction with the Attack submenu.
+    /// </summary>
+    public interface IAttackSubmenuStrategy
+    {
+        void Initialise(ActionMenuContext context);
+        void Show(IReadOnlyList<ActionMenuOption> options);
+        void Hide();
+        bool HandleInput(ActionMenuInput input);
+    }
+}
+```
+
+## AttackMenuController.cs
+
+```csharp
+using System.Collections.Generic;
+using UnityEngine;
+
+namespace BattleV2.UI.ActionMenu
+{
+    public class AttackMenuController : MonoBehaviour
+    {
+        private const string DebugTag = "[AttackMenu]";
+
+        [SerializeField] private ActionMenuContext context;
+        public ActionMenuContext Context => context;
+        [SerializeField] private MonoBehaviour defaultStrategyBehaviour;
+        [SerializeField] private MonoBehaviour alternateStrategyBehaviour;
+        [SerializeField] private bool useAlternateStrategy;
+
+        private IAttackSubmenuStrategy defaultStrategy;
+        private IAttackSubmenuStrategy alternateStrategy;
+        private IAttackSubmenuStrategy activeStrategy;
+        private readonly List<ActionMenuOption> optionBuffer = new();
+
+        private void Awake()
+        {
+            defaultStrategy = defaultStrategyBehaviour as IAttackSubmenuStrategy;
+            alternateStrategy = alternateStrategyBehaviour as IAttackSubmenuStrategy;
+
+            if (defaultStrategyBehaviour != null && defaultStrategy == null)
+            {
+                Debug.LogError("Default strategy does not implement IAttackSubmenuStrategy.");
+            }
+
+            if (alternateStrategyBehaviour != null && alternateStrategy == null)
+            {
+                Debug.LogError("Alternate strategy does not implement IAttackSubmenuStrategy.");
+            }
+
+            InitialiseStrategies();
+        }
+
+        private void OnEnable()
+        {
+            RefreshActiveStrategy();
+        }
+
+        public void ToggleStrategy(bool useAlternate)
+        {
+            useAlternateStrategy = useAlternate;
+            Debug.Log($"{DebugTag} ToggleStrategy -> {(useAlternate ? "Alternate" : "Default")}");
+            RefreshActiveStrategy();
+        }
+
+        public void ShowOptions(IReadOnlyList<ActionMenuOption> options)
+        {
+            optionBuffer.Clear();
+            optionBuffer.AddRange(options);
+
+            if (activeStrategy != null)
+            {
+                activeStrategy.Show(optionBuffer);
+                Debug.Log($"{DebugTag} ShowOptions count={optionBuffer.Count}");
+            }
+        }
+
+        public void Hide()
+        {
+            activeStrategy?.Hide();
+            Debug.Log($"{DebugTag} Hide");
+        }
+
+        public bool HandleInput(ActionMenuInput input)
+        {
+            if (activeStrategy == null)
+            {
+                return false;
+            }
+
+            bool consumed = activeStrategy.HandleInput(input);
+            if (consumed)
+            {
+                Debug.Log($"{DebugTag} Consumed input: V={input.Vertical} H={input.Horizontal} Confirm={input.ConfirmPressed} Cancel={input.CancelPressed} Charge={input.ChargeHeld}");
+            }
+
+            return consumed;
+        }
+
+        private void InitialiseStrategies()
+        {
+            if (context == null)
+            {
+                Debug.LogWarning("AttackMenuController missing context.");
+                return;
+            }
+
+            defaultStrategy?.Initialise(context);
+            alternateStrategy?.Initialise(context);
+        }
+
+        private void RefreshActiveStrategy()
+        {
+            activeStrategy?.Hide();
+            activeStrategy = useAlternateStrategy ? alternateStrategy : defaultStrategy;
+
+            if (optionBuffer.Count > 0 && activeStrategy != null)
+            {
+                activeStrategy.Show(optionBuffer);
+                Debug.Log($"{DebugTag} RefreshActiveStrategy -> {activeStrategy.GetType().Name}");
+            }
+        }
+    }
+}
+```
+
+## AttackListStrategy.cs
+
+```csharp
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.UI;
+using TMPro;
+
+namespace BattleV2.UI.ActionMenu
+{
+    public class AttackListStrategy : MonoBehaviour, IAttackSubmenuStrategy
+    {
+        [SerializeField] private RectTransform listRoot;
+        [SerializeField] private GameObject buttonPrefab;
+
+        private readonly List<GameObject> spawnedButtons = new();
+        private readonly List<ActionMenuOption> optionCache = new();
+        private ActionMenuContext context;
+        private int currentIndex;
+
+        public void Initialise(ActionMenuContext ctx)
+        {
+            context = ctx;
+            if (listRoot == null && context != null)
+            {
+                listRoot = context.Container;
+            }
+            Hide();
+        }
+
+        public void Show(IReadOnlyList<ActionMenuOption> options)
+        {
+            if (listRoot == null || buttonPrefab == null)
+            {
+                Debug.LogWarning("[AttackListStrategy] Missing list root or button prefab.");
+                return;
+            }
+
+            ClearButtons();
+            optionCache.Clear();
+            optionCache.AddRange(options);
+            listRoot.gameObject.SetActive(true);
+            currentIndex = Mathf.Clamp(currentIndex, 0, Mathf.Max(0, optionCache.Count - 1));
+
+            for (int i = 0; i < optionCache.Count; i++)
+            {
+                var option = optionCache[i];
+                var go = Instantiate(buttonPrefab, listRoot);
+                go.SetActive(true);
+
+                int capturedIndex = i;
+                if (go.TryGetComponent(out Button button))
+                {
+                    button.onClick.AddListener(() => InvokeOption(capturedIndex));
+                }
+
+                if (go.GetComponentInChildren<TMP_Text>() is TMP_Text label)
+                {
+                    label.text = option.DisplayName;
+                }
+
+                spawnedButtons.Add(go);
+            }
+
+            HighlightCurrent();
+        }
+
+        public void Hide()
+        {
+            if (listRoot != null)
+            {
+                listRoot.gameObject.SetActive(false);
+            }
+            ClearButtons();
+            optionCache.Clear();
+        }
+
+        public bool HandleInput(ActionMenuInput input)
+        {
+            if (optionCache.Count == 0)
+            {
+                return false;
+            }
+
+            bool consumed = false;
+
+            if (input.Vertical != 0)
+            {
+                currentIndex = Mathf.Clamp(currentIndex - input.Vertical, 0, optionCache.Count - 1);
+                HighlightCurrent();
+                consumed = true;
+            }
+
+            if (input.ConfirmPressed)
+            {
+                InvokeOption(currentIndex);
+                consumed = true;
+            }
+
+            if (input.CancelPressed)
+            {
+                context?.OnBackRequested?.Invoke();
+                consumed = true;
+            }
+
+            if (input.ChargeHeld)
+            {
+                context?.OnChargeRequested?.Invoke();
+                consumed = true;
+            }
+
+            return consumed;
+        }
+
+        private void InvokeOption(int index)
+        {
+            if (index < 0 || index >= optionCache.Count)
+            {
+                return;
+            }
+
+            context?.OnOptionSelected?.Invoke(optionCache[index]);
+        }
+
+        private void HighlightCurrent()
+        {
+            for (int i = 0; i < spawnedButtons.Count; i++)
+            {
+                if (spawnedButtons[i] != null && spawnedButtons[i].TryGetComponent(out Selectable selectable))
+                {
+                    if (i == currentIndex)
+                    {
+                        selectable.Select();
+                    }
+                }
+            }
+        }
+
+        private void ClearButtons()
+        {
+            for (int i = 0; i < spawnedButtons.Count; i++)
+            {
+                if (spawnedButtons[i] != null)
+                {
+                    Destroy(spawnedButtons[i]);
+                }
+            }
+            spawnedButtons.Clear();
+        }
+    }
+}
+```
+
+## KeepsakeCardAttackStrategy.cs
+
+```csharp
+using System.Collections.Generic;
+using DG.Tweening;
+using UnityEngine;
+
+namespace BattleV2.UI.ActionMenu
+{
+    public class KeepsakeCardAttackStrategy : MonoBehaviour, IAttackSubmenuStrategy
+    {
+        [SerializeField] private RectTransform cardsRoot;
+        [SerializeField] private KeepsakeCardSlot[] cardSlots;
+        [SerializeField] private float slideOffset = 120f;
+        [SerializeField] private float slideDuration = 0.2f;
+        [SerializeField] private Ease slideEase = Ease.OutQuad;
+
+        private readonly List<ActionMenuOption> optionCache = new();
+        private ActionMenuContext context;
+        private int currentIndex;
+        private Tween currentTween;
+
+        public void Initialise(ActionMenuContext ctx)
+        {
+            context = ctx;
+            Hide();
+        }
+
+        public void Show(IReadOnlyList<ActionMenuOption> options)
+        {
+            optionCache.Clear();
+            optionCache.AddRange(options);
+            currentIndex = Mathf.Clamp(currentIndex, 0, Mathf.Max(0, optionCache.Count - 1));
+
+            if (cardsRoot != null)
+            {
+                cardsRoot.gameObject.SetActive(true);
+                cardsRoot.anchoredPosition = Vector2.zero;
+            }
+
+            if (cardSlots == null || cardSlots.Length == 0)
+            {
+                return;
+            }
+
+            for (int i = 0; i < cardSlots.Length; i++)
+            {
+                if (cardSlots[i] == null)
+                {
+                    continue;
+                }
+
+                if (i < optionCache.Count)
+                {
+                    var option = optionCache[i];
+                    cardSlots[i].SetContent(option.DisplayName, option.Description);
+                    cardSlots[i].SetActive(true);
+                }
+                else
+                {
+                    cardSlots[i].SetActive(false);
+                }
+            }
+
+            PlaySlideAnimation();
+            HighlightCurrent();
+        }
+
+        public void Hide()
+        {
+            optionCache.Clear();
+            if (cardsRoot != null)
+            {
+                cardsRoot.gameObject.SetActive(false);
+            }
+
+            if (cardSlots != null)
+            {
+                for (int i = 0; i < cardSlots.Length; i++)
+                {
+                    if (cardSlots[i] != null)
+                    {
+                        cardSlots[i].SetActive(false);
+                    }
+                }
+            }
+        }
+
+        public bool HandleInput(ActionMenuInput input)
+        {
+            if (optionCache.Count == 0)
+            {
+                return false;
+            }
+
+            bool consumed = false;
+
+            if (input.Horizontal != 0)
+            {
+                currentIndex = Mathf.Clamp(currentIndex + input.Horizontal, 0, optionCache.Count - 1);
+                HighlightCurrent();
+                PlaySlideAnimation();
+                consumed = true;
+            }
+
+            if (input.ConfirmPressed)
+            {
+                context?.OnOptionSelected?.Invoke(optionCache[currentIndex]);
+                consumed = true;
+            }
+
+            if (input.CancelPressed)
+            {
+                context?.OnBackRequested?.Invoke();
+                consumed = true;
+            }
+
+            if (input.ChargeHeld)
+            {
+                context?.OnChargeRequested?.Invoke();
+                consumed = true;
+            }
+
+            return consumed;
+        }
+
+        private void HighlightCurrent()
+        {
+            for (int i = 0; i < cardSlots.Length; i++)
+            {
+                if (cardSlots[i] == null)
+                {
+                    continue;
+                }
+
+                float targetAlpha = (i == currentIndex) ? 1f : 0.4f;
+                if (cardSlots[i].Group != null)
+                {
+                    cardSlots[i].Group.alpha = targetAlpha;
+                }
+            }
+        }
+
+        private void PlaySlideAnimation()
+        {
+            if (cardsRoot == null)
+            {
+                return;
+            }
+
+            if (currentTween != null && currentTween.IsActive())
+            {
+                currentTween.Kill();
+            }
+
+            Vector2 targetPos = Vector2.zero;
+            if (currentIndex > 0)
+            {
+                targetPos = new Vector2(-slideOffset * currentIndex, 0f);
+            }
+
+            currentTween = cardsRoot.DOAnchorPos(targetPos, slideDuration).SetEase(slideEase);
+        }
+    }
+}
+```
+
+## KeepsakeCardSlot.cs
+
+```csharp
+using TMPro;
+using UnityEngine;
+
+namespace BattleV2.UI.ActionMenu
+{
+    public class KeepsakeCardSlot : MonoBehaviour
+    {
+        [SerializeField] private CanvasGroup canvasGroup;
+        [SerializeField] private TMP_Text title;
+        [SerializeField] private TMP_Text description;
+
+        public CanvasGroup Group => canvasGroup;
+
+        private void Awake()
+        {
+            if (canvasGroup == null)
+            {
+                canvasGroup = GetComponent<CanvasGroup>();
+            }
+        }
+
+        public void SetContent(string displayName, string desc)
+        {
+            if (title != null)
+            {
+                title.text = displayName;
+            }
+
+            if (description != null)
+            {
+                description.text = desc;
+            }
+        }
+
+        public void SetActive(bool active)
+        {
+            if (canvasGroup != null)
+            {
+                canvasGroup.alpha = active ? 1f : 0f;
+                canvasGroup.blocksRaycasts = active;
+                canvasGroup.interactable = active;
+            }
+
+            gameObject.SetActive(active);
+        }
+    }
+}
+```
+
+## BattleHUDController.cs
+
+```csharp
+using UnityEngine;
+using UnityEngine.UI;
+using TMPro;
+
+namespace BattleV2.UI
+{
+    /// <summary>
+    /// Updates HUD elements for a combatant.
+    /// </summary>
+    public class BattleHUDController : MonoBehaviour
+    {
+        [SerializeField] private CombatantState state;
+        [SerializeField] private TMP_Text nameLabel;
+        [SerializeField] private TMP_Text hpLabel;
+        [SerializeField] private TMP_Text spLabel;
+        [SerializeField] private TMP_Text cpLabel;
+        [SerializeField] private Slider hpSlider;
+        [SerializeField] private Slider spSlider;
+        [SerializeField] private Slider cpSlider;
+
+        private void OnEnable()
+        {
+            if (state != null)
+            {
+                state.OnVitalsChanged.AddListener(HandleVitalsChanged);
+                RefreshFromState(state);
+            }
+        }
+
+        private void OnDisable()
+        {
+            if (state != null)
+            {
+                state.OnVitalsChanged.RemoveListener(HandleVitalsChanged);
+            }
+        }
+
+        public void SetState(CombatantState newState)
+        {
+            if (state == newState)
+            {
+                return;
+            }
+
+            if (state != null)
+            {
+                state.OnVitalsChanged.RemoveListener(HandleVitalsChanged);
+            }
+
+            state = newState;
+
+            if (state != null)
+            {
+                state.OnVitalsChanged.AddListener(HandleVitalsChanged);
+                RefreshFromState(state);
+            }
+            else
+            {
+                Clear();
+            }
+        }
+
+        public void RefreshFromState(CombatantState target)
+        {
+            if (target == null)
+            {
+                Clear();
+                return;
+            }
+
+            if (nameLabel != null)
+            {
+                nameLabel.text = target.name;
+            }
+
+            if (hpLabel != null)
+            {
+                hpLabel.text = $"{target.CurrentHP}/{target.MaxHP}";
+            }
+
+            if (spLabel != null)
+            {
+                spLabel.text = $"{target.CurrentSP}/{target.MaxSP}";
+            }
+
+            if (cpLabel != null)
+            {
+                cpLabel.text = $"{target.CurrentCP}/{target.MaxCP}";
+            }
+
+            if (hpSlider != null)
+            {
+                hpSlider.value = SafeRatio(target.CurrentHP, target.MaxHP);
+            }
+
+            if (spSlider != null)
+            {
+                spSlider.value = SafeRatio(target.CurrentSP, target.MaxSP);
+            }
+
+            if (cpSlider != null)
+            {
+                cpSlider.value = SafeRatio(target.CurrentCP, target.MaxCP);
+            }
+        }
+
+        private void Clear()
+        {
+            if (nameLabel != null)
+            {
+                nameLabel.text = "--";
+            }
+
+            if (hpLabel != null)
+            {
+                hpLabel.text = "--/--";
+            }
+
+            if (spLabel != null)
+            {
+                spLabel.text = "--/--";
+            }
+
+            if (cpLabel != null)
+            {
+                cpLabel.text = "--/--";
+            }
+
+            if (hpSlider != null)
+            {
+                hpSlider.value = 0f;
+            }
+
+            if (spSlider != null)
+            {
+                spSlider.value = 0f;
+            }
+
+            if (cpSlider != null)
+            {
+                cpSlider.value = 0f;
+            }
+        }
+
+        private void HandleVitalsChanged()
+        {
+            RefreshFromState(state);
+        }
+
+        private static float SafeRatio(int current, int max)
+        {
+            if (max <= 0)
+            {
+                return 0f;
+            }
+
+            return Mathf.Clamp01(current / (float)max);
+        }
+    }
+}
+```
+
+## FloatingDamageText.cs
+
+```csharp
+using System.Collections;
+using DG.Tweening;
+using TMPro;
+using UnityEngine;
+
+namespace BattleV2.UI
+{
+    /// <summary>
+    /// Simple floating text for damage/healing numbers.
+    /// </summary>
+    public class FloatingDamageText : MonoBehaviour
+    {
+        [SerializeField] private TMP_Text label;
+        [SerializeField] private float lifetime = 1f;
+        [SerializeField] private float moveDistance = 1f;
+        [SerializeField] private Ease moveEase = Ease.OutQuad;
+
+        private Tween activeTween;
+
+        private void Awake()
+        {
+            if (label == null)
+            {
+                label = GetComponentInChildren<TMP_Text>();
+            }
+        }
+
+        public void Initialise(int amount, bool isHealing, Color? overrideColor = null)
+        {
+            if (label != null)
+            {
+                label.text = amount.ToString();
+                label.color = overrideColor ?? (isHealing ? Color.green : Color.red);
+            }
+
+            if (activeTween != null && activeTween.IsActive())
+            {
+                activeTween.Kill();
+            }
+
+            Vector3 start = transform.position;
+            Vector3 end = start + Vector3.up * moveDistance;
+
+            activeTween = transform.DOMove(end, lifetime)
+                .SetEase(moveEase)
+                .OnComplete(() => Destroy(gameObject));
+        }
+
+        private void OnDisable()
+        {
+            if (activeTween != null)
+            {
+                activeTween.Kill();
+            }
+        }
+    }
+}
+```
+
+## ChargeUIController.cs
+
+```csharp
+using System;
+using BattleV2.Charge;
+using TMPro;
+using UnityEngine;
+using UnityEngine.UI;
+
+namespace BattleV2.UI
+{
+    /// <summary>
+    /// Handles the visual feedback and button wiring for CP charge adjustments.
+    /// </summary>
+    public class ChargeUIController : MonoBehaviour
+    {
+        [SerializeField] private GameObject panel;
+        [SerializeField] private TMP_Text chargeLabel;
+        [SerializeField] private Button increaseButton;
+        [SerializeField] private Button decreaseButton;
+        [SerializeField] private Button confirmButton;
+        [SerializeField] private Button cancelButton;
+        [SerializeField] private string chargeFormat = "CP Charge: {0}/{1}";
+
+        private NotchedChargeStrategy boundStrategy;
+        private Action onCancelRequested;
+
+        private void OnDisable()
+        {
+            Unbind();
+            SetPanelActive(false);
+        }
+
+        public void Show(NotchedChargeStrategy strategy, Action onConfirm, Action onCancel)
+        {
+            Unbind();
+            boundStrategy = strategy;
+            onCancelRequested = onCancel;
+
+            if (increaseButton != null)
+            {
+                increaseButton.onClick.AddListener(HandleIncrease);
+            }
+
+            if (decreaseButton != null)
+            {
+                decreaseButton.onClick.AddListener(HandleDecrease);
+            }
+
+            if (confirmButton != null)
+            {
+                confirmButton.onClick.RemoveAllListeners();
+                confirmButton.onClick.AddListener(() => onConfirm?.Invoke());
+            }
+
+            if (cancelButton != null)
+            {
+                cancelButton.onClick.AddListener(HandleCancel);
+            }
+
+            SetPanelActive(true);
+            UpdateCharge(boundStrategy?.CurrentCharge ?? 0, boundStrategy?.MaxCharge ?? 0);
+        }
+
+        public void UpdateCharge(int current, int max)
+        {
+            if (chargeLabel != null)
+            {
+                chargeLabel.text = string.Format(chargeFormat, current, max);
+            }
+        }
+
+        public void Hide()
+        {
+            Unbind();
+            SetPanelActive(false);
+        }
+
+        private void HandleIncrease()
+        {
+            boundStrategy?.AdjustCharge(1);
+        }
+
+        private void HandleDecrease()
+        {
+            boundStrategy?.AdjustCharge(-1);
+        }
+
+        private void HandleCancel()
+        {
+            onCancelRequested?.Invoke();
+        }
+
+        private void SetPanelActive(bool active)
+        {
+            if (panel != null)
+            {
+                panel.SetActive(active);
+            }
+        }
+
+        private void Unbind()
+        {
+            if (increaseButton != null)
+            {
+                increaseButton.onClick.RemoveListener(HandleIncrease);
+            }
+
+            if (decreaseButton != null)
+            {
+                decreaseButton.onClick.RemoveListener(HandleDecrease);
+            }
+
+            if (confirmButton != null)
+            {
+                confirmButton.onClick.RemoveAllListeners();
+            }
+
+            if (cancelButton != null)
+            {
+                cancelButton.onClick.RemoveListener(HandleCancel);
+            }
+
+            boundStrategy = null;
+            onCancelRequested = null;
+        }
+    }
+}
+```
+
+## UISetSelectedOnEnable.cs
+
+```csharp
+using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.UI;
+
+namespace BattleV2.UI
+{
+    /// <summary>
+    /// Ensures a specific selectable receives focus whenever the object is enabled.
+    /// Useful for automatically selecting an invisible button in HUD view so confirm input works immediately.
+    /// </summary>
+    public class UISetSelectedOnEnable : MonoBehaviour
+    {
+        [SerializeField] private Selectable target;
+        [SerializeField] private bool selectOnStart = false;
+
+        private void Awake()
+        {
+            if (target == null)
+            {
+                target = GetComponent<Selectable>();
+            }
+        }
+
+        private void Start()
+        {
+            if (selectOnStart)
+            {
+                SetSelection();
+            }
+        }
+
+        private void OnEnable()
+        {
+            SetSelection();
+        }
+
+        private void SetSelection()
+        {
+            if (target == null)
+            {
+                return;
+            }
+
+            var eventSystem = EventSystem.current;
+            if (eventSystem != null)
+            {
+                eventSystem.SetSelectedGameObject(target.gameObject);
+            }
+        }
+    }
+}
+```
