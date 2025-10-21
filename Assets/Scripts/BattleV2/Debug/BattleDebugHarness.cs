@@ -74,7 +74,7 @@ namespace BattleV2.Debugging
 
         private void Awake()
         {
-            manager = FindObjectOfType<BattleManagerV2>();
+            manager = TryFindManager();
             if (manager == null)
             {
                 Debug.LogWarning("[BattleDebugHarness] No BattleManagerV2 found in scene. Harness disabled.");
@@ -1093,6 +1093,15 @@ namespace BattleV2.Debugging
             Perfect,
             Good,
             Miss
+        }
+
+        private static BattleManagerV2 TryFindManager()
+        {
+#if UNITY_2023_1_OR_NEWER
+            return UnityEngine.Object.FindFirstObjectByType<BattleManagerV2>();
+#else
+            return UnityEngine.Object.FindObjectOfType<BattleManagerV2>();
+#endif
         }
     }
 }
