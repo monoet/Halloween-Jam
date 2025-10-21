@@ -14,20 +14,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BattleV2.Actions.ActionCatalog
   basic:
   - id: Attack
-    displayName: SimpleAttackAction
+    displayName: LunarChain
     costSP: 0
     costCP: 0
-    actionImpl: {fileID: 11400000, guid: f0f651f828acbb44ea549ce8531934d2, type: 2}
-  - id: 
-    displayName: SimpleAttackAction
-    costSP: 0
-    costCP: 0
-    actionImpl: {fileID: 11400000, guid: 6933c3a7aa3e7f04b8a7776457e9c400, type: 2}
-  - id: 
-    displayName: SimpleAttackAction
-    costSP: 0
-    costCP: 0
-    actionImpl: {fileID: 11400000, guid: 5508ffdf989ae5c4498ab0444089b831, type: 2}
+    actionImpl: {fileID: 11400000, guid: 4745de80e7fe7514d89cc7cb730891eb, type: 2}
   magic:
   - id: 
     displayName: MAGICMISSLESTRONG

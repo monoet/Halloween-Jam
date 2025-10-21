@@ -1753,6 +1753,8 @@ MonoBehaviour:
     width: 360
     height: 540
   maxLogEntries: 30
+  timedHitKey: 32
+  practiceFallbackDuration: 1
 --- !u!4 &448140810
 Transform:
   m_ObjectHideFlags: 0

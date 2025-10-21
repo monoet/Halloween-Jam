@@ -1,0 +1,87 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c82a1e43c7ce175418530889bc73e98b, type: 3}
+  m_Name: Ks 1 Timed Hit Profile
+  m_EditorClassIdentifier: Assembly-CSharp::BattleV2.Charge.Ks1TimedHitProfile
+  tiers:
+  - RequiredCp: 0
+    Hits: 1
+    RefundMax: 2
+    DamageMultiplier: 0.8
+    TimelineDuration: 1
+    PerfectWindowCenter: 0.5
+    PerfectWindowRadius: 0.033
+    SuccessWindowRadius: 0.033
+    PerfectHitMultiplier: 1.5
+    SuccessHitMultiplier: 1
+    MissHitMultiplier: 0.5
+    ResultHoldDuration: 0
+  - RequiredCp: 1
+    Hits: 2
+    RefundMax: 2
+    DamageMultiplier: 0.8
+    TimelineDuration: 1
+    PerfectWindowCenter: 0.5
+    PerfectWindowRadius: 0.033
+    SuccessWindowRadius: 0.033
+    PerfectHitMultiplier: 1.5
+    SuccessHitMultiplier: 1
+    MissHitMultiplier: 0.5
+    ResultHoldDuration: 0
+  - RequiredCp: 2
+    Hits: 3
+    RefundMax: 3
+    DamageMultiplier: 0.8
+    TimelineDuration: 1
+    PerfectWindowCenter: 0.5
+    PerfectWindowRadius: 0.033
+    SuccessWindowRadius: 0.033
+    PerfectHitMultiplier: 1.5
+    SuccessHitMultiplier: 1
+    MissHitMultiplier: 0.5
+    ResultHoldDuration: 0
+  - RequiredCp: 3
+    Hits: 3
+    RefundMax: 4
+    DamageMultiplier: 0.8
+    TimelineDuration: 1
+    PerfectWindowCenter: 0.5
+    PerfectWindowRadius: 0.033
+    SuccessWindowRadius: 0.033
+    PerfectHitMultiplier: 1.5
+    SuccessHitMultiplier: 1
+    MissHitMultiplier: 0.5
+    ResultHoldDuration: 0
+  - RequiredCp: 4
+    Hits: 3
+    RefundMax: 3
+    DamageMultiplier: 0.8
+    TimelineDuration: 1
+    PerfectWindowCenter: 0.5
+    PerfectWindowRadius: 0.033
+    SuccessWindowRadius: 0.033
+    PerfectHitMultiplier: 1.75
+    SuccessHitMultiplier: 1
+    MissHitMultiplier: 0.5
+    ResultHoldDuration: 0
+  - RequiredCp: 4
+    Hits: 3
+    RefundMax: 3
+    DamageMultiplier: 0.8
+    TimelineDuration: 1
+    PerfectWindowCenter: 0.5
+    PerfectWindowRadius: 0.033
+    SuccessWindowRadius: 0.033
+    PerfectHitMultiplier: 1.75
+    SuccessHitMultiplier: 1
+    MissHitMultiplier: 0.5
+    ResultHoldDuration: 0
