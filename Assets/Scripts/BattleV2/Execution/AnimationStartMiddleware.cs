@@ -1,6 +1,6 @@
 using System;
 using System.Threading.Tasks;
-using BattleV2.Orchestration;
+using BattleV2.Anim;
 
 namespace BattleV2.Execution
 {
@@ -9,16 +9,9 @@ namespace BattleV2.Execution
     /// </summary>
     public sealed class AnimationStartMiddleware : IActionMiddleware
     {
-        private readonly BattleManagerV2 manager;
-
-        public AnimationStartMiddleware(BattleManagerV2 manager)
-        {
-            this.manager = manager;
-        }
-
         public Task InvokeAsync(ActionContext context, Func<Task> next)
         {
-            // TODO: integrate BattleAnimationController once available.
+            BattleEvents.EmitPlayerTurnCommitted();
             return next != null ? next() : Task.CompletedTask;
         }
     }

@@ -2,9 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using BattleV2.Actions;
+using BattleV2.Anim;
 using BattleV2.Charge;
 using BattleV2.Orchestration;
+using BattleV2.Execution.TimedHits;
 using BattleV2.Providers;
+using BattleV2.UI;
+using System.Threading.Tasks;
 using UnityEngine;
 
 namespace BattleV2.Debugging
@@ -12,7 +16,7 @@ namespace BattleV2.Debugging
     /// <summary>
     /// Simple code-only overlay that allows triggering battle actions without the production UI.
     /// </summary>
-    public class BattleDebugHarness : MonoBehaviour, IBattleInputProvider
+    public class BattleDebugHarness : MonoBehaviour, IBattleInputProvider, ITimedHitRunner
     {
         [Tooltip("Position and size of the debug window.")]
         [SerializeField] private Rect windowRect = new Rect(20f, 20f, 360f, 540f);
@@ -54,6 +58,19 @@ namespace BattleV2.Debugging
         private List<TimedHitPhaseOutcome> timedPracticeOutcomes = new();
         private bool timedPracticeShouldStop;
         private TimedSequenceMode timedSequenceMode = TimedSequenceMode.Inactive;
+        private TimedHitRequest activeTimedRequest;
+        private TaskCompletionSource<TimedHitResult> timedRunTcs;
+
+        [Header("Phase Feedback")]
+        [SerializeField] private FloatingDamageText damageTextPrefab;
+        [SerializeField] private Transform damageTextRoot;
+        [SerializeField] private Vector3 damageTextOffset = new Vector3(0f, 1.5f, 0f);
+        [SerializeField] private bool logPhaseDamage = true;
+
+        public event Action OnSequenceStarted;
+        public event Action<TimedHitPhaseInfo> OnPhaseStarted;
+        public event Action<TimedHitPhaseResult> OnPhaseResolved;
+        public event Action<TimedHitResult> OnSequenceCompleted;
 
         private void Awake()
         {
@@ -66,8 +83,11 @@ namespace BattleV2.Debugging
             }
 
             manager.SetRuntimeInputProvider(this);
+            manager.SetTimedHitRunner(this);
             manager.OnPlayerActionSelected += HandlePlayerActionSelected;
             manager.OnPlayerActionResolved += HandlePlayerActionResolved;
+
+            BattleEvents.OnTimedHitPhaseFeedback += HandleTimedHitPhaseFeedback;
 
             AppendLog("Battle debug harness ready.");
         }
@@ -79,6 +99,8 @@ namespace BattleV2.Debugging
                 manager.OnPlayerActionSelected -= HandlePlayerActionSelected;
                 manager.OnPlayerActionResolved -= HandlePlayerActionResolved;
             }
+
+            BattleEvents.OnTimedHitPhaseFeedback -= HandleTimedHitPhaseFeedback;
         }
 
         private void Update()
@@ -106,6 +128,29 @@ namespace BattleV2.Debugging
             AppendLog(statusLine);
         }
 
+        public Task<TimedHitResult> RunAsync(TimedHitRequest request)
+        {
+            ResetTimedPractice();
+
+            activeTimedRequest = request;
+            timedRunTcs = new TaskCompletionSource<TimedHitResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            OnSequenceStarted?.Invoke();
+
+            var harnessMode = request.Mode == TimedHitRunMode.Execute
+                ? TimedSequenceMode.Execute
+                : TimedSequenceMode.Practice;
+
+            StartTimedSequence(
+                request.ActionData,
+                request.ChargeProfile,
+                request.Profile,
+                request.CpCharge,
+                harnessMode);
+
+            return timedRunTcs.Task;
+        }
+
         private void ClearRequest()
         {
             currentContext = null;
@@ -113,6 +158,34 @@ namespace BattleV2.Debugging
             currentOnCancel = null;
             chargeSelections.Clear();
             ResetTimedPractice();
+        }
+
+        private void HandleTimedHitPhaseFeedback(TimedHitPhaseFeedback feedback)
+        {
+            if (!isActiveAndEnabled)
+            {
+                return;
+            }
+
+            if (logPhaseDamage)
+            {
+                string status = feedback.IsSuccess
+                    ? $"Hit {feedback.Damage}"
+                    : "MISS";
+                AppendLog($"Phase {feedback.PhaseIndex}/{Mathf.Max(1, feedback.TotalPhases)}: {status} (x{feedback.DamageMultiplier:F2})");
+            }
+
+            if (damageTextPrefab == null || feedback.Target == null || feedback.Damage <= 0)
+            {
+                return;
+            }
+
+            Vector3 spawnPosition = feedback.WorldPosition ?? feedback.Target.transform.position;
+            spawnPosition += damageTextOffset;
+
+            Transform parent = damageTextRoot != null ? damageTextRoot : null;
+            var instance = Instantiate(damageTextPrefab, spawnPosition, Quaternion.identity, parent);
+            instance.Initialise(feedback.Damage, isHealing: false);
         }
 
         private void OnGUI()
@@ -147,8 +220,8 @@ namespace BattleV2.Debugging
             if (GUILayout.Button("Start Battle"))
             {
                 manager?.SetRuntimeInputProvider(this);
+                manager?.SetTimedHitRunner(this);
                 manager?.StartBattle();
-                AppendLog("Battle start requested.");
             }
 
             if (GUILayout.Button("Reset Battle"))
@@ -349,12 +422,6 @@ namespace BattleV2.Debugging
             }
 
             ResolveProfiles(action, out var chargeProfile, out var timedProfile);
-
-            if (timedProfile != null)
-            {
-                StartTimedSequence(action, chargeProfile, timedProfile, cpCharge, TimedSequenceMode.Execute);
-                return;
-            }
 
             var selection = new BattleSelection(action, cpCharge, chargeProfile, timedProfile);
             AppendLog($"Submitting action: {action.displayName ?? action.id} (Charge {cpCharge}).");
@@ -568,6 +635,21 @@ namespace BattleV2.Debugging
 
         private void ResetTimedPractice()
         {
+            TimedHitResult? cancelResult = null;
+            if (timedRunTcs != null && !timedRunTcs.Task.IsCompleted)
+            {
+                cancelResult = BuildTimedHitResult(cancelled: true);
+                timedRunTcs.TrySetResult(cancelResult.Value);
+            }
+
+            timedRunTcs = null;
+            activeTimedRequest = default;
+
+            if (cancelResult.HasValue)
+            {
+                OnSequenceCompleted?.Invoke(cancelResult.Value);
+            }
+
             timedPracticeState = TimedPracticeState.Inactive;
             timedPracticeAction = null;
             timedPracticeChargeProfile = null;
@@ -585,9 +667,7 @@ namespace BattleV2.Debugging
             timedPracticeOutcomes?.Clear();
             timedPracticeShouldStop = false;
             timedSequenceMode = TimedSequenceMode.Inactive;
-        }
-
-        private void BeginTimedPracticePhase()
+        }        private void BeginTimedPracticePhase()
         {
             if (timedPracticeTotalPhases <= 0)
             {
@@ -613,6 +693,21 @@ namespace BattleV2.Debugging
             else
             {
                 timedPracticeOutcomes[timedPracticeCurrentPhase - 1] = TimedHitPhaseOutcome.Pending;
+            }
+
+            if (timedSequenceMode == TimedSequenceMode.Execute && timedRunTcs != null)
+            {
+                float center = timedPracticeTier.PerfectWindowCenter == 0f && timedPracticeTier.PerfectWindowRadius == 0f
+                    ? 0.5f
+                    : Mathf.Clamp01(timedPracticeTier.PerfectWindowCenter);
+                float radius = Mathf.Max(timedPracticeTier.SuccessWindowRadius, timedPracticeTier.PerfectWindowRadius);
+                float windowStart = Mathf.Clamp01(center - radius);
+                float windowEnd = Mathf.Clamp01(center + radius);
+                OnPhaseStarted?.Invoke(new TimedHitPhaseInfo(
+                    timedPracticeCurrentPhase,
+                    timedPracticeTotalPhases,
+                    windowStart,
+                    windowEnd));
             }
         }
 
@@ -666,41 +761,79 @@ namespace BattleV2.Debugging
             timedPracticeOutcomes[timedPracticeCurrentPhase - 1] = outcome;
             timedPracticeLastHitNormalized = normalizedTime;
 
+            float center = timedPracticeTier.PerfectWindowCenter == 0f && timedPracticeTier.PerfectWindowRadius == 0f
+                ? 0.5f
+                : Mathf.Clamp01(timedPracticeTier.PerfectWindowCenter);
+            float perfectRadius = Mathf.Max(0f, timedPracticeTier.PerfectWindowRadius);
+            float successRadius = Mathf.Max(perfectRadius, timedPracticeTier.SuccessWindowRadius);
+            float delta = Mathf.Abs(normalizedTime - center);
+            float accuracy = successRadius > 0f ? Mathf.Clamp01(1f - delta / successRadius) : 1f;
+
+            float resolvedMultiplier;
             switch (outcome)
             {
                 case TimedHitPhaseOutcome.Perfect:
                     timedPracticePerfectCount++;
+                    resolvedMultiplier = timedPracticeTier.PerfectHitMultiplier > 0f ? timedPracticeTier.PerfectHitMultiplier : 1.5f;
                     break;
                 case TimedHitPhaseOutcome.Good:
                     timedPracticeGoodCount++;
+                    resolvedMultiplier = timedPracticeTier.SuccessHitMultiplier > 0f ? timedPracticeTier.SuccessHitMultiplier : 1f;
                     break;
                 case TimedHitPhaseOutcome.Miss:
                     timedPracticeMissCount++;
                     timedPracticeShouldStop = true;
-                    int remaining = Mathf.Max(0, timedPracticeTotalPhases - timedPracticeCurrentPhase);
-                    for (int phase = timedPracticeCurrentPhase + 1; phase <= timedPracticeTotalPhases; phase++)
-                    {
-                        int index = phase - 1;
-                        if (index >= timedPracticeOutcomes.Count)
-                        {
-                            timedPracticeOutcomes.Add(TimedHitPhaseOutcome.Miss);
-                        }
-                        else
-                        {
-                            timedPracticeOutcomes[index] = TimedHitPhaseOutcome.Miss;
-                        }
-                    }
-                    timedPracticeMissCount += remaining;
-                    timedPracticeCurrentPhase = timedPracticeTotalPhases;
+                    resolvedMultiplier = timedPracticeTier.MissHitMultiplier > 0f ? timedPracticeTier.MissHitMultiplier : 0f;
+                    accuracy = 0f;
                     break;
+                default:
+                    resolvedMultiplier = 1f;
+                    break;
+            }
+
+            bool success = outcome == TimedHitPhaseOutcome.Perfect || outcome == TimedHitPhaseOutcome.Good;
+            if (timedSequenceMode == TimedSequenceMode.Execute && timedRunTcs != null)
+            {
+                OnPhaseResolved?.Invoke(new TimedHitPhaseResult(
+                    timedPracticeCurrentPhase,
+                    success,
+                    resolvedMultiplier,
+                    Mathf.Clamp01(accuracy)));
+            }
+
+            if (timedPracticeShouldStop)
+            {
+                int remaining = Mathf.Max(0, timedPracticeTotalPhases - timedPracticeCurrentPhase);
+                for (int phase = timedPracticeCurrentPhase + 1; phase <= timedPracticeTotalPhases; phase++)
+                {
+                    int index = phase - 1;
+                    if (index >= timedPracticeOutcomes.Count)
+                    {
+                        timedPracticeOutcomes.Add(TimedHitPhaseOutcome.Miss);
+                    }
+                    else
+                    {
+                        timedPracticeOutcomes[index] = TimedHitPhaseOutcome.Miss;
+                    }
+
+                    if (timedSequenceMode == TimedSequenceMode.Execute && timedRunTcs != null)
+                    {
+                        OnPhaseResolved?.Invoke(new TimedHitPhaseResult(
+                            phase,
+                            false,
+                            timedPracticeTier.MissHitMultiplier > 0f ? timedPracticeTier.MissHitMultiplier : 0f,
+                            0f));
+                    }
+                }
+
+                timedPracticeMissCount += remaining;
+                timedPracticeCurrentPhase = timedPracticeTotalPhases;
             }
 
             float hold = timedPracticeTier.ResultHoldDuration > 0f ? timedPracticeTier.ResultHoldDuration : 0.35f;
             timedPracticePhaseResolveTime = Time.time + hold;
             timedPracticeState = TimedPracticeState.WaitingNext;
-        }
-
-        private TimedHitPhaseOutcome DetermineTimedOutcome(float normalizedTime, bool autoMiss)
+        }        private TimedHitPhaseOutcome DetermineTimedOutcome(float normalizedTime, bool autoMiss)
         {
             if (autoMiss)
             {
@@ -761,26 +894,23 @@ namespace BattleV2.Debugging
         {
             timedPracticeState = TimedPracticeState.Completed;
             timedPracticePhaseResolveTime = 0f;
-            var result = BuildTimedHitResult();
+
+            var result = BuildTimedHitResult(cancelled: false);
+            OnSequenceCompleted?.Invoke(result);
 
             if (timedSequenceMode == TimedSequenceMode.Execute)
             {
-                AppendLog($"Timed hit resolved: Perfect {timedPracticePerfectCount}, Good {timedPracticeGoodCount}, Miss {timedPracticeMissCount}.");
-                var selection = new BattleSelection(
-                    timedPracticeAction,
-                    timedPracticeCharge,
-                    timedPracticeChargeProfile,
-                    timedPracticeProfile,
-                    result);
-                AppendLog($"Submitting action: {timedPracticeAction?.displayName ?? timedPracticeAction?.id ?? "(unknown)"} (Charge {timedPracticeCharge}, Hits {result.HitsSucceeded}/{result.TotalHits}).");
-                SubmitSelection(selection);
+                if (timedRunTcs != null && !timedRunTcs.Task.IsCompleted)
+                {
+                    timedRunTcs.TrySetResult(result);
+                    timedRunTcs = null;
+                }
+
                 return;
             }
 
             AppendLog($"Timed hit practice complete: Perfect {timedPracticePerfectCount}, Good {timedPracticeGoodCount}, Miss {timedPracticeMissCount}.");
-        }
-
-        private float CalculateTimedPracticeMultiplier()
+        }        private float CalculateTimedPracticeMultiplier()
         {
             int successCount = timedPracticePerfectCount + timedPracticeGoodCount;
             if (successCount <= 0)
@@ -797,16 +927,16 @@ namespace BattleV2.Debugging
             return averageContribution * tierMultiplier;
         }
 
-        private TimedHitResult BuildTimedHitResult()
+        private TimedHitResult BuildTimedHitResult(bool cancelled)
         {
             int totalHits = Mathf.Max(0, timedPracticeTotalPhases);
             int hitsSucceeded = Mathf.Clamp(timedPracticePerfectCount + timedPracticeGoodCount, 0, totalHits);
             int refund = Mathf.Clamp(hitsSucceeded, 0, timedPracticeTier.RefundMax);
             float multiplier = CalculateTimedPracticeMultiplier();
-            return new TimedHitResult(hitsSucceeded, totalHits, refund, multiplier);
-        }
+            int successStreak = Mathf.Clamp(hitsSucceeded, 0, totalHits);
 
-        private void DrawTimedPracticePanel()
+            return new TimedHitResult(hitsSucceeded, totalHits, refund, multiplier, cancelled, successStreak);
+        }        private void DrawTimedPracticePanel()
         {
             GUILayout.BeginVertical(GUI.skin.box);
 
@@ -866,7 +996,7 @@ namespace BattleV2.Debugging
             if (timedPracticeState == TimedPracticeState.Completed && timedSequenceMode == TimedSequenceMode.Practice)
             {
                 GUILayout.Space(6f);
-                var summary = BuildTimedHitResult();
+                var summary = BuildTimedHitResult(cancelled: false);
                 GUILayout.Label($"Perfect {timedPracticePerfectCount} | Good {timedPracticeGoodCount} | Miss {timedPracticeMissCount}");
                 GUILayout.Label($"Potential Refund {summary.CpRefund} | Estimated Multiplier {summary.DamageMultiplier:F2}");
             }
@@ -966,3 +1096,18 @@ namespace BattleV2.Debugging
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

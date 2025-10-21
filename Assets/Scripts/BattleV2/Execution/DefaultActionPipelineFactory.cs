@@ -21,8 +21,11 @@ namespace BattleV2.Execution
             if (actionImplementation is ITimedHitAction timedHitAction)
             {
                 var runner = manager.TimedHitRunner;
-                middlewares.Add(new AnimationStartMiddleware(manager));
-                middlewares.Add(new PhaseDamageMiddleware(runner));
+                middlewares.Add(new AnimationStartMiddleware());
+                if (actionImplementation is ITimedHitPhaseDamageAction)
+                {
+                    middlewares.Add(new PhaseDamageMiddleware(runner));
+                }
                 middlewares.Add(new TimedHitMiddleware(manager, timedHitAction));
             }
 

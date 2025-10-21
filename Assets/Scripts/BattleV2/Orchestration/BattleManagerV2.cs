@@ -312,7 +312,7 @@ namespace BattleV2.Orchestration
             pendingPlayerSelection = selection;
             pendingPlayerAction = impl;
             pendingPlayerCpBefore = player.CurrentCP;
-            waitingForPlayerAnimation = true;
+            waitingForPlayerAnimation = false;
 
             OnPlayerActionSelected?.Invoke(selection, pendingPlayerCpBefore);
             TryExecutePendingPlayerAction();
@@ -336,7 +336,7 @@ namespace BattleV2.Orchestration
                 return;
             }
 
-            if (waitingForPlayerAnimation || animationLocked)
+            if (waitingForPlayerAnimation)
             {
                 return;
             }
@@ -476,6 +476,7 @@ namespace BattleV2.Orchestration
         }
 
         public void SetTimedHitRunner(ITimedHitRunner runner) => timedHitRunner = runner;
+
         private async void RunPlayerActionPipeline(BattleSelection selection, IAction implementation, int cpBefore)
         {
             try
@@ -494,15 +495,17 @@ namespace BattleV2.Orchestration
 
                 await pipeline.ExecuteAsync(actionContext);
 
-                if (context == null || player == null)
-                {
-                    BattleLogger.Warn("BattleManager", "Context missing after action execution.");
-                }
+                var resolvedSelection = new BattleSelection(
+                    selection.Action,
+                    selection.CpCharge,
+                    selection.ChargeProfile,
+                    selection.TimedHitProfile,
+                    actionContext.TimedResult);
 
                 BattleLogger.Log("Resolve", "Enemy turn resolving...");
                 waitingForEnemyAnimation = true;
                 int cpAfter = player != null ? player.CurrentCP : 0;
-                OnPlayerActionResolved?.Invoke(selection, cpBefore, cpAfter);
+                OnPlayerActionResolved?.Invoke(resolvedSelection, cpBefore, cpAfter);
                 QueueEnemyTurn(() => ExecuteEnemyTurn(HandlePostEnemyTurn));
                 TryExecutePendingEnemyTurn();
             }
@@ -540,6 +543,8 @@ namespace BattleV2.Orchestration
         }
     }
 }
+
+
 
 
 

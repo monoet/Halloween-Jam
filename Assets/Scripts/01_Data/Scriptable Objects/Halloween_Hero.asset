@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Halloween_Hero
   m_EditorClassIdentifier: Assembly-CSharp::Archetype
   characterID: 7199c119-f43b-4bab-b00e-6d5753793d13
-  characterName: Halloween_Hero
+  characterName: Halloboy
   portrait: {fileID: 5404585191308233458, guid: 88e723ccbe534984cad73fdd89bb90c3, type: 3}
   description: 
   classMastery: {fileID: 0}

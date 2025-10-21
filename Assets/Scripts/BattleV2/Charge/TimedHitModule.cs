@@ -20,7 +20,7 @@ namespace BattleV2.Charge
         {
             if (profile == null)
             {
-                Complete(new TimedHitResult(0, 0, 0, 1f));
+                Complete(new TimedHitResult(0, 0, 0, 1f, cancelled: false, successStreak: 0));
                 return;
             }
 
@@ -43,7 +43,7 @@ namespace BattleV2.Charge
             }
 
             int refund = Mathf.Clamp(hitsSucceeded, 0, tier.RefundMax);
-            Complete(new TimedHitResult(hitsSucceeded, totalHits, refund, damageMultiplier));
+            Complete(new TimedHitResult(hitsSucceeded, totalHits, refund, damageMultiplier, cancelled: false, successStreak: hitsSucceeded));
         }
 
         private bool SimulateHit()
@@ -59,3 +59,4 @@ namespace BattleV2.Charge
         }
     }
 }
+

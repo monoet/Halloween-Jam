@@ -1,12 +1,13 @@
 using System;
 using BattleV2.Charge;
 using BattleV2.Core;
+using BattleV2.Execution.TimedHits;
 using UnityEngine;
 
 namespace BattleV2.Actions
 {
     [CreateAssetMenu(menuName = "Battle/Actions/KS1 Lunar Chain")]
-    public class LunarChainAction : ScriptableObject, IAction, IActionProvider, ITimedHitAction
+    public class LunarChainAction : ScriptableObject, IAction, IActionProvider, ITimedHitAction, ITimedHitPhaseDamageAction
     {
         [SerializeField] private string actionId = "ks1_lunar_chain";
         [SerializeField] private int costSp;
@@ -22,6 +23,35 @@ namespace BattleV2.Actions
         public int CostCP => costCp;
         public ChargeProfile ChargeProfile => chargeProfile;
         public Ks1TimedHitProfile TimedHitProfile => timedHitProfile;
+
+        private readonly struct DamageSnapshot
+        {
+            public DamageSnapshot(
+                Ks1TimedHitProfile.Tier tier,
+                int totalPhases,
+                int baseDamagePerHit,
+                float tierMultiplier,
+                float chargeMultiplier,
+                float attackStatContribution,
+                int baseDamageValue)
+            {
+                Tier = tier;
+                TotalPhases = totalPhases;
+                BaseDamagePerHit = baseDamagePerHit;
+                TierMultiplier = tierMultiplier;
+                ChargeMultiplier = chargeMultiplier;
+                AttackStatContribution = attackStatContribution;
+                BaseDamageValue = baseDamageValue;
+            }
+
+            public Ks1TimedHitProfile.Tier Tier { get; }
+            public int TotalPhases { get; }
+            public int BaseDamagePerHit { get; }
+            public float TierMultiplier { get; }
+            public float ChargeMultiplier { get; }
+            public float AttackStatContribution { get; }
+            public int BaseDamageValue { get; }
+        }
 
         public IAction Get() => this;
 
@@ -39,6 +69,57 @@ namespace BattleV2.Actions
 
             int totalCpCost = costCp + Mathf.Max(0, cpCharge);
             return actor.CurrentSP >= costSp && actor.CurrentCP >= totalCpCost;
+        }
+
+        public bool TryBuildPhaseDamagePlan(CombatantState actor, CombatContext context, int cpCharge, out TimedHitPhaseDamagePlan plan)
+        {
+            if (TryBuildDamageSnapshot(actor, context, cpCharge, out var snapshot))
+            {
+                plan = new TimedHitPhaseDamagePlan(
+                    snapshot.BaseDamagePerHit,
+                    minimumDamage,
+                    snapshot.TierMultiplier,
+                    snapshot.TotalPhases);
+                return true;
+            }
+
+            plan = default;
+            return false;
+        }
+
+        private bool TryBuildDamageSnapshot(CombatantState actor, CombatContext context, int cpCharge, out DamageSnapshot snapshot)
+        {
+            snapshot = default;
+
+            if (timedHitProfile == null || actor == null || context?.Enemy == null)
+            {
+                return false;
+            }
+
+            var tier = timedHitProfile.GetTierForCharge(cpCharge);
+            int totalPhases = Mathf.Max(0, tier.Hits);
+
+            var stats = context.PlayerStats;
+            float attackStat = stats.Physical;
+            float scaledBaseDamage = baseDamage;
+            if (attackPowerMultiplier != 0f)
+            {
+                scaledBaseDamage += attackStat * attackPowerMultiplier;
+            }
+
+            float chargeMultiplier = ComboPointScaling.GetDamageMultiplier(cpCharge);
+            int baseDamagePerHit = Mathf.Max(minimumDamage, Mathf.RoundToInt(scaledBaseDamage * chargeMultiplier));
+            float tierMultiplier = tier.DamageMultiplier > 0f ? tier.DamageMultiplier : 1f;
+
+            snapshot = new DamageSnapshot(
+                tier,
+                totalPhases,
+                baseDamagePerHit,
+                tierMultiplier,
+                chargeMultiplier,
+                attackStat,
+                baseDamage);
+            return true;
         }
 
         public void Execute(CombatantState actor, CombatContext context, int cpCharge, TimedHitResult? timedResult, Action onComplete)
@@ -64,55 +145,72 @@ namespace BattleV2.Actions
                 return;
             }
 
-            var tier = timedHitProfile != null ? timedHitProfile.GetTierForCharge(cpCharge) : default;
-            int baseHits = Mathf.Max(0, tier.Hits);
-            float scaledBaseDamage = baseDamage;
-            var stats = context != null ? context.PlayerStats : default;
-            if (attackPowerMultiplier != 0f)
+            if (!TryBuildDamageSnapshot(actor, context, cpCharge, out var snapshot))
             {
-                scaledBaseDamage += stats.Physical * attackPowerMultiplier;
+                BattleLogger.Warn("KS1", "Lunar Chain executed without a valid timed-hit profile; no damage applied.");
+                onComplete?.Invoke();
+                return;
             }
 
-            float chargeMultiplier = ComboPointScaling.GetDamageMultiplier(cpCharge);
-            int damagePerHit = Mathf.Max(minimumDamage, Mathf.RoundToInt(scaledBaseDamage * chargeMultiplier));
-
-            int hitsSucceeded = baseHits;
-            int totalHits = baseHits;
-            float perHitMultiplier = tier.DamageMultiplier > 0f ? tier.DamageMultiplier : 1f;
-            int refund = Mathf.Clamp(baseHits, 0, tier.RefundMax);
+            int totalHits = snapshot.TotalPhases;
+            int hitsSucceeded = snapshot.TotalPhases;
+            float perHitMultiplier = snapshot.TierMultiplier;
+            int refund = Mathf.Clamp(hitsSucceeded, 0, snapshot.Tier.RefundMax);
+            bool damageResolvedExternally = false;
+            int externalDamage = 0;
 
             if (timedResult.HasValue)
             {
                 var result = timedResult.Value;
-                totalHits = result.TotalHits > 0 ? result.TotalHits : baseHits;
-                hitsSucceeded = Mathf.Clamp(result.HitsSucceeded, 0, baseHits);
+                totalHits = result.TotalHits > 0 ? result.TotalHits : totalHits;
+                hitsSucceeded = Mathf.Clamp(result.HitsSucceeded, 0, snapshot.TotalPhases);
                 perHitMultiplier = result.DamageMultiplier > 0f ? result.DamageMultiplier : perHitMultiplier;
-                refund = Mathf.Clamp(result.CpRefund, 0, tier.RefundMax);
+                refund = Mathf.Clamp(result.CpRefund, 0, snapshot.Tier.RefundMax);
+                damageResolvedExternally = result.PhaseDamageApplied;
+                externalDamage = result.TotalDamageApplied;
+            }
+
+            if (refund > 0)
+            {
+                actor.AddCP(refund);
+            }
+
+            if (damageResolvedExternally)
+            {
+                if (externalDamage > 0)
+                {
+                    BattleLogger.Log(
+                        "KS1",
+                        $"Lunar Chain dealt {externalDamage} damage via phase hits ({hitsSucceeded}/{totalHits} hits) (Base {snapshot.BaseDamageValue}, AP {snapshot.AttackStatContribution:F1}, Mult {perHitMultiplier:F2}, ChargeMult {snapshot.ChargeMultiplier:F2}).");
+                }
+                else
+                {
+                    BattleLogger.Warn("KS1", $"Lunar Chain resolved with no damage ({hitsSucceeded}/{totalHits} hits).");
+                }
+
+                onComplete?.Invoke();
+                return;
             }
 
             int totalDamage = 0;
+            var enemy = context.Enemy;
 
             for (int i = 0; i < hitsSucceeded; i++)
             {
-                int hitDamage = Mathf.RoundToInt(damagePerHit * perHitMultiplier);
+                int hitDamage = Mathf.RoundToInt(snapshot.BaseDamagePerHit * perHitMultiplier);
                 totalDamage += hitDamage;
-                context.Enemy.TakeDamage(hitDamage);
+                enemy.TakeDamage(hitDamage);
             }
 
             if (hitsSucceeded > 0)
             {
                 BattleLogger.Log(
                     "KS1",
-                    $"Lunar Chain dealt {totalDamage} total damage ({hitsSucceeded}/{totalHits} hits) (Base {baseDamage}, AP {stats.Physical:F1}, Mult {perHitMultiplier:F2}, ChargeMult {chargeMultiplier:F2}).");
+                    $"Lunar Chain dealt {totalDamage} total damage ({hitsSucceeded}/{totalHits} hits) (Base {snapshot.BaseDamageValue}, AP {snapshot.AttackStatContribution:F1}, Mult {perHitMultiplier:F2}, ChargeMult {snapshot.ChargeMultiplier:F2}).");
             }
             else
             {
                 BattleLogger.Warn("KS1", "Lunar Chain failed to connect (combo interrupted).");
-            }
-
-            if (refund > 0)
-            {
-                actor.AddCP(refund);
             }
 
             onComplete?.Invoke();

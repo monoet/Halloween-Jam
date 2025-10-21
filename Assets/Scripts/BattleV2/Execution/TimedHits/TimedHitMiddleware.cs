@@ -33,6 +33,8 @@ namespace BattleV2.Execution.TimedHits
             var request = new TimedHitRequest(
                 context.Attacker,
                 context.Target,
+                context.ActionData,
+                context.Selection.ChargeProfile,
                 profile,
                 context.CpCharge,
                 TimedHitRunMode.Execute,
@@ -64,3 +66,4 @@ namespace BattleV2.Execution.TimedHits
         }
     }
 }
+

@@ -10,7 +10,9 @@ namespace BattleV2.Charge
             int cpRefund,
             float damageMultiplier,
             bool cancelled = false,
-            int successStreak = 0)
+            int successStreak = 0,
+            bool phaseDamageApplied = false,
+            int totalDamageApplied = 0)
         {
             HitsSucceeded = hitsSucceeded;
             TotalHits = totalHits;
@@ -18,6 +20,8 @@ namespace BattleV2.Charge
             DamageMultiplier = damageMultiplier;
             Cancelled = cancelled;
             SuccessStreak = successStreak;
+            PhaseDamageApplied = phaseDamageApplied;
+            TotalDamageApplied = totalDamageApplied;
         }
 
         public int HitsSucceeded { get; }
@@ -26,6 +30,21 @@ namespace BattleV2.Charge
         public float DamageMultiplier { get; }
         public bool Cancelled { get; }
         public int SuccessStreak { get; }
+        public bool PhaseDamageApplied { get; }
+        public int TotalDamageApplied { get; }
+
+        public TimedHitResult WithPhaseDamage(bool applied, int totalDamage)
+        {
+            return new TimedHitResult(
+                HitsSucceeded,
+                TotalHits,
+                CpRefund,
+                DamageMultiplier,
+                Cancelled,
+                SuccessStreak,
+                applied,
+                totalDamage);
+        }
     }
 }
 

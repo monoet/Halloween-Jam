@@ -1,6 +1,7 @@
-using System.Threading;
 using BattleV2.Charge;
 using BattleV2.Core;
+using BattleV2.Actions;
+using System.Threading;
 
 namespace BattleV2.Execution.TimedHits
 {
@@ -9,6 +10,8 @@ namespace BattleV2.Execution.TimedHits
         public TimedHitRequest(
             CombatantState attacker,
             CombatantState target,
+            BattleActionData actionData,
+            ChargeProfile chargeProfile,
             Ks1TimedHitProfile profile,
             int cpCharge,
             TimedHitRunMode mode,
@@ -16,6 +19,8 @@ namespace BattleV2.Execution.TimedHits
         {
             Attacker = attacker;
             Target = target;
+            ActionData = actionData;
+            ChargeProfile = chargeProfile;
             Profile = profile;
             CpCharge = cpCharge;
             Mode = mode;
@@ -24,6 +29,8 @@ namespace BattleV2.Execution.TimedHits
 
         public CombatantState Attacker { get; }
         public CombatantState Target { get; }
+        public BattleActionData ActionData { get; }
+        public ChargeProfile ChargeProfile { get; }
         public Ks1TimedHitProfile Profile { get; }
         public int CpCharge { get; }
         public TimedHitRunMode Mode { get; }

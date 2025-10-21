@@ -1,5 +1,6 @@
 // Assets/Scripts/BattleV2/Anim/BattleEvents.cs
 using System;
+using BattleV2.Execution.TimedHits;
 
 namespace BattleV2.Anim
 {
@@ -19,6 +20,7 @@ namespace BattleV2.Anim
         public static event Action<BattleAnimationStage> OnAnimationStageCompleted;
         public static event Action PlayerAttackStrike;
         public static event Action EnemyAttackStrike;
+        public static event Action<TimedHitPhaseFeedback> OnTimedHitPhaseFeedback;
 
         // Emitters (helpers)
         public static void EmitPlayerTurnCommitted() => PlayerTurnCommitted?.Invoke();
@@ -28,5 +30,6 @@ namespace BattleV2.Anim
         public static void EmitAnimationStageCompleted(BattleAnimationStage stage) => OnAnimationStageCompleted?.Invoke(stage);
         public static void EmitPlayerAttackStrike() => PlayerAttackStrike?.Invoke();
         public static void EmitEnemyAttackStrike() => EnemyAttackStrike?.Invoke();
+        public static void EmitTimedHitPhaseFeedback(in TimedHitPhaseFeedback feedback) => OnTimedHitPhaseFeedback?.Invoke(feedback);
     }
 }
