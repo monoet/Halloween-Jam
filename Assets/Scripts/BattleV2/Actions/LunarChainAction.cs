@@ -41,7 +41,7 @@ namespace BattleV2.Actions
             return actor.CurrentSP >= costSp && actor.CurrentCP >= totalCpCost;
         }
 
-        public void Execute(CombatantState actor, CombatContext context, int cpCharge, Action onComplete)
+        public void Execute(CombatantState actor, CombatContext context, int cpCharge, TimedHitResult? timedResult, Action onComplete)
         {
             if (actor == null || context?.Enemy == null)
             {
@@ -65,8 +65,7 @@ namespace BattleV2.Actions
             }
 
             var tier = timedHitProfile != null ? timedHitProfile.GetTierForCharge(cpCharge) : default;
-            int hits = Mathf.Max(0, tier.Hits);
-            float damageMultiplier = tier.DamageMultiplier > 0f ? tier.DamageMultiplier : 1f;
+            int baseHits = Mathf.Max(0, tier.Hits);
             float scaledBaseDamage = baseDamage;
             var stats = context != null ? context.PlayerStats : default;
             if (attackPowerMultiplier != 0f)
@@ -77,23 +76,40 @@ namespace BattleV2.Actions
             float chargeMultiplier = ComboPointScaling.GetDamageMultiplier(cpCharge);
             int damagePerHit = Mathf.Max(minimumDamage, Mathf.RoundToInt(scaledBaseDamage * chargeMultiplier));
 
+            int hitsSucceeded = baseHits;
+            int totalHits = baseHits;
+            float perHitMultiplier = tier.DamageMultiplier > 0f ? tier.DamageMultiplier : 1f;
+            int refund = Mathf.Clamp(baseHits, 0, tier.RefundMax);
+
+            if (timedResult.HasValue)
+            {
+                var result = timedResult.Value;
+                totalHits = result.TotalHits > 0 ? result.TotalHits : baseHits;
+                hitsSucceeded = Mathf.Clamp(result.HitsSucceeded, 0, baseHits);
+                perHitMultiplier = result.DamageMultiplier > 0f ? result.DamageMultiplier : perHitMultiplier;
+                refund = Mathf.Clamp(result.CpRefund, 0, tier.RefundMax);
+            }
+
             int totalDamage = 0;
 
-            for (int i = 0; i < hits; i++)
+            for (int i = 0; i < hitsSucceeded; i++)
             {
-                int hitDamage = Mathf.RoundToInt(damagePerHit * damageMultiplier);
+                int hitDamage = Mathf.RoundToInt(damagePerHit * perHitMultiplier);
                 totalDamage += hitDamage;
                 context.Enemy.TakeDamage(hitDamage);
             }
 
-            if (hits > 0)
+            if (hitsSucceeded > 0)
             {
                 BattleLogger.Log(
                     "KS1",
-                    $"Lunar Chain dealt {totalDamage} total damage over {hits} hit(s) (Base {baseDamage}, AP {stats.Physical:F1}, Mult {damageMultiplier:F2}, ChargeMult {chargeMultiplier:F2}).");
+                    $"Lunar Chain dealt {totalDamage} total damage ({hitsSucceeded}/{totalHits} hits) (Base {baseDamage}, AP {stats.Physical:F1}, Mult {perHitMultiplier:F2}, ChargeMult {chargeMultiplier:F2}).");
+            }
+            else
+            {
+                BattleLogger.Warn("KS1", "Lunar Chain failed to connect (combo interrupted).");
             }
 
-            int refund = Mathf.Clamp(hits, 0, tier.RefundMax);
             if (refund > 0)
             {
                 actor.AddCP(refund);

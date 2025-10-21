@@ -343,7 +343,7 @@ namespace BattleV2.Orchestration
 
             try
             {
-                impl.Execute(player, context, selection.CpCharge, () =>
+                impl.Execute(player, context, selection.CpCharge, selection.TimedHitResult, () =>
                 {
                     BattleLogger.Log("Resolve", "Enemy turn resolving...");
                     waitingForEnemyAnimation = true;
@@ -428,7 +428,7 @@ namespace BattleV2.Orchestration
 
             BattleLogger.Log("Enemy", $"Executing {action.id}");
 
-            impl.Execute(enemy, enemyContext, 0, () =>
+            impl.Execute(enemy, enemyContext, 0, null, () =>
             {
                 onComplete?.Invoke();
             });

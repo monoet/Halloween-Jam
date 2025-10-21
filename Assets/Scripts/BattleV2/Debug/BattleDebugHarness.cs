@@ -39,6 +39,7 @@ namespace BattleV2.Debugging
 
         private TimedPracticeState timedPracticeState = TimedPracticeState.Inactive;
         private BattleActionData timedPracticeAction;
+        private ChargeProfile timedPracticeChargeProfile;
         private Ks1TimedHitProfile timedPracticeProfile;
         private Ks1TimedHitProfile.Tier timedPracticeTier;
         private int timedPracticeCharge;
@@ -51,6 +52,8 @@ namespace BattleV2.Debugging
         private float timedPracticePhaseResolveTime;
         private float timedPracticeLastHitNormalized = -1f;
         private List<TimedHitPhaseOutcome> timedPracticeOutcomes = new();
+        private bool timedPracticeShouldStop;
+        private TimedSequenceMode timedSequenceMode = TimedSequenceMode.Inactive;
 
         private void Awake()
         {
@@ -280,7 +283,7 @@ namespace BattleV2.Debugging
 
                 int maxCharge = GetMaxChargeFor(action);
                 int currentCharge = GetChargeSelection(action);
-                var timedProfile = ResolveTimedHitProfile(action);
+                ResolveProfiles(action, out var chargeProfile, out var timedProfile);
                 bool hasTimedProfile = timedProfile != null;
 
                 GUILayout.BeginHorizontal();
@@ -313,7 +316,7 @@ namespace BattleV2.Debugging
                 {
                     if (GUILayout.Button("Practice", GUILayout.Width(70f)))
                     {
-                        StartTimedPractice(action, timedProfile, currentCharge);
+                        StartTimedSequence(action, chargeProfile, timedProfile, currentCharge, TimedSequenceMode.Practice);
                     }
                 }
                 else
@@ -345,9 +348,21 @@ namespace BattleV2.Debugging
                 return;
             }
 
-            var selection = new BattleSelection(action, cpCharge);
-            AppendLog($"Submitting action: {action.displayName ?? action.id} (Charge {cpCharge}).");
+            ResolveProfiles(action, out var chargeProfile, out var timedProfile);
 
+            if (timedProfile != null)
+            {
+                StartTimedSequence(action, chargeProfile, timedProfile, cpCharge, TimedSequenceMode.Execute);
+                return;
+            }
+
+            var selection = new BattleSelection(action, cpCharge, chargeProfile, timedProfile);
+            AppendLog($"Submitting action: {action.displayName ?? action.id} (Charge {cpCharge}).");
+            SubmitSelection(selection);
+        }
+
+        private void SubmitSelection(BattleSelection selection)
+        {
             var callback = currentOnSelected;
             ClearRequest();
             callback?.Invoke(selection);
@@ -409,21 +424,27 @@ namespace BattleV2.Debugging
             }
         }
 
-        private Ks1TimedHitProfile ResolveTimedHitProfile(BattleActionData action)
+        private void ResolveProfiles(BattleActionData action, out ChargeProfile chargeProfile, out Ks1TimedHitProfile timedProfile)
         {
+            chargeProfile = null;
+            timedProfile = null;
+
             if (currentContext == null || action == null)
             {
-                return null;
+                return;
             }
 
             var catalog = currentContext.Context?.Catalog;
             var impl = catalog != null ? catalog.Resolve(action) : null;
-            if (impl is ITimedHitAction timedHitAction)
-            {
-                return timedHitAction.TimedHitProfile;
-            }
 
-            return null;
+            if (impl != null)
+            {
+                chargeProfile = impl.ChargeProfile;
+                if (impl is ITimedHitAction timedHitAction)
+                {
+                    timedProfile = timedHitAction.TimedHitProfile;
+                }
+            }
         }
 
         private int GetChargeSelection(BattleActionData action)
@@ -483,8 +504,25 @@ namespace BattleV2.Debugging
             return Mathf.Max(0, availableCp - baseCost);
         }
 
-        private void StartTimedPractice(BattleActionData action, Ks1TimedHitProfile profile, int cpCharge)
+        private void StartTimedSequence(
+            BattleActionData action,
+            ChargeProfile chargeProfile,
+            Ks1TimedHitProfile profile,
+            int cpCharge,
+            TimedSequenceMode mode)
         {
+            if (timedPracticeState == TimedPracticeState.Running || timedPracticeState == TimedPracticeState.WaitingNext)
+            {
+                AppendLog("Timed hit already in progress.");
+                return;
+            }
+
+            if (timedSequenceMode == TimedSequenceMode.Execute && mode == TimedSequenceMode.Practice)
+            {
+                AppendLog("Cannot start practice while a live timed hit is running.");
+                return;
+            }
+
             if (profile == null)
             {
                 AppendLog("Timed hit practice requested without a profile.");
@@ -498,32 +536,41 @@ namespace BattleV2.Debugging
 
             timedPracticeOutcomes.Clear();
             timedPracticeAction = action;
+            timedPracticeChargeProfile = chargeProfile;
             timedPracticeProfile = profile;
             timedPracticeCharge = Mathf.Max(0, cpCharge);
             timedPracticeTier = profile.GetTierForCharge(cpCharge);
-            timedPracticeTotalPhases = Mathf.Max(1, timedPracticeTier.Hits);
+            timedPracticeTotalPhases = Mathf.Max(0, timedPracticeTier.Hits);
             timedPracticeCurrentPhase = 0;
             timedPracticePerfectCount = 0;
             timedPracticeGoodCount = 0;
             timedPracticeMissCount = 0;
             timedPracticeLastHitNormalized = -1f;
             timedPracticePhaseResolveTime = float.PositiveInfinity;
+            timedPracticeShouldStop = false;
+            timedSequenceMode = mode;
 
             if (timedPracticeTotalPhases <= 0)
             {
                 timedPracticeState = TimedPracticeState.Completed;
+                if (timedSequenceMode == TimedSequenceMode.Execute)
+                {
+                    CompleteTimedPractice();
+                }
                 return;
             }
 
             timedPracticeState = TimedPracticeState.Running;
             BeginTimedPracticePhase();
-            AppendLog($"Timed hit practice started for {action?.displayName ?? action?.id ?? "(unknown)"} (Charge {cpCharge}).");
+            string label = action?.displayName ?? action?.id ?? "(unknown)";
+            AppendLog($"{(mode == TimedSequenceMode.Practice ? "Practice" : "Execute")} timed hit for {label} (Charge {cpCharge}).");
         }
 
         private void ResetTimedPractice()
         {
             timedPracticeState = TimedPracticeState.Inactive;
             timedPracticeAction = null;
+            timedPracticeChargeProfile = null;
             timedPracticeProfile = null;
             timedPracticeTier = default;
             timedPracticeCharge = 0;
@@ -536,6 +583,8 @@ namespace BattleV2.Debugging
             timedPracticePhaseResolveTime = 0f;
             timedPracticeLastHitNormalized = -1f;
             timedPracticeOutcomes?.Clear();
+            timedPracticeShouldStop = false;
+            timedSequenceMode = TimedSequenceMode.Inactive;
         }
 
         private void BeginTimedPracticePhase()
@@ -598,8 +647,15 @@ namespace BattleV2.Debugging
             {
                 if (Time.time >= timedPracticePhaseResolveTime)
                 {
-                    timedPracticeState = TimedPracticeState.Running;
-                    BeginTimedPracticePhase();
+                    if (timedPracticeCurrentPhase >= timedPracticeTotalPhases || timedPracticeShouldStop)
+                    {
+                        CompleteTimedPractice();
+                    }
+                    else
+                    {
+                        timedPracticeState = TimedPracticeState.Running;
+                        BeginTimedPracticePhase();
+                    }
                 }
             }
         }
@@ -620,6 +676,22 @@ namespace BattleV2.Debugging
                     break;
                 case TimedHitPhaseOutcome.Miss:
                     timedPracticeMissCount++;
+                    timedPracticeShouldStop = true;
+                    int remaining = Mathf.Max(0, timedPracticeTotalPhases - timedPracticeCurrentPhase);
+                    for (int phase = timedPracticeCurrentPhase + 1; phase <= timedPracticeTotalPhases; phase++)
+                    {
+                        int index = phase - 1;
+                        if (index >= timedPracticeOutcomes.Count)
+                        {
+                            timedPracticeOutcomes.Add(TimedHitPhaseOutcome.Miss);
+                        }
+                        else
+                        {
+                            timedPracticeOutcomes[index] = TimedHitPhaseOutcome.Miss;
+                        }
+                    }
+                    timedPracticeMissCount += remaining;
+                    timedPracticeCurrentPhase = timedPracticeTotalPhases;
                     break;
             }
 
@@ -689,27 +761,49 @@ namespace BattleV2.Debugging
         {
             timedPracticeState = TimedPracticeState.Completed;
             timedPracticePhaseResolveTime = 0f;
+            var result = BuildTimedHitResult();
+
+            if (timedSequenceMode == TimedSequenceMode.Execute)
+            {
+                AppendLog($"Timed hit resolved: Perfect {timedPracticePerfectCount}, Good {timedPracticeGoodCount}, Miss {timedPracticeMissCount}.");
+                var selection = new BattleSelection(
+                    timedPracticeAction,
+                    timedPracticeCharge,
+                    timedPracticeChargeProfile,
+                    timedPracticeProfile,
+                    result);
+                AppendLog($"Submitting action: {timedPracticeAction?.displayName ?? timedPracticeAction?.id ?? "(unknown)"} (Charge {timedPracticeCharge}, Hits {result.HitsSucceeded}/{result.TotalHits}).");
+                SubmitSelection(selection);
+                return;
+            }
+
             AppendLog($"Timed hit practice complete: Perfect {timedPracticePerfectCount}, Good {timedPracticeGoodCount}, Miss {timedPracticeMissCount}.");
         }
 
         private float CalculateTimedPracticeMultiplier()
         {
-            if (timedPracticeTotalPhases <= 0)
+            int successCount = timedPracticePerfectCount + timedPracticeGoodCount;
+            if (successCount <= 0)
             {
-                return timedPracticeTier.DamageMultiplier > 0f ? timedPracticeTier.DamageMultiplier : 1f;
+                return 0f;
             }
 
             float perfectMultiplier = timedPracticeTier.PerfectHitMultiplier > 0f ? timedPracticeTier.PerfectHitMultiplier : 1.5f;
             float successMultiplier = timedPracticeTier.SuccessHitMultiplier > 0f ? timedPracticeTier.SuccessHitMultiplier : 1f;
-            float missMultiplier = timedPracticeTier.MissHitMultiplier > 0f ? timedPracticeTier.MissHitMultiplier : 0.5f;
-
-            float total = timedPracticePerfectCount * perfectMultiplier
-                        + timedPracticeGoodCount * successMultiplier
-                        + timedPracticeMissCount * missMultiplier;
-
-            float average = total / timedPracticeTotalPhases;
+            float totalContribution = timedPracticePerfectCount * perfectMultiplier
+                                   + timedPracticeGoodCount * successMultiplier;
+            float averageContribution = totalContribution / successCount;
             float tierMultiplier = timedPracticeTier.DamageMultiplier > 0f ? timedPracticeTier.DamageMultiplier : 1f;
-            return average * tierMultiplier;
+            return averageContribution * tierMultiplier;
+        }
+
+        private TimedHitResult BuildTimedHitResult()
+        {
+            int totalHits = Mathf.Max(0, timedPracticeTotalPhases);
+            int hitsSucceeded = Mathf.Clamp(timedPracticePerfectCount + timedPracticeGoodCount, 0, totalHits);
+            int refund = Mathf.Clamp(hitsSucceeded, 0, timedPracticeTier.RefundMax);
+            float multiplier = CalculateTimedPracticeMultiplier();
+            return new TimedHitResult(hitsSucceeded, totalHits, refund, multiplier);
         }
 
         private void DrawTimedPracticePanel()
@@ -720,7 +814,8 @@ namespace BattleV2.Debugging
                 ? timedPracticeAction.displayName ?? timedPracticeAction.id
                 : "(no action)";
 
-            GUILayout.Label($"Timed Hit Practice: {actionName}");
+            string panelLabel = timedSequenceMode == TimedSequenceMode.Execute ? "Timed Hit (Live)" : "Timed Hit Practice";
+            GUILayout.Label($"{panelLabel}: {actionName}");
             GUILayout.Label($"Charge {timedPracticeCharge} | Phase {Mathf.Min(timedPracticeCurrentPhase, Math.Max(1, timedPracticeTotalPhases))}/{timedPracticeTotalPhases}");
             GUILayout.Label($"Press {timedHitKey} when the marker enters the highlighted window.");
 
@@ -746,41 +841,58 @@ namespace BattleV2.Debugging
                 {
                     var outcome = i < timedPracticeOutcomes.Count ? timedPracticeOutcomes[i] : TimedHitPhaseOutcome.Pending;
                     GUIStyle style = new GUIStyle(GUI.skin.box) { alignment = TextAnchor.MiddleCenter };
-                    string label = outcome switch
+                    string label;
+                    if (outcome == TimedHitPhaseOutcome.Perfect)
                     {
-                        TimedHitPhaseOutcome.Perfect => "P",
-                        TimedHitPhaseOutcome.Good => "G",
-                        TimedHitPhaseOutcome.Miss => "X",
-                        _ => "…"
-                    };
+                        label = "P";
+                    }
+                    else if (outcome == TimedHitPhaseOutcome.Good)
+                    {
+                        label = "G";
+                    }
+                    else if (outcome == TimedHitPhaseOutcome.Miss)
+                    {
+                        label = "X";
+                    }
+                    else
+                    {
+                        label = "-";
+                    }
                     GUILayout.Box(label, style, GUILayout.Width(24f), GUILayout.Height(24f));
                 }
                 GUILayout.EndHorizontal();
             }
 
-            if (timedPracticeState == TimedPracticeState.Completed)
+            if (timedPracticeState == TimedPracticeState.Completed && timedSequenceMode == TimedSequenceMode.Practice)
             {
                 GUILayout.Space(6f);
-                int hitsSucceeded = Mathf.Clamp(timedPracticePerfectCount + timedPracticeGoodCount, 0, timedPracticeTotalPhases);
-                int refund = Mathf.Clamp(hitsSucceeded, 0, timedPracticeTier.RefundMax);
-                float finalMultiplier = CalculateTimedPracticeMultiplier();
+                var summary = BuildTimedHitResult();
                 GUILayout.Label($"Perfect {timedPracticePerfectCount} | Good {timedPracticeGoodCount} | Miss {timedPracticeMissCount}");
-                GUILayout.Label($"Potential Refund {refund} | Estimated Multiplier {finalMultiplier:F2}");
+                GUILayout.Label($"Potential Refund {summary.CpRefund} | Estimated Multiplier {summary.DamageMultiplier:F2}");
             }
 
             GUILayout.Space(6f);
             GUILayout.BeginHorizontal();
             if (timedPracticeState != TimedPracticeState.Running && timedPracticeState != TimedPracticeState.WaitingNext)
             {
-                if (timedPracticeProfile != null && GUILayout.Button("Replay"))
+                if (timedSequenceMode == TimedSequenceMode.Practice && timedPracticeProfile != null && GUILayout.Button("Replay"))
                 {
-                    StartTimedPractice(timedPracticeAction, timedPracticeProfile, timedPracticeCharge);
+                    StartTimedSequence(
+                        timedPracticeAction,
+                        timedPracticeChargeProfile,
+                        timedPracticeProfile,
+                        timedPracticeCharge,
+                        TimedSequenceMode.Practice);
                 }
             }
+            bool closeEnabled = timedSequenceMode != TimedSequenceMode.Execute || timedPracticeState == TimedPracticeState.Completed;
+            bool previousEnabled = GUI.enabled;
+            GUI.enabled = closeEnabled;
             if (GUILayout.Button("Close"))
             {
                 ResetTimedPractice();
             }
+            GUI.enabled = previousEnabled;
             GUILayout.EndHorizontal();
 
             GUILayout.EndVertical();
@@ -828,6 +940,13 @@ namespace BattleV2.Debugging
             }
 
             GUI.color = previous;
+        }
+
+        private enum TimedSequenceMode
+        {
+            Inactive,
+            Practice,
+            Execute
         }
 
         private enum TimedPracticeState

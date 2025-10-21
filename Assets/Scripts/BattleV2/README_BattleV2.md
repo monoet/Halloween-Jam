@@ -97,7 +97,9 @@ Para depurar sin depender de la UI de producción, hay un harness en `Debug/Batt
 
 - Añade el componente a un GameObject vacío en escena.
 - Al iniciar Play, detecta `BattleManagerV2`, se registra como `IBattleInputProvider` y abre una ventana OnGUI flotante (toggle con `~`).
-- Muestra HP/SP/CP de player/enemy, lista acciones (Attack/Magic/Item), permite lanzar acciones con un clic, cancelar turnos, y muestra un log.
+- Muestra HP/SP/CP de player/enemy, lista acciones (Attack/Magic/Item), permite lanzar acciones con un clic, ajustar CP con slider/botones, cancelar turnos, y muestra un log.
+- Si la acción tiene `KS1 Timed Hit Profile`, aparece un botón `Practice` para disparar el minijuego de timing con la tecla configurada (por defecto `Space`), mostrando ventanas Perfect/Good/Miss y los multiplicadores resultantes.
+- Al ejecutar una acción real con timed hit, el harness abre el mismo panel y sólo envía la selección al manager una vez que completes (o falles) la secuencia; fallar interrumpe el combo y aplica el daño parcial registrado.
 - Sirve para validar el flujo completo (acciones, daño, CP) sin wiring de menús. Puedes extenderlo con controles de charge, perfiles, etc.
 - No requiere Canvas ni prefabs; es un overlay puramente en código. Cuando la UI final esté lista, puedes desactivarlo o dejarlo como herramienta de QA.
 

@@ -41,7 +41,7 @@ namespace BattleV2.Actions
             return actor.CurrentSP >= costSp && actor.CurrentCP >= totalCpCost;
         }
 
-        public void Execute(CombatantState actor, CombatContext context, int cpCharge, Action onComplete)
+        public void Execute(CombatantState actor, CombatContext context, int cpCharge, TimedHitResult? timedResult, Action onComplete)
         {
             if (actor == null || context?.Enemy == null)
             {

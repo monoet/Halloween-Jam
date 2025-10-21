@@ -17,6 +17,6 @@ namespace BattleV2.Actions
         /// Executes the action against the current context.
         /// The callback must be invoked once execution finishes to continue the battle loop.
         /// </summary>
-        void Execute(CombatantState actor, CombatContext context, int cpCharge, Action onComplete);
+        void Execute(CombatantState actor, CombatContext context, int cpCharge, TimedHitResult? timedResult, Action onComplete);
     }
 }

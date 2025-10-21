@@ -9,17 +9,20 @@ namespace BattleV2.Providers
             BattleActionData action,
             int cpCharge = 0,
             ChargeProfile chargeProfile = null,
-            Ks1TimedHitProfile timedHitProfile = null)
+            Ks1TimedHitProfile timedHitProfile = null,
+            TimedHitResult? timedHitResult = null)
         {
             Action = action;
             CpCharge = cpCharge;
             ChargeProfile = chargeProfile;
             TimedHitProfile = timedHitProfile;
+            TimedHitResult = timedHitResult;
         }
 
         public BattleActionData Action { get; }
         public int CpCharge { get; }
         public ChargeProfile ChargeProfile { get; }
         public Ks1TimedHitProfile TimedHitProfile { get; }
+        public TimedHitResult? TimedHitResult { get; }
     }
 }
