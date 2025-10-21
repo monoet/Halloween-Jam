@@ -1,9 +1,11 @@
 using System;
+using System.Threading.Tasks;
 using BattleV2.Actions;
+using BattleV2.Anim;
 using BattleV2.Charge;
 using BattleV2.Core;
+using BattleV2.Execution;
 using BattleV2.Providers;
-using BattleV2.Anim;
 using HalloweenJam.Combat;
 using UnityEngine;
 
@@ -36,6 +38,7 @@ namespace BattleV2.Orchestration
         private int pendingPlayerCpBefore;
         private bool waitingForPlayerAnimation;
         private bool waitingForEnemyAnimation;
+        private IActionPipelineFactory actionPipelineFactory;
 
         public BattleActionData LastExecutedAction { get; private set; }
         public event Action<BattleSelection, int> OnPlayerActionSelected;
@@ -70,6 +73,8 @@ namespace BattleV2.Orchestration
                 BattleLogger.Warn("BattleManager", "No input provider assigned; creating auto provider.");
                 inputProvider = ScriptableObject.CreateInstance<AutoBattleInputProvider>();
             }
+
+            actionPipelineFactory = new DefaultActionPipelineFactory();
 
             ComboPointScaling.Configure(config != null ? config.comboPointScaling : null);
 
@@ -341,24 +346,7 @@ namespace BattleV2.Orchestration
             pendingPlayerSelection = default;
             pendingPlayerCpBefore = 0;
 
-            try
-            {
-                impl.Execute(player, context, selection.CpCharge, selection.TimedHitResult, () =>
-                {
-                    BattleLogger.Log("Resolve", "Enemy turn resolving...");
-                    waitingForEnemyAnimation = true;
-                    int cpAfter = player.CurrentCP;
-                    OnPlayerActionResolved?.Invoke(selection, cpBefore, cpAfter);
-                    QueueEnemyTurn(() => ExecuteEnemyTurn(HandlePostEnemyTurn));
-                    TryExecutePendingEnemyTurn();
-                });
-            }
-            catch (Exception ex)
-            {
-                BattleLogger.Error("BattleManager", $"Action {selection.Action?.id ?? "unknown"} threw exception: {ex}");
-                pendingPlayerAction = null;
-                ExecuteAutoFallback();
-            }
+            RunPlayerActionPipeline(selection, impl, cpBefore);
         }
 
         private void TryExecutePendingEnemyTurn()
@@ -481,6 +469,43 @@ namespace BattleV2.Orchestration
         public void SetRuntimeInputProvider(IBattleInputProvider provider)
         {
             inputProvider = provider ?? ResolveProvider();
+        }
+
+        private async void RunPlayerActionPipeline(BattleSelection selection, IAction implementation, int cpBefore)
+        {
+            try
+            {
+                var pipeline = actionPipelineFactory?.CreatePipeline(selection.Action, implementation)
+                               ?? new DefaultActionPipelineFactory().CreatePipeline(selection.Action, implementation);
+
+                var actionContext = new ActionContext(
+                    this,
+                    player,
+                    context?.Enemy,
+                    selection.Action,
+                    implementation,
+                    context,
+                    selection);
+
+                await pipeline.ExecuteAsync(actionContext);
+
+                if (context == null || player == null)
+                {
+                    BattleLogger.Warn("BattleManager", "Context missing after action execution.");
+                }
+
+                BattleLogger.Log("Resolve", "Enemy turn resolving...");
+                waitingForEnemyAnimation = true;
+                int cpAfter = player != null ? player.CurrentCP : 0;
+                OnPlayerActionResolved?.Invoke(selection, cpBefore, cpAfter);
+                QueueEnemyTurn(() => ExecuteEnemyTurn(HandlePostEnemyTurn));
+                TryExecutePendingEnemyTurn();
+            }
+            catch (Exception ex)
+            {
+                BattleLogger.Error("BattleManager", $"Action {selection.Action?.id ?? "unknown"} threw exception: {ex}");
+                ExecuteAutoFallback();
+            }
         }
 
         private void HandleAnimationLockChanged(bool locked)
