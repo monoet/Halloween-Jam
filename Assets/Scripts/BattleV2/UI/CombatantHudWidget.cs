@@ -32,11 +32,12 @@ namespace BattleV2.UI
         [SerializeField] private string cpFormat = "{0}/{1}";
 
         private UnityAction vitalsListener;
+        private bool pendingRefresh;
 
         private void Awake()
         {
-            vitalsListener = UpdateVisuals;
-            UpdateVisuals();
+            vitalsListener = ScheduleRefresh;
+            ScheduleRefresh();
         }
 
         private void OnValidate()
@@ -59,7 +60,7 @@ namespace BattleV2.UI
         private void OnEnable()
         {
             Subscribe(source);
-            UpdateVisuals();
+            ScheduleRefresh();
         }
 
         private void OnDisable()
@@ -77,7 +78,7 @@ namespace BattleV2.UI
             Unsubscribe(source);
             source = newSource;
             Subscribe(source);
-            UpdateVisuals();
+            ScheduleRefresh();
         }
 
         private void Subscribe(CombatantState target)
@@ -96,7 +97,38 @@ namespace BattleV2.UI
             }
         }
 
+        private void LateUpdate()
+        {
+            if (!pendingRefresh)
+            {
+                return;
+            }
+
+            if (!CanApplyVisuals())
+            {
+                return;
+            }
+
+            pendingRefresh = false;
+            ApplyVisuals();
+        }
+
+        private void ScheduleRefresh()
+        {
+            pendingRefresh = true;
+        }
+
         private void UpdateVisuals()
+        {
+            ScheduleRefresh();
+        }
+
+        private bool CanApplyVisuals()
+        {
+            return isActiveAndEnabled && gameObject.scene.IsValid();
+        }
+
+        private void ApplyVisuals()
         {
             if (source == null)
             {
@@ -122,22 +154,22 @@ namespace BattleV2.UI
 
         private void SetLabels(string displayName, string hpValue, string spValue, string cpValue)
         {
-            if (nameText != null)
+            if (CanWrite(nameText))
             {
                 nameText.text = displayName;
             }
 
-            if (hpText != null)
+            if (CanWrite(hpText))
             {
                 hpText.text = hpValue;
             }
 
-            if (spText != null)
+            if (CanWrite(spText))
             {
                 spText.text = spValue;
             }
 
-            if (cpText != null)
+            if (CanWrite(cpText))
             {
                 cpText.text = cpValue;
             }
@@ -201,6 +233,11 @@ namespace BattleV2.UI
             }
 
             return Mathf.Clamp01(current / (float)max);
+        }
+
+        private static bool CanWrite(TMP_Text label)
+        {
+            return label != null && label.gameObject.scene.IsValid();
         }
     }
 }

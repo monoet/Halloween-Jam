@@ -1755,6 +1755,10 @@ MonoBehaviour:
   maxLogEntries: 30
   timedHitKey: 32
   practiceFallbackDuration: 1
+  damageTextPrefab: {fileID: 0}
+  damageTextRoot: {fileID: 0}
+  damageTextOffset: {x: 0, y: 1.5, z: 0}
+  logPhaseDamage: 1
 --- !u!4 &448140810
 Transform:
   m_ObjectHideFlags: 0
@@ -3500,6 +3504,7 @@ GameObject:
   - component: {fileID: 809243204}
   - component: {fileID: 809243202}
   - component: {fileID: 809243203}
+  - component: {fileID: 809243205}
   m_Layer: 5
   m_Name: HUD CONTAINER
   m_TagString: Untagged
@@ -3642,6 +3647,22 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &809243205
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 809243198}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a70ac3c6226b72b4e80e5057aa780bdc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BattleV2.Anim.TimedHitFeedbackRouter
+  damageTextPrefab: {fileID: 1916247854963073912, guid: 858bfe60a98efa945b03a64efdf7498a, type: 3}
+  damageNumberRoot: {fileID: 510335783778562564, guid: 858bfe60a98efa945b03a64efdf7498a, type: 3}
+  damageNumberOffset: {x: 0, y: 1.25, z: 0}
+  logMissingTargets: 1
 --- !u!1 &813531727
 GameObject:
   m_ObjectHideFlags: 0
@@ -7970,6 +7991,7 @@ MonoBehaviour:
   playerRuntime: {fileID: 2077095904618654867}
   enemy: {fileID: 4257266329076552799}
   enemyRuntime: {fileID: 4257266329076552798}
+  preActionDelaySeconds: 0.33
 --- !u!114 &1941987471
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -9555,6 +9577,10 @@ MonoBehaviour:
   profile: {fileID: 11400000, guid: ef5308e0b6beea24bbc1312786e83756, type: 2}
   root: {fileID: 2077095904618654863}
   directionMultiplier: 1
+  spriteFlashRenderer: {fileID: 0}
+  meshFlashRenderer: {fileID: 0}
+  flashMaterialProperty: _Color
+  flashColor: {r: 0.9622642, g: 0.9622642, b: 0.9622642, a: 1}
 --- !u!4 &4257266329076552794 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 3274385974015024892, guid: 153292bed16af9d49be6bdbd3d87a8b8, type: 3}
@@ -9669,6 +9695,10 @@ MonoBehaviour:
   profile: {fileID: 11400000, guid: ef5308e0b6beea24bbc1312786e83756, type: 2}
   root: {fileID: 4257266329076552794}
   directionMultiplier: 1
+  spriteFlashRenderer: {fileID: 0}
+  meshFlashRenderer: {fileID: 0}
+  flashMaterialProperty: _Color
+  flashColor: {r: 1, g: 1, b: 1, a: 1}
 --- !u!1001 &5965213343232748360
 PrefabInstance:
   m_ObjectHideFlags: 0

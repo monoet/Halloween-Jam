@@ -16,9 +16,14 @@ namespace BattleV2.UI
         [SerializeField] private Ease moveEase = Ease.OutQuad;
 
         private Tween activeTween;
+        private RectTransform rectTransform;
+        private bool useRectTransform;
 
         private void Awake()
         {
+            rectTransform = GetComponent<RectTransform>();
+            useRectTransform = rectTransform != null && !rectTransform.Equals(null);
+
             if (label == null)
             {
                 label = GetComponentInChildren<TMP_Text>();
@@ -38,12 +43,24 @@ namespace BattleV2.UI
                 activeTween.Kill();
             }
 
-            Vector3 start = transform.position;
-            Vector3 end = start + Vector3.up * moveDistance;
+            if (useRectTransform)
+            {
+                Vector2 start = rectTransform.anchoredPosition;
+                Vector2 end = start + Vector2.up * moveDistance;
 
-            activeTween = transform.DOMove(end, lifetime)
-                .SetEase(moveEase)
-                .OnComplete(() => Destroy(gameObject));
+                activeTween = rectTransform.DOAnchorPos(end, lifetime)
+                    .SetEase(moveEase)
+                    .OnComplete(() => Destroy(gameObject));
+            }
+            else
+            {
+                Vector3 start = transform.position;
+                Vector3 end = start + Vector3.up * moveDistance;
+
+                activeTween = transform.DOMove(end, lifetime)
+                    .SetEase(moveEase)
+                    .OnComplete(() => Destroy(gameObject));
+            }
         }
 
         private void OnDisable()

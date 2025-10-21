@@ -1,6 +1,7 @@
 using BattleV2.Execution.TimedHits;
 using BattleV2.UI;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace BattleV2.Anim
 {
@@ -56,10 +57,68 @@ namespace BattleV2.Anim
 
             Vector3 basePosition = feedback.WorldPosition ?? target.transform.position;
             Vector3 spawnPosition = basePosition + damageNumberOffset;
-            Transform parent = damageNumberRoot != null ? damageNumberRoot : null;
+            Transform parent = null;
+            if (damageNumberRoot != null && damageNumberRoot.gameObject.scene.IsValid())
+            {
+                parent = damageNumberRoot;
+            }
+
+            if (TrySpawnInCanvas(spawnPosition, parent, out var instance))
+            {
+                instance.Initialise(feedback.Damage, isHealing: false);
+                return;
+            }
 
             var text = Instantiate(damageTextPrefab, spawnPosition, Quaternion.identity, parent);
             text.Initialise(feedback.Damage, isHealing: false);
+        }
+
+        private bool TrySpawnInCanvas(Vector3 worldPosition, Transform parent, out FloatingDamageText instance)
+        {
+            instance = null;
+
+            if (parent == null)
+            {
+                return false;
+            }
+
+            var rectParent = parent as RectTransform ?? parent.GetComponent<RectTransform>();
+            if (rectParent == null)
+            {
+                return false;
+            }
+
+            var canvas = rectParent.GetComponentInParent<Canvas>();
+            if (canvas == null || canvas.renderMode == RenderMode.WorldSpace)
+            {
+                return false;
+            }
+
+            Camera worldCamera = canvas.renderMode == RenderMode.ScreenSpaceOverlay
+                ? Camera.main
+                : (canvas.worldCamera != null ? canvas.worldCamera : Camera.main);
+
+            if (worldCamera == null)
+            {
+                return false;
+            }
+
+            Vector3 screenPoint = worldCamera.WorldToScreenPoint(worldPosition);
+            Camera eventCamera = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : worldCamera;
+
+            if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(rectParent, screenPoint, eventCamera, out var anchored))
+            {
+                return false;
+            }
+
+            instance = Instantiate(damageTextPrefab, rectParent);
+            var rect = instance.GetComponent<RectTransform>();
+            if (rect != null)
+            {
+                rect.anchoredPosition = anchored;
+            }
+
+            return true;
         }
     }
 }

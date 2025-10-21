@@ -12,6 +12,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: eaee0fb528357ef4692462b2b884022a, type: 3}
   m_Name: DefaultAttackProfile
   m_EditorClassIdentifier: Assembly-CSharp::AttackAnimProfile
+  preDelayTotal: 0
+  preFlashes: 2
+  preFlashEase: 4
+  preFlashIntensity: 1
   windupBackDist: 0.6
   windupTime: 0.25
   windupEase: 3
@@ -19,7 +23,10 @@ MonoBehaviour:
   lungeTime: 0.12
   lungeEase: 18
   hitFreeze: 0.035
-  enemyHitShakeTime: 0.18
-  enemyHitShakeStrength: 0.25
+  hitPushDistance: 0.2
+  hitPushDuration: 0.08
+  hitPushEase: 6
+  hitReturnDuration: 0.12
+  hitReturnEase: 3
   recoverTime: 0.22
   recoverEase: 4

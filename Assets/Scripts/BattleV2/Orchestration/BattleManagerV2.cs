@@ -30,6 +30,9 @@ namespace BattleV2.Orchestration
         [SerializeField] private CombatantState enemy;
         [SerializeField] private CharacterRuntime enemyRuntime;
 
+        [Header("Pipeline Tuning")]
+        [SerializeField, Min(0f)] private float preActionDelaySeconds = 0.12f;
+
         private IBattleInputProvider inputProvider;
         private CombatContext context;
         private bool animationLocked;
@@ -39,11 +42,17 @@ namespace BattleV2.Orchestration
         private int pendingPlayerCpBefore;
         private bool waitingForPlayerAnimation;
         private bool waitingForEnemyAnimation;
+        private Coroutine playerActionDelayRoutine;
         private IActionPipelineFactory actionPipelineFactory;
         private ITimedHitRunner timedHitRunner;
 
         public BattleActionData LastExecutedAction { get; private set; }
         public ITimedHitRunner TimedHitRunner => timedHitRunner ?? InstantTimedHitRunner.Shared;
+        public float PreActionDelaySeconds
+        {
+            get => preActionDelaySeconds;
+            set => preActionDelaySeconds = Mathf.Max(0f, value);
+        }
         public event Action<BattleSelection, int> OnPlayerActionSelected;
         public event Action<BattleSelection, int, int> OnPlayerActionResolved;
 
@@ -105,6 +114,11 @@ namespace BattleV2.Orchestration
             BattleEvents.OnLockChanged -= HandleAnimationLockChanged;
             BattleEvents.OnAnimationStageCompleted -= HandleAnimationStageCompleted;
             pendingEnemyTurn = null;
+            if (playerActionDelayRoutine != null)
+            {
+                StopCoroutine(playerActionDelayRoutine);
+                playerActionDelayRoutine = null;
+            }
             animationLocked = false;
             waitingForPlayerAnimation = false;
             waitingForEnemyAnimation = false;
@@ -314,7 +328,6 @@ namespace BattleV2.Orchestration
             pendingPlayerCpBefore = player.CurrentCP;
             waitingForPlayerAnimation = false;
 
-            OnPlayerActionSelected?.Invoke(selection, pendingPlayerCpBefore);
             TryExecutePendingPlayerAction();
         }
 
@@ -336,12 +349,11 @@ namespace BattleV2.Orchestration
                 return;
             }
 
-            if (waitingForPlayerAnimation)
+            if (waitingForPlayerAnimation || playerActionDelayRoutine != null)
             {
                 return;
             }
 
-            waitingForPlayerAnimation = false;
             var selection = pendingPlayerSelection;
             var impl = pendingPlayerAction;
             int cpBefore = pendingPlayerCpBefore;
@@ -350,7 +362,33 @@ namespace BattleV2.Orchestration
             pendingPlayerSelection = default;
             pendingPlayerCpBefore = 0;
 
-            RunPlayerActionPipeline(selection, impl, cpBefore);
+            float delay = Mathf.Max(0f, preActionDelaySeconds);
+            if (delay > 0f)
+            {
+                playerActionDelayRoutine = StartCoroutine(ExecutePlayerActionAfterDelay(selection, impl, cpBefore, delay));
+                return;
+            }
+
+            DispatchPlayerAction(selection, impl, cpBefore);
+        }
+
+        private void DispatchPlayerAction(BattleSelection selection, IAction implementation, int cpBefore)
+        {
+            OnPlayerActionSelected?.Invoke(selection, cpBefore);
+            RunPlayerActionPipeline(selection, implementation, cpBefore);
+        }
+
+        private System.Collections.IEnumerator ExecutePlayerActionAfterDelay(
+            BattleSelection selection,
+            IAction implementation,
+            int cpBefore,
+            float delaySeconds)
+        {
+            waitingForPlayerAnimation = true;
+            yield return new WaitForSeconds(delaySeconds);
+            waitingForPlayerAnimation = false;
+            playerActionDelayRoutine = null;
+            DispatchPlayerAction(selection, implementation, cpBefore);
         }
 
         private void TryExecutePendingEnemyTurn()

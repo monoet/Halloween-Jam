@@ -17,71 +17,71 @@ MonoBehaviour:
     Hits: 1
     RefundMax: 2
     DamageMultiplier: 0.8
-    TimelineDuration: 1
+    TimelineDuration: 0.66
     PerfectWindowCenter: 0.5
     PerfectWindowRadius: 0.033
     SuccessWindowRadius: 0.066
     PerfectHitMultiplier: 1.5
     SuccessHitMultiplier: 1
     MissHitMultiplier: 0.5
-    ResultHoldDuration: 0
+    ResultHoldDuration: 0.125
   - RequiredCp: 1
     Hits: 2
     RefundMax: 2
     DamageMultiplier: 0.8
-    TimelineDuration: 1
+    TimelineDuration: 0.66
     PerfectWindowCenter: 0.5
     PerfectWindowRadius: 0.033
     SuccessWindowRadius: 0.033
     PerfectHitMultiplier: 1.5
     SuccessHitMultiplier: 1
     MissHitMultiplier: 0.5
-    ResultHoldDuration: 0
+    ResultHoldDuration: 0.125
   - RequiredCp: 2
     Hits: 3
     RefundMax: 3
     DamageMultiplier: 0.8
-    TimelineDuration: 1
+    TimelineDuration: 0.66
     PerfectWindowCenter: 0.5
     PerfectWindowRadius: 0.033
     SuccessWindowRadius: 0.033
     PerfectHitMultiplier: 1.5
     SuccessHitMultiplier: 1
     MissHitMultiplier: 0.5
-    ResultHoldDuration: 0
+    ResultHoldDuration: 0.125
   - RequiredCp: 3
     Hits: 3
     RefundMax: 4
     DamageMultiplier: 0.8
-    TimelineDuration: 1
+    TimelineDuration: 0.66
     PerfectWindowCenter: 0.5
     PerfectWindowRadius: 0.033
     SuccessWindowRadius: 0.033
     PerfectHitMultiplier: 1.5
     SuccessHitMultiplier: 1
     MissHitMultiplier: 0.5
-    ResultHoldDuration: 0
+    ResultHoldDuration: 0.125
   - RequiredCp: 4
     Hits: 3
     RefundMax: 3
     DamageMultiplier: 0.8
-    TimelineDuration: 1
+    TimelineDuration: 0.66
     PerfectWindowCenter: 0.5
     PerfectWindowRadius: 0.033
     SuccessWindowRadius: 0.033
     PerfectHitMultiplier: 1.75
     SuccessHitMultiplier: 1
     MissHitMultiplier: 0.5
-    ResultHoldDuration: 0
+    ResultHoldDuration: 0.125
   - RequiredCp: 4
     Hits: 3
     RefundMax: 3
     DamageMultiplier: 0.8
-    TimelineDuration: 1
+    TimelineDuration: 0.66
     PerfectWindowCenter: 0.5
     PerfectWindowRadius: 0.033
     SuccessWindowRadius: 0.033
     PerfectHitMultiplier: 1.75
     SuccessHitMultiplier: 1
     MissHitMultiplier: 0.5
-    ResultHoldDuration: 0
+    ResultHoldDuration: 0.125
