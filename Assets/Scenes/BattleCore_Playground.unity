@@ -9482,7 +9482,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4b2c30c3d31825140a9192b375e5f1d2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CharacterRuntime
-  archetype: {fileID: 11400000, guid: af4c5ff2b9f775b4790830c9fd58144f, type: 2}
+  archetype: {fileID: 11400000, guid: c539e972a7dc87c4dba21fc6e6340f12, type: 2}
   core:
     characterName: Lilia
     portrait: {fileID: 0}

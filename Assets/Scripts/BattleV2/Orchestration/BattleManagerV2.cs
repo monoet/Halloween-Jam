@@ -5,6 +5,7 @@ using BattleV2.Anim;
 using BattleV2.Charge;
 using BattleV2.Core;
 using BattleV2.Execution;
+using BattleV2.Execution.TimedHits;
 using BattleV2.Providers;
 using HalloweenJam.Combat;
 using UnityEngine;
@@ -39,8 +40,10 @@ namespace BattleV2.Orchestration
         private bool waitingForPlayerAnimation;
         private bool waitingForEnemyAnimation;
         private IActionPipelineFactory actionPipelineFactory;
+        private ITimedHitRunner timedHitRunner;
 
         public BattleActionData LastExecutedAction { get; private set; }
+        public ITimedHitRunner TimedHitRunner => timedHitRunner ?? InstantTimedHitRunner.Shared;
         public event Action<BattleSelection, int> OnPlayerActionSelected;
         public event Action<BattleSelection, int, int> OnPlayerActionResolved;
 
@@ -74,7 +77,8 @@ namespace BattleV2.Orchestration
                 inputProvider = ScriptableObject.CreateInstance<AutoBattleInputProvider>();
             }
 
-            actionPipelineFactory = new DefaultActionPipelineFactory();
+            actionPipelineFactory = new DefaultActionPipelineFactory(this);
+            timedHitRunner = InstantTimedHitRunner.Shared;
 
             ComboPointScaling.Configure(config != null ? config.comboPointScaling : null);
 
@@ -471,12 +475,13 @@ namespace BattleV2.Orchestration
             inputProvider = provider ?? ResolveProvider();
         }
 
+        public void SetTimedHitRunner(ITimedHitRunner runner) => timedHitRunner = runner;
         private async void RunPlayerActionPipeline(BattleSelection selection, IAction implementation, int cpBefore)
         {
             try
             {
                 var pipeline = actionPipelineFactory?.CreatePipeline(selection.Action, implementation)
-                               ?? new DefaultActionPipelineFactory().CreatePipeline(selection.Action, implementation);
+                               ?? new DefaultActionPipelineFactory(this).CreatePipeline(selection.Action, implementation);
 
                 var actionContext = new ActionContext(
                     this,
@@ -535,4 +540,7 @@ namespace BattleV2.Orchestration
         }
     }
 }
+
+
+
 
