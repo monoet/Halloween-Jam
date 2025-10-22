@@ -193,38 +193,34 @@ namespace BattleV2.Orchestration
 
         private void BindCombatants(bool preservePlayerVitals, bool preserveEnemyVitals)
         {
-            playerRuntime = ResolveRuntimeReference(player, playerRuntime);
-            enemyRuntime = ResolveRuntimeReference(enemy, enemyRuntime);
+            CombatantBinder.BindingResult playerBinding = default;
+            CombatantBinder.BindingResult enemyBinding = default;
 
-            if (player != null)
+            if (CombatantBinder.TryBind(player, preservePlayerVitals, out var playerResult))
             {
-                if (playerRuntime != null)
-                {
-                    player.SetCharacterRuntime(playerRuntime, initialize: true, preserveVitals: preservePlayerVitals);
-                    playerRuntime = player.CharacterRuntime;
-                }
-                else
-                {
-                    BattleLogger.Warn("BattleManager", "Player runtime missing; using fallback vitals.");
-                    player.InitializeFrom(null, preservePlayerVitals);
-                }
+                playerBinding = playerResult;
+                player = playerResult.Combatant;
+                playerRuntime = playerResult.Runtime;
+            }
+            else
+            {
+                playerRuntime = ResolveRuntimeReference(player, playerRuntime);
             }
 
-            if (enemy != null)
+            if (CombatantBinder.TryBind(enemy, preserveEnemyVitals, out var enemyResult))
             {
-                if (enemyRuntime != null)
-                {
-                    enemy.SetCharacterRuntime(enemyRuntime, initialize: true, preserveVitals: preserveEnemyVitals);
-                    enemyRuntime = enemy.CharacterRuntime;
-                }
-                else
-                {
-                    BattleLogger.Warn("BattleManager", "Enemy runtime missing; using fallback vitals.");
-                    enemy.InitializeFrom(null, preserveEnemyVitals);
-                }
+                enemyBinding = enemyResult;
+                enemy = enemyResult.Combatant;
+                enemyRuntime = enemyResult.Runtime;
+            }
+            else
+            {
+                enemyRuntime = ResolveRuntimeReference(enemy, enemyRuntime);
             }
 
-            OnCombatantsBound?.Invoke(player, enemy);
+            var boundPlayer = playerBinding.Combatant != null ? playerBinding.Combatant : player;
+            var boundEnemy = enemyBinding.Combatant != null ? enemyBinding.Combatant : enemy;
+            OnCombatantsBound?.Invoke(boundPlayer, boundEnemy);
         }
 
         private static CharacterRuntime ResolveRuntimeReference(CombatantState combatant, CharacterRuntime overrideRuntime)
