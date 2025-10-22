@@ -10,6 +10,7 @@ using BattleV2.Execution.TimedHits;
 using BattleV2.Providers;
 using HalloweenJam.Combat;
 using UnityEngine;
+using BattleV2.UI;
 
 namespace BattleV2.Orchestration
 {
@@ -24,6 +25,7 @@ namespace BattleV2.Orchestration
         [SerializeField] private ActionCatalog actionCatalog;
         [SerializeField] private ScriptableObject inputProviderAsset;
         [SerializeField] private MonoBehaviour inputProviderComponent;
+        [SerializeField] private HUDManager hudManager;
 
         [Header("Entities")]
         [SerializeField] private CombatantState player;
@@ -151,6 +153,8 @@ namespace BattleV2.Orchestration
             pendingPlayerAction = null;
             pendingPlayerSelection = default;
             pendingPlayerCpBefore = 0;
+
+            hudManager?.Clear();
         }
 
         private IBattleInputProvider ResolveProvider()
@@ -220,6 +224,20 @@ namespace BattleV2.Orchestration
 
             var boundPlayer = playerBinding.Combatant != null ? playerBinding.Combatant : player;
             var boundEnemy = enemyBinding.Combatant != null ? enemyBinding.Combatant : enemy;
+
+            if (hudManager != null)
+            {
+                if (boundPlayer != null)
+                {
+                    hudManager.RegisterCombatant(boundPlayer, isEnemy: false);
+                }
+
+                if (boundEnemy != null)
+                {
+                    hudManager.RegisterCombatant(boundEnemy, isEnemy: true);
+                }
+            }
+
             OnCombatantsBound?.Invoke(boundPlayer, boundEnemy);
         }
 

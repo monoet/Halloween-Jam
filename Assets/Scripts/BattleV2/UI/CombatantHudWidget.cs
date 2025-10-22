@@ -17,6 +17,7 @@ namespace BattleV2.UI
         [SerializeField] private TMP_Text hpText;
         [SerializeField] private TMP_Text spText;
         [SerializeField] private TMP_Text cpText;
+        [SerializeField] private Image portraitImage;
 
         [Header("Optional Sliders")]
         [SerializeField] private Slider hpSlider;
@@ -68,7 +69,39 @@ namespace BattleV2.UI
             Unsubscribe(source);
         }
 
-        public void SetSource(CombatantState newSource)
+        /// <summary>
+        /// Binds this widget to the provided combatant state.
+        /// </summary>
+        public void Bind(CombatantState newSource)
+        {
+            SetSourceInternal(newSource);
+
+            if (isActiveAndEnabled)
+            {
+                ApplyVisuals();
+            }
+            else
+            {
+                ScheduleRefresh();
+            }
+        }
+
+        /// <summary>
+        /// Clears the current binding and detaches event listeners.
+        /// </summary>
+        public void Unbind()
+        {
+            if (source == null)
+            {
+                return;
+            }
+
+            Unsubscribe(source);
+            source = null;
+            ScheduleRefresh();
+        }
+
+        private void SetSourceInternal(CombatantState newSource)
         {
             if (source == newSource)
             {
@@ -135,6 +168,7 @@ namespace BattleV2.UI
                 SetLabels("--", "--", "--", "--");
                 SetSliders(0f, 0f, 0f);
                 UpdatePips(0, 0);
+                UpdatePortrait(null);
                 return;
             }
 
@@ -150,6 +184,7 @@ namespace BattleV2.UI
                 SafeRatio(source.CurrentCP, source.MaxCP));
 
             UpdatePips(source.CurrentCP, source.MaxCP);
+            UpdatePortrait(source.Portrait);
         }
 
         private void SetLabels(string displayName, string hpValue, string spValue, string cpValue)
@@ -238,6 +273,17 @@ namespace BattleV2.UI
         private static bool CanWrite(TMP_Text label)
         {
             return label != null && label.gameObject.scene.IsValid();
+        }
+
+        private void UpdatePortrait(Sprite sprite)
+        {
+            if (portraitImage == null)
+            {
+                return;
+            }
+
+            portraitImage.sprite = sprite;
+            portraitImage.enabled = sprite != null;
         }
     }
 }

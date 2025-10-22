@@ -41,15 +41,8 @@ namespace BattleV2.UI
 
         private void HandleCombatantsBound(CombatantState player, CombatantState enemy)
         {
-            if (playerWidget != null)
-            {
-                playerWidget.SetSource(player);
-            }
-
-            if (enemyWidget != null)
-            {
-                enemyWidget.SetSource(enemy);
-            }
+            playerWidget?.Bind(player);
+            enemyWidget?.Bind(enemy);
 
             if (playerHudController != null)
             {
