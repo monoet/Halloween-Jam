@@ -1153,6 +1153,10 @@ PrefabInstance:
       propertyPath: m_AnchoredPosition.x
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 7146032512054841536, guid: cdb41bd1a5f4e694a9269cb3a77bcd78, type: 3}
+      propertyPath: m_Name
+      value: Portrait
+      objectReference: {fileID: 0}
     - target: {fileID: 7733914882383510487, guid: cdb41bd1a5f4e694a9269cb3a77bcd78, type: 3}
       propertyPath: m_AnchorMax.y
       value: 0
@@ -5092,6 +5096,10 @@ PrefabInstance:
       propertyPath: m_AnchorMax.y
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 1725532387218130962, guid: 2751271e5b044404d8e9aeb2348f05ae, type: 3}
+      propertyPath: m_Name
+      value: Portrait
+      objectReference: {fileID: 0}
     - target: {fileID: 1850242311322490944, guid: 2751271e5b044404d8e9aeb2348f05ae, type: 3}
       propertyPath: m_AnchorMax.y
       value: 0
@@ -7386,9 +7394,13 @@ MonoBehaviour:
   autoSpawnPlayer: 1
   playerLoadout: {fileID: 11400000, guid: 3541dc7129197364bba1e29eb96ab5a7, type: 2}
   playerSpawnPoint: {fileID: 0}
+  playerPartyLoadout: {fileID: 11400000, guid: 90ac077e6c27f9841b68b1aa478abacc, type: 2}
+  playerSpawnPoints: []
   autoSpawnEnemy: 1
   enemyLoadout: {fileID: 11400000, guid: 8d0c100ef4f155d46988ceca2fd470db, type: 2}
   enemySpawnPoint: {fileID: 1648470070280103818, guid: 8b4b01748013e2443b807f9d272040d8, type: 3}
+  enemyEncounterLoadout: {fileID: 11400000, guid: 79219e8d2028b7f4890c4253d71451da, type: 2}
+  enemySpawnPoints: []
   preActionDelaySeconds: 0.33
 --- !u!114 &1941987471
 MonoBehaviour:
