@@ -18,6 +18,19 @@ namespace BattleV2.UI
 
         private readonly Dictionary<CombatantState, CombatantHudWidget> widgets = new();
 
+        public void RegisterCombatants(IEnumerable<CombatantState> combatants, bool isEnemy)
+        {
+            if (combatants == null)
+            {
+                return;
+            }
+
+            foreach (var combatant in combatants)
+            {
+                RegisterCombatant(combatant, isEnemy);
+            }
+        }
+
         public void RegisterCombatant(CombatantState combatant, bool isEnemy)
         {
             if (combatant == null)

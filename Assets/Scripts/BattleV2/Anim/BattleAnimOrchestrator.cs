@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using BattleV2.Orchestration;
 using BattleV2.Providers;
 using UnityEngine;
@@ -107,8 +108,10 @@ namespace BattleV2.Anim
             InvokeResetStrategies();
         }
 
-        private void HandleCombatantsBound(CombatantState playerState, CombatantState enemyState)
+        private void HandleCombatantsBound(IReadOnlyList<CombatantState> allies, IReadOnlyList<CombatantState> enemies)
         {
+            var playerState = allies != null && allies.Count > 0 ? allies[0] : null;
+            var enemyState = enemies != null && enemies.Count > 0 ? enemies[0] : null;
             bool changed = false;
 
             var resolvedPlayer = ResolveController(playerState, playerAnim);

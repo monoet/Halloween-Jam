@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using BattleV2.Orchestration;
 
@@ -27,7 +28,7 @@ namespace BattleV2.UI
             if (manager != null)
             {
                 manager.OnCombatantsBound += HandleCombatantsBound;
-                HandleCombatantsBound(manager.Player, manager.Enemy);
+                HandleCombatantsBound(manager.Allies, manager.Enemies);
             }
         }
 
@@ -39,8 +40,11 @@ namespace BattleV2.UI
             }
         }
 
-        private void HandleCombatantsBound(CombatantState player, CombatantState enemy)
+        private void HandleCombatantsBound(IReadOnlyList<CombatantState> allies, IReadOnlyList<CombatantState> enemies)
         {
+            var player = allies != null && allies.Count > 0 ? allies[0] : null;
+            var enemy = enemies != null && enemies.Count > 0 ? enemies[0] : null;
+
             playerWidget?.Bind(player);
             enemyWidget?.Bind(enemy);
 
