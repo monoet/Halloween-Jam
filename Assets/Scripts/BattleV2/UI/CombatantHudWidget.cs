@@ -18,6 +18,8 @@ namespace BattleV2.UI
         [SerializeField] private TMP_Text spText;
         [SerializeField] private TMP_Text cpText;
         [SerializeField] private Image portraitImage;
+        [SerializeField] private bool autoFindPortraitImage = true;
+        [SerializeField] private string portraitChildPath = "Portrait";
 
         [Header("Optional Sliders")]
         [SerializeField] private Slider hpSlider;
@@ -38,6 +40,7 @@ namespace BattleV2.UI
         private void Awake()
         {
             vitalsListener = ScheduleRefresh;
+            EnsurePortraitReference();
             ScheduleRefresh();
         }
 
@@ -56,10 +59,13 @@ namespace BattleV2.UI
                     cpPips[i] = null;
                 }
             }
+
+            EnsurePortraitReference();
         }
 
         private void OnEnable()
         {
+            EnsurePortraitReference();
             Subscribe(source);
             ScheduleRefresh();
         }
@@ -111,6 +117,7 @@ namespace BattleV2.UI
             Unsubscribe(source);
             source = newSource;
             Subscribe(source);
+            EnsurePortraitReference();
             ScheduleRefresh();
         }
 
@@ -284,6 +291,32 @@ namespace BattleV2.UI
 
             portraitImage.sprite = sprite;
             portraitImage.enabled = sprite != null;
+        }
+
+        private void EnsurePortraitReference()
+        {
+            if (portraitImage != null || !autoFindPortraitImage)
+            {
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(portraitChildPath))
+            {
+                var target = transform.Find(portraitChildPath);
+                if (target != null)
+                {
+                    portraitImage = target.GetComponent<Image>();
+                    if (portraitImage != null)
+                    {
+                        return;
+                    }
+                }
+            }
+
+            if (portraitImage == null)
+            {
+                portraitImage = GetComponentInChildren<Image>(includeInactive: true);
+            }
         }
     }
 }
