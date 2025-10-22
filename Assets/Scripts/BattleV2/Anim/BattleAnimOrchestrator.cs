@@ -13,6 +13,7 @@ namespace BattleV2.Anim
         [SerializeField] private BattleManagerV2 manager;
         [SerializeField] private BattleAnimationController playerAnim;
         [SerializeField] private BattleAnimationController enemyAnim;
+        [SerializeField] private bool autoBindControllers = true;
         [SerializeField] private BattleAnimationStrategy sharedStrategy;
         [SerializeField] private BattleAnimationStrategy playerStrategyOverride;
         [SerializeField] private BattleAnimationStrategy enemyStrategyOverride;
@@ -58,6 +59,10 @@ namespace BattleV2.Anim
 
             manager.OnPlayerActionSelected += HandlePlayerActionSelected;
             manager.OnPlayerActionResolved += HandlePlayerActionResolved;
+            if (autoBindControllers)
+            {
+                manager.OnCombatantsBound += HandleCombatantsBound;
+            }
             BattleEvents.OnCombatReset += HandleCombatReset;
             BattleEvents.OnAnimationStageCompleted += HandleAnimationStageCompleted;
         }
@@ -68,6 +73,10 @@ namespace BattleV2.Anim
             {
                 manager.OnPlayerActionSelected -= HandlePlayerActionSelected;
                 manager.OnPlayerActionResolved -= HandlePlayerActionResolved;
+                if (autoBindControllers)
+                {
+                    manager.OnCombatantsBound -= HandleCombatantsBound;
+                }
             }
 
             BattleEvents.OnCombatReset -= HandleCombatReset;
@@ -96,6 +105,46 @@ namespace BattleV2.Anim
         {
             ReleaseLockImmediate();
             InvokeResetStrategies();
+        }
+
+        private void HandleCombatantsBound(CombatantState playerState, CombatantState enemyState)
+        {
+            bool changed = false;
+
+            var resolvedPlayer = ResolveController(playerState, playerAnim);
+            if (resolvedPlayer != playerAnim)
+            {
+                playerAnim = resolvedPlayer;
+                changed = true;
+            }
+
+            var resolvedEnemy = ResolveController(enemyState, enemyAnim);
+            if (resolvedEnemy != enemyAnim)
+            {
+                enemyAnim = resolvedEnemy;
+                changed = true;
+            }
+
+            if (changed)
+            {
+                RefreshContext();
+                InvokeResetStrategies();
+            }
+        }
+
+        private static BattleAnimationController ResolveController(CombatantState state, BattleAnimationController current)
+        {
+            if (state == null)
+            {
+                return null;
+            }
+
+            if (current != null && current.gameObject.scene.IsValid())
+            {
+                return current;
+            }
+
+            return state.GetComponentInChildren<BattleAnimationController>();
         }
 
         private void InvokeResetStrategies()

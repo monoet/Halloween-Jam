@@ -78,6 +78,25 @@ public class CombatantState : MonoBehaviour
         UnsubscribeRuntime();
     }
 
+#if UNITY_EDITOR
+    private void OnValidate()
+    {
+        if (Application.isPlaying)
+        {
+            return;
+        }
+
+        runtimeStatsListener ??= HandleRuntimeStatsChanged;
+
+        if (characterRuntime == null)
+        {
+            characterRuntime = GetComponent<CharacterRuntime>();
+        }
+
+        AttachRuntime(characterRuntime);
+    }
+#endif
+
     public void InitializeFrom(CharacterRuntime character, bool preserveCurrentFraction = false)
     {
         AttachRuntime(character);

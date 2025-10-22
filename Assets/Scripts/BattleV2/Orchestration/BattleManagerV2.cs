@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Threading.Tasks;
 using BattleV2.Actions;
 using BattleV2.Anim;
@@ -30,6 +31,11 @@ namespace BattleV2.Orchestration
         [SerializeField] private CombatantState enemy;
         [SerializeField] private CharacterRuntime enemyRuntime;
 
+        [Header("Enemy Spawn")]
+        [SerializeField] private bool autoSpawnEnemy = true;
+        [SerializeField] private EnemyLoadout enemyLoadout;
+        [SerializeField] private Transform enemySpawnPoint;
+
         [Header("Pipeline Tuning")]
         [SerializeField, Min(0f)] private float preActionDelaySeconds = 0.12f;
 
@@ -43,18 +49,27 @@ namespace BattleV2.Orchestration
         private bool waitingForPlayerAnimation;
         private bool waitingForEnemyAnimation;
         private Coroutine playerActionDelayRoutine;
+        private GameObject spawnedEnemyInstance;
+        private ScriptableObject enemyDropTable;
         private IActionPipelineFactory actionPipelineFactory;
         private ITimedHitRunner timedHitRunner;
 
         public BattleActionData LastExecutedAction { get; private set; }
         public ITimedHitRunner TimedHitRunner => timedHitRunner ?? InstantTimedHitRunner.Shared;
+        public CombatantState Player => player;
+        public CombatantState Enemy => enemy;
+        public CharacterRuntime PlayerRuntime => playerRuntime;
+        public CharacterRuntime EnemyRuntime => enemyRuntime;
         public float PreActionDelaySeconds
         {
             get => preActionDelaySeconds;
             set => preActionDelaySeconds = Mathf.Max(0f, value);
         }
+        public GameObject SpawnedEnemyInstance => spawnedEnemyInstance;
+        public ScriptableObject EnemyDropTable => enemyDropTable;
         public event Action<BattleSelection, int> OnPlayerActionSelected;
         public event Action<BattleSelection, int, int> OnPlayerActionResolved;
+        public event Action<CombatantState, CombatantState> OnCombatantsBound;
 
         private void Awake()
         {
@@ -91,6 +106,7 @@ namespace BattleV2.Orchestration
 
             ComboPointScaling.Configure(config != null ? config.comboPointScaling : null);
 
+            EnsureEnemySpawned();
             BindCombatants(preservePlayerVitals: false, preserveEnemyVitals: false);
 
             var services = config != null ? config.services : new BattleServices();
@@ -119,6 +135,7 @@ namespace BattleV2.Orchestration
                 StopCoroutine(playerActionDelayRoutine);
                 playerActionDelayRoutine = null;
             }
+            spawnedEnemyInstance = null;
             animationLocked = false;
             waitingForPlayerAnimation = false;
             waitingForEnemyAnimation = false;
@@ -197,6 +214,8 @@ namespace BattleV2.Orchestration
                     enemy.InitializeFrom(null, preserveEnemyVitals);
                 }
             }
+
+            OnCombatantsBound?.Invoke(player, enemy);
         }
 
         private static CharacterRuntime ResolveRuntimeReference(CombatantState combatant, CharacterRuntime overrideRuntime)
@@ -378,7 +397,7 @@ namespace BattleV2.Orchestration
             RunPlayerActionPipeline(selection, implementation, cpBefore);
         }
 
-        private System.Collections.IEnumerator ExecutePlayerActionAfterDelay(
+        private IEnumerator ExecutePlayerActionAfterDelay(
             BattleSelection selection,
             IAction implementation,
             int cpBefore,
@@ -389,6 +408,51 @@ namespace BattleV2.Orchestration
             waitingForPlayerAnimation = false;
             playerActionDelayRoutine = null;
             DispatchPlayerAction(selection, implementation, cpBefore);
+        }
+
+        private void EnsureEnemySpawned()
+        {
+            if (!autoSpawnEnemy || enemy != null)
+            {
+                enemyRuntime = ResolveRuntimeReference(enemy, enemyRuntime);
+                return;
+            }
+
+            if (enemyLoadout == null || !enemyLoadout.IsValid)
+            {
+                BattleLogger.Warn("BattleManager", "Auto enemy spawn enabled but loadout is missing or invalid.");
+                return;
+            }
+
+            var prefab = enemyLoadout.EnemyPrefab;
+            if (prefab == null)
+            {
+                BattleLogger.Warn("BattleManager", "Enemy loadout is missing a prefab; cannot spawn enemy.");
+                return;
+            }
+
+            Transform parent = enemySpawnPoint != null ? enemySpawnPoint : transform;
+            Vector3 basePosition = enemySpawnPoint != null ? enemySpawnPoint.position : parent.position;
+            Quaternion baseRotation = enemySpawnPoint != null ? enemySpawnPoint.rotation : parent.rotation;
+
+            var instance = Instantiate(prefab, basePosition + enemyLoadout.SpawnOffset, baseRotation, parent);
+            spawnedEnemyInstance = instance;
+
+            var combatant = instance.GetComponentInChildren<CombatantState>();
+            if (combatant == null)
+            {
+                BattleLogger.Error("BattleManager", $"Spawned enemy prefab '{prefab.name}' missing CombatantState component. Destroying instance.");
+                Destroy(instance);
+                spawnedEnemyInstance = null;
+                return;
+            }
+
+            enemy = combatant;
+            enemyRuntime = ResolveRuntimeReference(enemy, enemyRuntime);
+            enemy.EnsureInitialized(enemyRuntime);
+
+            enemyDropTable = enemyLoadout.DropTable;
+            BattleLogger.Log("BattleManager", $"Spawned enemy '{enemy.DisplayName}' from loadout '{enemyLoadout.name}'.");
         }
 
         private void TryExecutePendingEnemyTurn()

@@ -38,6 +38,24 @@ public class CharacterRuntime : MonoBehaviour
         Recalc();
     }
 
+#if UNITY_EDITOR
+    private void OnValidate()
+    {
+        if (archetype == null)
+        {
+            return;
+        }
+
+        InitializeFromArchetype();
+
+        // Avoid recalculation spam in play mode; the normal Awake/Recalc handles runtime.
+        if (!Application.isPlaying)
+        {
+            ApplyGrowthFromArchetype();
+        }
+    }
+#endif
+
     public void Recalc()
     {
         if (statFormula == null)

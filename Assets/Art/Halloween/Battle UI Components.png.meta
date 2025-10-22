@@ -182,10 +182,10 @@ TextureImporter:
       name: Battle UI Components_1
       rect:
         serializedVersion: 2
-        x: 23
-        y: 50
-        width: 54
-        height: 14
+        x: 56
+        y: 57
+        width: 20
+        height: 5
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -204,10 +204,10 @@ TextureImporter:
       name: Battle UI Components_2
       rect:
         serializedVersion: 2
-        x: 23
-        y: 39
-        width: 34
-        height: 9
+        x: 51
+        y: 40
+        width: 5
+        height: 7
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -338,8 +338,8 @@ TextureImporter:
         serializedVersion: 2
         x: 23
         y: 24
-        width: 30
-        height: 14
+        width: 7
+        height: 9
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -596,6 +596,72 @@ TextureImporter:
       indices: 
       edges: []
       weights: []
+    - serializedVersion: 2
+      name: Battle UI Components_20
+      rect:
+        serializedVersion: 2
+        x: 57
+        y: 51
+        width: 18
+        height: 2
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6cea9c926879da14e895d10e34789beb
+      internalID: 529149037
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Battle UI Components_21
+      rect:
+        serializedVersion: 2
+        x: 25
+        y: 35
+        width: 25
+        height: 2
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ce5d1b4a98efb26458ee72dddb8c63ad
+      internalID: 1570935257
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Battle UI Components_22
+      rect:
+        serializedVersion: 2
+        x: 51
+        y: 57
+        width: 5
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8e845c5d64ae52241ab73ffaf22b4c7a
+      internalID: -1414723068
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
     outline: []
     customData: 
     physicsShape: []
@@ -623,6 +689,9 @@ TextureImporter:
       Battle UI Components_18: 2276631245059091572
       Battle UI Components_19: 1045624666535656968
       Battle UI Components_2: 926266738622396580
+      Battle UI Components_20: 529149037
+      Battle UI Components_21: 1570935257
+      Battle UI Components_22: -1414723068
       Battle UI Components_3: -7932634918682946090
       Battle UI Components_4: -1130229008640530113
       Battle UI Components_5: -6808249828968474055
