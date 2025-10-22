@@ -31,6 +31,11 @@ namespace BattleV2.Orchestration
         [SerializeField] private CombatantState enemy;
         [SerializeField] private CharacterRuntime enemyRuntime;
 
+        [Header("Player Spawn")]
+        [SerializeField] private bool autoSpawnPlayer = true;
+        [SerializeField] private PlayerLoadout playerLoadout;
+        [SerializeField] private Transform playerSpawnPoint;
+
         [Header("Enemy Spawn")]
         [SerializeField] private bool autoSpawnEnemy = true;
         [SerializeField] private EnemyLoadout enemyLoadout;
@@ -49,6 +54,7 @@ namespace BattleV2.Orchestration
         private bool waitingForPlayerAnimation;
         private bool waitingForEnemyAnimation;
         private Coroutine playerActionDelayRoutine;
+        private GameObject spawnedPlayerInstance;
         private GameObject spawnedEnemyInstance;
         private ScriptableObject enemyDropTable;
         private IActionPipelineFactory actionPipelineFactory;
@@ -66,6 +72,7 @@ namespace BattleV2.Orchestration
             set => preActionDelaySeconds = Mathf.Max(0f, value);
         }
         public GameObject SpawnedEnemyInstance => spawnedEnemyInstance;
+        public GameObject SpawnedPlayerInstance => spawnedPlayerInstance;
         public ScriptableObject EnemyDropTable => enemyDropTable;
         public event Action<BattleSelection, int> OnPlayerActionSelected;
         public event Action<BattleSelection, int, int> OnPlayerActionResolved;
@@ -106,6 +113,7 @@ namespace BattleV2.Orchestration
 
             ComboPointScaling.Configure(config != null ? config.comboPointScaling : null);
 
+            EnsurePlayerSpawned();
             EnsureEnemySpawned();
             BindCombatants(preservePlayerVitals: false, preserveEnemyVitals: false);
 
@@ -135,6 +143,7 @@ namespace BattleV2.Orchestration
                 StopCoroutine(playerActionDelayRoutine);
                 playerActionDelayRoutine = null;
             }
+            spawnedPlayerInstance = null;
             spawnedEnemyInstance = null;
             animationLocked = false;
             waitingForPlayerAnimation = false;
@@ -249,6 +258,8 @@ namespace BattleV2.Orchestration
         {
             ComboPointScaling.Configure(config != null ? config.comboPointScaling : null);
 
+            EnsurePlayerSpawned();
+            EnsureEnemySpawned();
             BindCombatants(preservePlayerVitals: false, preserveEnemyVitals: false);
 
             var services = context != null
@@ -453,6 +464,48 @@ namespace BattleV2.Orchestration
 
             enemyDropTable = enemyLoadout.DropTable;
             BattleLogger.Log("BattleManager", $"Spawned enemy '{enemy.DisplayName}' from loadout '{enemyLoadout.name}'.");
+        }
+
+        private void EnsurePlayerSpawned()
+        {
+            if (!autoSpawnPlayer || player != null)
+            {
+                playerRuntime = ResolveRuntimeReference(player, playerRuntime);
+                return;
+            }
+
+            if (playerLoadout == null || !playerLoadout.IsValid)
+            {
+                BattleLogger.Warn("BattleManager", "Auto player spawn enabled but loadout is missing or invalid.");
+                return;
+            }
+
+            var prefab = playerLoadout.PlayerPrefab;
+            if (prefab == null)
+            {
+                BattleLogger.Warn("BattleManager", "Player loadout is missing a prefab; cannot spawn player.");
+                return;
+            }
+
+            Transform parent = playerSpawnPoint != null ? playerSpawnPoint : transform;
+            Vector3 basePosition = playerSpawnPoint != null ? playerSpawnPoint.position : parent.position;
+            Quaternion baseRotation = playerSpawnPoint != null ? playerSpawnPoint.rotation : parent.rotation;
+
+            var instance = Instantiate(prefab, basePosition + playerLoadout.SpawnOffset, baseRotation, parent);
+            spawnedPlayerInstance = instance;
+
+            var combatant = instance.GetComponentInChildren<CombatantState>();
+            if (combatant == null)
+            {
+                BattleLogger.Error("BattleManager", $"Spawned player prefab '{prefab.name}' missing CombatantState component. Destroying instance.");
+                Destroy(instance);
+                spawnedPlayerInstance = null;
+                return;
+            }
+
+            player = combatant;
+            playerRuntime = ResolveRuntimeReference(player, playerRuntime);
+            player.EnsureInitialized(playerRuntime);
         }
 
         private void TryExecutePendingEnemyTurn()
