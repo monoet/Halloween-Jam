@@ -489,22 +489,32 @@ namespace BattleV2.Orchestration
 
             if (!autoSpawnEnemy)
             {
+                enemyDropTable = null;
                 if (enemy != null)
                 {
                     enemyCombatants.Add(enemy);
                     enemyRuntime = ResolveRuntimeReference(enemy, enemyRuntime);
                 }
-                enemyDropTable = null;
                 return;
             }
 
             DestroyAutoSpawned(spawnedEnemyInstances);
+            enemyDropTable = null;
 
-            ScriptableObject firstDropTable = null;
+            IReadOnlyList<CombatantLoadoutEntry> entries = enemyEncounterLoadout != null && enemyEncounterLoadout.Enemies.Count > 0
+                ? enemyEncounterLoadout.Enemies
+                : null;
 
-            if (enemyEncounterLoadout != null && enemyEncounterLoadout.Enemies.Count > 0)
+            Vector3[] patternOffsets = null;
+            if (enemyEncounterLoadout?.SpawnPattern != null && entries != null)
             {
-                var entries = enemyEncounterLoadout.Enemies;
+                enemyEncounterLoadout.SpawnPattern.TryGetOffsets(entries.Count, out patternOffsets);
+            }
+
+            var fallbackParent = IsSceneTransform(enemySpawnPoint) ? enemySpawnPoint : transform;
+
+            if (entries != null)
+            {
                 for (int i = 0; i < entries.Count; i++)
                 {
                     var entry = entries[i];
@@ -513,29 +523,50 @@ namespace BattleV2.Orchestration
                         continue;
                     }
 
-                    var spawnTransform = ResolveSpawnTransform(enemySpawnPoints, enemySpawnPoint, i);
-                    var combatant = SpawnCombatant(entry, spawnTransform, spawnedEnemyInstances, out var dropTable);
+                    Transform spawnTransform = null;
+                    if (enemySpawnPoints != null && enemySpawnPoints.Length > 0)
+                    {
+                        spawnTransform = ResolveSpawnTransform(enemySpawnPoints, enemySpawnPoint, i);
+                    }
+
+                    var parent = spawnTransform != null ? spawnTransform : fallbackParent;
+                    Vector3 offset = entry.SpawnOffset;
+                    if (spawnTransform == null && patternOffsets != null && patternOffsets.Length > 0)
+                    {
+                        offset += patternOffsets[Mathf.Clamp(i, 0, patternOffsets.Length - 1)];
+                    }
+
+                    Vector3 worldPosition = parent.position + offset;
+                    Quaternion worldRotation = parent.rotation;
+
+                    var combatant = SpawnCombatant(entry, parent, worldPosition, worldRotation, spawnedEnemyInstances, out var dropTable);
                     if (combatant == null)
                     {
                         continue;
                     }
 
                     enemyCombatants.Add(combatant);
-                    if (firstDropTable == null && dropTable != null)
+                    if (enemyDropTable == null && dropTable != null)
                     {
-                        firstDropTable = dropTable;
+                        enemyDropTable = dropTable;
                     }
                 }
             }
             else if (enemyLoadout != null && enemyLoadout.IsValid)
             {
                 var entry = new CombatantLoadoutEntry(enemyLoadout.EnemyPrefab, enemyLoadout.SpawnOffset, enemyLoadout.DropTable);
-                var spawnTransform = ResolveSpawnTransform(enemySpawnPoints, enemySpawnPoint, 0);
-                var combatant = SpawnCombatant(entry, spawnTransform, spawnedEnemyInstances, out var dropTable);
+                var parent = ResolveSpawnTransform(enemySpawnPoints, enemySpawnPoint, 0);
+                Vector3 worldPosition = parent.position + entry.SpawnOffset;
+                Quaternion worldRotation = parent.rotation;
+
+                var combatant = SpawnCombatant(entry, parent, worldPosition, worldRotation, spawnedEnemyInstances, out var dropTable);
                 if (combatant != null)
                 {
                     enemyCombatants.Add(combatant);
-                    firstDropTable = dropTable;
+                    if (dropTable != null)
+                    {
+                        enemyDropTable = dropTable;
+                    }
                 }
             }
 
@@ -549,8 +580,6 @@ namespace BattleV2.Orchestration
                 enemy = null;
                 enemyRuntime = null;
             }
-
-            enemyDropTable = firstDropTable;
         }
 
         private void EnsurePlayerSpawned()
@@ -569,6 +598,8 @@ namespace BattleV2.Orchestration
 
             DestroyAutoSpawned(spawnedPlayerInstances);
 
+            var fallbackParent = IsSceneTransform(playerSpawnPoint) ? playerSpawnPoint : transform;
+
             if (playerPartyLoadout != null && playerPartyLoadout.Members.Count > 0)
             {
                 var members = playerPartyLoadout.Members;
@@ -580,8 +611,17 @@ namespace BattleV2.Orchestration
                         continue;
                     }
 
-                    var spawnTransform = ResolveSpawnTransform(playerSpawnPoints, playerSpawnPoint, i);
-                    var combatant = SpawnCombatant(entry, spawnTransform, spawnedPlayerInstances, out _);
+                    Transform spawnTransform = null;
+                    if (playerSpawnPoints != null && playerSpawnPoints.Length > 0)
+                    {
+                        spawnTransform = ResolveSpawnTransform(playerSpawnPoints, playerSpawnPoint, i);
+                    }
+
+                    var parent = spawnTransform != null ? spawnTransform : fallbackParent;
+                    Vector3 worldPosition = parent.position + entry.SpawnOffset;
+                    Quaternion worldRotation = parent.rotation;
+
+                    var combatant = SpawnCombatant(entry, parent, worldPosition, worldRotation, spawnedPlayerInstances, out _);
                     if (combatant == null)
                     {
                         continue;
@@ -593,8 +633,11 @@ namespace BattleV2.Orchestration
             else if (playerLoadout != null && playerLoadout.IsValid)
             {
                 var entry = new CombatantLoadoutEntry(playerLoadout.PlayerPrefab, playerLoadout.SpawnOffset);
-                var spawnTransform = ResolveSpawnTransform(playerSpawnPoints, playerSpawnPoint, 0);
-                var combatant = SpawnCombatant(entry, spawnTransform, spawnedPlayerInstances, out _);
+                var parent = ResolveSpawnTransform(playerSpawnPoints, playerSpawnPoint, 0);
+                Vector3 worldPosition = parent.position + entry.SpawnOffset;
+                Quaternion worldRotation = parent.rotation;
+
+                var combatant = SpawnCombatant(entry, parent, worldPosition, worldRotation, spawnedPlayerInstances, out _);
                 if (combatant != null)
                 {
                     allyCombatants.Add(combatant);
@@ -643,13 +686,14 @@ namespace BattleV2.Orchestration
             if (points != null && points.Length > 0)
             {
                 int clamped = Mathf.Clamp(index, 0, points.Length - 1);
-                if (points[clamped] != null)
+                Transform candidate = points[clamped];
+                if (IsSceneTransform(candidate))
                 {
-                    return points[clamped];
+                    return candidate;
                 }
             }
 
-            if (fallback != null)
+            if (IsSceneTransform(fallback))
             {
                 return fallback;
             }
@@ -657,9 +701,16 @@ namespace BattleV2.Orchestration
             return transform;
         }
 
+        private bool IsSceneTransform(Transform target)
+        {
+            return target != null && target.gameObject.scene.IsValid();
+        }
+
         private CombatantState SpawnCombatant(
             CombatantLoadoutEntry entry,
-            Transform spawnTransform,
+            Transform parentTransform,
+            Vector3 worldPosition,
+            Quaternion worldRotation,
             List<GameObject> instanceCollector,
             out ScriptableObject dropTable)
         {
@@ -670,14 +721,12 @@ namespace BattleV2.Orchestration
                 return null;
             }
 
-            var parent = spawnTransform != null ? spawnTransform : transform;
-            var basePosition = spawnTransform != null ? spawnTransform.position : parent.position;
-            var rotation = spawnTransform != null ? spawnTransform.rotation : parent.rotation;
+            Transform parent = parentTransform != null ? parentTransform : transform;
 
-            var instance = Instantiate(entry.Prefab, basePosition + entry.SpawnOffset, rotation, parent);
+            GameObject instance = Instantiate(entry.Prefab, worldPosition, worldRotation, parent);
             instanceCollector?.Add(instance);
 
-            var combatant = instance.GetComponentInChildren<CombatantState>();
+            CombatantState combatant = instance.GetComponentInChildren<CombatantState>();
             if (combatant == null)
             {
                 BattleLogger.Error("BattleManager", $"Spawned prefab '{entry.Prefab.name}' missing CombatantState component. Destroying instance.");
@@ -880,6 +929,7 @@ namespace BattleV2.Orchestration
         }
     }
 }
+
 
 
 

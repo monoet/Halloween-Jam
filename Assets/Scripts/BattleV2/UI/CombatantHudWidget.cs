@@ -36,11 +36,13 @@ namespace BattleV2.UI
 
         private UnityAction vitalsListener;
         private bool pendingRefresh;
+        private WorldSpaceHudAnchor worldAnchor;
 
         private void Awake()
         {
             vitalsListener = ScheduleRefresh;
             EnsurePortraitReference();
+            worldAnchor = GetComponent<WorldSpaceHudAnchor>();
             ScheduleRefresh();
         }
 
@@ -68,11 +70,16 @@ namespace BattleV2.UI
             EnsurePortraitReference();
             Subscribe(source);
             ScheduleRefresh();
+            SyncAnchorTarget();
         }
 
         private void OnDisable()
         {
             Unsubscribe(source);
+            if (worldAnchor != null)
+            {
+                worldAnchor.Target = null;
+            }
         }
 
         /// <summary>
@@ -119,6 +126,7 @@ namespace BattleV2.UI
             Subscribe(source);
             EnsurePortraitReference();
             ScheduleRefresh();
+            SyncAnchorTarget();
         }
 
         private void Subscribe(CombatantState target)
@@ -192,6 +200,16 @@ namespace BattleV2.UI
 
             UpdatePips(source.CurrentCP, source.MaxCP);
             UpdatePortrait(source.Portrait);
+        }
+
+        private void SyncAnchorTarget()
+        {
+            if (worldAnchor == null)
+            {
+                return;
+            }
+
+            worldAnchor.Target = source != null ? source.transform : null;
         }
 
         private void SetLabels(string displayName, string hpValue, string spValue, string cpValue)
