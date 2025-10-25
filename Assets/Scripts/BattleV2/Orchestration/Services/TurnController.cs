@@ -7,6 +7,8 @@ namespace BattleV2.Orchestration.Services
     {
         CombatantState Current { get; }
         CombatantState Next();
+        void Reset();
+        void SetCurrent(CombatantState actor);
         void Rebuild(IReadOnlyList<CombatantState> allies, IReadOnlyList<CombatantState> enemies);
     }
 
@@ -24,7 +26,9 @@ namespace BattleV2.Orchestration.Services
             this.eventBus = eventBus;
         }
 
-        public CombatantState Current => turnOrder.Count == 0 ? null : turnOrder[currentIndex];
+        public CombatantState Current => currentIndex >= 0 && currentIndex < turnOrder.Count
+            ? turnOrder[currentIndex]
+            : null;
 
         public CombatantState Next()
         {
@@ -33,14 +37,44 @@ namespace BattleV2.Orchestration.Services
                 return null;
             }
 
-            currentIndex = (currentIndex + 1) % turnOrder.Count;
+            currentIndex++;
+            if (currentIndex >= turnOrder.Count)
+            {
+                currentIndex = 0;
+            }
+
             return turnOrder[currentIndex];
+        }
+
+        public void Reset()
+        {
+            currentIndex = -1;
+        }
+
+        public void SetCurrent(CombatantState actor)
+        {
+            if (actor == null)
+            {
+                currentIndex = -1;
+                return;
+            }
+
+            for (int i = 0; i < turnOrder.Count; i++)
+            {
+                if (turnOrder[i] == actor)
+                {
+                    currentIndex = i;
+                    return;
+                }
+            }
+
+            currentIndex = -1;
         }
 
         public void Rebuild(IReadOnlyList<CombatantState> allies, IReadOnlyList<CombatantState> enemies)
         {
             turnOrder.Clear();
-            currentIndex = 0;
+            currentIndex = -1;
 
             if (allies != null)
             {

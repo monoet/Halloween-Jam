@@ -6,6 +6,7 @@ using BattleV2.Core;
 using BattleV2.Orchestration.Events;
 using BattleV2.Orchestration;
 using BattleV2.Targeting;
+using UnityEngine;
 
 namespace BattleV2.Orchestration.Services
 {
@@ -118,7 +119,7 @@ namespace BattleV2.Orchestration.Services
             try
             {
                 var result = await actionPipeline.Run(actionRequest).ConfigureAwait(false);
-                eventBus?.Publish(new ActionCompletedEvent(request.Origin, selection.WithTimedResult(result.TimedResult)));
+                eventBus?.Publish(new ActionCompletedEvent(request.Origin, selection.WithTimedResult(result.TimedResult), request.Targets, true));
             }
             catch (Exception ex)
             {

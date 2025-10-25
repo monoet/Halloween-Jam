@@ -37,7 +37,8 @@ namespace BattleV2.Orchestration.Services
             IReadOnlyList<CombatantState> enemies,
             IReadOnlyList<GameObject> spawnedPlayerInstances,
             IReadOnlyList<GameObject> spawnedEnemyInstances,
-            ScriptableObject enemyDropTable)
+            ScriptableObject enemyDropTable,
+            float averageSpeed)
         {
             Player = player;
             PlayerRuntime = playerRuntime;
@@ -48,6 +49,7 @@ namespace BattleV2.Orchestration.Services
             SpawnedPlayerInstances = spawnedPlayerInstances;
             SpawnedEnemyInstances = spawnedEnemyInstances;
             EnemyDropTable = enemyDropTable;
+            AverageSpeed = averageSpeed;
         }
 
         public CombatantState Player { get; }
@@ -59,6 +61,7 @@ namespace BattleV2.Orchestration.Services
         public IReadOnlyList<GameObject> SpawnedPlayerInstances { get; }
         public IReadOnlyList<GameObject> SpawnedEnemyInstances { get; }
         public ScriptableObject EnemyDropTable { get; }
+        public float AverageSpeed { get; }
 
         public static RosterSnapshot Empty => new RosterSnapshot(
             null,
@@ -69,7 +72,8 @@ namespace BattleV2.Orchestration.Services
             System.Array.Empty<CombatantState>(),
             System.Array.Empty<GameObject>(),
             System.Array.Empty<GameObject>(),
-            null);
+            null,
+            0f);
     }
 
     public sealed class CombatantRosterService
@@ -127,6 +131,8 @@ namespace BattleV2.Orchestration.Services
             hudManager?.RegisterCombatants(allies, isEnemy: false);
             hudManager?.RegisterCombatants(enemies, isEnemy: true);
 
+            float averageSpeed = ComputeAverageSpeed(allies, enemies);
+
             snapshot = new RosterSnapshot(
                 player,
                 playerRuntime,
@@ -136,7 +142,8 @@ namespace BattleV2.Orchestration.Services
                 enemies,
                 spawnedPlayerInstances,
                 spawnedEnemyInstances,
-                enemyDropTable);
+                enemyDropTable,
+                averageSpeed);
 
             return snapshot;
         }
@@ -451,6 +458,37 @@ namespace BattleV2.Orchestration.Services
 
             dropTable = entry.DropTable;
             return combatant;
+        }
+
+        private static float ComputeAverageSpeed(IReadOnlyList<CombatantState> allies, IReadOnlyList<CombatantState> enemies)
+        {
+            float total = 0f;
+            int count = 0;
+
+            Accumulate(allies, ref total, ref count);
+            Accumulate(enemies, ref total, ref count);
+
+            return count > 0 ? total / count : 1f;
+
+            static void Accumulate(IReadOnlyList<CombatantState> list, ref float total, ref int count)
+            {
+                if (list == null)
+                {
+                    return;
+                }
+
+                for (int i = 0; i < list.Count; i++)
+                {
+                    var combatant = list[i];
+                    if (combatant == null || !combatant.IsAlive)
+                    {
+                        continue;
+                    }
+
+                    total += combatant.FinalStats.Speed;
+                    count++;
+                }
+            }
         }
     }
 }

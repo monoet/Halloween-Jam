@@ -9,6 +9,8 @@ using BattleV2.Core;
 using BattleV2.Execution;
 using BattleV2.Execution.TimedHits;
 using BattleV2.Orchestration.Services;
+using BattleV2.Orchestration.Services.Animation;
+using BattleV2.Orchestration.Services.End;
 using BattleV2.Orchestration.Events;
 using BattleV2.Providers;
 using BattleV2.Targeting;
@@ -30,6 +32,9 @@ namespace BattleV2.Orchestration
         [SerializeField] private ScriptableObject inputProviderAsset;
         [SerializeField] private MonoBehaviour inputProviderComponent;
         [SerializeField] private HUDManager hudManager;
+
+        [Header("Timing")]
+        [SerializeField] private BattleTimingConfig timingConfig;
 
         [Header("Entities")]
         [SerializeField] private CombatantState player;
@@ -58,7 +63,8 @@ namespace BattleV2.Orchestration
         private CombatContext context;
         private ITimedHitRunner timedHitRunner;
 
-        private ITurnController turnController;
+        private IBattleTurnService turnService;\n        private ICombatantActionValidator actionValidator;
+        private IBattleEndService battleEndService;
         private ITargetingCoordinator targetingCoordinator;
         private IActionPipeline actionPipeline;
         private ITriggeredEffectsService triggeredEffects;
@@ -118,20 +124,35 @@ namespace BattleV2.Orchestration
             PrepareContext();
         }
 
-        private void OnEnable()
-        {
-            SubscribeEvents();
-        }
-
         private void OnDisable()
         {
-            UnsubscribeEvents();
+            turnService?.Stop();
             rosterService?.Cleanup();
             rosterSnapshot = RosterSnapshot.Empty;
             player = null;
             playerRuntime = null;
             enemy = null;
             enemyRuntime = null;
+        }
+
+        private void OnDestroy()
+        {
+            if (turnService != null)
+            {
+                turnService.OnTurnReady -= HandleTurnReady;
+                if (turnService is IDisposable disposableTurn)
+                {
+                    disposableTurn.Dispose();
+                }
+
+                turnService = null;
+            }
+
+            if (battleEndService != null)
+            {
+                battleEndService.OnBattleEnded -= HandleBattleEnded;
+                battleEndService = null;
+            }
         }
 
         private void BootstrapServices()
@@ -162,11 +183,19 @@ namespace BattleV2.Orchestration
 
             // Servicios dedicados — por ahora implementaciones por defecto mínimas.
             eventBus = new BattleEventBus();
-            turnController = new TurnController(eventBus);
             targetingCoordinator = new TargetingCoordinator(TargetResolvers, eventBus);
             actionPipeline = new ActionPipeline(eventBus);
-            triggeredEffects = new TriggeredEffectsService(this, actionPipeline, actionCatalog, eventBus);
-            animOrchestrator = new BattleAnimOrchestrator(eventBus);
+
+            var timingProfile = timingConfig != null
+                ? timingConfig.ToProfile()
+                : (config?.timingConfig != null ? config.timingConfig.ToProfile() : BattleTimingProfile.Default);
+
+            animOrchestrator = new BattleAnimOrchestrator(eventBus, timingProfile);
+            triggeredEffects = new TriggeredEffectsService(this, actionPipeline, actionCatalog, eventBus);\n            actionValidator = new CombatantActionValidator(actionCatalog);
+            turnService = new BattleTurnService(eventBus);
+            turnService.OnTurnReady += HandleTurnReady;
+            battleEndService = new BattleEndService(eventBus);
+            battleEndService.OnBattleEnded += HandleBattleEnded;
             rosterService = new CombatantRosterService();
         }
 
@@ -220,7 +249,7 @@ namespace BattleV2.Orchestration
             enemy = rosterSnapshot.Enemy;
             enemyRuntime = rosterSnapshot.EnemyRuntime;
 
-            turnController?.Rebuild(AlliesList, EnemiesList);
+            turnService?.UpdateRoster(rosterSnapshot);
             OnCombatantsBound?.Invoke(AlliesList, EnemiesList);
             RefreshCombatContext();
         }
@@ -235,16 +264,6 @@ namespace BattleV2.Orchestration
                 enemyRuntime,
                 services,
                 actionCatalog);
-        }
-
-        private void SubscribeEvents()
-        {
-            animOrchestrator?.StartListening();
-        }
-
-        private void UnsubscribeEvents()
-        {
-            animOrchestrator?.StopListening();
         }
 
         private CharacterRuntime ResolveRuntime(CombatantState combatant, CharacterRuntime overrideRuntime)
@@ -283,7 +302,7 @@ namespace BattleV2.Orchestration
         {
             state?.ResetToIdle();
             state?.Set(BattleState.AwaitingAction);
-            ContinueBattleLoop();
+            turnService?.Begin();
         }
 
         public void ResetBattle()
@@ -293,7 +312,8 @@ namespace BattleV2.Orchestration
             PrepareContext();
             state?.ResetToIdle();
             state?.Set(BattleState.AwaitingAction);
-            ContinueBattleLoop();
+            turnService?.Stop();
+            turnService?.Begin();
         }
 
         private void HandlePlayerSelection(BattleSelection selection)
@@ -303,29 +323,8 @@ namespace BattleV2.Orchestration
 
         private async void ProcessPlayerSelection(BattleSelection selection)
         {
-            if (selection.Action == null || player == null)
+            if (!actionValidator.TryValidate(selection.Action, player, context, selection.CpCharge, out var implementation))
             {
-                ExecuteFallback();
-                return;
-            }
-
-            if (!TryResolveAction(selection.Action, out var implementation))
-            {
-                ExecuteFallback();
-                return;
-            }
-
-            int totalCpRequired = implementation.CostCP + Mathf.Max(0, selection.CpCharge);
-            if (player.CurrentCP < totalCpRequired)
-            {
-                Debug.LogWarning($"[BattleManagerV2] Not enough CP for {selection.Action.id} (needs {totalCpRequired}, has {player.CurrentCP}).");
-                ExecuteFallback();
-                return;
-            }
-
-            if (!implementation.CanExecute(player, context, selection.CpCharge))
-            {
-                Debug.LogWarning($"[BattleManagerV2] Action {selection.Action.id} cannot execute.");
                 ExecuteFallback();
                 return;
             }
@@ -353,12 +352,21 @@ namespace BattleV2.Orchestration
             int cpBefore = player.CurrentCP;
             LastExecutedAction = enrichedSelection.Action;
             OnPlayerActionSelected?.Invoke(enrichedSelection, cpBefore);
-            eventBus?.Publish(new ActionStartedEvent(player, enrichedSelection));
+
+            var playbackTask = animOrchestrator != null
+                ? animOrchestrator.PlayAsync(new ActionPlaybackRequest(player, enrichedSelection, resolution.Targets, CalculateAverageSpeed()))
+                : Task.CompletedTask;
+
             state?.Set(BattleState.Resolving);
-            ExecutePlayerAction(enrichedSelection, implementation, cpBefore, resolution.Targets);
+            ExecutePlayerAction(enrichedSelection, implementation, cpBefore, resolution.Targets, playbackTask);
         }
 
-        private async void ExecutePlayerAction(BattleSelection selection, IAction implementation, int cpBefore, IReadOnlyList<CombatantState> targets)
+        private async void ExecutePlayerAction(
+            BattleSelection selection,
+            IAction implementation,
+            int cpBefore,
+            IReadOnlyList<CombatantState> targets,
+            Task playbackTask)
         {
             try
             {
@@ -394,26 +402,37 @@ namespace BattleV2.Orchestration
                     context));
                 RefreshCombatContext();
 
+                if (playbackTask != null)
+                {
+                    try
+                    {
+                        await playbackTask;
+                    }
+                    catch (Exception ex)
+                    {
+                        UnityEngine.Debug.LogError($"[BattleManagerV2] Animation playback failed: {ex}");
+                    }
+                }
+
                 int cpAfter = player != null ? player.CurrentCP : 0;
                 var resolvedSelection = selection.WithTimedResult(result.TimedResult);
 
                 OnPlayerActionResolved?.Invoke(resolvedSelection, cpBefore, cpAfter);
-                eventBus?.Publish(new ActionCompletedEvent(player, resolvedSelection));
+
+                bool battleEnded = TryResolveBattleEnd();
+                eventBus?.Publish(new ActionCompletedEvent(player, resolvedSelection, targets));
+
+                if (battleEnded)
+                {
+                    return;
+                }
+
+                state?.Set(BattleState.AwaitingAction);
             }
             catch (Exception ex)
             {
                 Debug.LogError($"[BattleManagerV2] Player action threw exception: {ex}");
-            }
-            finally
-            {
-                turnController?.Rebuild(AlliesList, EnemiesList);
-                turnController?.Next();
-                if (!TryResolveBattleEnd())
-                {
-                    RefreshCombatContext();
-                    state?.Set(BattleState.AwaitingAction);
-                    ContinueBattleLoop();
-                }
+                ExecuteFallback();
             }
         }
 
@@ -431,9 +450,9 @@ namespace BattleV2.Orchestration
                 return;
             }
 
-            if (!TryResolveAction(fallback, out var implementation))
+            if (!actionValidator.TryValidate(fallback, player, context, 0, out var implementation))
             {
-                Debug.LogWarning($"[BattleManagerV2] Fallback {fallback.id} has no implementation.");
+                Debug.LogWarning("[BattleManagerV2] Fallback action invalid: " + (fallback?.id ?? "(null)") + ".");
                 return;
             }
 
@@ -444,7 +463,8 @@ namespace BattleV2.Orchestration
         {
             if (attacker == null || !attacker.IsAlive)
             {
-                AdvanceAfterEnemyTurn();
+                turnService?.Advance(attacker);
+                state?.Set(BattleState.AwaitingAction);
                 return;
             }
 
@@ -454,6 +474,7 @@ namespace BattleV2.Orchestration
             if (target == null || target.IsDead())
             {
                 state?.Set(BattleState.Defeat);
+                turnService?.Stop();
                 return;
             }
 
@@ -470,29 +491,28 @@ namespace BattleV2.Orchestration
             if (available == null || available.Count == 0)
             {
                 Debug.LogWarning($"[BattleManagerV2] Enemy {attacker.name} has no actions.");
-                AdvanceAfterEnemyTurn();
+                turnService?.Advance(attacker);
+                state?.Set(BattleState.AwaitingAction);
                 return;
             }
 
-            var actionData = available[0];
-            if (!TryResolveAction(actionData, out var implementation))
+            BattleActionData actionData = null;
+            IAction implementation = null;
+            for (int i = 0; i < available.Count; i++)
             {
-                Debug.LogWarning($"[BattleManagerV2] Enemy action {actionData.id} missing implementation.");
-                AdvanceAfterEnemyTurn();
-                return;
+                var candidate = available[i];
+                if (actionValidator.TryValidate(candidate, attacker, enemyContext, 0, out implementation))
+                {
+                    actionData = candidate;
+                    break;
+                }
             }
 
-            if (implementation.CostSP > 0 && !attacker.SpendSP(implementation.CostSP))
+            if (actionData == null || implementation == null)
             {
-                Debug.LogWarning($"[BattleManagerV2] Enemy lacks SP for {actionData.id}.");
-                AdvanceAfterEnemyTurn();
-                return;
-            }
-
-            if (implementation.CostCP > 0 && !attacker.SpendCP(implementation.CostCP))
-            {
-                Debug.LogWarning($"[BattleManagerV2] Enemy lacks CP for {actionData.id}.");
-                AdvanceAfterEnemyTurn();
+                Debug.LogWarning($"[BattleManagerV2] Enemy {attacker.name} has no valid actions.");
+                turnService?.Advance(attacker);
+                state?.Set(BattleState.AwaitingAction);
                 return;
             }
 
@@ -524,11 +544,16 @@ namespace BattleV2.Orchestration
 
                 if (resolution.Targets.Count == 0)
                 {
-                    AdvanceAfterEnemyTurn();
+                    turnService?.Advance(attacker);
+                    state?.Set(BattleState.AwaitingAction);
                     return;
                 }
 
                 var enrichedSelection = selection.WithTargets(resolution.TargetSet);
+
+                var playbackTask = animOrchestrator != null
+                    ? animOrchestrator.PlayAsync(new ActionPlaybackRequest(attacker, enrichedSelection, resolution.Targets, CalculateAverageSpeed()))
+                    : Task.CompletedTask;
 
                 var request = new ActionRequest(
                     this,
@@ -539,75 +564,86 @@ namespace BattleV2.Orchestration
                     enemyContext);
 
                 var result = await actionPipeline.Run(request);
-                if (result.Success)
+                if (!result.Success)
                 {
-                    var effectSelection = new BattleSelection(
-                        enrichedSelection.Action,
-                        0,
-                        enrichedSelection.ChargeProfile,
-                        enrichedSelection.TimedHitProfile,
-                        null,
-                        enrichedSelection.Targets);
-
-                    triggeredEffects.Enqueue(new TriggeredEffectRequest(
-                        attacker,
-                        enrichedSelection.Action,
-                        effectSelection,
-                        resolution.Targets,
-                        enemyContext));
+                    turnService?.Advance(attacker);
+                    state?.Set(BattleState.AwaitingAction);
+                    return;
                 }
 
-                eventBus?.Publish(new ActionCompletedEvent(attacker, enrichedSelection.WithTimedResult(result.TimedResult)));
+                var effectSelection = new BattleSelection(
+                    enrichedSelection.Action,
+                    0,
+                    enrichedSelection.ChargeProfile,
+                    enrichedSelection.TimedHitProfile,
+                    null,
+                    enrichedSelection.Targets);
+
+                triggeredEffects.Enqueue(new TriggeredEffectRequest(
+                    attacker,
+                    enrichedSelection.Action,
+                    effectSelection,
+                    resolution.Targets,
+                    enemyContext));
+
+                if (playbackTask != null)
+                {
+                    try
+                    {
+                        await playbackTask;
+                    }
+                    catch (Exception ex)
+                    {
+                        UnityEngine.Debug.LogError($"[BattleManagerV2] Enemy playback failed: {ex}");
+                    }
+                }
+
+                RefreshCombatContext();
+
+                bool battleEnded = TryResolveBattleEnd();
+                eventBus?.Publish(new ActionCompletedEvent(attacker, enrichedSelection.WithTimedResult(result.TimedResult), resolution.Targets));
+
+                if (battleEnded)
+                {
+                    return;
+                }
+
+                state?.Set(BattleState.AwaitingAction);
             }
             catch (Exception ex)
             {
                 Debug.LogError($"[BattleManagerV2] Enemy action error: {ex}");
-            }
-            finally
-            {
-                RefreshCombatContext();
-                AdvanceAfterEnemyTurn();
-            }
-        }
-
-        private void AdvanceAfterEnemyTurn()
-        {
-            RefreshCombatContext();
-            turnController?.Rebuild(AlliesList, EnemiesList);
-            turnController?.Next();
-            if (!TryResolveBattleEnd())
-            {
+                turnService?.Advance(attacker);
                 state?.Set(BattleState.AwaitingAction);
-                ContinueBattleLoop();
             }
         }
 
         private bool TryResolveBattleEnd()
         {
-            if (player == null || player.IsDead())
+            if (battleEndService == null)
             {
-                state?.Set(BattleState.Defeat);
+                return false;
+            }
+
+            if (battleEndService.TryResolve(rosterSnapshot, player, state))
+            {
+                turnService?.Stop();
                 return true;
             }
 
-            var enemies = EnemiesList;
-            for (int i = 0; i < enemies.Count; i++)
-            {
-                var combatant = enemies[i];
-                if (combatant != null && combatant.IsAlive)
-                {
-                    return false;
-                }
-            }
-
-            state?.Set(BattleState.Victory);
-            return true;
+            return false;
         }
 
-        private void ContinueBattleLoop()
+        private void HandleBattleEnded(BattleResult result)
         {
-            if (state == null || state.State != BattleState.AwaitingAction)
+            turnService?.Stop();
+        }
+
+        private void HandleTurnReady(CombatantState actor)
+        {
+            if (actor == null)
             {
+                TryResolveBattleEnd();
                 return;
             }
 
@@ -616,32 +652,51 @@ namespace BattleV2.Orchestration
                 return;
             }
 
-            var current = turnController?.Current ?? player;
-            if (current == null)
+            if (IsAlly(actor))
             {
-                state?.Set(BattleState.Defeat);
-                return;
-            }
-
-             if (!current.IsAlive)
-            {
-                turnController?.Next();
-                ContinueBattleLoop();
-                return;
-            }
-
-            if (IsAlly(current))
-            {
+                state?.Set(BattleState.AwaitingAction);
                 RequestPlayerAction();
             }
             else
             {
-                ExecuteEnemyTurn(current);
+                ExecuteEnemyTurn(actor);
+            }
+        }
+
+        private float CalculateAverageSpeed()
+        {
+            float total = 0f;
+            int count = 0;
+
+            Accumulate(AlliesList);
+            Accumulate(EnemiesList);
+
+            return count > 0 ? total / count : 1f;
+
+            void Accumulate(IReadOnlyList<CombatantState> list)
+            {
+                if (list == null)
+                {
+                    return;
+                }
+
+                for (int i = 0; i < list.Count; i++)
+                {
+                    var combatant = list[i];
+                    if (combatant == null || !combatant.IsAlive)
+                    {
+                        continue;
+                    }
+
+                    total += combatant.FinalStats.Speed;
+                    count++;
+                }
             }
         }
 
         private void RequestPlayerAction()
         {
+            state?.Set(BattleState.AwaitingAction);
             if (player == null || player.IsDead())
             {
                 state?.Set(BattleState.Defeat);
@@ -671,17 +726,20 @@ namespace BattleV2.Orchestration
             inputProvider?.RequestAction(actionContext, HandlePlayerSelection, ExecuteFallback);
         }
 
-        private bool TryResolveAction(BattleActionData action, out IAction implementation)
-        {
-            implementation = null;
-
-            if (actionCatalog == null || action == null)
-            {
-                return false;
-            }
 
             implementation = actionCatalog.Resolve(action);
             return implementation != null;
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
