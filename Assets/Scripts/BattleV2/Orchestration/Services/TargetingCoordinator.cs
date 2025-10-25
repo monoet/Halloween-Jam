@@ -1,7 +1,7 @@
 using System.Threading.Tasks;
 using System;
 using System.Collections.Generic;
-using System.Linq;
+
 using System.Threading.Tasks;
 using BattleV2.Actions;
 using BattleV2.Core;
@@ -36,7 +36,7 @@ namespace BattleV2.Orchestration.Services
             this.eventBus = eventBus;
         }
 
-        public async Task<TargetResolutionResult> ResolveAsync(
+        public Task<TargetResolutionResult> ResolveAsync(
             CombatantState origin,
             BattleActionData action,
             TargetSourceType sourceType,
@@ -68,7 +68,7 @@ namespace BattleV2.Orchestration.Services
 
             var targetsCopy = scratchTargets.ToArray();
             scratchTargets.Clear();
-            return await Task.FromResult(new TargetResolutionResult(set, targetsCopy));
+            return Task.FromResult(new TargetResolutionResult(set, targetsCopy));
         }
 
         private static TargetQuery ResolveQuery(CombatantState origin, IReadOnlyList<CombatantState> allies, IReadOnlyList<CombatantState> enemies)

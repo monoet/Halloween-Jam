@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEngine;
 using BattleV2.Actions;
-using BattleV2.Anim;
+
 using BattleV2.Charge;
 using BattleV2.Core;
 using BattleV2.Execution;
@@ -56,7 +56,6 @@ namespace BattleV2.Orchestration
 
         private IBattleInputProvider inputProvider;
         private CombatContext context;
-        private ScriptableObject enemyDropTable;
         private ITimedHitRunner timedHitRunner;
 
         private ITurnController turnController;
@@ -65,11 +64,8 @@ namespace BattleV2.Orchestration
         private ITriggeredEffectsService triggeredEffects;
         private IBattleAnimOrchestrator animOrchestrator;
         private IBattleEventBus eventBus;
-
-        private readonly List<CombatantState> allies = new();
-        private readonly List<CombatantState> enemies = new();
-        private readonly List<GameObject> spawnedPlayerInstances = new();
-        private readonly List<GameObject> spawnedEnemyInstances = new();
+        private CombatantRosterService rosterService;
+        private RosterSnapshot rosterSnapshot = RosterSnapshot.Empty;
 
         public event Action<BattleSelection, int> OnPlayerActionSelected;
         public event Action<BattleSelection, int, int> OnPlayerActionResolved;
@@ -80,24 +76,46 @@ namespace BattleV2.Orchestration
         public TargetResolverRegistry TargetResolvers { get; private set; }
         public CombatantState Player => player;
         public CombatantState Enemy => enemy;
-        public IReadOnlyList<CombatantState> Allies => allies;
-        public IReadOnlyList<CombatantState> Enemies => enemies;
+        public IReadOnlyList<CombatantState> Allies => rosterSnapshot.Allies ?? Array.Empty<CombatantState>();
+        public IReadOnlyList<CombatantState> Enemies => rosterSnapshot.Enemies ?? Array.Empty<CombatantState>();
         public float PreActionDelaySeconds
         {
             get => preActionDelaySeconds;
             set => preActionDelaySeconds = Mathf.Max(0f, value);
         }
-        public ScriptableObject EnemyDropTable => enemyDropTable;
-        public IReadOnlyList<GameObject> SpawnedPlayerInstances => spawnedPlayerInstances;
-        public IReadOnlyList<GameObject> SpawnedEnemyInstances => spawnedEnemyInstances;
-        public GameObject SpawnedEnemyInstance => spawnedEnemyInstances.Count > 0 ? spawnedEnemyInstances[0] : null;
-        public GameObject SpawnedPlayerInstance => spawnedPlayerInstances.Count > 0 ? spawnedPlayerInstances[0] : null;
+        public ScriptableObject EnemyDropTable => rosterSnapshot.EnemyDropTable;
+        public IReadOnlyList<GameObject> SpawnedPlayerInstances => rosterSnapshot.SpawnedPlayerInstances ?? Array.Empty<GameObject>();
+        public IReadOnlyList<GameObject> SpawnedEnemyInstances => rosterSnapshot.SpawnedEnemyInstances ?? Array.Empty<GameObject>();
+        public GameObject SpawnedEnemyInstance => rosterSnapshot.SpawnedEnemyInstances.Count > 0 ? rosterSnapshot.SpawnedEnemyInstances[0] : null;
+        public GameObject SpawnedPlayerInstance => rosterSnapshot.SpawnedPlayerInstances.Count > 0 ? rosterSnapshot.SpawnedPlayerInstances[0] : null;
+
+        private IReadOnlyList<CombatantState> AlliesList => rosterSnapshot.Allies ?? Array.Empty<CombatantState>();
+        private IReadOnlyList<CombatantState> EnemiesList => rosterSnapshot.Enemies ?? Array.Empty<CombatantState>();
+
+        private bool IsAlly(CombatantState combatant)
+        {
+            if (combatant == null)
+            {
+                return false;
+            }
+
+            var allies = AlliesList;
+            for (int i = 0; i < allies.Count; i++)
+            {
+                if (allies[i] == combatant)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
 
         private void Awake()
         {
             BootstrapServices();
-            PrepareContext();
             InitializeCombatants();
+            PrepareContext();
         }
 
         private void OnEnable()
@@ -108,11 +126,12 @@ namespace BattleV2.Orchestration
         private void OnDisable()
         {
             UnsubscribeEvents();
-            allies.Clear();
-            enemies.Clear();
-            hudManager?.Clear();
-            DestroyAutoSpawned(spawnedPlayerInstances);
-            DestroyAutoSpawned(spawnedEnemyInstances);
+            rosterService?.Cleanup();
+            rosterSnapshot = RosterSnapshot.Empty;
+            player = null;
+            playerRuntime = null;
+            enemy = null;
+            enemyRuntime = null;
         }
 
         private void BootstrapServices()
@@ -146,8 +165,9 @@ namespace BattleV2.Orchestration
             turnController = new TurnController(eventBus);
             targetingCoordinator = new TargetingCoordinator(TargetResolvers, eventBus);
             actionPipeline = new ActionPipeline(eventBus);
-            triggeredEffects = new TriggeredEffectsService(eventBus);
+            triggeredEffects = new TriggeredEffectsService(this, actionPipeline, actionCatalog, eventBus);
             animOrchestrator = new BattleAnimOrchestrator(eventBus);
+            rosterService = new CombatantRosterService();
         }
 
         private void PrepareContext()
@@ -164,9 +184,57 @@ namespace BattleV2.Orchestration
 
         private void InitializeCombatants()
         {
-            EnsurePlayerSpawned();
-            EnsureEnemySpawned();
-            BindCombatants(preservePlayerVitals: false, preserveEnemyVitals: false);
+            RebuildRoster(preservePlayerVitals: false, preserveEnemyVitals: false);
+        }
+
+        private void RebuildRoster(bool preservePlayerVitals, bool preserveEnemyVitals)
+        {
+            if (rosterService == null)
+            {
+                rosterService = new CombatantRosterService();
+            }
+
+            var rosterConfig = new BattleRosterConfig
+            {
+                AutoSpawnPlayer = autoSpawnPlayer,
+                PlayerLoadout = playerLoadout,
+                PlayerSpawnPoint = playerSpawnPoint,
+                PlayerPartyLoadout = playerPartyLoadout,
+                PlayerSpawnPoints = playerSpawnPoints,
+                AutoSpawnEnemy = autoSpawnEnemy,
+                EnemyLoadout = enemyLoadout,
+                EnemySpawnPoint = enemySpawnPoint,
+                EnemyEncounterLoadout = enemyEncounterLoadout,
+                EnemySpawnPoints = enemySpawnPoints,
+                OwnerTransform = transform,
+                Player = player,
+                PlayerRuntime = playerRuntime,
+                Enemy = enemy,
+                EnemyRuntime = enemyRuntime,
+                HudManager = hudManager
+            };
+
+            rosterSnapshot = rosterService.Rebuild(rosterConfig, preservePlayerVitals, preserveEnemyVitals);
+            player = rosterSnapshot.Player;
+            playerRuntime = rosterSnapshot.PlayerRuntime;
+            enemy = rosterSnapshot.Enemy;
+            enemyRuntime = rosterSnapshot.EnemyRuntime;
+
+            turnController?.Rebuild(AlliesList, EnemiesList);
+            OnCombatantsBound?.Invoke(AlliesList, EnemiesList);
+            RefreshCombatContext();
+        }
+
+        private void RefreshCombatContext()
+        {
+            var services = context != null ? context.Services : (config != null ? config.services : new BattleServices());
+            context = new CombatContext(
+                player,
+                enemy,
+                playerRuntime,
+                enemyRuntime,
+                services,
+                actionCatalog);
         }
 
         private void SubscribeEvents()
@@ -221,9 +289,10 @@ namespace BattleV2.Orchestration
         public void ResetBattle()
         {
             ComboPointScaling.Configure(config != null ? config.comboPointScaling : null);
+            RebuildRoster(preservePlayerVitals: false, preserveEnemyVitals: false);
             PrepareContext();
-            InitializeCombatants();
             state?.ResetToIdle();
+            state?.Set(BattleState.AwaitingAction);
             ContinueBattleLoop();
         }
 
@@ -266,8 +335,8 @@ namespace BattleV2.Orchestration
                 selection.Action,
                 TargetSourceType.Manual,
                 enemy,
-                allies,
-                enemies);
+                AlliesList,
+                EnemiesList);
 
             if (resolution.Targets.Count == 0)
             {
@@ -309,7 +378,20 @@ namespace BattleV2.Orchestration
                     return;
                 }
 
-                triggeredEffects.Enqueue(selection.Action, selection.Targets);
+                var effectSelection = new BattleSelection(
+                    selection.Action,
+                    0,
+                    selection.ChargeProfile,
+                    selection.TimedHitProfile,
+                    null,
+                    selection.Targets);
+
+                triggeredEffects.Enqueue(new TriggeredEffectRequest(
+                    player,
+                    selection.Action,
+                    effectSelection,
+                    targets,
+                    context));
                 RefreshCombatContext();
 
                 int cpAfter = player != null ? player.CurrentCP : 0;
@@ -324,7 +406,7 @@ namespace BattleV2.Orchestration
             }
             finally
             {
-                turnController?.Rebuild(allies, enemies);
+                turnController?.Rebuild(AlliesList, EnemiesList);
                 turnController?.Next();
                 if (!TryResolveBattleEnd())
                 {
@@ -356,350 +438,6 @@ namespace BattleV2.Orchestration
             }
 
             HandlePlayerSelection(new BattleSelection(fallback, 0, implementation.ChargeProfile, null));
-        }
-
-        private void EnsureEnemySpawned()
-        {
-            enemies.Clear();
-
-            if (!autoSpawnEnemy)
-            {
-                enemyDropTable = null;
-                if (enemy != null)
-                {
-                    enemies.Add(enemy);
-                    enemyRuntime = ResolveRuntime(enemy, enemyRuntime);
-                }
-                return;
-            }
-
-            DestroyAutoSpawned(spawnedEnemyInstances);
-            enemyDropTable = null;
-
-            IReadOnlyList<CombatantLoadoutEntry> entries = enemyEncounterLoadout != null && enemyEncounterLoadout.Enemies.Count > 0
-                ? enemyEncounterLoadout.Enemies
-                : null;
-
-            Vector3[] patternOffsets = null;
-            if (enemyEncounterLoadout?.SpawnPattern != null && entries != null)
-            {
-                enemyEncounterLoadout.SpawnPattern.TryGetOffsets(entries.Count, out patternOffsets);
-            }
-
-            var fallbackParent = IsSceneTransform(enemySpawnPoint) ? enemySpawnPoint : transform;
-
-            if (entries != null)
-            {
-                for (int i = 0; i < entries.Count; i++)
-                {
-                    var entry = entries[i];
-                    if (!entry.IsValid)
-                    {
-                        continue;
-                    }
-
-                    Transform spawnTransform = ResolveSpawnTransform(enemySpawnPoints, enemySpawnPoint, i);
-                    var parent = spawnTransform != null ? spawnTransform : fallbackParent;
-                    Vector3 offset = entry.SpawnOffset;
-                    if (spawnTransform == null && patternOffsets != null && patternOffsets.Length > 0)
-                    {
-                        offset += patternOffsets[Mathf.Clamp(i, 0, patternOffsets.Length - 1)];
-                    }
-
-                    Vector3 worldPosition = parent.position + offset;
-                    Quaternion worldRotation = parent.rotation;
-
-                    var combatant = SpawnCombatant(entry, parent, worldPosition, worldRotation, spawnedEnemyInstances, out var dropTable);
-                    if (combatant == null)
-                    {
-                        continue;
-                    }
-
-                    enemies.Add(combatant);
-                    if (enemyDropTable == null && dropTable != null)
-                    {
-                        enemyDropTable = dropTable;
-                    }
-                }
-            }
-            else if (enemyLoadout != null && enemyLoadout.IsValid)
-            {
-                var entry = new CombatantLoadoutEntry(enemyLoadout.EnemyPrefab, enemyLoadout.SpawnOffset, enemyLoadout.DropTable);
-                var parent = ResolveSpawnTransform(enemySpawnPoints, enemySpawnPoint, 0) ?? fallbackParent;
-                Vector3 worldPosition = parent.position + entry.SpawnOffset;
-                Quaternion worldRotation = parent.rotation;
-
-                var combatant = SpawnCombatant(entry, parent, worldPosition, worldRotation, spawnedEnemyInstances, out var dropTable);
-                if (combatant != null)
-                {
-                    enemies.Add(combatant);
-                    if (dropTable != null)
-                    {
-                        enemyDropTable = dropTable;
-                    }
-                }
-            }
-
-            if (enemies.Count > 0)
-            {
-                enemy = enemies[0];
-                enemyRuntime = ResolveRuntime(enemy, enemyRuntime);
-            }
-            else
-            {
-                enemy = null;
-                enemyRuntime = null;
-            }
-        }
-
-        private void EnsurePlayerSpawned()
-        {
-            allies.Clear();
-
-            if (!autoSpawnPlayer)
-            {
-                if (player != null)
-                {
-                    allies.Add(player);
-                    playerRuntime = ResolveRuntime(player, playerRuntime);
-                }
-                return;
-            }
-
-            DestroyAutoSpawned(spawnedPlayerInstances);
-
-            var fallbackParent = IsSceneTransform(playerSpawnPoint) ? playerSpawnPoint : transform;
-
-            if (playerPartyLoadout != null && playerPartyLoadout.Members.Count > 0)
-            {
-                var members = playerPartyLoadout.Members;
-                for (int i = 0; i < members.Count; i++)
-                {
-                    var entry = members[i];
-                    if (!entry.IsValid)
-                    {
-                        continue;
-                    }
-
-                    Transform spawnTransform = ResolveSpawnTransform(playerSpawnPoints, playerSpawnPoint, i);
-                    var parent = spawnTransform != null ? spawnTransform : fallbackParent;
-                    Vector3 worldPosition = parent.position + entry.SpawnOffset;
-                    Quaternion worldRotation = parent.rotation;
-
-                    var combatant = SpawnCombatant(entry, parent, worldPosition, worldRotation, spawnedPlayerInstances, out _);
-                    if (combatant == null)
-                    {
-                        continue;
-                    }
-
-                    allies.Add(combatant);
-                }
-            }
-            else if (playerLoadout != null && playerLoadout.IsValid)
-            {
-                var entry = new CombatantLoadoutEntry(playerLoadout.PlayerPrefab, playerLoadout.SpawnOffset);
-                var parent = ResolveSpawnTransform(playerSpawnPoints, playerSpawnPoint, 0) ?? fallbackParent;
-                Vector3 worldPosition = parent.position + entry.SpawnOffset;
-                Quaternion worldRotation = parent.rotation;
-
-                var combatant = SpawnCombatant(entry, parent, worldPosition, worldRotation, spawnedPlayerInstances, out _);
-                if (combatant != null)
-                {
-                    allies.Add(combatant);
-                }
-            }
-
-            if (allies.Count > 0)
-            {
-                player = allies[0];
-                playerRuntime = ResolveRuntime(player, playerRuntime);
-            }
-            else
-            {
-                player = null;
-                playerRuntime = null;
-            }
-        }
-
-        private void BindCombatants(bool preservePlayerVitals, bool preserveEnemyVitals)
-        {
-            hudManager?.Clear();
-
-            var boundAllies = new List<CombatantState>(allies.Count);
-            var boundEnemies = new List<CombatantState>(enemies.Count);
-
-            for (int i = 0; i < allies.Count; i++)
-            {
-                var combatant = allies[i];
-                if (CombatantBinder.TryBind(combatant, preservePlayerVitals, out var result))
-                {
-                    boundAllies.Add(result.Combatant);
-                    if (i == 0)
-                    {
-                        player = result.Combatant;
-                        playerRuntime = result.Runtime;
-                    }
-                }
-            }
-
-            if (boundAllies.Count == 0 && player != null && CombatantBinder.TryBind(player, preservePlayerVitals, out var playerResult))
-            {
-                boundAllies.Add(playerResult.Combatant);
-                player = playerResult.Combatant;
-                playerRuntime = playerResult.Runtime;
-            }
-            else if (boundAllies.Count == 0)
-            {
-                playerRuntime = ResolveRuntime(player, playerRuntime);
-            }
-
-            allies.Clear();
-            allies.AddRange(boundAllies);
-
-            for (int i = 0; i < enemies.Count; i++)
-            {
-                var combatant = enemies[i];
-                if (CombatantBinder.TryBind(combatant, preserveEnemyVitals, out var result))
-                {
-                    boundEnemies.Add(result.Combatant);
-                    if (i == 0)
-                    {
-                        enemy = result.Combatant;
-                        enemyRuntime = result.Runtime;
-                    }
-                }
-            }
-
-            if (boundEnemies.Count == 0 && enemy != null && CombatantBinder.TryBind(enemy, preserveEnemyVitals, out var enemyResult))
-            {
-                boundEnemies.Add(enemyResult.Combatant);
-                enemy = enemyResult.Combatant;
-                enemyRuntime = enemyResult.Runtime;
-            }
-            else if (boundEnemies.Count == 0)
-            {
-                enemyRuntime = ResolveRuntime(enemy, enemyRuntime);
-            }
-
-            enemies.Clear();
-            enemies.AddRange(boundEnemies);
-
-            if (allies.Count == 0)
-            {
-                player = null;
-                playerRuntime = null;
-            }
-
-            if (enemies.Count == 0)
-            {
-                enemy = null;
-                enemyRuntime = null;
-            }
-
-            hudManager?.RegisterCombatants(allies, isEnemy: false);
-            hudManager?.RegisterCombatants(enemies, isEnemy: true);
-
-            OnCombatantsBound?.Invoke(allies, enemies);
-            turnController.Rebuild(allies, enemies);
-            RefreshCombatContext();
-        }
-
-        private void DestroyAutoSpawned(List<GameObject> instances)
-        {
-            if (instances == null)
-            {
-                return;
-            }
-
-            for (int i = 0; i < instances.Count; i++)
-            {
-                var instance = instances[i];
-                if (instance == null)
-                {
-                    continue;
-                }
-
-                if (Application.isPlaying)
-                {
-                    Destroy(instance);
-                }
-                else
-                {
-                    DestroyImmediate(instance);
-                }
-            }
-
-            instances.Clear();
-        }
-
-        private Transform ResolveSpawnTransform(Transform[] points, Transform fallback, int index)
-        {
-            if (points != null && points.Length > 0)
-            {
-                int clamped = Mathf.Clamp(index, 0, points.Length - 1);
-                Transform candidate = points[clamped];
-                if (IsSceneTransform(candidate))
-                {
-                    return candidate;
-                }
-            }
-
-            if (IsSceneTransform(fallback))
-            {
-                return fallback;
-            }
-
-            return transform;
-        }
-
-        private bool IsSceneTransform(Transform target)
-        {
-            return target != null && target.gameObject.scene.IsValid();
-        }
-
-        private CombatantState SpawnCombatant(
-            CombatantLoadoutEntry entry,
-            Transform parentTransform,
-            Vector3 worldPosition,
-            Quaternion worldRotation,
-            List<GameObject> instanceCollector,
-            out ScriptableObject dropTable)
-        {
-            dropTable = null;
-
-            if (!entry.IsValid)
-            {
-                return null;
-            }
-
-            Transform parent = parentTransform != null ? parentTransform : transform;
-
-            GameObject instance = Instantiate(entry.Prefab, worldPosition, worldRotation, parent);
-            instanceCollector?.Add(instance);
-
-            CombatantState combatant = instance.GetComponentInChildren<CombatantState>();
-            if (combatant == null)
-            {
-                Debug.LogError($"[BattleManagerV2] Spawned prefab '{entry.Prefab.name}' missing CombatantState. Destroying instance.");
-                instanceCollector?.Remove(instance);
-                Destroy(instance);
-                return null;
-            }
-
-            dropTable = entry.DropTable;
-            return combatant;
-        }
-
-        private void RefreshCombatContext()
-        {
-            var services = context != null ? context.Services : (config != null ? config.services : new BattleServices());
-            context = new CombatContext(
-                player,
-                enemy,
-                playerRuntime,
-                enemyRuntime,
-                services,
-                actionCatalog);
         }
 
         private void ExecuteEnemyTurn(CombatantState attacker)
@@ -781,8 +519,8 @@ namespace BattleV2.Orchestration
                     selection.Action,
                     TargetSourceType.Auto,
                     target,
-                    allies,
-                    enemies);
+                    AlliesList,
+                    EnemiesList);
 
                 if (resolution.Targets.Count == 0)
                 {
@@ -803,7 +541,20 @@ namespace BattleV2.Orchestration
                 var result = await actionPipeline.Run(request);
                 if (result.Success)
                 {
-                    triggeredEffects.Enqueue(enrichedSelection.Action, enrichedSelection.Targets);
+                    var effectSelection = new BattleSelection(
+                        enrichedSelection.Action,
+                        0,
+                        enrichedSelection.ChargeProfile,
+                        enrichedSelection.TimedHitProfile,
+                        null,
+                        enrichedSelection.Targets);
+
+                    triggeredEffects.Enqueue(new TriggeredEffectRequest(
+                        attacker,
+                        enrichedSelection.Action,
+                        effectSelection,
+                        resolution.Targets,
+                        enemyContext));
                 }
 
                 eventBus?.Publish(new ActionCompletedEvent(attacker, enrichedSelection.WithTimedResult(result.TimedResult)));
@@ -822,7 +573,7 @@ namespace BattleV2.Orchestration
         private void AdvanceAfterEnemyTurn()
         {
             RefreshCombatContext();
-            turnController?.Rebuild(allies, enemies);
+            turnController?.Rebuild(AlliesList, EnemiesList);
             turnController?.Next();
             if (!TryResolveBattleEnd())
             {
@@ -839,24 +590,18 @@ namespace BattleV2.Orchestration
                 return true;
             }
 
-            bool enemyAlive = false;
+            var enemies = EnemiesList;
             for (int i = 0; i < enemies.Count; i++)
             {
                 var combatant = enemies[i];
                 if (combatant != null && combatant.IsAlive)
                 {
-                    enemyAlive = true;
-                    break;
+                    return false;
                 }
             }
 
-            if (!enemyAlive)
-            {
-                state?.Set(BattleState.Victory);
-                return true;
-            }
-
-            return false;
+            state?.Set(BattleState.Victory);
+            return true;
         }
 
         private void ContinueBattleLoop()
@@ -885,7 +630,7 @@ namespace BattleV2.Orchestration
                 return;
             }
 
-            if (allies.Contains(current))
+            if (IsAlly(current))
             {
                 RequestPlayerAction();
             }
