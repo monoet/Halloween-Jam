@@ -32,7 +32,7 @@ public class GridMovementV2 : MonoBehaviour
     private void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
-        rb.isKinematic = true;
+        rb.bodyType = RigidbodyType2D.Kinematic;
         rb.freezeRotation = true;
     }
 

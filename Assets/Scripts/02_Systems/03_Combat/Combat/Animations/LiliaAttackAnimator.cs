@@ -11,7 +11,7 @@ namespace HalloweenJam.Combat.Animations
     /// - Sincroniza sonido con el impacto real.
     /// - Incluye modo de depuración de fases.
     /// </summary>
-    public class LiliaAttackAnimator : MonoBehaviour, IAttackAnimator
+    public class LiliaAttackAnimator : MonoBehaviour, IAttackAnimator, IAttackAnimationPhases
     {
         [Header("References")]
         [SerializeField] private Transform modelRoot;
@@ -60,6 +60,7 @@ namespace HalloweenJam.Combat.Animations
         private Color enemyBaseColor = Color.white;
         private Material spriteMaterialInstance;
         private Text debugOverlayText;
+        public event Action<AttackAnimationPhase> PhaseChanged;
 
         private void Awake()
         {
@@ -121,6 +122,7 @@ namespace HalloweenJam.Combat.Animations
             attackSequence.AppendCallback(() =>
             {
                 PlaySfx(chargeSfx);
+                PhaseChanged?.Invoke(AttackAnimationPhase.Charge);
                 DebugPhase("Phase 1: Charge started");
             });
 
@@ -142,6 +144,7 @@ namespace HalloweenJam.Combat.Animations
             // ---------------- PHASE 2: LUNGE + IMPACT ----------------
             attackSequence.AppendCallback(() =>
             {
+                PhaseChanged?.Invoke(AttackAnimationPhase.Lunge);
                 DebugPhase("Phase 2: Lunge started");
             });
 
@@ -150,6 +153,7 @@ namespace HalloweenJam.Combat.Animations
                 .OnComplete(() =>
                 {
                     TriggerEnemyHitFeedback(); // aquí suena el slash real
+                    PhaseChanged?.Invoke(AttackAnimationPhase.Impact);
                     impactCallback?.Invoke();
                 });
 
@@ -162,6 +166,7 @@ namespace HalloweenJam.Combat.Animations
                 {
                     PlaySfx(settleSfx);
                     DebugPhase("Phase 3: Recover complete");
+                    PhaseChanged?.Invoke(AttackAnimationPhase.Recover);
                     completeCallback?.Invoke();
                 }));
 

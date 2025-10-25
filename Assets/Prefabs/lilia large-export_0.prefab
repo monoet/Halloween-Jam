@@ -11,6 +11,11 @@ GameObject:
   - component: {fileID: 2431139529432602317}
   - component: {fileID: 6666569298918703193}
   - component: {fileID: 2036347495211526649}
+  - component: {fileID: 4667576213505027820}
+  - component: {fileID: 8239400751662913600}
+  - component: {fileID: 2321840040200466194}
+  - component: {fileID: 3953164799555935923}
+  - component: {fileID: 2768582280087606474}
   m_Layer: 0
   m_Name: lilia large-export_0
   m_TagString: Untagged
@@ -113,3 +118,157 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
+--- !u!114 &4667576213505027820
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8280905549616643392}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b2c30c3d31825140a9192b375e5f1d2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CharacterRuntime
+  archetype: {fileID: 11400000, guid: c539e972a7dc87c4dba21fc6e6340f12, type: 2}
+  core:
+    characterName: Lilia
+    portrait: {fileID: 0}
+    Level: 10
+    CurrentEXP: 0
+    MaxEXP: 0
+    BaseSTR: 0
+    BaseRES: 0
+    BaseAGI: 0
+    BaseLCK: 0
+    BaseVIT: 0
+    BonusSTR: 0
+    BonusRES: 0
+    BonusAGI: 0
+    BonusLCK: 0
+    BonusVIT: 0
+    IsPoisoned: 0
+    IsStunned: 0
+    IsBuffed: 0
+  statFormula: {fileID: 11400000, guid: 943f0ce7b7ee16141b617a468b1f579e, type: 2}
+  derivedFormula: {fileID: 11400000, guid: a1296c306844aa740a8b5b5cf45f5082, type: 2}
+  final:
+    HP: 0
+    SP: 0
+    STR: 0
+    RES: 0
+    AGI: 0
+    LCK: 0
+    VIT: 0
+    Physical: 0
+    MagicPower: 0
+    PhysDefense: 0
+    MagDefense: 0
+    CritChance: 0
+    Speed: 0
+  OnStatsChanged:
+    m_PersistentCalls:
+      m_Calls: []
+--- !u!114 &8239400751662913600
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8280905549616643392}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 53bf100e9cae8d24a87191891014ebd1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CombatantState
+  characterRuntime: {fileID: 0}
+  autoInitializeFromRuntime: 1
+  preserveFractionOnRuntimeUpdate: 1
+  maxHP: 50
+  currentHP: 0
+  maxSP: 10
+  currentSP: 0
+  fallbackMaxHP: 10
+  maxCP: 5
+  currentCP: 0
+  OnVitalsChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  enableDebugLogs: 0
+--- !u!114 &2321840040200466194
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8280905549616643392}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2429a782707d87745a52da86b7a6a168, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  modelRoot: {fileID: 2431139529432602317}
+  spriteRenderer: {fileID: 6666569298918703193}
+  enemyRoot: {fileID: 0}
+  enemySprite: {fileID: 0}
+  audioSource: {fileID: 0}
+  chargeSfx: {fileID: 0}
+  slashSfx: {fileID: 8300000, guid: 1eb2f50c0e00e764989d4a3ea785cfeb, type: 3}
+  settleSfx: {fileID: 0}
+  backStepDistance: 0.3
+  backStepDuration: 0.125
+  chargeHoldDuration: 0.1
+  lungeDistance: 1.2
+  lungeDuration: 0.333
+  recoverDuration: 0.02
+  enemyKnockbackDistance: 1
+  enemyKnockbackDuration: 0.3
+  enemyHitColor: {r: 1, g: 0, b: 0, a: 1}
+  glowLoopDuration: 0.25
+  glowLoops: 4
+  glowRecoverDuration: 0.3
+  glowChargeIntensity: 1.5
+  cameraTransform: {fileID: 0}
+  cameraShakeDuration: 0.1
+  cameraShakeStrength: 0.2
+  autoPlayOnStart: 0
+  enableDebugLogs: 1
+  showTimingOverlay: 0
+--- !u!114 &3953164799555935923
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8280905549616643392}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a95066699bb268046aea3097c9048fa5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::HalloweenJam.Combat.RuntimeCombatEntity
+  characterRuntime: {fileID: 4667576213505027820}
+  combatantState: {fileID: 8239400751662913600}
+  availableActions:
+  - {fileID: 11400000, guid: 5afbcca36a680644eb4021d662a8908b, type: 2}
+  - {fileID: 11400000, guid: 8d272fdaa2dbc4a488a77a752fe45448, type: 2}
+  attackStrategy: {fileID: 11400000, guid: 04c831de83be67c41b3e574193b3742b, type: 2}
+  initializeOnAwake: 1
+--- !u!114 &2768582280087606474
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8280905549616643392}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8448065db93cd6d4dbfd313e44a7a6ee, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BattleV2.Anim.BattleAnimationController
+  profile: {fileID: 11400000, guid: ef5308e0b6beea24bbc1312786e83756, type: 2}
+  root: {fileID: 2431139529432602317}
+  directionMultiplier: 1
+  spriteFlashRenderer: {fileID: 0}
+  meshFlashRenderer: {fileID: 0}
+  flashMaterialProperty: _Color
+  flashColor: {r: 0.9622642, g: 0.9622642, b: 0.9622642, a: 1}

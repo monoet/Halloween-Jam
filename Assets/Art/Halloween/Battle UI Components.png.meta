@@ -1,0 +1,706 @@
+fileFormatVersion: 2
+guid: 88e723ccbe534984cad73fdd89bb90c3
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: 5404585191308233458
+    second: Battle UI Components_0
+  - first:
+      213: 1845343445303295713
+    second: Battle UI Components_1
+  - first:
+      213: 926266738622396580
+    second: Battle UI Components_2
+  - first:
+      213: -7932634918682946090
+    second: Battle UI Components_3
+  - first:
+      213: -1130229008640530113
+    second: Battle UI Components_4
+  - first:
+      213: -6808249828968474055
+    second: Battle UI Components_5
+  - first:
+      213: 8516900124863661121
+    second: Battle UI Components_6
+  - first:
+      213: -7491023925201162697
+    second: Battle UI Components_7
+  - first:
+      213: -5257544270314759056
+    second: Battle UI Components_8
+  - first:
+      213: 2639848060259980525
+    second: Battle UI Components_9
+  - first:
+      213: -6110624435677988673
+    second: Battle UI Components_10
+  - first:
+      213: -6223435269169348685
+    second: Battle UI Components_11
+  - first:
+      213: -5554336897549336805
+    second: Battle UI Components_12
+  - first:
+      213: -8379712126303988401
+    second: Battle UI Components_13
+  - first:
+      213: -855827711855667007
+    second: Battle UI Components_14
+  - first:
+      213: 3347899951625354981
+    second: Battle UI Components_15
+  - first:
+      213: 2977343900413445324
+    second: Battle UI Components_16
+  - first:
+      213: -5270206121833744770
+    second: Battle UI Components_17
+  - first:
+      213: 2276631245059091572
+    second: Battle UI Components_18
+  - first:
+      213: 1045624666535656968
+    second: Battle UI Components_19
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 0
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 0
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: Battle UI Components_0
+      rect:
+        serializedVersion: 2
+        x: 1
+        y: 41
+        width: 22
+        height: 22
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2fa8346c891f00b40800000000000000
+      internalID: 5404585191308233458
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Battle UI Components_1
+      rect:
+        serializedVersion: 2
+        x: 56
+        y: 57
+        width: 20
+        height: 5
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1eef5e1261afb9910800000000000000
+      internalID: 1845343445303295713
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Battle UI Components_2
+      rect:
+        serializedVersion: 2
+        x: 51
+        y: 40
+        width: 5
+        height: 7
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4a8f8d2f0b2cadc00800000000000000
+      internalID: 926266738622396580
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Battle UI Components_3
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 24
+        width: 6
+        height: 9
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6d51b03029e99e190800000000000000
+      internalID: -7932634918682946090
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Battle UI Components_4
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 16
+        width: 5
+        height: 9
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f39a32174be9050f0800000000000000
+      internalID: -1130229008640530113
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Battle UI Components_5
+      rect:
+        serializedVersion: 2
+        x: 7
+        y: 24
+        width: 7
+        height: 9
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 93a583a2adc3481a0800000000000000
+      internalID: -6808249828968474055
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Battle UI Components_6
+      rect:
+        serializedVersion: 2
+        x: 7
+        y: 16
+        width: 11
+        height: 9
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1448af10a8b123670800000000000000
+      internalID: 8516900124863661121
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Battle UI Components_7
+      rect:
+        serializedVersion: 2
+        x: 15
+        y: 24
+        width: 7
+        height: 9
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 73eae6edd698a0890800000000000000
+      internalID: -7491023925201162697
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Battle UI Components_8
+      rect:
+        serializedVersion: 2
+        x: 23
+        y: 24
+        width: 7
+        height: 9
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 07c9ff087537907b0800000000000000
+      internalID: -5257544270314759056
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Battle UI Components_9
+      rect:
+        serializedVersion: 2
+        x: 31
+        y: 24
+        width: 7
+        height: 9
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: de4dcc403df92a420800000000000000
+      internalID: 2639848060259980525
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Battle UI Components_10
+      rect:
+        serializedVersion: 2
+        x: 39
+        y: 24
+        width: 7
+        height: 9
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: fb877938373b23ba0800000000000000
+      internalID: -6110624435677988673
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Battle UI Components_11
+      rect:
+        serializedVersion: 2
+        x: 47
+        y: 24
+        width: 7
+        height: 9
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3bff58a889ae1a9a0800000000000000
+      internalID: -6223435269169348685
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Battle UI Components_12
+      rect:
+        serializedVersion: 2
+        x: 55
+        y: 24
+        width: 7
+        height: 9
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b1ff9b215080be2b0800000000000000
+      internalID: -5554336897549336805
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Battle UI Components_13
+      rect:
+        serializedVersion: 2
+        x: 63
+        y: 24
+        width: 7
+        height: 9
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f451e9ff73845bb80800000000000000
+      internalID: -8379712126303988401
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Battle UI Components_14
+      rect:
+        serializedVersion: 2
+        x: 71
+        y: 24
+        width: 7
+        height: 9
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1c858edfa3d7f14f0800000000000000
+      internalID: -855827711855667007
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Battle UI Components_15
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 16
+        height: 16
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5ee3d20a441267e20800000000000000
+      internalID: 3347899951625354981
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Battle UI Components_16
+      rect:
+        serializedVersion: 2
+        x: 16
+        y: 0
+        width: 16
+        height: 16
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cc4c156b086a15920800000000000000
+      internalID: 2977343900413445324
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Battle UI Components_17
+      rect:
+        serializedVersion: 2
+        x: 32
+        y: 0
+        width: 16
+        height: 16
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e76b20774777cd6b0800000000000000
+      internalID: -5270206121833744770
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Battle UI Components_18
+      rect:
+        serializedVersion: 2
+        x: 48
+        y: 0
+        width: 16
+        height: 16
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 47c6d462e08389f10800000000000000
+      internalID: 2276631245059091572
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Battle UI Components_19
+      rect:
+        serializedVersion: 2
+        x: 66
+        y: 1
+        width: 13
+        height: 14
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 80e7e31281ec28e00800000000000000
+      internalID: 1045624666535656968
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Battle UI Components_20
+      rect:
+        serializedVersion: 2
+        x: 57
+        y: 51
+        width: 18
+        height: 2
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6cea9c926879da14e895d10e34789beb
+      internalID: 529149037
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Battle UI Components_21
+      rect:
+        serializedVersion: 2
+        x: 25
+        y: 35
+        width: 25
+        height: 2
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ce5d1b4a98efb26458ee72dddb8c63ad
+      internalID: 1570935257
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Battle UI Components_22
+      rect:
+        serializedVersion: 2
+        x: 51
+        y: 57
+        width: 5
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8e845c5d64ae52241ab73ffaf22b4c7a
+      internalID: -1414723068
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: ae31f1d8b5d40244c8400e80f6cbf14f
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      Battle UI Components_0: 5404585191308233458
+      Battle UI Components_1: 1845343445303295713
+      Battle UI Components_10: -6110624435677988673
+      Battle UI Components_11: -6223435269169348685
+      Battle UI Components_12: -5554336897549336805
+      Battle UI Components_13: -8379712126303988401
+      Battle UI Components_14: -855827711855667007
+      Battle UI Components_15: 3347899951625354981
+      Battle UI Components_16: 2977343900413445324
+      Battle UI Components_17: -5270206121833744770
+      Battle UI Components_18: 2276631245059091572
+      Battle UI Components_19: 1045624666535656968
+      Battle UI Components_2: 926266738622396580
+      Battle UI Components_20: 529149037
+      Battle UI Components_21: 1570935257
+      Battle UI Components_22: -1414723068
+      Battle UI Components_3: -7932634918682946090
+      Battle UI Components_4: -1130229008640530113
+      Battle UI Components_5: -6808249828968474055
+      Battle UI Components_6: 8516900124863661121
+      Battle UI Components_7: -7491023925201162697
+      Battle UI Components_8: -5257544270314759056
+      Battle UI Components_9: 2639848060259980525
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

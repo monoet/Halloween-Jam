@@ -129,12 +129,12 @@ namespace HalloweenJam.Combat
 
         private void Subscribe()
         {
-            if (combatantState != null)
+            if (combatantState != null && combatantState.OnVitalsChanged != null)
             {
                 combatantState.OnVitalsChanged.AddListener(HandleVitalsChanged);
             }
 
-            if (characterRuntime != null)
+            if (characterRuntime != null && characterRuntime.OnStatsChanged != null)
             {
                 characterRuntime.OnStatsChanged.AddListener(HandleStatsChanged);
             }
@@ -142,12 +142,12 @@ namespace HalloweenJam.Combat
 
         private void Unsubscribe()
         {
-            if (combatantState != null)
+            if (combatantState != null && combatantState.OnVitalsChanged != null)
             {
                 combatantState.OnVitalsChanged.RemoveListener(HandleVitalsChanged);
             }
 
-            if (characterRuntime != null)
+            if (characterRuntime != null && characterRuntime.OnStatsChanged != null)
             {
                 characterRuntime.OnStatsChanged.RemoveListener(HandleStatsChanged);
             }
