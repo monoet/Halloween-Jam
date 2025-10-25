@@ -49,3 +49,13 @@ Cada personaje actúa individualmente, con énfasis en **Combo Points (CP)**, **
 Ciertas combinaciones elementales (ej. Solar + Lunar) disparan **Chain Skills**:
 - “Eclipse”: Lilia + Jay (All-Target beam)
 - “Twilight”: Lilia + Jay (Single powerful strike)
+
+## Estado reciente (2025-10-24)
+- BattleManagerV2 delega el turno enemigo a EnemyTurnCoordinator y el fallback a FallbackActionResolver; el manager queda como orquestador (~630 lineas).
+- TriggeredEffectsService.Clear() cancela la cola en fin de batalla; se invoca desde BattleManagerV2 (OnDisable/OnDestroy/ResetBattle/HandleBattleEnded).
+- Suite de Edit Mode inicial (Assets/Tests/EditMode):
+  - CombatantActionValidatorTests cubre happy path e insuficiencia de recursos.
+  - TargetingCoordinatorTests valida fallback cuando no hay resolvers.
+- Nuevo asmdef BattleV2.EditModeTests.asmdef (Editor only). Ejecutar desde Test Runner -> Edit Mode.
+- Pendiente: smoke PlayMode (player -> enemy -> trigger -> fin) para verificar OnTurnReady, timings y cleanup.
+

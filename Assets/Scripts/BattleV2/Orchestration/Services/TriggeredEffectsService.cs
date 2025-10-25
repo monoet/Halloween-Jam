@@ -13,6 +13,7 @@ namespace BattleV2.Orchestration.Services
     public interface ITriggeredEffectsService
     {
         void Enqueue(TriggeredEffectRequest request);
+        void Clear();
     }
 
     /// <summary>
@@ -25,7 +26,9 @@ namespace BattleV2.Orchestration.Services
         private readonly ActionCatalog actionCatalog;
         private readonly IBattleEventBus eventBus;
         private readonly Queue<TriggeredEffectRequest> queue = new();
+        private readonly object gate = new();
         private bool processing;
+        private bool cancellationRequested;
 
         public TriggeredEffectsService(
             BattleManagerV2 manager,
@@ -46,28 +49,68 @@ namespace BattleV2.Orchestration.Services
                 return;
             }
 
-            queue.Enqueue(request);
-            if (!processing)
+            lock (gate)
             {
-                _ = ProcessQueueAsync();
+                if (!request.Origin.IsAlive)
+                {
+                    return;
+                }
+
+                queue.Enqueue(request);
+                if (processing)
+                {
+                    return;
+                }
+
+                processing = true;
+                cancellationRequested = false;
+            }
+
+            _ = ProcessQueueAsync();
+        }
+
+        public void Clear()
+        {
+            lock (gate)
+            {
+                queue.Clear();
+                if (processing)
+                {
+                    cancellationRequested = true;
+                }
+                else
+                {
+                    cancellationRequested = false;
+                }
             }
         }
 
         private async Task ProcessQueueAsync()
         {
-            processing = true;
+            while (true)
+            {
+                TriggeredEffectRequest request;
 
-            try
-            {
-                while (queue.Count > 0)
+                lock (gate)
                 {
-                    var request = queue.Dequeue();
-                    await ExecuteTriggeredEffectAsync(request).ConfigureAwait(false);
+                    if (cancellationRequested)
+                    {
+                        queue.Clear();
+                        cancellationRequested = false;
+                        processing = false;
+                        return;
+                    }
+
+                    if (queue.Count == 0)
+                    {
+                        processing = false;
+                        return;
+                    }
+
+                    request = queue.Dequeue();
                 }
-            }
-            finally
-            {
-                processing = false;
+
+                await ExecuteTriggeredEffectAsync(request).ConfigureAwait(false);
             }
         }
 
