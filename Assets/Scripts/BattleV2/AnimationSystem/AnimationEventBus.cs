@@ -94,29 +94,40 @@ namespace BattleV2.AnimationSystem
 
     public readonly struct AnimationPhaseEvent
     {
-        public AnimationPhaseEvent(CombatantState actor, BattleSelection selection, int phaseIndex, int phaseCount)
+        public AnimationPhaseEvent(CombatantState actor, BattleSelection selection, int phaseIndex, int phaseCount, string payload)
         {
             Actor = actor;
             Selection = selection;
             PhaseIndex = phaseIndex;
             PhaseCount = phaseCount;
+            Payload = payload;
         }
 
         public CombatantState Actor { get; }
         public BattleSelection Selection { get; }
         public int PhaseIndex { get; }
         public int PhaseCount { get; }
+        public string Payload { get; }
     }
 
     public readonly struct AnimationImpactEvent
     {
-        public AnimationImpactEvent(CombatantState actor, CombatantState target, BattleActionData action, int impactIndex, int impactCount)
+        public AnimationImpactEvent(
+            CombatantState actor,
+            CombatantState target,
+            BattleActionData action,
+            int impactIndex,
+            int impactCount,
+            string tag,
+            string payload)
         {
             Actor = actor;
             Target = target;
             Action = action;
             ImpactIndex = impactIndex;
             ImpactCount = impactCount;
+            Tag = tag;
+            Payload = payload;
         }
 
         public CombatantState Actor { get; }
@@ -124,32 +135,40 @@ namespace BattleV2.AnimationSystem
         public BattleActionData Action { get; }
         public int ImpactIndex { get; }
         public int ImpactCount { get; }
+        public string Tag { get; }
+        public string Payload { get; }
     }
 
     public readonly struct AnimationWindowEvent
     {
-        public AnimationWindowEvent(CombatantState actor, float windowStart, float windowEnd)
+        public AnimationWindowEvent(CombatantState actor, string tag, float windowStart, float windowEnd, bool isOpening)
         {
             Actor = actor;
+            Tag = tag;
             WindowStart = windowStart;
             WindowEnd = windowEnd;
+            IsOpening = isOpening;
         }
 
         public CombatantState Actor { get; }
+        public string Tag { get; }
         public float WindowStart { get; }
         public float WindowEnd { get; }
+        public bool IsOpening { get; }
     }
 
     public readonly struct AnimationLockEvent
     {
-        public AnimationLockEvent(CombatantState actor, bool isLocked)
+        public AnimationLockEvent(CombatantState actor, bool isLocked, string reason)
         {
             Actor = actor;
             IsLocked = isLocked;
+            Reason = reason;
         }
 
         public CombatantState Actor { get; }
         public bool IsLocked { get; }
+        public string Reason { get; }
     }
 
     #endregion

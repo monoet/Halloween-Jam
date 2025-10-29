@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -20,7 +20,7 @@ namespace BattleV2.AnimationSystem.Timelines
         [Serializable]
         public struct Metadata
         {
-            [Tooltip("Duración total normalizada (0..1) -> se escala según velocidad y Clock.")]
+            [Tooltip("Duracion total normalizada (0..1) -> se escala segun velocidad y clock.")]
             public float Length;
 
             [Tooltip("Etiquetas libres para filtros (por ejemplo: melee, magic, projectile).")]

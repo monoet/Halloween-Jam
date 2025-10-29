@@ -1,3 +1,4 @@
+using System.Threading;
 using System.Threading.Tasks;
 using BattleV2.Orchestration.Services;
 
@@ -16,7 +17,7 @@ namespace BattleV2.AnimationSystem
             legacy = legacyOrchestrator;
         }
 
-        public Task PlayAsync(AnimationRequest request)
+        public Task PlayAsync(AnimationRequest request, CancellationToken cancellationToken = default)
         {
             if (legacy == null)
             {
@@ -29,6 +30,8 @@ namespace BattleV2.AnimationSystem
                 request.Targets,
                 request.AverageSpeed);
 
+            // Legacy orchestrator does not support cancellation; best-effort no-op.
+            cancellationToken.ThrowIfCancellationRequested();
             return legacy.PlayAsync(playback);
         }
     }

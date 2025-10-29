@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+ï»¿using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 using BattleV2.AnimationSystem.Catalog;
@@ -11,53 +11,87 @@ namespace BattleV2.AnimationSystem.Editor
         [MenuItem("Battle/Animation/Validate Action Timeline Catalog")]
         public static void ValidateCatalog()
         {
-            var catalog = Selection.activeObject as ActionTimelineCatalog;
-            if (catalog == null)
+            var catalogs = CollectCatalogsFromSelection();
+            if (catalogs.Count == 0)
             {
-                Debug.LogWarning("[ActionTimelineCatalogValidator] Selecciona un ActionTimelineCatalog para validar.");
+                Debug.LogWarning("[ActionTimelineCatalogValidator] Selecciona al menos un ActionTimelineCatalog para validar.");
                 return;
             }
 
-            catalog.Initialize();
-            var timelines = catalog.Timelines;
-            if (timelines == null || timelines.Count == 0)
-            {
-                Debug.LogWarning("[ActionTimelineCatalogValidator] Catálogo vacío.");
-                return;
-            }
+            int totalTimelines = 0;
+            int totalErrors = 0;
+            int totalWarnings = 0;
 
-            var errors = new List<string>();
-            var warnings = new List<string>();
-
-            foreach (var timeline in timelines)
+            foreach (var catalog in catalogs)
             {
-                var result = ActionTimelineValidator.Validate(timeline);
-                if (result.Errors != null)
+                catalog.ForceRebuild();
+                var timelines = catalog.Timelines;
+                if (timelines == null || timelines.Count == 0)
                 {
-                    errors.AddRange(result.Errors);
+                    Debug.LogWarning($"[ActionTimelineCatalogValidator] '{catalog.name}' esta vacio.");
+                    continue;
                 }
 
-                if (result.Warnings != null)
+                int catalogErrors = 0;
+                int catalogWarnings = 0;
+
+                foreach (var timeline in timelines)
                 {
-                    warnings.AddRange(result.Warnings);
+                    var result = ActionTimelineValidator.Validate(timeline);
+                    catalogErrors += result.ErrorCount;
+                    catalogWarnings += result.WarningCount;
+
+                    if (result.Errors != null)
+                    {
+                        foreach (var error in result.Errors)
+                        {
+                            Debug.LogError($"[ActionTimelineCatalogValidator] {catalog.name}/{timeline.ActionId}: {error}");
+                        }
+                    }
+
+                    if (result.Warnings != null)
+                    {
+                        foreach (var warning in result.Warnings)
+                        {
+                            Debug.LogWarning($"[ActionTimelineCatalogValidator] {catalog.name}/{timeline.ActionId}: {warning}");
+                        }
+                    }
+                }
+
+                totalTimelines += timelines.Count;
+                totalErrors += catalogErrors;
+                totalWarnings += catalogWarnings;
+
+                if (catalogErrors == 0 && catalogWarnings == 0)
+                {
+                    Debug.Log($"[ActionTimelineCatalogValidator] '{catalog.name}' validacion exitosa ({timelines.Count} timelines, sin hallazgos).");
+                }
+                else
+                {
+                    Debug.Log($"[ActionTimelineCatalogValidator] '{catalog.name}' resumen -> {timelines.Count} timelines | {catalogErrors} errores | {catalogWarnings} warnings.");
                 }
             }
 
-            if (errors.Count == 0 && warnings.Count == 0)
+            Debug.Log($"[ActionTimelineCatalogValidator] Resultado global -> Catalogos: {catalogs.Count}, Timelines Analizados: {totalTimelines}, Errores: {totalErrors}, Warnings: {totalWarnings}.");
+        }
+
+        private static HashSet<ActionTimelineCatalog> CollectCatalogsFromSelection()
+        {
+            var catalogs = new HashSet<ActionTimelineCatalog>();
+            foreach (var obj in Selection.objects)
             {
-                Debug.Log("[ActionTimelineCatalogValidator] Validación exitosa sin observaciones.");
-                return;
+                if (obj is ActionTimelineCatalog catalog)
+                {
+                    catalogs.Add(catalog);
+                }
             }
 
-            foreach (var error in errors)
+            if (catalogs.Count == 0 && Selection.activeObject is ActionTimelineCatalog active)
             {
-                Debug.LogError($"[ActionTimelineCatalogValidator] {error}");
+                catalogs.Add(active);
             }
 
-            foreach (var warning in warnings)
-            {
-                Debug.LogWarning($"[ActionTimelineCatalogValidator] {warning}");
-            }
+            return catalogs;
         }
     }
 }

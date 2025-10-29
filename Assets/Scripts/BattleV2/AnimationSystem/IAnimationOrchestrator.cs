@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using BattleV2.Core;
 using BattleV2.Providers;
@@ -12,7 +13,7 @@ namespace BattleV2.AnimationSystem
     /// </summary>
     public interface IAnimationOrchestrator
     {
-        Task PlayAsync(AnimationRequest request);
+        Task PlayAsync(AnimationRequest request, CancellationToken cancellationToken = default);
     }
 
     /// <summary>
