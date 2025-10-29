@@ -1,0 +1,64 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c24f69b1e2354b1da8df74155a8d580f, type: 3}
+  m_Name: magic_bolt
+  m_EditorClassIdentifier: 
+  actionId: magic_bolt
+  displayName: Magic Bolt
+  metadata:
+    Length: 1
+    Tags:
+    - magic
+    - ranged
+  tracks:
+  - type: 0
+    phases:
+    - Start: 0
+      End: 0.12
+      OnEnterEvent: charge_start
+      OnExitEvent: charge_ready
+      Payload: glow=blue
+  - type: 1
+    phases:
+    - Start: 0.12
+      End: 0.3
+      OnEnterEvent: cast_start
+      OnExitEvent: cast_release
+      Payload: cast
+  - type: 2
+    phases:
+    - Start: 0.22
+      End: 0.32
+      OnEnterEvent: window_open
+      OnExitEvent: window_close
+      Payload: perfect=0.27
+  - type: 1
+    phases:
+    - Start: 0.3
+      End: 0.6
+      OnEnterEvent: projectile_spawn
+      OnExitEvent: projectile_hit
+      Payload: bolt_blue
+  - type: 1
+    phases:
+    - Start: 0.6
+      End: 0.8
+      OnEnterEvent: impact_start
+      OnExitEvent: impact_end
+      Payload: explosion
+  - type: 3
+    phases:
+    - Start: 0
+      End: 0.8
+      OnEnterEvent: player_lock
+      OnExitEvent: player_unlock
+      Payload: 

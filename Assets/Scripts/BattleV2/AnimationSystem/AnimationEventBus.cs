@@ -1,0 +1,156 @@
+using System;
+using System.Collections.Generic;
+using BattleV2.Actions;
+using BattleV2.Core;
+using BattleV2.Providers;
+
+namespace BattleV2.AnimationSystem
+{
+    public interface IAnimationEventBus
+    {
+        void Publish<TEvent>(TEvent evt) where TEvent : struct;
+        IDisposable Subscribe<TEvent>(Action<TEvent> handler) where TEvent : struct;
+    }
+
+    /// <summary>
+    /// Lightweight synchronous pub/sub tailored for the JRPG animation pipeline.
+    /// </summary>
+    public sealed class AnimationEventBus : IAnimationEventBus
+    {
+        private readonly Dictionary<Type, List<Delegate>> subscribers = new();
+
+        public void Publish<TEvent>(TEvent evt) where TEvent : struct
+        {
+            var type = typeof(TEvent);
+            if (!subscribers.TryGetValue(type, out var handlers))
+            {
+                return;
+            }
+
+            for (int i = 0; i < handlers.Count; i++)
+            {
+                if (handlers[i] is Action<TEvent> action)
+                {
+                    action(evt);
+                }
+            }
+        }
+
+        public IDisposable Subscribe<TEvent>(Action<TEvent> handler) where TEvent : struct
+        {
+            if (handler == null)
+            {
+                return EmptyDisposable.Instance;
+            }
+
+            var type = typeof(TEvent);
+            if (!subscribers.TryGetValue(type, out var handlers))
+            {
+                handlers = new List<Delegate>();
+                subscribers[type] = handlers;
+            }
+
+            handlers.Add(handler);
+
+            return new Subscription(() =>
+            {
+                if (!subscribers.TryGetValue(type, out var list))
+                {
+                    return;
+                }
+
+                list.Remove(handler);
+                if (list.Count == 0)
+                {
+                    subscribers.Remove(type);
+                }
+            });
+        }
+
+        private sealed class Subscription : IDisposable
+        {
+            private Action dispose;
+
+            public Subscription(Action disposal)
+            {
+                dispose = disposal;
+            }
+
+            public void Dispose()
+            {
+                dispose?.Invoke();
+                dispose = null;
+            }
+        }
+
+        private sealed class EmptyDisposable : IDisposable
+        {
+            public static readonly EmptyDisposable Instance = new();
+            public void Dispose() { }
+        }
+    }
+
+    #region Events
+
+    public readonly struct AnimationPhaseEvent
+    {
+        public AnimationPhaseEvent(CombatantState actor, BattleSelection selection, int phaseIndex, int phaseCount)
+        {
+            Actor = actor;
+            Selection = selection;
+            PhaseIndex = phaseIndex;
+            PhaseCount = phaseCount;
+        }
+
+        public CombatantState Actor { get; }
+        public BattleSelection Selection { get; }
+        public int PhaseIndex { get; }
+        public int PhaseCount { get; }
+    }
+
+    public readonly struct AnimationImpactEvent
+    {
+        public AnimationImpactEvent(CombatantState actor, CombatantState target, BattleActionData action, int impactIndex, int impactCount)
+        {
+            Actor = actor;
+            Target = target;
+            Action = action;
+            ImpactIndex = impactIndex;
+            ImpactCount = impactCount;
+        }
+
+        public CombatantState Actor { get; }
+        public CombatantState Target { get; }
+        public BattleActionData Action { get; }
+        public int ImpactIndex { get; }
+        public int ImpactCount { get; }
+    }
+
+    public readonly struct AnimationWindowEvent
+    {
+        public AnimationWindowEvent(CombatantState actor, float windowStart, float windowEnd)
+        {
+            Actor = actor;
+            WindowStart = windowStart;
+            WindowEnd = windowEnd;
+        }
+
+        public CombatantState Actor { get; }
+        public float WindowStart { get; }
+        public float WindowEnd { get; }
+    }
+
+    public readonly struct AnimationLockEvent
+    {
+        public AnimationLockEvent(CombatantState actor, bool isLocked)
+        {
+            Actor = actor;
+            IsLocked = isLocked;
+        }
+
+        public CombatantState Actor { get; }
+        public bool IsLocked { get; }
+    }
+
+    #endregion
+}
