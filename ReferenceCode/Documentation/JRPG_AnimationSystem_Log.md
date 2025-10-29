@@ -29,12 +29,15 @@ Notas:
 
 ## 2025-10-29 - Milestone 3 - Nucleo de ejecucion (en progreso)
 - [x] IAnimationOrchestrator ahora acepta CancellationToken para soportar cancelaciones seguras.
-- [x] TimelineCompiler genera fases normalizadas y mantiene metadata completa.
-- [x] ActionLockManager, TimelineRuntimeBuilder y ActionSequencer coordinan locks y eventos sobre CombatClock.
-- [x] AnimationEventBus expandido con tags, payload y razon de lock para los routers.
-- [x] ActionTimelineCatalog y AnimValidator reforzados con chequeos adicionales.
-- [ ] TimedHitService/InputBuffer quedaran para el siguiente tramo del milestone.
+- [x] TimelineCompiler normaliza y convierte timelines a tiempos reales, despachando eventos en el orden del LOCKED con tolerancias configurables y hook `EventDispatched`.
+- [x] ActionSequencer y ActionLockManager coordinan locks, cancelaciones amigables y liberaciones deterministas sobre CombatClock.
+- [x] AnimationEventBus expandido con tags, payload, razon de lock y tolerancias para los routers.
+- [x] ActionTimelineCatalog y ActionTimelineValidator ahora garantizan tags únicas, tracks mínimos y warnings limpios.
+- [x] TimedHitService/InputBuffer para escuchar AnimationWindowEvent y producir juicios (Perfect/Good/Miss).
+- [ ] Infra inicial de snapshot tests/telemetría para validar determinismo multi-FPS.
 
 Notas:
 - ActionSequencerDriver permite tickear secuencias en prototipos usando CombatClock.
-- Se introdujo ActionSystem_Scripts_Export.txt para compartir rapidamente el estado del sistema.
+- Scripts relevantes exportados a `ReferenceCode/Documentation/AnimationSystem_Scripts_Export.txt`.
+- Catalogo y validator sin warnings tras refuerzos de tags/locks.
+- TimedHitService + TimedInputBuffer resuelven ventanas usando CombatClock, perfil de tolerancias y publican `TimedHitResultEvent` (Perfect/Good/Miss) en el bus.

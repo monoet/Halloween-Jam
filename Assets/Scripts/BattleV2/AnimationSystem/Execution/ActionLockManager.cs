@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace BattleV2.AnimationSystem.Execution
 {
@@ -39,6 +40,10 @@ namespace BattleV2.AnimationSystem.Execution
             if (index >= 0)
             {
                 reasons.RemoveAt(index);
+            }
+            else
+            {
+                Debug.LogWarning($"[ActionLockManager] Attempted to release lock '{reason}' but it was not registered.");
             }
         }
     }

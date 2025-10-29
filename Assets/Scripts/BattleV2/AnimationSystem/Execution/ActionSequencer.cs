@@ -8,7 +8,7 @@ namespace BattleV2.AnimationSystem.Execution
 {
     public sealed class ActionSequencer : IDisposable
     {
-        private const double EventTolerance = 0.0001;
+        public const double DefaultEventTolerance = 0.0001d;
 
         private readonly AnimationRequest request;
         private readonly CompiledTimeline timeline;
@@ -17,6 +17,7 @@ namespace BattleV2.AnimationSystem.Execution
         private readonly IActionLockManager lockManager;
         private readonly List<ScheduledEvent> schedule;
         private readonly string baseLockReason;
+        private readonly double tolerance;
 
         private int nextEvent;
         private double startTime;
@@ -24,18 +25,32 @@ namespace BattleV2.AnimationSystem.Execution
         private bool completed;
         private bool cancelled;
 
+        public event Action<SequencerEventInfo> EventDispatched;
+
         public ActionSequencer(
             AnimationRequest request,
             CompiledTimeline timeline,
             ICombatClock clock,
             IAnimationEventBus eventBus,
             IActionLockManager lockManager)
+            : this(request, timeline, clock, eventBus, lockManager, DefaultEventTolerance)
+        {
+        }
+
+        public ActionSequencer(
+            AnimationRequest request,
+            CompiledTimeline timeline,
+            ICombatClock clock,
+            IAnimationEventBus eventBus,
+            IActionLockManager lockManager,
+            double tolerance)
         {
             this.request = request;
             this.timeline = timeline;
             this.clock = clock;
             this.eventBus = eventBus;
             this.lockManager = lockManager;
+            this.tolerance = Math.Max(1e-6d, tolerance);
 
             baseLockReason = string.IsNullOrWhiteSpace(timeline.ActionId)
                 ? "timeline"
@@ -82,12 +97,12 @@ namespace BattleV2.AnimationSystem.Execution
             while (nextEvent < schedule.Count)
             {
                 var current = schedule[nextEvent];
-                if (current.TriggerTime - elapsed > EventTolerance)
+                if (current.TriggerTime - elapsed > tolerance)
                 {
                     break;
                 }
 
-                ExecuteEvent(current);
+                ExecuteEvent(current, elapsed);
                 nextEvent++;
             }
 
@@ -105,6 +120,7 @@ namespace BattleV2.AnimationSystem.Execution
             }
 
             cancelled = true;
+            PublishLockEvent(false, $"{baseLockReason}:cancelled");
             CompleteInternal();
         }
 
@@ -128,8 +144,19 @@ namespace BattleV2.AnimationSystem.Execution
             PublishLockEvent(false, baseLockReason);
         }
 
-        private void ExecuteEvent(ScheduledEvent scheduled)
+        private void ExecuteEvent(ScheduledEvent scheduled, double elapsed)
         {
+            EventDispatched?.Invoke(new SequencerEventInfo(
+                scheduled.Type,
+                scheduled.TriggerTime,
+                elapsed,
+                scheduled.Phase,
+                scheduled.Index + 1,
+                scheduled.TotalCount,
+                scheduled.Tag,
+                scheduled.Payload,
+                scheduled.Reason));
+
             switch (scheduled.Type)
             {
                 case ScheduledEventType.LockAcquire:
@@ -162,6 +189,7 @@ namespace BattleV2.AnimationSystem.Execution
 
         private void PublishPhaseEvent(ScheduledEvent scheduled)
         {
+            // Index is 1-based to align with designer-friendly telemetry.
             var evt = new AnimationPhaseEvent(
                 request.Actor,
                 request.Selection,
@@ -199,7 +227,9 @@ namespace BattleV2.AnimationSystem.Execution
                 scheduled.Tag,
                 scheduled.Phase.StartNormalized,
                 scheduled.Phase.EndNormalized,
-                isOpening);
+                isOpening,
+                scheduled.Index + 1,
+                scheduled.TotalCount);
             eventBus?.Publish(evt);
         }
 
@@ -364,8 +394,8 @@ namespace BattleV2.AnimationSystem.Execution
                     ScheduledEventType.WindowOpen => 0,
                     ScheduledEventType.Impact => 1,
                     ScheduledEventType.WindowClose => 2,
-                    ScheduledEventType.PhaseEnter => 3,
-                    ScheduledEventType.LockRelease => 4,
+                    ScheduledEventType.LockRelease => 3,
+                    ScheduledEventType.PhaseEnter => 4,
                     _ => 5
                 };
         }
@@ -379,5 +409,40 @@ namespace BattleV2.AnimationSystem.Execution
         LockAcquire,
         LockRelease,
         PhaseEnter
+    }
+
+    public readonly struct SequencerEventInfo
+    {
+        public SequencerEventInfo(
+            ScheduledEventType type,
+            double scheduledTime,
+            double elapsedTime,
+            CompiledPhase phase,
+            int index,
+            int totalCount,
+            string tag,
+            string payload,
+            string reason)
+        {
+            Type = type;
+            ScheduledTime = scheduledTime;
+            ElapsedTime = elapsedTime;
+            Phase = phase;
+            Index = index;
+            TotalCount = totalCount;
+            Tag = tag;
+            Payload = payload;
+            Reason = reason;
+        }
+
+        public ScheduledEventType Type { get; }
+        public double ScheduledTime { get; }
+        public double ElapsedTime { get; }
+        public CompiledPhase Phase { get; }
+        public int Index { get; }
+        public int TotalCount { get; }
+        public string Tag { get; }
+        public string Payload { get; }
+        public string Reason { get; }
     }
 }

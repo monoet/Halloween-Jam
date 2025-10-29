@@ -141,13 +141,22 @@ namespace BattleV2.AnimationSystem
 
     public readonly struct AnimationWindowEvent
     {
-        public AnimationWindowEvent(CombatantState actor, string tag, float windowStart, float windowEnd, bool isOpening)
+        public AnimationWindowEvent(
+            CombatantState actor,
+            string tag,
+            float windowStart,
+            float windowEnd,
+            bool isOpening,
+            int windowIndex,
+            int windowCount)
         {
             Actor = actor;
             Tag = tag;
             WindowStart = windowStart;
             WindowEnd = windowEnd;
             IsOpening = isOpening;
+            WindowIndex = windowIndex;
+            WindowCount = windowCount;
         }
 
         public CombatantState Actor { get; }
@@ -155,6 +164,8 @@ namespace BattleV2.AnimationSystem
         public float WindowStart { get; }
         public float WindowEnd { get; }
         public bool IsOpening { get; }
+        public int WindowIndex { get; }
+        public int WindowCount { get; }
     }
 
     public readonly struct AnimationLockEvent
@@ -169,6 +180,51 @@ namespace BattleV2.AnimationSystem
         public CombatantState Actor { get; }
         public bool IsLocked { get; }
         public string Reason { get; }
+    }
+
+    public enum TimedHitJudgment
+    {
+        Perfect,
+        Good,
+        Miss
+    }
+
+    public readonly struct TimedHitResultEvent
+    {
+        public TimedHitResultEvent(
+            CombatantState actor,
+            string tag,
+            TimedHitJudgment judgment,
+            double deltaMilliseconds,
+            double inputTimestamp,
+            int windowIndex,
+            int windowCount,
+            bool consumedInput,
+            double windowOpenedAt,
+            double windowClosedAt)
+        {
+            Actor = actor;
+            Tag = tag;
+            Judgment = judgment;
+            DeltaMilliseconds = deltaMilliseconds;
+            InputTimestamp = inputTimestamp;
+            WindowIndex = windowIndex;
+            WindowCount = windowCount;
+            ConsumedInput = consumedInput;
+            WindowOpenedAt = windowOpenedAt;
+            WindowClosedAt = windowClosedAt;
+        }
+
+        public CombatantState Actor { get; }
+        public string Tag { get; }
+        public TimedHitJudgment Judgment { get; }
+        public double DeltaMilliseconds { get; }
+        public double InputTimestamp { get; }
+        public int WindowIndex { get; }
+        public int WindowCount { get; }
+        public bool ConsumedInput { get; }
+        public double WindowOpenedAt { get; }
+        public double WindowClosedAt { get; }
     }
 
     #endregion
