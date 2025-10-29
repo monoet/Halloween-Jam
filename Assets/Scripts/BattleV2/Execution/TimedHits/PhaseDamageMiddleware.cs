@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using BattleV2.Actions;
 using BattleV2.Anim;
+using BattleV2.Charge;
 using UnityEngine;
 
 namespace BattleV2.Execution.TimedHits
@@ -91,6 +92,8 @@ namespace BattleV2.Execution.TimedHits
                     return;
                 }
 
+                TryAwardComboPoint(phase);
+
                 context.Target.TakeDamage(damageValue);
                 totalDamage += damageValue;
                 appliedAny = true;
@@ -120,6 +123,53 @@ namespace BattleV2.Execution.TimedHits
                 {
                     context.TimedResult = context.TimedResult.Value.WithPhaseDamage(true, context.TotalDamageApplied);
                 }
+            }
+
+            if (context.TimedResult.HasValue && context.TimedResult.Value.CpRefund != context.ComboPointsAwarded)
+            {
+                var raw = context.TimedResult.Value;
+                context.TimedResult = new TimedHitResult(
+                    raw.HitsSucceeded,
+                    raw.TotalHits,
+                    context.ComboPointsAwarded,
+                    raw.DamageMultiplier,
+                    raw.Cancelled,
+                    raw.SuccessStreak,
+                    raw.PhaseDamageApplied,
+                    raw.TotalDamageApplied);
+            }
+
+            void TryAwardComboPoint(TimedHitPhaseResult phase)
+            {
+                if (!phase.IsSuccess)
+                {
+                    return;
+                }
+
+                var manager = context.Manager;
+                var attacker = context.Attacker;
+                if (manager == null || attacker == null || manager.Player != attacker)
+                {
+                    return;
+                }
+
+                var profile = context.Selection.TimedHitProfile;
+                int refundCap = profile != null
+                    ? profile.GetTierForCharge(context.CpCharge).RefundMax
+                    : int.MaxValue;
+
+                if (refundCap <= 0)
+                {
+                    refundCap = int.MaxValue;
+                }
+
+                if (refundCap > 0 && context.ComboPointsAwarded >= refundCap)
+                {
+                    return;
+                }
+
+                attacker.AddCP(1);
+                context.ComboPointsAwarded += 1;
             }
         }
     }

@@ -147,7 +147,34 @@ namespace BattleV2.Anim
                 return current;
             }
 
-            return state.GetComponentInChildren<BattleAnimationController>();
+            BattleAnimationController controller = null;
+
+            // Try the same GameObject first (common case after refactors).
+            controller = state.GetComponent<BattleAnimationController>();
+            if (controller != null)
+            {
+                return controller;
+            }
+
+            // Fallback to children (original prefab layout).
+            controller = state.GetComponentInChildren<BattleAnimationController>();
+            if (controller != null)
+            {
+                return controller;
+            }
+
+            // Some prefabs keep the animation controller on the parent or on the runtime root.
+            controller = state.GetComponentInParent<BattleAnimationController>();
+            if (controller != null)
+            {
+                return controller;
+            }
+
+            var runtime = state.CharacterRuntime != null
+                ? state.CharacterRuntime.GetComponentInChildren<BattleAnimationController>()
+                : null;
+
+            return runtime;
         }
 
         private void InvokeResetStrategies()

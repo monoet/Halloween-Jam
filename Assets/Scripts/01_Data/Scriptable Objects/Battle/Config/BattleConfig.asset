@@ -13,4 +13,4 @@ MonoBehaviour:
   m_Name: BattleConfig
   m_EditorClassIdentifier: Assembly-CSharp::BattleV2.Core.BattleConfig
   actionCatalog: {fileID: 11400000, guid: 10f3a1416429f3047b84a538a793b010, type: 2}
-  inputProvider: {fileID: 11400000, guid: 0e245d51ecf76ce4ca195d0bfe158ec3, type: 2}
+  inputProvider: {fileID: 0}

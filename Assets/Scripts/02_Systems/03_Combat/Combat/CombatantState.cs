@@ -1,4 +1,5 @@
 using UnityEngine;
+using BattleV2.Debugging;
 using UnityEngine.Events;
 
 /// <summary>
@@ -354,7 +355,7 @@ public class CombatantState : MonoBehaviour
 
     private void Log(string message)
     {
-        if (enableDebugLogs)
+        if (enableDebugLogs && CombatDebugOptions.EnableCombatantLogs)
         {
             Debug.Log($"[CombatantState] {message}");
         }
@@ -362,7 +363,7 @@ public class CombatantState : MonoBehaviour
 
     private void LogWarning(string message)
     {
-        if (enableDebugLogs)
+        if (enableDebugLogs && CombatDebugOptions.EnableCombatantLogs)
         {
             Debug.LogWarning($"[CombatantState] {message}");
         }

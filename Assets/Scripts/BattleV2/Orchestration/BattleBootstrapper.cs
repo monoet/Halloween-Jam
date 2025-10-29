@@ -1,4 +1,5 @@
 using BattleV2.Core;
+using BattleV2.Debugging;
 using UnityEngine;
 
 namespace BattleV2.Orchestration
@@ -11,9 +12,13 @@ namespace BattleV2.Orchestration
         [SerializeField] private BattleManagerV2 battleManager;
         [SerializeField] private bool autoStart = true;
         [SerializeField] private KeyCode resetKey = KeyCode.R;
+        [Header("Debug")]
+        [SerializeField] private bool enableCombatantLogs;
 
         private void Start()
         {
+            CombatDebugOptions.EnableCombatantLogs = enableCombatantLogs;
+
             if (autoStart && battleManager != null)
             {
                 BattleLogger.Log("Bootstrap", "Starting battle (auto-start enabled).");

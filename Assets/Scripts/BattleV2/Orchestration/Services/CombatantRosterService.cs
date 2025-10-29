@@ -3,6 +3,7 @@ using BattleV2.Core;
 using BattleV2.Orchestration;
 using HalloweenJam.Combat;
 using UnityEngine;
+using BattleV2.UI;
 
 namespace BattleV2.Orchestration.Services
 {
@@ -211,15 +212,29 @@ namespace BattleV2.Orchestration.Services
                 ? config.EnemySpawnPoint
                 : config.OwnerTransform;
 
-            IReadOnlyList<CombatantLoadoutEntry> entries = config.EnemyEncounterLoadout != null &&
-                                                          config.EnemyEncounterLoadout.Enemies.Count > 0
+            var encounterLoadout = config.EnemyEncounterLoadout;
+            bool useSceneAnchors = encounterLoadout == null || encounterLoadout.UseSceneAnchors;
+
+            IReadOnlyList<CombatantLoadoutEntry> entries = encounterLoadout != null &&
+                                                          encounterLoadout.Enemies.Count > 0
                 ? config.EnemyEncounterLoadout.Enemies
                 : null;
 
             Vector3[] patternOffsets = null;
-            if (config.EnemyEncounterLoadout?.SpawnPattern != null && entries != null)
+            if (encounterLoadout?.SpawnPattern != null && entries != null)
             {
-                config.EnemyEncounterLoadout.SpawnPattern.TryGetOffsets(entries.Count, out patternOffsets);
+                encounterLoadout.SpawnPattern.TryGetOffsets(entries.Count, out patternOffsets);
+            }
+
+            Vector3 fallbackOrigin = fallbackParent != null ? fallbackParent.position : Vector3.zero;
+            Quaternion fallbackRotation = fallbackParent != null ? fallbackParent.rotation : Quaternion.identity;
+
+            if (encounterLoadout != null && !useSceneAnchors)
+            {
+                var owner = config.OwnerTransform;
+                var localOffset = encounterLoadout.FallbackOriginOffset;
+                fallbackOrigin = owner != null ? owner.TransformPoint(localOffset) : localOffset;
+                fallbackRotation = owner != null ? owner.rotation : Quaternion.identity;
             }
 
             if (entries != null)
@@ -232,16 +247,22 @@ namespace BattleV2.Orchestration.Services
                         continue;
                     }
 
-                    Transform spawnTransform = ResolveSpawnTransform(config.EnemySpawnPoints, config.EnemySpawnPoint, i);
+                    Transform spawnTransform = useSceneAnchors
+                        ? ResolveSpawnTransform(config.EnemySpawnPoints, config.EnemySpawnPoint, i)
+                        : null;
+
                     var parent = spawnTransform != null ? spawnTransform : fallbackParent;
+                    Vector3 basePosition = spawnTransform != null ? spawnTransform.position : fallbackOrigin;
+                    Quaternion baseRotation = spawnTransform != null ? spawnTransform.rotation : fallbackRotation;
+
                     Vector3 offset = entry.SpawnOffset;
-                    if (spawnTransform == null && patternOffsets != null && patternOffsets.Length > 0)
+                    if (patternOffsets != null && patternOffsets.Length > 0)
                     {
                         offset += patternOffsets[Mathf.Clamp(i, 0, patternOffsets.Length - 1)];
                     }
 
-                    Vector3 worldPosition = parent.position + offset;
-                    Quaternion worldRotation = parent.rotation;
+                    Vector3 worldPosition = basePosition + offset;
+                    Quaternion worldRotation = baseRotation;
 
                     var combatant = SpawnCombatant(entry, parent, worldPosition, worldRotation, spawnedEnemyInstances, out var dropTable);
                     if (combatant != null)

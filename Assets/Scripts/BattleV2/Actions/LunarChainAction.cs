@@ -97,7 +97,7 @@ namespace BattleV2.Actions
             }
 
             var tier = timedHitProfile.GetTierForCharge(cpCharge);
-            int totalPhases = Mathf.Max(0, tier.Hits);
+            int totalPhases = Mathf.Max(1, tier.Hits);
 
             var stats = context.PlayerStats;
             float attackStat = stats.Physical;
@@ -155,24 +155,21 @@ namespace BattleV2.Actions
             int totalHits = snapshot.TotalPhases;
             int hitsSucceeded = snapshot.TotalPhases;
             float perHitMultiplier = snapshot.TierMultiplier;
-            int refund = Mathf.Clamp(hitsSucceeded, 0, snapshot.Tier.RefundMax);
             bool damageResolvedExternally = false;
             int externalDamage = 0;
 
             if (timedResult.HasValue)
             {
-                var result = timedResult.Value;
-                totalHits = result.TotalHits > 0 ? result.TotalHits : totalHits;
-                hitsSucceeded = Mathf.Clamp(result.HitsSucceeded, 0, snapshot.TotalPhases);
-                perHitMultiplier = result.DamageMultiplier > 0f ? result.DamageMultiplier : perHitMultiplier;
-                refund = Mathf.Clamp(result.CpRefund, 0, snapshot.Tier.RefundMax);
-                damageResolvedExternally = result.PhaseDamageApplied;
-                externalDamage = result.TotalDamageApplied;
+                var raw = timedResult.Value;
+                totalHits = raw.TotalHits > 0 ? raw.TotalHits : totalHits;
+                hitsSucceeded = Mathf.Clamp(raw.HitsSucceeded, 0, totalHits);
+                perHitMultiplier = raw.DamageMultiplier > 0f ? raw.DamageMultiplier : perHitMultiplier;
+                damageResolvedExternally = raw.PhaseDamageApplied;
+                externalDamage = raw.TotalDamageApplied;
             }
-
-            if (refund > 0)
+            else
             {
-                actor.AddCP(refund);
+                hitsSucceeded = totalHits;
             }
 
             if (damageResolvedExternally)

@@ -37,6 +37,7 @@ namespace BattleV2.Execution.TimedHits
 
             if (manager != null)
             {
+                Debug.Log("[Ks1TimedHitRunner] Awake registering runner.", this);
                 manager.SetTimedHitRunner(this);
             }
         }
@@ -50,6 +51,7 @@ namespace BattleV2.Execution.TimedHits
 
             if (manager != null)
             {
+                Debug.Log("[Ks1TimedHitRunner] OnEnable registering runner.", this);
                 manager.SetTimedHitRunner(this);
             }
         }
@@ -69,6 +71,8 @@ namespace BattleV2.Execution.TimedHits
             {
                 AbortSequence(cancelled: true);
             }
+
+            Debug.Log("[Ks1TimedHitRunner] OnDisable (sequenceActive cleared).");
         }
 
         private void OnDestroy()
@@ -80,6 +84,7 @@ namespace BattleV2.Execution.TimedHits
 
             if (manager != null && ReferenceEquals(manager.TimedHitRunner, this) && fallBackToInstantWhenDisabled)
             {
+                Debug.Log("[Ks1TimedHitRunner] OnDestroy falling back to instant runner.", this);
                 manager.SetTimedHitRunner(null);
             }
         }
@@ -120,15 +125,10 @@ namespace BattleV2.Execution.TimedHits
             var token = request.CancellationToken;
             var profile = request.Profile;
             var tier = profile.GetTierForCharge(request.CpCharge);
-            int totalPhases = Mathf.Max(0, tier.Hits);
+            int totalPhases = Mathf.Max(1, tier.Hits);
 
             OnSequenceStarted?.Invoke();
-
-            if (totalPhases <= 0)
-            {
-                CompleteSequence(new TimedHitResult(0, 0, 0, 1f, cancelled: false, successStreak: 0));
-                yield break;
-            }
+            Debug.Log($"[Ks1TimedHitRunner] Sequence start -> CP:{request.CpCharge} totalPhases:{totalPhases}", this);
 
             float timelineDuration = tier.TimelineDuration > 0f ? tier.TimelineDuration : 1f;
             float phaseDuration = timelineDuration / Mathf.Max(1, totalPhases);
@@ -153,6 +153,7 @@ namespace BattleV2.Execution.TimedHits
                     totalPhases,
                     window.SuccessWindowStart,
                     window.SuccessWindowEnd));
+                Debug.Log($"[Ks1TimedHitRunner] Phase {phaseIndex}/{totalPhases} window=({window.SuccessWindowStart:0.00}-{window.SuccessWindowEnd:0.00})", this);
 
                 float normalizedTime = 1f;
                 bool autoMiss = forceMisses;
@@ -168,9 +169,11 @@ namespace BattleV2.Execution.TimedHits
                             yield break;
                         }
 
-                        normalizedTime = phaseDuration > 0f
-                            ? Mathf.Clamp01((Time.time - startTime) / phaseDuration)
-                            : 1f;
+                        float elapsed = phaseDuration > 0f
+                            ? (Time.time - startTime) / phaseDuration
+                            : float.PositiveInfinity;
+
+                        normalizedTime = Mathf.Clamp01(elapsed);
 
                         if (Input.GetKeyDown(inputKey))
                         {
@@ -178,7 +181,7 @@ namespace BattleV2.Execution.TimedHits
                             break;
                         }
 
-                        if (normalizedTime >= 1f + autoMissGrace)
+                        if (elapsed >= 1f + autoMissGrace)
                         {
                             autoMiss = true;
                             break;
@@ -209,6 +212,7 @@ namespace BattleV2.Execution.TimedHits
                     outcome.Kind != PhaseOutcomeKind.Miss,
                     outcome.Multiplier,
                     outcome.AccuracyNormalized));
+                Debug.Log($"[Ks1TimedHitRunner] Phase {phaseIndex} result: {outcome.Kind} mult={outcome.Multiplier:F2} acc={outcome.AccuracyNormalized:F2}", this);
 
                 if (resultHold > 0f)
                 {
@@ -233,6 +237,7 @@ namespace BattleV2.Execution.TimedHits
 
             var result = BuildResult(tier, perfectCount, goodCount, missCount);
             CompleteSequence(result);
+            Debug.Log($"[Ks1TimedHitRunner] Sequence completed hits={result.HitsSucceeded}/{result.TotalHits} refund={result.CpRefund}", this);
         }
 
         private void AbortSequence(bool cancelled)
@@ -413,3 +418,6 @@ namespace BattleV2.Execution.TimedHits
         }
     }
 }
+
+
+

@@ -1,8 +1,6 @@
 using System.Threading.Tasks;
 using System;
 using System.Collections.Generic;
-
-using System.Threading.Tasks;
 using BattleV2.Actions;
 using BattleV2.Core;
 using BattleV2.Orchestration.Events;

@@ -14,15 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BattleV2.Orchestration.EnemyEncounterLoadout
   enemies:
   - prefab: {fileID: 452103125886275884, guid: ec28216cd1afaa346affc682d8817434, type: 3}
-    spawnOffset: {x: 0, y: 0, z: 0}
-    dropTable: {fileID: 0}
-  - prefab: {fileID: 7541233054820092670, guid: 8b4b01748013e2443b807f9d272040d8, type: 3}
-    spawnOffset: {x: 0, y: 0, z: 0}
-    dropTable: {fileID: 0}
-  - prefab: {fileID: 2246287598397160185, guid: 8c5ef13e954367e4e81406be2bb20b4b, type: 3}
-    spawnOffset: {x: 0, y: 0, z: 0}
-    dropTable: {fileID: 0}
-  - prefab: {fileID: 2246287598397160185, guid: 8c5ef13e954367e4e81406be2bb20b4b, type: 3}
-    spawnOffset: {x: 0, y: 0, z: 0}
+    spawnOffset: {x: -0.15, y: 0, z: 0}
     dropTable: {fileID: 0}
   spawnPattern: {fileID: 11400000, guid: 05058e87f8c40424b81b9b10ac3d785a, type: 2}
+  useSceneAnchors: 1
+  fallbackOriginOffset: {x: 0, y: 0, z: 0}

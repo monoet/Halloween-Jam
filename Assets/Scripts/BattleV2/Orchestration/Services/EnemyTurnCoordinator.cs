@@ -5,6 +5,7 @@ using BattleV2.Actions;
 using BattleV2.Core;
 using BattleV2.Execution;
 using BattleV2.Orchestration.Events;
+using BattleV2.Providers;
 using BattleV2.Targeting;
 using UnityEngine;
 
@@ -147,7 +148,7 @@ namespace BattleV2.Orchestration.Services
                 context,
                 attacker,
                 selection,
-                implementation).ConfigureAwait(false);
+                implementation);
         }
 
         private async Task RunEnemyActionAsync(
@@ -164,7 +165,7 @@ namespace BattleV2.Orchestration.Services
                     TargetSourceType.Auto,
                     context.Player,
                     context.Allies,
-                    context.Enemies).ConfigureAwait(false);
+                    context.Enemies);
 
                 if (resolution.Targets.Count == 0)
                 {
@@ -187,7 +188,7 @@ namespace BattleV2.Orchestration.Services
                     implementation,
                     context.CombatContext);
 
-                var result = await actionPipeline.Run(request).ConfigureAwait(false);
+                var result = await actionPipeline.Run(request);
                 if (!result.Success)
                 {
                     context.AdvanceTurn(attacker);
@@ -195,26 +196,18 @@ namespace BattleV2.Orchestration.Services
                     return;
                 }
 
-                var effectSelection = new BattleSelection(
-                    enrichedSelection.Action,
-                    0,
-                    enrichedSelection.ChargeProfile,
-                    enrichedSelection.TimedHitProfile,
-                    null,
-                    enrichedSelection.Targets);
-
-                triggeredEffects.Enqueue(new TriggeredEffectRequest(
+                triggeredEffects?.Schedule(
                     attacker,
-                    enrichedSelection.Action,
-                    effectSelection,
+                    enrichedSelection,
+                    result.TimedResult,
                     resolution.Targets,
-                    context.CombatContext));
+                    context.CombatContext);
 
                 if (playbackTask != null)
                 {
                     try
                     {
-                        await playbackTask.ConfigureAwait(false);
+                        await playbackTask;
                     }
                     catch (Exception ex)
                     {

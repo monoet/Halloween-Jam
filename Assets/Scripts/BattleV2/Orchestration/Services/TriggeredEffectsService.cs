@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using BattleV2.Actions;
 using BattleV2.Core;
+using BattleV2.Charge;
 using BattleV2.Orchestration.Events;
 using BattleV2.Orchestration;
+using BattleV2.Providers;
 using BattleV2.Targeting;
 using UnityEngine;
 
@@ -12,7 +14,13 @@ namespace BattleV2.Orchestration.Services
 {
     public interface ITriggeredEffectsService
     {
-        void Enqueue(TriggeredEffectRequest request);
+        void Schedule(
+            CombatantState origin,
+            BattleSelection selection,
+            TimedHitResult? timedResult,
+            IReadOnlyList<CombatantState> targets,
+            CombatContext context);
+
         void Clear();
     }
 
@@ -42,7 +50,36 @@ namespace BattleV2.Orchestration.Services
             this.eventBus = eventBus;
         }
 
-        public void Enqueue(TriggeredEffectRequest request)
+        public void Schedule(
+            CombatantState origin,
+            BattleSelection selection,
+            TimedHitResult? timedResult,
+            IReadOnlyList<CombatantState> targets,
+            CombatContext context)
+        {
+            if (origin == null || selection.Action == null)
+            {
+                return;
+            }
+
+            targets ??= Array.Empty<CombatantState>();
+            if (targets.Count == 0)
+            {
+                return;
+            }
+
+            var effectSelection = selection.WithTimedResult(timedResult);
+            var request = new TriggeredEffectRequest(
+                origin,
+                selection.Action,
+                effectSelection,
+                targets,
+                context);
+
+            Enqueue(request);
+        }
+
+        private void Enqueue(TriggeredEffectRequest request)
         {
             if (request.Action == null || request.Origin == null)
             {
@@ -110,7 +147,7 @@ namespace BattleV2.Orchestration.Services
                     request = queue.Dequeue();
                 }
 
-                await ExecuteTriggeredEffectAsync(request).ConfigureAwait(false);
+                await ExecuteTriggeredEffectAsync(request);
             }
         }
 
@@ -161,7 +198,7 @@ namespace BattleV2.Orchestration.Services
 
             try
             {
-                var result = await actionPipeline.Run(actionRequest).ConfigureAwait(false);
+                var result = await actionPipeline.Run(actionRequest);
                 eventBus?.Publish(new ActionCompletedEvent(request.Origin, selection.WithTimedResult(result.TimedResult), request.Targets, true));
             }
             catch (Exception ex)

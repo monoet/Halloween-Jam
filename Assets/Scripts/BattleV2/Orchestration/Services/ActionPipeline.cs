@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using BattleV2.Actions;
+using BattleV2.Charge;
 using BattleV2.Core;
 using BattleV2.Execution;
 using BattleV2.Execution.TimedHits;
@@ -40,17 +41,21 @@ namespace BattleV2.Orchestration.Services
 
     public readonly struct ActionResult
     {
-        private ActionResult(bool success, TimedHitResult? timedResult)
+        private ActionResult(bool success, TimedHitResult? timedResult, int comboPointsAwarded)
         {
             Success = success;
             TimedResult = timedResult;
+            ComboPointsAwarded = comboPointsAwarded;
         }
 
         public bool Success { get; }
         public TimedHitResult? TimedResult { get; }
+        public int ComboPointsAwarded { get; }
 
-        public static ActionResult From(TimedHitResult? timedResult) => new(true, timedResult);
-        public static ActionResult Failure => new(false, null);
+        public static ActionResult From(TimedHitResult? timedResult, int comboPointsAwarded) =>
+            new(true, timedResult, comboPointsAwarded);
+
+        public static ActionResult Failure => new(false, null, 0);
     }
 
     public interface IActionPipeline
@@ -61,11 +66,11 @@ namespace BattleV2.Orchestration.Services
     /// <summary>
     /// Columna vertebral para acciones de combate. Actualmente delega en el pipeline legacy mientras migramos.
     /// </summary>
-    public sealed class ActionPipeline : IActionPipeline
+    public sealed class OrchestrationActionPipeline : IActionPipeline
     {
         private readonly IBattleEventBus eventBus;
 
-        public ActionPipeline(IBattleEventBus eventBus)
+        public OrchestrationActionPipeline(IBattleEventBus eventBus)
         {
             this.eventBus = eventBus;
         }
@@ -96,8 +101,8 @@ namespace BattleV2.Orchestration.Services
                 request.CombatContext,
                 request.Selection);
 
-            await pipeline.ExecuteAsync(actionContext).ConfigureAwait(false);
-            return ActionResult.From(actionContext.TimedResult);
+            await pipeline.ExecuteAsync(actionContext);
+            return ActionResult.From(actionContext.TimedResult, actionContext.ComboPointsAwarded);
         }
     }
 }

@@ -10,7 +10,6 @@ using BattleV2.Execution;
 using BattleV2.Execution.TimedHits;
 using BattleV2.Orchestration.Services;
 using BattleV2.Orchestration.Services.Animation;
-using BattleV2.Orchestration.Services.End;
 using BattleV2.Orchestration.Events;
 using BattleV2.Providers;
 using BattleV2.Targeting;
@@ -73,8 +72,10 @@ namespace BattleV2.Orchestration
         private IBattleEventBus eventBus;
         private IEnemyTurnCoordinator enemyTurnCoordinator;
         private IFallbackActionResolver fallbackActionResolver;
+        private ITimedHitResultResolver timedResultResolver;
         private CombatantRosterService rosterService;
         private RosterSnapshot rosterSnapshot = RosterSnapshot.Empty;
+        private PendingPlayerRequest pendingPlayerRequest;
 
         public event Action<BattleSelection, int> OnPlayerActionSelected;
         public event Action<BattleSelection, int, int> OnPlayerActionResolved;
@@ -131,6 +132,7 @@ namespace BattleV2.Orchestration
         {
             turnService?.Stop();
             triggeredEffects?.Clear();
+            ClearPendingPlayerRequest();
             rosterService?.Cleanup();
             rosterSnapshot = RosterSnapshot.Empty;
             player = null;
@@ -159,6 +161,7 @@ namespace BattleV2.Orchestration
             }
 
             triggeredEffects?.Clear();
+            ClearPendingPlayerRequest();
             triggeredEffects = null;
             enemyTurnCoordinator = null;
             fallbackActionResolver = null;
@@ -185,7 +188,11 @@ namespace BattleV2.Orchestration
                 }
             }
 
-            inputProvider = ResolveProvider() ?? ScriptableObject.CreateInstance<AutoBattleInputProvider>();
+            inputProvider = ResolveProvider();
+            if (inputProvider == null)
+            {
+                Debug.LogWarning("[BattleManagerV2] No input provider configured. Awaiting runtime provider assignment.", this);
+            }
             timedHitRunner = InstantTimedHitRunner.Shared;
 
             ComboPointScaling.Configure(config != null ? config.comboPointScaling : null);
@@ -193,7 +200,7 @@ namespace BattleV2.Orchestration
             // Servicios dedicados — por ahora implementaciones por defecto mínimas.
             eventBus = new BattleEventBus();
             targetingCoordinator = new TargetingCoordinator(TargetResolvers, eventBus);
-            actionPipeline = new ActionPipeline(eventBus);
+            actionPipeline = new OrchestrationActionPipeline(eventBus);
 
             var timingProfile = timingConfig != null
                 ? timingConfig.ToProfile()
@@ -201,6 +208,7 @@ namespace BattleV2.Orchestration
 
             animOrchestrator = new BattleAnimOrchestrator(eventBus, timingProfile);
             triggeredEffects = new TriggeredEffectsService(this, actionPipeline, actionCatalog, eventBus);
+            timedResultResolver = new TimedHitResultResolver();
             actionValidator = new CombatantActionValidator(actionCatalog);
             fallbackActionResolver = new FallbackActionResolver(actionCatalog, actionValidator);
             enemyTurnCoordinator = new EnemyTurnCoordinator(
@@ -317,6 +325,21 @@ namespace BattleV2.Orchestration
             return null;
         }
 
+        public void SetRuntimeInputProvider(IBattleInputProvider provider)
+        {
+            string name = provider != null ? provider.GetType().Name : "(null)";
+            Debug.Log($"[BattleManagerV2] Runtime provider set to {name}.\nCall stack:\n{Environment.StackTrace}", this);
+            inputProvider = provider;
+            TryFlushPendingPlayerRequest();
+        }
+
+        public void SetTimedHitRunner(ITimedHitRunner runner)
+        {
+            string name = runner != null ? runner.GetType().Name : "(null)";
+            Debug.Log($"[BattleManagerV2] Timed hit runner set to {name}.\nCall stack:\n{Environment.StackTrace}", this);
+            timedHitRunner = runner;
+        }
+
         public void StartBattle()
         {
             state?.ResetToIdle();
@@ -328,6 +351,7 @@ namespace BattleV2.Orchestration
         {
             ComboPointScaling.Configure(config != null ? config.comboPointScaling : null);
             triggeredEffects?.Clear();
+            ClearPendingPlayerRequest();
             RebuildRoster(preservePlayerVitals: false, preserveEnemyVitals: false);
             PrepareContext();
             state?.ResetToIdle();
@@ -406,20 +430,71 @@ namespace BattleV2.Orchestration
                     return;
                 }
 
-                var effectSelection = new BattleSelection(
-                    selection.Action,
-                    0,
-                    selection.ChargeProfile,
-                    selection.TimedHitProfile,
-                    null,
-                    selection.Targets);
+                var resolvedTimedResult = timedResultResolver != null
+                    ? timedResultResolver.Resolve(selection, implementation, result.TimedResult)
+                    : result.TimedResult;
 
-                triggeredEffects.Enqueue(new TriggeredEffectRequest(
-                    player,
-                    selection.Action,
-                    effectSelection,
-                    targets,
-                    context));
+                int totalComboPointsAwarded = Mathf.Max(0, result.ComboPointsAwarded);
+
+                if (implementation is LunarChainAction && player != null && context != null && context.Player == player)
+                {
+                    var tier = selection.TimedHitProfile != null
+                        ? selection.TimedHitProfile.GetTierForCharge(selection.CpCharge)
+                        : default;
+
+                    int refundCap = tier.RefundMax > 0 ? tier.RefundMax : int.MaxValue;
+
+                    if (totalComboPointsAwarded > refundCap)
+                    {
+                        int overflow = totalComboPointsAwarded - refundCap;
+                        if (overflow > 0)
+                        {
+                            player.SpendCP(overflow);
+                            totalComboPointsAwarded -= overflow;
+                        }
+                    }
+
+                    int desiredTotal = totalComboPointsAwarded + 1;
+                    int finalRefund = Mathf.Min(desiredTotal, refundCap);
+                    int additional = finalRefund - totalComboPointsAwarded;
+                    if (additional > 0)
+                    {
+                        player.AddCP(additional);
+                        totalComboPointsAwarded = finalRefund;
+                    }
+                }
+
+                TimedHitResult? finalTimedResult = resolvedTimedResult;
+                if (finalTimedResult.HasValue)
+                {
+                    var raw = finalTimedResult.Value;
+                    if (raw.CpRefund != totalComboPointsAwarded)
+                    {
+                        finalTimedResult = new TimedHitResult(
+                            raw.HitsSucceeded,
+                            raw.TotalHits,
+                            totalComboPointsAwarded,
+                            raw.DamageMultiplier,
+                            raw.Cancelled,
+                            raw.SuccessStreak,
+                            raw.PhaseDamageApplied,
+                            raw.TotalDamageApplied);
+                    }
+                }
+                else if (totalComboPointsAwarded > 0)
+                {
+                    finalTimedResult = new TimedHitResult(
+                        hitsSucceeded: 0,
+                        totalHits: 0,
+                        cpRefund: totalComboPointsAwarded,
+                        damageMultiplier: 1f,
+                        cancelled: false,
+                        successStreak: 0,
+                        phaseDamageApplied: false,
+                        totalDamageApplied: 0);
+                }
+
+                ScheduleTriggeredEffects(selection, finalTimedResult, targets);
                 RefreshCombatContext();
 
                 if (playbackTask != null)
@@ -435,7 +510,7 @@ namespace BattleV2.Orchestration
                 }
 
                 int cpAfter = player != null ? player.CurrentCP : 0;
-                var resolvedSelection = selection.WithTimedResult(result.TimedResult);
+                var resolvedSelection = selection.WithTimedResult(finalTimedResult);
 
                 OnPlayerActionResolved?.Invoke(resolvedSelection, cpBefore, cpAfter);
 
@@ -566,6 +641,8 @@ namespace BattleV2.Orchestration
                 return;
             }
 
+            Debug.Log($"[BattleManagerV2] RequestPlayerAction: provider={inputProvider?.GetType().Name ?? "(null)"} actions={available.Count}", this);
+
             var actionContext = new BattleActionContext
             {
                 Player = player,
@@ -579,7 +656,13 @@ namespace BattleV2.Orchestration
                 EnemyStats = enemy != null ? enemy.FinalStats : default
             };
 
-            inputProvider?.RequestAction(actionContext, HandlePlayerSelection, ExecuteFallback);
+            if (inputProvider == null)
+            {
+                QueuePendingPlayerRequest(actionContext, HandlePlayerSelection, ExecuteFallback);
+                return;
+            }
+
+            DispatchToInputProvider(actionContext, HandlePlayerSelection, ExecuteFallback);
         }
 
         private EnemyTurnContext BuildEnemyTurnContext(CombatantState attacker)
@@ -613,8 +696,101 @@ namespace BattleV2.Orchestration
                 services,
                 actionCatalog);
         }
+
+        private void QueuePendingPlayerRequest(
+            BattleActionContext context,
+            Action<BattleSelection> onSelected,
+            Action onCancel)
+        {
+            pendingPlayerRequest ??= new PendingPlayerRequest();
+            pendingPlayerRequest.Context = context;
+            pendingPlayerRequest.OnSelected = onSelected;
+            pendingPlayerRequest.OnCancel = onCancel;
+
+            Debug.LogWarning("[BattleManagerV2] Player action request queued; waiting for a runtime input provider.", this);
+        }
+
+        private void DispatchToInputProvider(
+            BattleActionContext context,
+            Action<BattleSelection> onSelected,
+            Action onCancel)
+        {
+            if (inputProvider == null)
+            {
+                return;
+            }
+
+            if (pendingPlayerRequest != null)
+            {
+                pendingPlayerRequest.Clear();
+                pendingPlayerRequest = null;
+            }
+
+            inputProvider.RequestAction(context, onSelected, onCancel);
+        }
+
+        private void TryFlushPendingPlayerRequest()
+        {
+            if (inputProvider == null || pendingPlayerRequest == null)
+            {
+                return;
+            }
+
+            var queued = pendingPlayerRequest;
+            pendingPlayerRequest = null;
+            inputProvider.RequestAction(queued.Context, queued.OnSelected, queued.OnCancel);
+            queued.Clear();
+        }
+
+        private void ScheduleTriggeredEffects(BattleSelection selection, TimedHitResult? timedResult, IReadOnlyList<CombatantState> targets)
+        {
+            if (triggeredEffects == null || player == null)
+            {
+                return;
+            }
+
+            if (targets == null || targets.Count == 0)
+            {
+                return;
+            }
+
+            try
+            {
+                triggeredEffects.Schedule(player, selection, timedResult, targets, context);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[BattleManagerV2] Failed to schedule triggered effects: {ex}");
+            }
+        }
+
+        private void ClearPendingPlayerRequest()
+        {
+            if (pendingPlayerRequest == null)
+            {
+                return;
+            }
+
+            pendingPlayerRequest.Clear();
+            pendingPlayerRequest = null;
+        }
+    }
+
+    internal sealed class PendingPlayerRequest
+    {
+        public BattleActionContext Context;
+        public Action<BattleSelection> OnSelected;
+        public Action OnCancel;
+
+        public void Clear()
+        {
+            Context = default;
+            OnSelected = null;
+            OnCancel = null;
+        }
     }
 }
+
 
 
 

@@ -1,0 +1,1056 @@
+using System;
+using System.Collections.Generic;
+using System.Reflection;
+using System.Threading.Tasks;
+using BattleV2.Actions;
+using BattleV2.Charge;
+using BattleV2.Core;
+using BattleV2.Execution.TimedHits;
+using BattleV2.Orchestration;
+using BattleV2.Providers;
+using UnityEngine;
+
+namespace BattleV2.Debugging
+{
+    /// <summary>
+    /// Lightweight harness to drive combat without the production UI. Provides action selection,
+    /// simple CP charge controls and a timed-hit practice overlay.
+    /// </summary>
+    public sealed class BattleDebugHarnessV2 : MonoBehaviour, IBattleInputProvider, ITimedHitRunner
+    {
+        [Header("Window")]
+        [SerializeField] private KeyCode toggleKey = KeyCode.BackQuote;
+        [SerializeField] private Rect windowRect = new Rect(40f, 40f, 420f, 560f);
+        [SerializeField] private bool startHidden;
+
+        [Header("Charge Defaults")]
+        [SerializeField] private ChargeProfile fallbackChargeProfile;
+
+        [Header("Timed Practice")]
+        [SerializeField] private KeyCode timedHitKey = KeyCode.Space;
+
+        [Header("Integrations")]
+        [SerializeField] private bool hijackTimedHitRunner;
+
+        public static BattleDebugHarnessV2 Instance { get; private set; }
+
+        private BattleManagerV2 manager;
+        private FieldInfo inputProviderField;
+        private bool suppressWindow;
+        private Vector2 actionScroll;
+        private Vector2 logScroll;
+
+        private readonly List<string> logEntries = new();
+        private const int maxLogEntries = 60;
+
+        private BattleActionContext pendingContext;
+        private Action<BattleSelection> pendingOnSelected;
+        private Action pendingOnCancel;
+        private readonly List<ActionEntry> pendingActions = new();
+        private ActionEntry? selectedEntry;
+        private int desiredCpCharge;
+
+        private enum TimedSequenceMode
+        {
+            None,
+            Practice,
+            Execute
+        }
+
+        private readonly InstantTimedHitRunner instantRunner = InstantTimedHitRunner.Shared;
+
+        private TimedPracticeSession practiceSession = TimedPracticeSession.Inactive;
+
+        private bool combatOverlayActive;
+        private string combatStatus = "Awaiting timed hit.";
+        private float combatWindowStart;
+        private float combatWindowEnd;
+        private string combatLastOutcome;
+        private Ks1TimedHitProfile combatProfile;
+        private int combatCharge;
+        private string combatActionName = "(none)";
+        private int combatTotalPhases;
+        private int combatCurrentPhase;
+        private float combatPhaseDuration;
+        private float combatPhaseTimer;
+
+        private TimedSequenceMode liveMode = TimedSequenceMode.None;
+        private TaskCompletionSource<TimedHitResult> liveTcs;
+        private CancellationTokenRegistration liveCancellation;
+        private Ks1TimedHitProfile.Tier liveTier;
+        private int liveTotalPhases;
+        private int liveCurrentPhase;
+        private float livePhaseDuration;
+        private float livePhaseTimer;
+        private float liveHoldTimer;
+        private bool livePhaseResolved;
+        private bool liveForceMisses;
+        private int livePerfectCount;
+        private int liveGoodCount;
+        private int liveMissCount;
+
+        private const float LiveAutoMissGrace = 0.05f;
+
+        private GUIStyle headerStyle;
+        private GUIStyle boldLabelStyle;
+
+        #region Mono
+
+        private void Awake()
+        {
+            if (Instance != null && Instance != this)
+            {
+                Debug.LogWarning("[BattleDebugHarnessV2] Multiple harness instances detected. Replacing previous instance.");
+            }
+
+            Instance = this;
+            suppressWindow = startHidden;
+            manager ??= FindObjectOfType<BattleManagerV2>();
+
+            if (manager == null)
+            {
+                Debug.LogWarning("[BattleDebugHarnessV2] Could not locate BattleManagerV2 in scene. Harness disabled.");
+                enabled = false;
+                return;
+            }
+
+            manager.SetRuntimeInputProvider(this);
+            manager.SetTimedHitRunner(this);
+            Debug.Log("[BattleDebugHarnessV2] Provider registered.");
+            if (hijackTimedHitRunner)
+            {
+                Debug.Log("[BattleDebugHarnessV2] Hijacking timed hit runner (Awake).", this);
+            }
+            AddLog("Harness initialized. Awaiting player action requests.");
+            inputProviderField = typeof(BattleManagerV2).GetField("inputProvider", BindingFlags.Instance | BindingFlags.NonPublic);
+        }
+
+        private void Update()
+        {
+            if (Input.GetKeyDown(toggleKey))
+            {
+                suppressWindow = !suppressWindow;
+            }
+
+            practiceSession.Tick(Time.deltaTime, timedHitKey);
+
+            if (manager != null && GetCurrentProvider() == null)
+            {
+                manager.SetRuntimeInputProvider(this);
+            }
+
+            if (hijackTimedHitRunner && manager != null && !ReferenceEquals(manager.TimedHitRunner, this))
+            {
+                Debug.Log("[BattleDebugHarnessV2] Hijacking timed hit runner (Update).", this);
+                manager.SetTimedHitRunner(this);
+            }
+
+            HandleChargeHotkeys();
+
+            UpdateLiveSequence(Time.deltaTime);
+        }
+
+        private void OnDestroy()
+        {
+            CancelLiveSequence();
+
+            if (Instance == this)
+            {
+                Instance = null;
+            }
+        }
+
+        private void OnGUI()
+        {
+            if (suppressWindow)
+            {
+                return;
+            }
+
+            InitStyles();
+            windowRect = GUILayout.Window(GetInstanceID(), windowRect, DrawWindow, "Battle Debug Harness");
+        }
+
+        #endregion
+
+        #region IBattleInputProvider
+
+        public void RequestAction(BattleActionContext context, Action<BattleSelection> onSelected, Action onCancel)
+        {
+            Debug.Log("[BattleDebugHarnessV2] RequestAction called.");
+            ClearPendingRequest();
+
+            if (context?.AvailableActions == null || context.AvailableActions.Count == 0)
+            {
+                AddLog("Received action request without available actions. Cancelling.");
+                onCancel?.Invoke();
+                return;
+            }
+
+            pendingContext = context;
+            pendingOnSelected = onSelected;
+            pendingOnCancel = onCancel;
+            selectedEntry = null;
+            desiredCpCharge = 0;
+            pendingActions.Clear();
+
+            foreach (var action in context.AvailableActions)
+            {
+                pendingActions.Add(CreateEntry(context, action));
+            }
+
+            AddLog($"Awaiting selection from {context.Player?.DisplayName ?? "Player"} ({pendingActions.Count} actions).");
+        }
+
+        #endregion
+
+        #region ITimedHitRunner (delegates to instant runner for live combat)
+
+        public event Action OnSequenceStarted;
+        public event Action<TimedHitPhaseInfo> OnPhaseStarted;
+        public event Action<TimedHitPhaseResult> OnPhaseResolved;
+        public event Action<TimedHitResult> OnSequenceCompleted;
+
+        public bool IsHijackingTimedRunner => hijackTimedHitRunner;
+
+        public async Task<TimedHitResult> RunAsync(TimedHitRequest request)
+        {
+            void ForwardStarted() => OnSequenceStarted?.Invoke();
+            void ForwardPhase(TimedHitPhaseInfo info) => OnPhaseStarted?.Invoke(info);
+            void ForwardResolved(TimedHitPhaseResult result) => OnPhaseResolved?.Invoke(result);
+            void ForwardCompleted(TimedHitResult result) => OnSequenceCompleted?.Invoke(result);
+
+            instantRunner.OnSequenceStarted += ForwardStarted;
+            instantRunner.OnPhaseStarted += ForwardPhase;
+            instantRunner.OnPhaseResolved += ForwardResolved;
+            instantRunner.OnSequenceCompleted += ForwardCompleted;
+
+            try
+            {
+                return await instantRunner.RunAsync(request);
+            }
+            finally
+            {
+                instantRunner.OnSequenceStarted -= ForwardStarted;
+                instantRunner.OnPhaseStarted -= ForwardPhase;
+                instantRunner.OnPhaseResolved -= ForwardResolved;
+                instantRunner.OnSequenceCompleted -= ForwardCompleted;
+            }
+        }
+
+        #endregion
+
+        #region Window & Panels
+
+        private void DrawWindow(int id)
+        {
+            GUILayout.BeginVertical();
+            DrawStatus();
+            GUILayout.Space(6f);
+            DrawCombatPanel();
+            GUILayout.Space(6f);
+            DrawActionPanel();
+            GUILayout.Space(10f);
+            DrawPracticePanel();
+            GUILayout.Space(10f);
+            DrawLogPanel();
+            GUILayout.EndVertical();
+            GUI.DragWindow();
+        }
+
+        private void DrawStatus()
+        {
+            GUILayout.Label("Status", headerStyle);
+            if (pendingContext != null)
+            {
+                GUILayout.Label($"Actor: {pendingContext.Player?.DisplayName ?? "(unnamed)"}", boldLabelStyle);
+                GUILayout.Label($"Enemy: {pendingContext.Enemy?.DisplayName ?? "(none)"}");
+            }
+            else
+            {
+                GUILayout.Label("No pending action request.");
+            }
+        }
+
+        private void DrawCombatPanel()
+        {
+            GUILayout.Label("Timed Hit", headerStyle);
+            GUILayout.Label(combatStatus);
+
+            if (!combatOverlayActive || combatProfile == null)
+            {
+                return;
+            }
+
+            GUILayout.Label($"{combatActionName} | Charge {combatCharge}", boldLabelStyle);
+            GUILayout.Label($"Phase {Mathf.Clamp(liveCurrentPhase, 1, Mathf.Max(1, liveTotalPhases))}/{Mathf.Max(1, liveTotalPhases)}");
+            GUILayout.Label($"Window: {combatWindowStart:0.00} - {combatWindowEnd:0.00}");
+
+            var rect = GUILayoutUtility.GetRect(360f, 20f);
+            DrawCombatProgressBar(rect);
+
+            if (!string.IsNullOrEmpty(combatLastOutcome))
+            {
+                GUILayout.Label(combatLastOutcome);
+            }
+        }
+
+        private void DrawActionPanel()
+        {
+            GUILayout.Label("Actions", headerStyle);
+
+            if (pendingContext == null)
+            {
+                GUILayout.Label("Idle.");
+                DrawUtilityButtons(null);
+                return;
+            }
+
+            var player = pendingContext.Player;
+            float maxCp = GetMaxChargeCap(pendingContext, player);
+            pendingContext.MaxCpCharge = Mathf.Max(pendingContext.MaxCpCharge, Mathf.RoundToInt(maxCp));
+            desiredCpCharge = Mathf.Clamp(desiredCpCharge, 0, Mathf.RoundToInt(maxCp));
+
+            DrawUtilityButtons(player);
+
+            actionScroll = GUILayout.BeginScrollView(actionScroll, GUILayout.Height(160f));
+            for (int i = 0; i < pendingActions.Count; i++)
+            {
+                var entry = pendingActions[i];
+                GUILayout.BeginVertical(GUI.skin.box);
+                GUILayout.Label($"{i + 1}. {entry.Action.id}", boldLabelStyle);
+                GUILayout.Label($"SP {entry.Action.costSP} | CP {entry.Action.costCP}");
+                if (player != null)
+                {
+                    int totalCost = entry.Action.costCP + Mathf.Clamp(desiredCpCharge, 0, player.CurrentCP);
+                    GUILayout.Label($"Will spend {totalCost} CP (have {player.CurrentCP})");
+                }
+
+                GUILayout.BeginHorizontal();
+                if (GUILayout.Button("Select"))
+                {
+                    desiredCpCharge = Mathf.Clamp(desiredCpCharge, 0, Mathf.RoundToInt(maxCp));
+                    ConfirmSelection(entry);
+                }
+
+                if (entry.TimedProfile != null)
+                {
+                    if (GUILayout.Button("Practice"))
+                    {
+                        desiredCpCharge = Mathf.Clamp(desiredCpCharge, entry.Action.costCP, Mathf.RoundToInt(maxCp));
+                        StartPractice(entry, desiredCpCharge);
+                    }
+                }
+                GUILayout.EndHorizontal();
+                GUILayout.EndVertical();
+            }
+            GUILayout.EndScrollView();
+
+            GUILayout.Label($"Charge (CP): {desiredCpCharge}", boldLabelStyle);
+            desiredCpCharge = Mathf.RoundToInt(GUILayout.HorizontalSlider(desiredCpCharge, 0f, Mathf.Max(0, maxCp)));
+
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("Cancel Request") && pendingOnCancel != null)
+            {
+                pendingOnCancel?.Invoke();
+                AddLog("Action request cancelled.");
+                ClearPendingRequest();
+            }
+            GUILayout.EndHorizontal();
+        }
+
+        private void DrawPracticePanel()
+        {
+            GUILayout.Label("Timed Hit Practice", headerStyle);
+
+            if (!practiceSession.IsActive)
+            {
+                GUILayout.Label("Select an action with timed hits and press Practice.");
+                return;
+            }
+
+            GUILayout.Label($"Action: {practiceSession.Action.id}", boldLabelStyle);
+            GUILayout.Label($"CP Charge: {practiceSession.CpCharge}");
+            GUILayout.Label($"Phase {practiceSession.PhaseIndex + 1}/{practiceSession.TotalPhases}");
+            GUILayout.Label($"Perfect Window ±{practiceSession.Tier.PerfectWindowRadius:0.00} @ {practiceSession.Tier.PerfectWindowCenter:0.00}");
+
+            Rect barRect = GUILayoutUtility.GetRect(360f, 24f);
+            DrawPracticeBar(barRect);
+
+            GUILayout.Label($"Perfect {practiceSession.PerfectCount} | Good {practiceSession.GoodCount} | Miss {practiceSession.MissCount}");
+
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button(practiceSession.State == PracticeState.Running ? "Stop" : "Restart"))
+            {
+                if (practiceSession.State == PracticeState.Running)
+                {
+                    StopPractice();
+                }
+                else
+                {
+                    StartPractice(practiceSession.Entry, practiceSession.CpCharge);
+                }
+            }
+
+            if (practiceSession.State == PracticeState.Completed)
+            {
+                if (GUILayout.Button("Clear"))
+                {
+                    StopPractice();
+                }
+            }
+            GUILayout.EndHorizontal();
+
+            if (practiceSession.State == PracticeState.Completed)
+            {
+                var summary = practiceSession.BuildResult();
+                GUILayout.Label($"Result → Refund {summary.CpRefund} | Multiplier {summary.DamageMultiplier:F2}");
+            }
+            else
+            {
+                GUILayout.Label($"Press [{timedHitKey}] to hit.");
+            }
+        }
+
+        private void DrawLogPanel()
+        {
+            GUILayout.Label("Log", headerStyle);
+            logScroll = GUILayout.BeginScrollView(logScroll, GUILayout.Height(120f));
+            for (int i = logEntries.Count - 1; i >= 0; i--)
+            {
+                GUILayout.Label(logEntries[i]);
+            }
+            GUILayout.EndScrollView();
+        }
+
+        private void DrawPracticeBar(Rect rect)
+        {
+            if (!practiceSession.IsActive || Event.current.type != EventType.Repaint)
+            {
+                return;
+            }
+
+            var tier = practiceSession.Tier;
+            Color prev = GUI.color;
+
+            GUI.color = new Color(0.15f, 0.15f, 0.15f, 1f);
+            GUI.DrawTexture(rect, Texture2D.whiteTexture);
+
+            // Success region
+            float successHalf = Mathf.Max(tier.SuccessWindowRadius, tier.PerfectWindowRadius) * rect.width;
+            float perfectHalf = tier.PerfectWindowRadius * rect.width;
+            float centerX = rect.x + rect.width * Mathf.Clamp01(tier.PerfectWindowCenter <= 0f && tier.PerfectWindowRadius <= 0f ? 0.5f : tier.PerfectWindowCenter);
+
+            if (successHalf > 0f)
+            {
+                GUI.color = new Color(1f, 0.85f, 0.3f, 0.45f);
+                GUI.DrawTexture(new Rect(centerX - successHalf, rect.y, successHalf * 2f, rect.height), Texture2D.whiteTexture);
+            }
+
+            if (perfectHalf > 0f)
+            {
+                GUI.color = new Color(0.3f, 1f, 0.35f, 0.7f);
+                GUI.DrawTexture(new Rect(centerX - perfectHalf, rect.y, perfectHalf * 2f, rect.height), Texture2D.whiteTexture);
+            }
+
+            // Current progress
+            GUI.color = Color.white;
+            float progressX = rect.x + rect.width * practiceSession.CurrentNormalized;
+            GUI.DrawTexture(new Rect(progressX - 1f, rect.y, 2f, rect.height), Texture2D.whiteTexture);
+
+            if (practiceSession.LastHitNormalized >= 0f)
+            {
+                GUI.color = Color.red;
+                float hitX = rect.x + rect.width * Mathf.Clamp01(practiceSession.LastHitNormalized);
+                GUI.DrawTexture(new Rect(hitX - 1f, rect.y, 2f, rect.height), Texture2D.whiteTexture);
+            }
+
+            GUI.color = prev;
+        }
+
+        #endregion
+
+        #region Helpers
+
+        private void DrawCombatProgressBar(Rect rect)
+        {
+            if (Event.current.type != EventType.Repaint)
+            {
+                return;
+            }
+
+            Color previous = GUI.color;
+
+            GUI.color = new Color(0.15f, 0.15f, 0.15f, 1f);
+            GUI.DrawTexture(rect, Texture2D.whiteTexture);
+
+            float windowWidth = Mathf.Clamp01(combatWindowEnd - combatWindowStart);
+            if (windowWidth > 0f)
+            {
+                GUI.color = new Color(0.3f, 1f, 0.35f, 0.45f);
+                float startX = rect.x + rect.width * Mathf.Clamp01(combatWindowStart);
+                GUI.DrawTexture(new Rect(startX, rect.y, rect.width * windowWidth, rect.height), Texture2D.whiteTexture);
+            }
+
+            float progress = combatPhaseDuration > 0f ? Mathf.Clamp01(combatPhaseTimer / combatPhaseDuration) : 0f;
+            GUI.color = Color.white;
+            float progressX = rect.x + rect.width * progress;
+            GUI.DrawTexture(new Rect(progressX - 1f, rect.y, 2f, rect.height), Texture2D.whiteTexture);
+
+            GUI.color = previous;
+        }
+
+        private void DrawUtilityButtons(CombatantState player)
+        {
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("Grant 5 CP"))
+            {
+                var target = player ?? manager?.Player;
+                if (target != null)
+                {
+                    int desired = Mathf.Min(5, target.MaxCP);
+                    int delta = Mathf.Max(0, desired - target.CurrentCP);
+                    if (delta > 0)
+                    {
+                        target.AddCP(delta);
+                        if (pendingContext != null)
+                        {
+                            pendingContext.MaxCpCharge = Mathf.Max(pendingContext.MaxCpCharge, target.CurrentCP);
+                        }
+                        AddLog($"Granted {delta} CP to {target.DisplayName} (CP {target.CurrentCP}/{target.MaxCP}).");
+                    }
+                    else
+                    {
+                        AddLog("Player already has at least 5 CP.");
+                    }
+                }
+                else
+                {
+                    AddLog("No player combatant found to grant CP.");
+                }
+            }
+            GUILayout.EndHorizontal();
+        }
+
+        private void HandleChargeHotkeys()
+        {
+            if (pendingContext == null)
+            {
+                return;
+            }
+
+            var player = pendingContext.Player;
+            float maxCp = GetMaxChargeCap(pendingContext, player);
+
+            if (Input.GetKeyDown(KeyCode.R))
+            {
+                desiredCpCharge = Mathf.Clamp(desiredCpCharge + 1, 0, Mathf.RoundToInt(maxCp));
+            }
+
+            if (Input.GetKeyDown(KeyCode.F))
+            {
+                desiredCpCharge = Mathf.Clamp(desiredCpCharge - 1, 0, Mathf.RoundToInt(maxCp));
+            }
+        }
+
+        private static float GetMaxChargeCap(BattleActionContext context, CombatantState player)
+        {
+            if (player != null)
+            {
+                return Mathf.Max(0, player.CurrentCP);
+            }
+
+            return Mathf.Max(0, context?.MaxCpCharge ?? 0);
+        }
+
+        private void UpdateLiveSequence(float deltaTime)
+        {
+            if (liveMode != TimedSequenceMode.Execute || liveTcs == null)
+            {
+                return;
+            }
+
+            if (liveTcs.Task.IsCompleted)
+            {
+                return;
+            }
+
+            if (combatOverlayActive)
+            {
+                combatPhaseTimer = Mathf.Clamp(livePhaseTimer, 0f, combatPhaseDuration);
+            }
+
+            if (livePhaseResolved)
+            {
+                liveHoldTimer += deltaTime;
+                float holdDuration = Mathf.Max(0.1f, liveTier.ResultHoldDuration);
+                if (liveHoldTimer >= holdDuration)
+                {
+                    livePhaseResolved = false;
+                    if (liveForceMisses)
+                    {
+                        AutoResolveRemaining();
+                    }
+                    else
+                    {
+                        StartLivePhase();
+                    }
+                }
+                return;
+            }
+
+            livePhaseTimer += deltaTime;
+            combatPhaseTimer = Mathf.Clamp(livePhaseTimer, 0f, combatPhaseDuration);
+
+            if (Input.GetKeyDown(timedHitKey))
+            {
+                float normalized = livePhaseDuration > 0f
+                    ? Mathf.Clamp01(livePhaseTimer / livePhaseDuration)
+                    : 1f;
+                ResolveLivePhase(normalized, false);
+            }
+            else if (livePhaseTimer >= livePhaseDuration + LiveAutoMissGrace)
+            {
+                ResolveLivePhase(1f, true);
+            }
+        }
+
+        private void InitStyles()
+        {
+            if (headerStyle != null)
+            {
+                return;
+            }
+
+            headerStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 14,
+                fontStyle = FontStyle.Bold
+            };
+
+            boldLabelStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontStyle = FontStyle.Bold
+            };
+        }
+
+        private void AddLog(string message)
+        {
+            logEntries.Add($"[{DateTime.Now:HH:mm:ss}] {message}");
+            if (logEntries.Count > maxLogEntries)
+            {
+                logEntries.RemoveAt(0);
+            }
+        }
+
+        private IBattleInputProvider GetCurrentProvider()
+        {
+            if (manager == null || inputProviderField == null)
+            {
+                return null;
+            }
+
+            return inputProviderField.GetValue(manager) as IBattleInputProvider;
+        }
+
+        public async Task<TimedHitResult> RunAsync(TimedHitRequest request)
+        {
+            if (hijackTimedHitRunner || request.Profile == null)
+            {
+                return await instantRunner.RunAsync(request);
+            }
+
+            CancelLiveSequence();
+
+            combatProfile = request.Profile;
+            combatCharge = request.CpCharge;
+
+            liveTier = combatProfile.GetTierForCharge(combatCharge);
+            liveTotalPhases = Mathf.Max(1, liveTier.Hits);
+            livePhaseDuration = liveTotalPhases > 0
+                ? Mathf.Max(0.05f, liveTier.TimelineDuration / liveTotalPhases)
+                : Mathf.Max(0.05f, liveTier.TimelineDuration);
+
+            livePhaseTimer = 0f;
+            liveHoldTimer = 0f;
+            livePhaseResolved = false;
+            liveForceMisses = false;
+            livePerfectCount = 0;
+            liveGoodCount = 0;
+            liveMissCount = 0;
+            liveCurrentPhase = 0;
+
+            combatStatus = $"Timed hit in progress ({request.ActionData?.displayName ?? request.ActionData?.id ?? "(unknown)"})";
+            combatLastOutcome = "Waiting for input...";
+            combatOverlayActive = true;
+            combatPhaseDuration = livePhaseDuration;
+            combatPhaseTimer = 0f;
+
+            liveMode = TimedSequenceMode.Execute;
+            OnSequenceStarted?.Invoke();
+
+            liveTcs = new TaskCompletionSource<TimedHitResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+            liveCancellation = request.CancellationToken.Register(() =>
+            {
+                if (liveTcs != null && !liveTcs.Task.IsCompleted)
+                {
+                    FinishTimedHitExecution(null, true);
+                    liveTcs.TrySetCanceled();
+                }
+            });
+
+            StartLivePhase();
+
+            try
+            {
+                return await liveTcs.Task;
+            }
+            finally
+            {
+                liveCancellation.Dispose();
+                liveMode = TimedSequenceMode.None;
+                combatOverlayActive = false;
+            }
+        }
+
+        public bool IsHijackingTimedRunner => hijackTimedHitRunner;
+
+        private void FinishTimedHitExecution(TimedHitResult? result, bool cancelled)
+        {
+            if (cancelled)
+            {
+                combatStatus = "Timed hit cancelled.";
+            }
+            else if (result.HasValue)
+            {
+                var value = result.Value;
+                int total = Mathf.Max(1, value.TotalHits);
+                combatStatus = $"Timed hit result: {value.HitsSucceeded}/{total} hits, refund {value.CpRefund}";
+            }
+            else
+            {
+                combatStatus = "Timed hit resolved.";
+            }
+        }
+
+        private enum TimedOutcome
+        {
+            Perfect,
+            Good,
+            Miss
+        }
+
+        private readonly struct PhaseWindows
+        {
+            public PhaseWindows(float perfectCenter, float perfectRadius, float successRadius, float successWindowStart, float successWindowEnd)
+            {
+                PerfectCenter = perfectCenter;
+                PerfectRadius = perfectRadius;
+                SuccessRadius = successRadius;
+                SuccessWindowStart = successWindowStart;
+                SuccessWindowEnd = successWindowEnd;
+            }
+
+            public float PerfectCenter { get; }
+            public float PerfectRadius { get; }
+            public float SuccessRadius { get; }
+            public float SuccessWindowStart { get; }
+            public float SuccessWindowEnd { get; }
+        }
+
+        private void ClearPendingRequest()
+        {
+            pendingContext = null;
+            pendingOnSelected = null;
+            pendingOnCancel = null;
+            pendingActions.Clear();
+            selectedEntry = null;
+            desiredCpCharge = 0;
+        }
+
+        private ActionEntry CreateEntry(BattleActionContext context, BattleActionData action)
+        {
+            ResolveProfiles(context, action, out var chargeProfile, out var timedProfile);
+            return new ActionEntry(action, chargeProfile, timedProfile);
+        }
+
+        private void ResolveProfiles(BattleActionContext context, BattleActionData action, out ChargeProfile chargeProfile, out Ks1TimedHitProfile timedProfile)
+        {
+            chargeProfile = fallbackChargeProfile;
+            timedProfile = null;
+
+            var impl = context?.Context?.Catalog?.Resolve(action);
+            if (impl != null)
+            {
+                if (impl.ChargeProfile != null)
+                {
+                    chargeProfile = impl.ChargeProfile;
+                }
+
+                if (impl is ITimedHitAction timedHitAction)
+                {
+                    timedProfile = timedHitAction.TimedHitProfile;
+                }
+            }
+
+            if (chargeProfile == null)
+            {
+                chargeProfile = fallbackChargeProfile != null ? fallbackChargeProfile : ChargeProfile.CreateRuntimeDefault();
+            }
+        }
+
+        private void ConfirmSelection(ActionEntry entry)
+        {
+            if (pendingContext == null || pendingOnSelected == null)
+            {
+                return;
+            }
+
+            int cp = Mathf.Max(0, desiredCpCharge);
+            AddLog($"Selected {entry.Action.id} with CP {cp}.");
+            var selection = new BattleSelection(entry.Action, cp, entry.ChargeProfile, entry.TimedProfile);
+            pendingOnSelected.Invoke(selection);
+            ClearPendingRequest();
+        }
+
+        private void StartPractice(ActionEntry entry, int cpCharge)
+        {
+            if (entry.TimedProfile == null)
+            {
+                AddLog($"Action {entry.Action.id} has no timed profile.");
+                return;
+            }
+
+            practiceSession = TimedPracticeSession.Begin(entry, cpCharge);
+            if (!practiceSession.IsActive)
+            {
+                AddLog("Unable to start practice (profile has zero hits).");
+            }
+            else
+            {
+                AddLog($"Practice started for {entry.Action.id}. Press [{timedHitKey}] to hit.");
+            }
+        }
+
+        private void StopPractice()
+        {
+            if (practiceSession.IsActive)
+            {
+                AddLog("Practice stopped.");
+            }
+            practiceSession = TimedPracticeSession.Inactive;
+        }
+
+        #endregion
+
+        #region Nested types
+
+        private readonly struct ActionEntry
+        {
+            public ActionEntry(BattleActionData action, ChargeProfile chargeProfile, Ks1TimedHitProfile timedProfile)
+            {
+                Action = action;
+                ChargeProfile = chargeProfile;
+                TimedProfile = timedProfile;
+            }
+
+            public BattleActionData Action { get; }
+            public ChargeProfile ChargeProfile { get; }
+            public Ks1TimedHitProfile TimedProfile { get; }
+        }
+
+        private enum PracticeState
+        {
+            Inactive,
+            Running,
+            Holding,
+            Completed
+        }
+
+        private enum PhaseOutcome
+        {
+            Pending,
+            Perfect,
+            Good,
+            Miss
+        }
+
+        private struct TimedPracticeSession
+        {
+            public static TimedPracticeSession Inactive => new TimedPracticeSession { state = PracticeState.Inactive };
+
+            public bool IsActive => state != PracticeState.Inactive;
+
+            public ActionEntry Entry { get; private set; }
+            public BattleActionData Action => Entry.Action;
+            public Ks1TimedHitProfile Profile => Entry.TimedProfile;
+            public Ks1TimedHitProfile.Tier Tier { get; private set; }
+            public int CpCharge { get; private set; }
+            public int TotalPhases { get; private set; }
+            public int PhaseIndex { get; private set; }
+            public float PhaseDuration { get; private set; }
+            public float Timer { get; private set; }
+            public float HoldTimer { get; private set; }
+            public float LastHitNormalized { get; private set; }
+            public PracticeState State => state;
+            public float CurrentNormalized => TotalPhases == 0 ? 0f : Mathf.Clamp01(Timer / Mathf.Max(0.01f, PhaseDuration));
+            public int PerfectCount => perfectCount;
+            public int GoodCount => goodCount;
+            public int MissCount => missCount;
+
+            private PracticeState state;
+            private List<PhaseOutcome> outcomes;
+            private int perfectCount;
+            private int goodCount;
+            private int missCount;
+
+            public static TimedPracticeSession Begin(ActionEntry entry, int cpCharge)
+            {
+                if (entry.TimedProfile == null)
+                {
+                    return Inactive;
+                }
+
+                var tier = entry.TimedProfile.GetTierForCharge(cpCharge);
+                int hits = Mathf.Max(1, tier.Hits);
+
+                return new TimedPracticeSession
+                {
+                    Entry = entry,
+                    Tier = tier,
+                    CpCharge = cpCharge,
+                    TotalPhases = hits,
+                    PhaseDuration = hits > 0 ? Mathf.Max(0.1f, tier.TimelineDuration / hits) : 0.5f,
+                    PhaseIndex = 0,
+                    Timer = 0f,
+                    HoldTimer = 0f,
+                    LastHitNormalized = -1f,
+                    outcomes = new List<PhaseOutcome>(new PhaseOutcome[hits]),
+                    state = PracticeState.Running
+                };
+            }
+
+            public void Tick(float deltaTime, KeyCode hitKey)
+            {
+                if (!IsActive)
+                {
+                    return;
+                }
+
+                if (state == PracticeState.Running)
+                {
+                    Timer += deltaTime;
+
+                    if (Input.GetKeyDown(hitKey))
+                    {
+                        RegisterHit(CurrentNormalized);
+                    }
+
+                    if (Timer >= PhaseDuration)
+                    {
+                        if (outcomes[PhaseIndex] == PhaseOutcome.Pending)
+                        {
+                            RecordOutcome(PhaseOutcome.Miss, CurrentNormalized);
+                        }
+                        state = PracticeState.Holding;
+                        HoldTimer = 0f;
+                    }
+                }
+                else if (state == PracticeState.Holding)
+                {
+                    HoldTimer += deltaTime;
+                    if (HoldTimer >= Mathf.Max(0.1f, Tier.ResultHoldDuration))
+                    {
+                        AdvancePhase();
+                    }
+                }
+            }
+
+            public TimedHitResult BuildResult()
+            {
+                int total = TotalPhases;
+                int success = PerfectCount + GoodCount;
+                float modifier =
+                    (PerfectCount * Tier.PerfectHitMultiplier +
+                     GoodCount * Tier.SuccessHitMultiplier +
+                     MissCount * Tier.MissHitMultiplier) / Mathf.Max(1, total);
+
+                int refund = Mathf.RoundToInt(Tier.RefundMax * (PerfectCount + 0.5f * GoodCount) / Mathf.Max(1, total));
+                float damageMultiplier = Tier.DamageMultiplier * modifier;
+
+                return new TimedHitResult(success, total, refund, damageMultiplier, cancelled: false, successStreak: PerfectCount);
+            }
+
+            private void RegisterHit(float normalizedTime)
+            {
+                if (state != PracticeState.Running || outcomes[PhaseIndex] != PhaseOutcome.Pending)
+                {
+                    return;
+                }
+
+                var tier = Tier;
+                float delta = Mathf.Abs(normalizedTime - tier.PerfectWindowCenter);
+                PhaseOutcome result;
+                if (delta <= tier.PerfectWindowRadius)
+                {
+                    result = PhaseOutcome.Perfect;
+                    perfectCount++;
+                }
+                else if (delta <= tier.SuccessWindowRadius)
+                {
+                    result = PhaseOutcome.Good;
+                    goodCount++;
+                }
+                else
+                {
+                    result = PhaseOutcome.Miss;
+                    missCount++;
+                }
+
+                RecordOutcome(result, normalizedTime);
+                state = PracticeState.Holding;
+                HoldTimer = 0f;
+            }
+
+            private void RecordOutcome(PhaseOutcome outcome, float normalizedTime)
+            {
+                outcomes[PhaseIndex] = outcome;
+                LastHitNormalized = normalizedTime;
+            }
+
+        private void AdvancePhase()
+        {
+            PhaseIndex++;
+            if (PhaseIndex >= TotalPhases)
+            {
+                state = PracticeState.Completed;
+                return;
+            }
+
+            Timer = 0f;
+            HoldTimer = 0f;
+            LastHitNormalized = -1f;
+            state = PracticeState.Running;
+        }
+    }
+
+    private readonly struct Ks1TimedHitRequestSnapshot
+    {
+        public Ks1TimedHitRequestSnapshot(string actionName, Ks1TimedHitProfile.Tier tier)
+        {
+            ActionName = actionName;
+            Tier = tier;
+        }
+
+        public string ActionName { get; }
+        public Ks1TimedHitProfile.Tier Tier { get; }
+    }
+
+    #endregion
+}
+}
+
+
+
+
+

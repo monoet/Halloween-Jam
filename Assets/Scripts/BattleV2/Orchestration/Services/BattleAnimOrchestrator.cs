@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using BattleV2.Core;
 using BattleV2.Orchestration.Events;
 using BattleV2.Orchestration.Services.Animation;
+using BattleV2.Providers;
 using UnityEngine;
 
 namespace BattleV2.Orchestration.Services

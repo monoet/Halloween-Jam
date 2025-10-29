@@ -46,6 +46,7 @@ namespace BattleV2.Execution
         public TimedHitResult? TimedResult { get; set; }
         public bool PhaseDamageApplied { get; set; }
         public int TotalDamageApplied { get; set; }
+        public int ComboPointsAwarded { get; set; }
     }
 }
 
