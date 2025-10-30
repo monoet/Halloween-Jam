@@ -17,6 +17,8 @@ namespace BattleV2.AnimationSystem.Runtime
             this.orchestrator = orchestrator ?? throw new ArgumentNullException(nameof(orchestrator));
         }
 
+        public IAnimationOrchestrator InnerOrchestrator => orchestrator;
+
         public Task PlayAsync(ActionPlaybackRequest request)
         {
             if (orchestrator == null || request.Actor == null)
@@ -34,4 +36,3 @@ namespace BattleV2.AnimationSystem.Runtime
         }
     }
 }
-

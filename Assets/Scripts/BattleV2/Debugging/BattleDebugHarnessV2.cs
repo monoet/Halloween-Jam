@@ -61,6 +61,7 @@ namespace BattleV2.Debugging
         private readonly InstantTimedHitRunner instantRunner = InstantTimedHitRunner.Shared;
 
         private TimedPracticeSession practiceSession = TimedPracticeSession.Inactive;
+        private Coroutine ensureRunnerCoroutine;
 
         private bool combatOverlayActive;
         private string combatStatus = "Esperando golpe con timing.";
@@ -123,6 +124,7 @@ namespace BattleV2.Debugging
             {
                 Debug.Log("[BattleDebugHarnessV2] Hijacking timed hit runner (Awake).", this);
             }
+            ensureRunnerCoroutine = StartCoroutine(EnsureTimedRunnerOwnership());
             AddLog("Arnes listo. Esperando peticiones de accion.");
             inputProviderField = typeof(BattleManagerV2).GetField("inputProvider", BindingFlags.Instance | BindingFlags.NonPublic);
 
@@ -161,6 +163,12 @@ namespace BattleV2.Debugging
             {
                 manager.OnPlayerActionSelected -= HandlePlayerActionSelected;
                 manager.OnPlayerActionResolved -= HandlePlayerActionResolved;
+            }
+
+            if (ensureRunnerCoroutine != null)
+            {
+                StopCoroutine(ensureRunnerCoroutine);
+                ensureRunnerCoroutine = null;
             }
 
             CancelLiveSequence();
@@ -1060,8 +1068,28 @@ namespace BattleV2.Debugging
             }
         }
 
+        private System.Collections.IEnumerator EnsureTimedRunnerOwnership()
+        {
+            const int framesToEnforce = 4;
+            for (int i = 0; i < framesToEnforce && isActiveAndEnabled; i++)
+            {
+                yield return null;
+                if (manager != null)
+                {
+                    manager.SetTimedHitRunner(this);
+                }
+            }
+
+            ensureRunnerCoroutine = null;
+        }
+
         public async Task<TimedHitResult> RunAsync(TimedHitRequest request)
         {
+            if (manager != null && !ReferenceEquals(manager.TimedHitRunner, this))
+            {
+                manager.SetTimedHitRunner(this);
+            }
+
             if (hijackTimedHitRunner || request.Profile == null)
             {
                 return await RunViaInstantRunner(request);

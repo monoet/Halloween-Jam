@@ -133,6 +133,11 @@ namespace BattleV2.Orchestration
             PrepareContext();
         }
 
+        private void Start()
+        {
+            TrySwitchToAnimationInstaller();
+        }
+
         private void OnDisable()
         {
             turnService?.Stop();
@@ -211,19 +216,7 @@ namespace BattleV2.Orchestration
                 ? timingConfig.ToProfile()
                 : (config?.timingConfig != null ? config.timingConfig.ToProfile() : BattleTimingProfile.Default);
 
-            if (useAnimationSystemInstaller)
-            {
-                animationSystemInstaller ??= AnimationSystemInstaller.Current;
-            }
-
-            if (useAnimationSystemInstaller && animationSystemInstaller != null && animationSystemInstaller.Orchestrator != null)
-            {
-                animOrchestrator = new BattleAnimationSystemBridge(animationSystemInstaller.Orchestrator);
-            }
-            else
-            {
-                animOrchestrator = new BattleAnimOrchestrator(eventBus, timingProfile);
-            }
+            ConfigureAnimationOrchestrator(timingProfile);
             triggeredEffects = new TriggeredEffectsService(this, actionPipeline, actionCatalog, eventBus);
             timedResultResolver = new TimedHitResultResolver();
             actionValidator = new CombatantActionValidator(actionCatalog);
@@ -371,10 +364,60 @@ namespace BattleV2.Orchestration
             ClearPendingPlayerRequest();
             RebuildRoster(preservePlayerVitals: false, preserveEnemyVitals: false);
             PrepareContext();
+            TrySwitchToAnimationInstaller();
             state?.ResetToIdle();
             state?.Set(BattleState.AwaitingAction);
             turnService?.Stop();
             turnService?.Begin();
+        }
+
+        private void ConfigureAnimationOrchestrator(BattleTimingProfile timingProfile)
+        {
+            if (useAnimationSystemInstaller)
+            {
+                animationSystemInstaller ??= AnimationSystemInstaller.Current;
+            }
+
+            if (useAnimationSystemInstaller &&
+                animationSystemInstaller != null &&
+                animationSystemInstaller.Orchestrator != null)
+            {
+                animOrchestrator = new BattleAnimationSystemBridge(animationSystemInstaller.Orchestrator);
+            }
+            else
+            {
+                animOrchestrator = new BattleAnimOrchestrator(eventBus, timingProfile);
+            }
+        }
+
+        private void TrySwitchToAnimationInstaller()
+        {
+            if (!useAnimationSystemInstaller)
+            {
+                return;
+            }
+
+            animationSystemInstaller ??= AnimationSystemInstaller.Current;
+            if (animationSystemInstaller?.Orchestrator == null)
+            {
+                return;
+            }
+
+            if (animOrchestrator is BattleAnimationSystemBridge bridge &&
+                ReferenceEquals(bridge.InnerOrchestrator, animationSystemInstaller.Orchestrator))
+            {
+                return;
+            }
+
+            animOrchestrator = new BattleAnimationSystemBridge(animationSystemInstaller.Orchestrator);
+            enemyTurnCoordinator = new EnemyTurnCoordinator(
+                actionCatalog,
+                actionValidator,
+                targetingCoordinator,
+                actionPipeline,
+                triggeredEffects,
+                animOrchestrator,
+                eventBus);
         }
 
         private void HandlePlayerSelection(BattleSelection selection)
