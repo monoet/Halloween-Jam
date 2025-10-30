@@ -15,9 +15,10 @@ namespace BattleV2.AnimationSystem.Execution
         private readonly ICombatClock clock;
         private readonly IAnimationEventBus eventBus;
         private readonly IActionLockManager lockManager;
-        private readonly List<ScheduledEvent> schedule;
+        private readonly List<SequencerScheduledEvent> schedule;
         private readonly string baseLockReason;
         private readonly double tolerance;
+        private readonly ActionSequencerEventDispatcher dispatcher;
 
         private int nextEvent;
         private double startTime;
@@ -51,12 +52,13 @@ namespace BattleV2.AnimationSystem.Execution
             this.eventBus = eventBus;
             this.lockManager = lockManager;
             this.tolerance = Math.Max(1e-6d, tolerance);
+            dispatcher = new ActionSequencerEventDispatcher(request, eventBus);
 
             baseLockReason = string.IsNullOrWhiteSpace(timeline.ActionId)
                 ? "timeline"
                 : $"timeline:{timeline.ActionId}";
 
-            schedule = BuildSchedule(timeline);
+            schedule = TimelineScheduleBuilder.Build(timeline);
         }
 
         public bool IsStarted => started;
@@ -144,7 +146,7 @@ namespace BattleV2.AnimationSystem.Execution
             PublishLockEvent(false, baseLockReason);
         }
 
-        private void ExecuteEvent(ScheduledEvent scheduled, double elapsed)
+        private void ExecuteEvent(SequencerScheduledEvent scheduled, double elapsed)
         {
             EventDispatched?.Invoke(new SequencerEventInfo(
                 scheduled.Type,
@@ -170,234 +172,26 @@ namespace BattleV2.AnimationSystem.Execution
                     break;
 
                 case ScheduledEventType.WindowOpen:
-                    PublishWindowEvent(scheduled, true);
+                    dispatcher.PublishWindowEvent(scheduled, true);
                     break;
 
                 case ScheduledEventType.WindowClose:
-                    PublishWindowEvent(scheduled, false);
+                    dispatcher.PublishWindowEvent(scheduled, false);
                     break;
 
                 case ScheduledEventType.Impact:
-                    PublishImpactEvent(scheduled);
+                    dispatcher.PublishImpactEvent(scheduled);
                     break;
 
                 case ScheduledEventType.PhaseEnter:
-                    PublishPhaseEvent(scheduled);
+                    dispatcher.PublishPhaseEvent(scheduled);
                     break;
             }
-        }
-
-        private void PublishPhaseEvent(ScheduledEvent scheduled)
-        {
-            // Index is 1-based to align with designer-friendly telemetry.
-            var evt = new AnimationPhaseEvent(
-                request.Actor,
-                request.Selection,
-                scheduled.Index + 1,
-                scheduled.TotalCount,
-                scheduled.Payload);
-            eventBus?.Publish(evt);
-        }
-
-        private void PublishImpactEvent(ScheduledEvent scheduled)
-        {
-            CombatantState target = null;
-            if (request.Targets != null && request.Targets.Count > 0)
-            {
-                int clamped = Math.Min(scheduled.Index, request.Targets.Count - 1);
-                target = request.Targets[clamped];
-            }
-
-            var evt = new AnimationImpactEvent(
-                request.Actor,
-                target,
-                request.Selection.Action,
-                scheduled.Index + 1,
-                scheduled.TotalCount,
-                scheduled.Tag,
-                scheduled.Payload);
-
-            eventBus?.Publish(evt);
-        }
-
-        private void PublishWindowEvent(ScheduledEvent scheduled, bool isOpening)
-        {
-            var evt = new AnimationWindowEvent(
-                request.Actor,
-                scheduled.Tag,
-                scheduled.Phase.StartNormalized,
-                scheduled.Phase.EndNormalized,
-                isOpening,
-                scheduled.Index + 1,
-                scheduled.TotalCount);
-            eventBus?.Publish(evt);
         }
 
         private void PublishLockEvent(bool locked, string reason)
         {
-            var evt = new AnimationLockEvent(request.Actor, locked, reason);
-            eventBus?.Publish(evt);
-        }
-
-        private static List<ScheduledEvent> BuildSchedule(CompiledTimeline timeline)
-        {
-            var events = new List<ScheduledEvent>();
-            if (timeline.Phases == null)
-            {
-                return events;
-            }
-
-            int totalAnimation = CountPhases(timeline, ActionTimeline.TrackType.Animation);
-            int totalImpacts = CountPhases(timeline, ActionTimeline.TrackType.Impact);
-            int totalWindows = CountPhases(timeline, ActionTimeline.TrackType.Window);
-
-            int animationIndex = 0;
-            int impactIndex = 0;
-            int windowIndex = 0;
-
-            foreach (var phase in timeline.Phases)
-            {
-                string tag = ResolveTag(phase);
-                switch (phase.Track)
-                {
-                    case ActionTimeline.TrackType.Animation:
-                        events.Add(ScheduledEvent.ForPhase(phase.Start, phase, animationIndex, totalAnimation, tag, phase.Payload));
-                        animationIndex++;
-                        break;
-
-                    case ActionTimeline.TrackType.Window:
-                        events.Add(ScheduledEvent.ForWindow(phase.Start, ScheduledEventType.WindowOpen, phase, windowIndex, totalWindows, tag, phase.Payload));
-                        events.Add(ScheduledEvent.ForWindow(phase.End, ScheduledEventType.WindowClose, phase, windowIndex, totalWindows, tag, phase.Payload));
-                        windowIndex++;
-                        break;
-
-                    case ActionTimeline.TrackType.Impact:
-                        events.Add(ScheduledEvent.ForImpact(phase.Start, phase, impactIndex, totalImpacts, tag, phase.Payload));
-                        impactIndex++;
-                        break;
-
-                    case ActionTimeline.TrackType.Lock:
-                        string reason = !string.IsNullOrWhiteSpace(phase.Payload)
-                            ? phase.Payload
-                            : (string.IsNullOrWhiteSpace(tag) ? timeline.ActionId : tag);
-                        events.Add(ScheduledEvent.ForLock(phase.Start, ScheduledEventType.LockAcquire, phase, reason));
-                        events.Add(ScheduledEvent.ForLock(phase.End, ScheduledEventType.LockRelease, phase, reason));
-                        break;
-
-                    case ActionTimeline.TrackType.Custom:
-                        // Treat custom tracks as phases for now to keep telemetry.
-                        events.Add(ScheduledEvent.ForPhase(phase.Start, phase, animationIndex, totalAnimation, tag, phase.Payload));
-                        break;
-                }
-            }
-
-            events.Sort(ScheduledEventComparer.Instance);
-            return events;
-        }
-
-        private static int CountPhases(CompiledTimeline timeline, ActionTimeline.TrackType track)
-        {
-            int count = 0;
-            if (timeline.Phases == null)
-            {
-                return count;
-            }
-
-            for (int i = 0; i < timeline.Phases.Count; i++)
-            {
-                if (timeline.Phases[i].Track == track)
-                {
-                    count++;
-                }
-            }
-            return count;
-        }
-
-        private static string ResolveTag(CompiledPhase phase)
-        {
-            if (!string.IsNullOrWhiteSpace(phase.EnterEvent))
-            {
-                return phase.EnterEvent;
-            }
-
-            if (!string.IsNullOrWhiteSpace(phase.ExitEvent))
-            {
-                return phase.ExitEvent;
-            }
-
-            return phase.Payload;
-        }
-
-        private readonly struct ScheduledEvent
-        {
-            public ScheduledEvent(
-                double triggerTime,
-                ScheduledEventType type,
-                CompiledPhase phase,
-                int index,
-                int totalCount,
-                string tag,
-                string payload,
-                string reason)
-            {
-                TriggerTime = triggerTime;
-                Type = type;
-                Phase = phase;
-                Index = index;
-                TotalCount = totalCount;
-                Tag = tag;
-                Payload = payload;
-                Reason = reason;
-            }
-
-            public double TriggerTime { get; }
-            public ScheduledEventType Type { get; }
-            public CompiledPhase Phase { get; }
-            public int Index { get; }
-            public int TotalCount { get; }
-            public string Tag { get; }
-            public string Payload { get; }
-            public string Reason { get; }
-
-            public static ScheduledEvent ForPhase(double time, CompiledPhase phase, int index, int total, string tag, string payload) =>
-                new ScheduledEvent(time, ScheduledEventType.PhaseEnter, phase, index, Math.Max(1, total), tag, payload, null);
-
-            public static ScheduledEvent ForWindow(double time, ScheduledEventType type, CompiledPhase phase, int index, int total, string tag, string payload) =>
-                new ScheduledEvent(time, type, phase, index, Math.Max(1, total), tag, payload, null);
-
-            public static ScheduledEvent ForImpact(double time, CompiledPhase phase, int index, int total, string tag, string payload) =>
-                new ScheduledEvent(time, ScheduledEventType.Impact, phase, index, Math.Max(1, total), tag, payload, null);
-
-            public static ScheduledEvent ForLock(double time, ScheduledEventType type, CompiledPhase phase, string reason) =>
-                new ScheduledEvent(time, type, phase, 0, 0, null, null, reason);
-        }
-
-        private sealed class ScheduledEventComparer : IComparer<ScheduledEvent>
-        {
-            public static readonly ScheduledEventComparer Instance = new();
-
-            public int Compare(ScheduledEvent x, ScheduledEvent y)
-            {
-                int timeComparison = x.TriggerTime.CompareTo(y.TriggerTime);
-                if (timeComparison != 0)
-                {
-                    return timeComparison;
-                }
-
-                return GetPriority(x.Type).CompareTo(GetPriority(y.Type));
-            }
-
-            private static int GetPriority(ScheduledEventType type) =>
-                type switch
-                {
-                    ScheduledEventType.LockAcquire => -10,
-                    ScheduledEventType.WindowOpen => 0,
-                    ScheduledEventType.Impact => 1,
-                    ScheduledEventType.WindowClose => 2,
-                    ScheduledEventType.LockRelease => 3,
-                    ScheduledEventType.PhaseEnter => 4,
-                    _ => 5
-                };
+            dispatcher.PublishLockEvent(locked, reason);
         }
     }
 

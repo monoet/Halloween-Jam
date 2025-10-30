@@ -34,10 +34,12 @@ Notas:
 - [x] AnimationEventBus expandido con tags, payload, razon de lock y tolerancias para los routers.
 - [x] ActionTimelineCatalog y ActionTimelineValidator ahora garantizan tags únicas, tracks mínimos y warnings limpios.
 - [x] TimedHitService/InputBuffer para escuchar AnimationWindowEvent y producir juicios (Perfect/Good/Miss).
-- [ ] Infra inicial de snapshot tests/telemetría para validar determinismo multi-FPS.
+- [x] Infra inicial de snapshot tests/telemetría para validar determinismo multi-FPS.
 
 Notas:
 - ActionSequencerDriver permite tickear secuencias en prototipos usando CombatClock.
 - Scripts relevantes exportados a `ReferenceCode/Documentation/AnimationSystem_Scripts_Export.txt`.
 - Catalogo y validator sin warnings tras refuerzos de tags/locks.
 - TimedHitService + TimedInputBuffer resuelven ventanas usando CombatClock, perfil de tolerancias y publican `TimedHitResultEvent` (Perfect/Good/Miss) en el bus.
+- `AnimationSystemInstaller` arma el pipeline (clock, bus, runtime builder, TimedHitService) y expone el nuevo orquestador; falta cablear en escena y sustituir definitivamente al adapter legacy.
+- `TimedHitInputRelay` y `TimedHitHudBridge` conectan inputs/HUD al bus de animación; `SequencerSnapshotHarness` permite capturar trazas del sequencer a 30/60/120 FPS como base para determinismo.
