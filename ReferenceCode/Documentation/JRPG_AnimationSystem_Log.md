@@ -43,3 +43,4 @@ Notas:
 - TimedHitService + TimedInputBuffer resuelven ventanas usando CombatClock, perfil de tolerancias y publican `TimedHitResultEvent` (Perfect/Good/Miss) en el bus.
 - `AnimationSystemInstaller` arma el pipeline (clock, bus, runtime builder, TimedHitService) y expone el nuevo orquestador; falta cablear en escena y sustituir definitivamente al adapter legacy.
 - `TimedHitInputRelay` y `TimedHitHudBridge` conectan inputs/HUD al bus de animación; `SequencerSnapshotHarness` permite capturar trazas del sequencer a 30/60/120 FPS como base para determinismo.
+- `BattleManagerV2` ahora puede usar `AnimationSystemInstaller` (toggle `useAnimationSystemInstaller` + referencia) para delegar al nuevo orquestador vía `BattleAnimationSystemBridge`.

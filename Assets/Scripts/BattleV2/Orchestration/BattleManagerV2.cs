@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using UnityEngine;
 using BattleV2.Actions;
 
+using BattleV2.AnimationSystem.Runtime;
 using BattleV2.Charge;
 using BattleV2.Core;
 using BattleV2.Execution;
@@ -31,6 +32,10 @@ namespace BattleV2.Orchestration
         [SerializeField] private ScriptableObject inputProviderAsset;
         [SerializeField] private MonoBehaviour inputProviderComponent;
         [SerializeField] private HUDManager hudManager;
+
+        [Header("Animation System")]
+        [SerializeField] private AnimationSystemInstaller animationSystemInstaller;
+        [SerializeField] private bool useAnimationSystemInstaller = false;
 
         [Header("Timing")]
         [SerializeField] private BattleTimingConfig timingConfig;
@@ -206,7 +211,19 @@ namespace BattleV2.Orchestration
                 ? timingConfig.ToProfile()
                 : (config?.timingConfig != null ? config.timingConfig.ToProfile() : BattleTimingProfile.Default);
 
-            animOrchestrator = new BattleAnimOrchestrator(eventBus, timingProfile);
+            if (useAnimationSystemInstaller)
+            {
+                animationSystemInstaller ??= AnimationSystemInstaller.Current;
+            }
+
+            if (useAnimationSystemInstaller && animationSystemInstaller != null && animationSystemInstaller.Orchestrator != null)
+            {
+                animOrchestrator = new BattleAnimationSystemBridge(animationSystemInstaller.Orchestrator);
+            }
+            else
+            {
+                animOrchestrator = new BattleAnimOrchestrator(eventBus, timingProfile);
+            }
             triggeredEffects = new TriggeredEffectsService(this, actionPipeline, actionCatalog, eventBus);
             timedResultResolver = new TimedHitResultResolver();
             actionValidator = new CombatantActionValidator(actionCatalog);
