@@ -44,3 +44,18 @@ Notas:
 - `AnimationSystemInstaller` arma el pipeline (clock, bus, runtime builder, TimedHitService) y expone el nuevo orquestador; falta cablear en escena y sustituir definitivamente al adapter legacy.
 - `TimedHitInputRelay` y `TimedHitHudBridge` conectan inputs/HUD al bus de animación; `SequencerSnapshotHarness` permite capturar trazas del sequencer a 30/60/120 FPS como base para determinismo.
 - `BattleManagerV2` ahora puede usar `AnimationSystemInstaller` (toggle `useAnimationSystemInstaller` + referencia) para delegar al nuevo orquestador vía `BattleAnimationSystemBridge`.
+
+## 2025-11-01 - Milestone 4 - Integración visual (kickoff)
+- [x] Crear esqueleto de `AnimatorWrapper` con PlayableGraph propio, mixer a dos entradas y clip fallback configurable por actor.
+- [x] Exponer API `PlayClip`, `Stop`, `ResetToFallback`, `AttachCancellation` y tipos `AnimatorClipOptions`/`AnimatorClipHandle` alineados con el contrato LOCKED.
+- [x] Añadir guardrails: warning al reproducir clips nulos, log cuando se cancela el token, TODO explícito para blends cronometrados.
+- [ ] Implementar blend real hacia el fallback usando driver de tiempo del sequencer.
+- [x] Cablear routers visuales (VFX/SFX/Camera/UI) al `AnimationEventBus`.
+- [ ] Crear `NewAnimOrchestratorAdapter` que resuelva wrappers, sockets y locks siguiendo la sección 5 del LOCKED.
+- [ ] Validar assets `basic_attack` y `magic_bolt` con payloads de routers + escena de combate usando el installer.
+
+Notas:
+- `AnimatorWrapper` vive en `Assets/Scripts/BattleV2/AnimationSystem/Execution/AnimatorWrapper.cs`; inicializa el PlayableGraph bajo demanda y destruye clips/graph en `Dispose`.
+- El fallback hoy hace un snap instantáneo; se documentó el TODO para reemplazarlo por un fade incremental cuando el sequencer exponga delta time.
+- Routers añadidos en `Assets/Scripts/BattleV2/AnimationSystem/Execution/Routers/`: `AnimationVfxRouter`, `AnimationSfxRouter`, `AnimationCameraRouter`, `AnimationUiRouter`. Cada uno expone contrato de servicio (`IAnimationVfxService`, etc.) y logs de guardrail cuando faltan bindings o cancelación libera locks.
+- Próximo orden sugerido: Routers → Adapter → Data → Escena de validación → Documentación adicional.

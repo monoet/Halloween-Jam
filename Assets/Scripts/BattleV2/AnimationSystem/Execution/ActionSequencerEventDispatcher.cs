@@ -50,6 +50,7 @@ namespace BattleV2.AnimationSystem.Execution
             var evt = new AnimationWindowEvent(
                 request.Actor,
                 scheduled.Tag,
+                scheduled.Payload,
                 scheduled.Phase.StartNormalized,
                 scheduled.Phase.EndNormalized,
                 isOpening,
@@ -65,4 +66,3 @@ namespace BattleV2.AnimationSystem.Execution
         }
     }
 }
-

@@ -144,6 +144,7 @@ namespace BattleV2.AnimationSystem
         public AnimationWindowEvent(
             CombatantState actor,
             string tag,
+            string payload,
             float windowStart,
             float windowEnd,
             bool isOpening,
@@ -152,6 +153,7 @@ namespace BattleV2.AnimationSystem
         {
             Actor = actor;
             Tag = tag;
+            Payload = payload;
             WindowStart = windowStart;
             WindowEnd = windowEnd;
             IsOpening = isOpening;
@@ -161,6 +163,7 @@ namespace BattleV2.AnimationSystem
 
         public CombatantState Actor { get; }
         public string Tag { get; }
+        public string Payload { get; }
         public float WindowStart { get; }
         public float WindowEnd { get; }
         public bool IsOpening { get; }
