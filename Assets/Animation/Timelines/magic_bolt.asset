@@ -26,39 +26,39 @@ MonoBehaviour:
       End: 0.12
       OnEnterEvent: charge_start
       OnExitEvent: charge_ready
-      Payload: glow=blue
+      Payload: clip=magic_charge_loop;vfx=magic_charge_glow_blue;sfx=magic_charge_up;glow=blue
   - type: 1
     phases:
     - Start: 0.12
       End: 0.3
       OnEnterEvent: cast_start
       OnExitEvent: cast_release
-      Payload: cast
+      Payload: clip=magic_cast_release;vfx=magic_cast_flash_blue;sfx=magic_cast_release;camera=shake_spell_light
   - type: 2
     phases:
     - Start: 0.22
       End: 0.32
       OnEnterEvent: window_open
       OnExitEvent: window_close
-      Payload: perfect=0.27
+      Payload: perfect=0.27;ui=timed_hit_prompt_spell
   - type: 1
     phases:
     - Start: 0.3
       End: 0.6
       OnEnterEvent: projectile_spawn
       OnExitEvent: projectile_hit
-      Payload: bolt_blue
+      Payload: clip=magic_projectile_flight;vfx=magic_projectile_blue;sfx=magic_projectile_whirl
   - type: 1
     phases:
     - Start: 0.6
       End: 0.8
       OnEnterEvent: impact_start
       OnExitEvent: impact_end
-      Payload: explosion
+      Payload: clip=magic_impact;vfx=magic_impact_burst_blue;sfx=magic_impact_explosion;camera=shake_spell_heavy
   - type: 3
     phases:
     - Start: 0
       End: 0.8
       OnEnterEvent: player_lock
       OnExitEvent: player_unlock
-      Payload: 
+      Payload: lock=magic_bolt

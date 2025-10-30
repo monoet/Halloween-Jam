@@ -20,24 +20,31 @@ MonoBehaviour:
     - melee
     - starter
   tracks:
+  - type: 0
+    phases:
+    - Start: 0
+      End: 0.35
+      OnEnterEvent: anim_start
+      OnExitEvent: anim_end
+      Payload: clip=basic_attack_swing;speed=1
   - type: 1
     phases:
     - Start: 0.15
       End: 0.25
       OnEnterEvent: swing_in
       OnExitEvent: impact
-      Payload: slash
+      Payload: vfx=slash_trail_medium;sfx=sword_slash_medium;camera=shake_light
   - type: 2
     phases:
     - Start: 0.2
       End: 0.28
       OnEnterEvent: window_open
       OnExitEvent: window_close
-      Payload: perfect=0.23
+      Payload: perfect=0.23;ui=timed_hit_prompt_basic
   - type: 3
     phases:
     - Start: 0
       End: 0.35
       OnEnterEvent: lock_on
       OnExitEvent: lock_off
-      Payload: 
+      Payload: lock=basic_attack

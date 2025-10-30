@@ -49,13 +49,16 @@ Notas:
 - [x] Crear esqueleto de `AnimatorWrapper` con PlayableGraph propio, mixer a dos entradas y clip fallback configurable por actor.
 - [x] Exponer API `PlayClip`, `Stop`, `ResetToFallback`, `AttachCancellation` y tipos `AnimatorClipOptions`/`AnimatorClipHandle` alineados con el contrato LOCKED.
 - [x] Añadir guardrails: warning al reproducir clips nulos, log cuando se cancela el token, TODO explícito para blends cronometrados.
-- [ ] Implementar blend real hacia el fallback usando driver de tiempo del sequencer.
+- [x] Implementar blend real hacia el fallback usando driver de tiempo del sequencer.
 - [x] Cablear routers visuales (VFX/SFX/Camera/UI) al `AnimationEventBus`.
+- [x] Enriquecer timelines `basic_attack` y `magic_bolt` con payloads para routers y clips PlayableGraph.
 - [ ] Crear `NewAnimOrchestratorAdapter` que resuelva wrappers, sockets y locks siguiendo la sección 5 del LOCKED.
 - [ ] Validar assets `basic_attack` y `magic_bolt` con payloads de routers + escena de combate usando el installer.
 
 Notas:
 - `AnimatorWrapper` vive en `Assets/Scripts/BattleV2/AnimationSystem/Execution/AnimatorWrapper.cs`; inicializa el PlayableGraph bajo demanda y destruye clips/graph en `Dispose`.
-- El fallback hoy hace un snap instantáneo; se documentó el TODO para reemplazarlo por un fade incremental cuando el sequencer exponga delta time.
+- El fallback ahora interpola con un driver de coroutine propio, controlando pesos del mixer y cancelándose en dispose/cancel.
 - Routers añadidos en `Assets/Scripts/BattleV2/AnimationSystem/Execution/Routers/`: `AnimationVfxRouter`, `AnimationSfxRouter`, `AnimationCameraRouter`, `AnimationUiRouter`. Cada uno expone contrato de servicio (`IAnimationVfxService`, etc.) y logs de guardrail cuando faltan bindings o cancelación libera locks.
+- Timelines actualizados (carpeta `Assets/Animation/Timelines/`): `basic_attack.asset` incluye clip `basic_attack_swing`, payloads `vfx=/sfx=/camera=` y prompt UI para ventana; `magic_bolt.asset` define clips de charge/cast/projectile/impact con IDs únicos y payloads SFX/VFX camera shake.
+- Checklist de validación en escena: abrir `Assets/Scenes/CombatSandbox.unity`, habilitar `BattleManagerV2.useAnimationSystemInstaller`, asignar `AnimationSystemInstaller`, `ActionSequencerDriver` y servicios para routers; reproducir acciones `basic_attack` y `magic_bolt` verificando animación Playables visible, VFX/SFX disparados y locks liberados (fin controlado por `LockRelease`).
 - Próximo orden sugerido: Routers → Adapter → Data → Escena de validación → Documentación adicional.

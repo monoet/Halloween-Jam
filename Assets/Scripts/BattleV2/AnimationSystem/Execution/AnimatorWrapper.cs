@@ -1,8 +1,10 @@
 using System;
+using System.Collections;
 using System.Threading;
 using UnityEngine;
 using UnityEngine.Animations;
 using UnityEngine.Playables;
+using Object = UnityEngine.Object;
 
 namespace BattleV2.AnimationSystem.Execution
 {
@@ -23,6 +25,7 @@ namespace BattleV2.AnimationSystem.Execution
         private AnimationClipPlayable fallbackClip;
 
         private CancellationTokenRegistration cancellationRegistration;
+        private Coroutine fallbackBlendCoroutine;
         private bool initialized;
         private bool disposed;
 
@@ -95,6 +98,7 @@ namespace BattleV2.AnimationSystem.Execution
 
             EnsureInitialized();
             TearDownActiveClip();
+            StopFallbackBlend();
 
             activeClip = AnimationClipPlayable.Create(graph, clip);
             ConfigureClipPlayable(activeClip, options);
@@ -116,26 +120,33 @@ namespace BattleV2.AnimationSystem.Execution
                 return;
             }
 
+            StopFallbackBlend();
+
             if (!activeClip.IsValid())
             {
                 // Already on fallback.
-                mixer.SetInputWeight(1, 1f);
+                mixer.SetInputWeight(1, binding.FallbackClip != null ? 1f : 0f);
                 return;
             }
 
             if (fadeDuration <= 0f)
             {
                 mixer.SetInputWeight(0, 0f);
-                mixer.SetInputWeight(1, 1f);
+                mixer.SetInputWeight(1, binding.FallbackClip != null ? 1f : 0f);
                 TearDownActiveClip();
                 return;
             }
 
-            // TODO: replace with a time-based fade driver once the sequencer wires delta time.
-            mixer.SetInputWeight(0, 0f);
-            mixer.SetInputWeight(1, 1f);
-            TearDownActiveClip();
-            Debug.LogWarning($"[AnimatorWrapper] Requested fade duration {fadeDuration:0.##}s but time-based fades are not implemented yet for {graphName}.");
+            if (binding.FallbackClip == null)
+            {
+                // Without a fallback clip just snap back to zero weight.
+                mixer.SetInputWeight(0, 0f);
+                mixer.SetInputWeight(1, 0f);
+                TearDownActiveClip();
+                return;
+            }
+
+            fallbackBlendCoroutine = CoroutineDriver.Start(FadeToFallbackCoroutine(fadeDuration));
         }
 
         /// <summary>
@@ -143,6 +154,7 @@ namespace BattleV2.AnimationSystem.Execution
         /// </summary>
         public void Stop()
         {
+            StopFallbackBlend();
             ResetToFallback(0f);
         }
 
@@ -187,6 +199,41 @@ namespace BattleV2.AnimationSystem.Execution
             }
         }
 
+        private IEnumerator FadeToFallbackCoroutine(float duration)
+        {
+            if (!mixer.IsValid())
+            {
+                yield break;
+            }
+
+            float elapsed = 0f;
+            float initialActiveWeight = mixer.GetInputWeight(0);
+            float initialFallbackWeight = mixer.GetInputWeight(1);
+
+            while (elapsed < duration)
+            {
+                if (disposed || !mixer.IsValid())
+                {
+                    yield break;
+                }
+
+                elapsed += Time.deltaTime;
+                float t = Mathf.Clamp01(elapsed / duration);
+                mixer.SetInputWeight(0, Mathf.Lerp(initialActiveWeight, 0f, t));
+                mixer.SetInputWeight(1, Mathf.Lerp(initialFallbackWeight, 1f, t));
+                yield return null;
+            }
+
+            if (mixer.IsValid())
+            {
+                mixer.SetInputWeight(0, 0f);
+                mixer.SetInputWeight(1, 1f);
+            }
+
+            TearDownActiveClip();
+            fallbackBlendCoroutine = null;
+        }
+
         private void TearDownActiveClip()
         {
             if (activeClip.IsValid())
@@ -201,6 +248,17 @@ namespace BattleV2.AnimationSystem.Execution
             }
         }
 
+        private void StopFallbackBlend()
+        {
+            if (fallbackBlendCoroutine == null)
+            {
+                return;
+            }
+
+            CoroutineDriver.Stop(fallbackBlendCoroutine);
+            fallbackBlendCoroutine = null;
+        }
+
         public void Dispose()
         {
             if (disposed)
@@ -210,6 +268,7 @@ namespace BattleV2.AnimationSystem.Execution
 
             disposed = true;
             cancellationRegistration.Dispose();
+            StopFallbackBlend();
 
             if (graph.IsValid())
             {
@@ -296,5 +355,46 @@ namespace BattleV2.AnimationSystem.Execution
         internal Playable Playable { get; }
 
         public bool IsValid => Playable.IsValid();
+    }
+
+    internal static class CoroutineDriver
+    {
+        private sealed class Runner : MonoBehaviour { }
+
+        private static Runner runnerInstance;
+
+        public static Coroutine Start(IEnumerator routine)
+        {
+            if (routine == null)
+            {
+                return null;
+            }
+
+            EnsureInstance();
+            return runnerInstance.StartCoroutine(routine);
+        }
+
+        public static void Stop(Coroutine coroutine)
+        {
+            if (coroutine == null || runnerInstance == null)
+            {
+                return;
+            }
+
+            runnerInstance.StopCoroutine(coroutine);
+        }
+
+        private static void EnsureInstance()
+        {
+            if (runnerInstance != null)
+            {
+                return;
+            }
+
+            var go = new GameObject("AnimatorWrapperCoroutineDriver");
+            go.hideFlags = HideFlags.HideAndDontSave;
+            Object.DontDestroyOnLoad(go);
+            runnerInstance = go.AddComponent<Runner>();
+        }
     }
 }
