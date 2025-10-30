@@ -1,9 +1,8 @@
 using System;
-using System.Threading;
-using System.Threading.Tasks;
 using BattleV2.AnimationSystem.Catalog;
 using BattleV2.AnimationSystem.Execution;
 using BattleV2.AnimationSystem.Execution.Runtime;
+using BattleV2.AnimationSystem.Execution.Routers;
 using BattleV2.AnimationSystem.Timelines;
 using BattleV2.Core;
 using UnityEngine;
@@ -24,6 +23,12 @@ namespace BattleV2.AnimationSystem.Runtime
 
         [Header("Optional Services")]
         [SerializeField] private CombatClock combatClock;
+        [SerializeField] private AnimationActorBinding[] actorBindings;
+        [SerializeField] private AnimationClipBinding[] clipBindings;
+        [SerializeField] private UnityEngine.Object vfxServiceSource;
+        [SerializeField] private UnityEngine.Object sfxServiceSource;
+        [SerializeField] private UnityEngine.Object cameraServiceSource;
+        [SerializeField] private UnityEngine.Object uiServiceSource;
 
         private AnimationEventBus eventBus;
         private ActionLockManager lockManager;
@@ -32,7 +37,9 @@ namespace BattleV2.AnimationSystem.Runtime
         private TimedInputBuffer timedInputBuffer;
         private DefaultTimedHitToleranceProfile toleranceProfile;
         private TimedHitService timedHitService;
-        private AnimationOrchestrator orchestrator;
+        private AnimatorWrapperResolver wrapperResolver;
+        private AnimationRouterBundle routerBundle;
+        private NewAnimOrchestratorAdapter orchestrator;
 
         public IAnimationEventBus EventBus => eventBus;
         public ICombatClock Clock => combatClock;
@@ -57,7 +64,25 @@ namespace BattleV2.AnimationSystem.Runtime
             timedInputBuffer = new TimedInputBuffer(combatClock);
             toleranceProfile = new DefaultTimedHitToleranceProfile();
             timedHitService = new TimedHitService(combatClock, timedInputBuffer, toleranceProfile, eventBus);
-            orchestrator = new AnimationOrchestrator(runtimeBuilder, sequencerDriver, timelineCatalog, lockManager, eventBus);
+
+            var clipResolver = new AnimationClipResolver(clipBindings);
+            wrapperResolver = new AnimatorWrapperResolver(actorBindings);
+
+            var vfxService = ResolveService<IAnimationVfxService>(vfxServiceSource, "VFX");
+            var sfxService = ResolveService<IAnimationSfxService>(sfxServiceSource, "SFX");
+            var cameraService = ResolveService<IAnimationCameraService>(cameraServiceSource, "Camera");
+            var uiService = ResolveService<IAnimationUiService>(uiServiceSource, "UI");
+
+            routerBundle = new AnimationRouterBundle(eventBus, vfxService, sfxService, cameraService, uiService);
+            orchestrator = new NewAnimOrchestratorAdapter(
+                runtimeBuilder,
+                sequencerDriver,
+                timelineCatalog,
+                lockManager,
+                eventBus,
+                wrapperResolver,
+                clipResolver,
+                routerBundle);
 
             if (sequencerDriver == null)
             {
@@ -73,86 +98,29 @@ namespace BattleV2.AnimationSystem.Runtime
         private void OnDestroy()
         {
             timedHitService?.Dispose();
+            routerBundle?.Dispose();
+            wrapperResolver?.Dispose();
             if (Current == this)
             {
                 Current = null;
             }
         }
 
-        private sealed class AnimationOrchestrator : IAnimationOrchestrator
+        private T ResolveService<T>(UnityEngine.Object source, string label) where T : class
         {
-            private readonly TimelineRuntimeBuilder runtimeBuilder;
-            private readonly ActionSequencerDriver sequencerDriver;
-            private readonly ActionTimelineCatalog timelineCatalog;
-            private readonly IActionLockManager lockManager;
-            private readonly IAnimationEventBus eventBus;
-
-            public AnimationOrchestrator(
-                TimelineRuntimeBuilder runtimeBuilder,
-                ActionSequencerDriver sequencerDriver,
-                ActionTimelineCatalog timelineCatalog,
-                IActionLockManager lockManager,
-                IAnimationEventBus eventBus)
+            if (source == null)
             {
-                this.runtimeBuilder = runtimeBuilder ?? throw new ArgumentNullException(nameof(runtimeBuilder));
-                this.sequencerDriver = sequencerDriver ?? throw new ArgumentNullException(nameof(sequencerDriver));
-                this.timelineCatalog = timelineCatalog ?? throw new ArgumentNullException(nameof(timelineCatalog));
-                this.lockManager = lockManager ?? throw new ArgumentNullException(nameof(lockManager));
-                this.eventBus = eventBus ?? throw new ArgumentNullException(nameof(eventBus));
+                return null;
             }
 
-            public Task PlayAsync(AnimationRequest request, CancellationToken cancellationToken = default)
+            if (source is T typed)
             {
-                ActionTimeline timeline = null;
-                if (timelineCatalog != null && request.Selection.Action != null)
-                {
-                    timeline = timelineCatalog.GetTimelineOrDefault(request.Selection.Action.id);
-                }
-
-                if (timeline == null)
-                {
-                    Debug.LogWarning($"[AnimationOrchestrator] No timeline found for action '{request.Selection.Action?.id}'.", timelineCatalog);
-                    return Task.CompletedTask;
-                }
-
-                var sequencer = runtimeBuilder.Create(request, timeline);
-                var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-
-                void Cleanup()
-                {
-                    sequencer.EventDispatched -= OnSequencerEvent;
-                }
-
-                void OnSequencerEvent(SequencerEventInfo info)
-                {
-                    if (info.Type == ScheduledEventType.LockRelease && info.Reason == $"timeline:{timeline.ActionId}")
-                    {
-                        Cleanup();
-                        completion.TrySetResult(true);
-                    }
-                }
-
-                sequencer.EventDispatched += OnSequencerEvent;
-                sequencerDriver.Register(sequencer);
-
-                if (cancellationToken.CanBeCanceled)
-                {
-                    cancellationToken.Register(() =>
-                    {
-                        sequencer.Cancel();
-                        Cleanup();
-                        completion.TrySetCanceled(cancellationToken);
-                    });
-                }
-
-                completion.Task.ContinueWith(
-                    _ => Cleanup(),
-                    CancellationToken.None,
-                    TaskContinuationOptions.ExecuteSynchronously,
-                    TaskScheduler.Current);
-
-                return completion.Task;
+                return typed;
             }
+
+            Debug.LogWarning($"[AnimationSystemInstaller] Assigned {label} service does not implement {typeof(T).Name}. Ignoring reference.", source);
+            return null;
         }
+
     }
 }

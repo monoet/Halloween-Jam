@@ -52,7 +52,7 @@ Notas:
 - [x] Implementar blend real hacia el fallback usando driver de tiempo del sequencer.
 - [x] Cablear routers visuales (VFX/SFX/Camera/UI) al `AnimationEventBus`.
 - [x] Enriquecer timelines `basic_attack` y `magic_bolt` con payloads para routers y clips PlayableGraph.
-- [ ] Crear `NewAnimOrchestratorAdapter` que resuelva wrappers, sockets y locks siguiendo la sección 5 del LOCKED.
+- [x] Crear `NewAnimOrchestratorAdapter` que resuelva wrappers, sockets y locks siguiendo la sección 5 del LOCKED.
 - [ ] Validar assets `basic_attack` y `magic_bolt` con payloads de routers + escena de combate usando el installer.
 
 Notas:
@@ -60,5 +60,29 @@ Notas:
 - El fallback ahora interpola con un driver de coroutine propio, controlando pesos del mixer y cancelándose en dispose/cancel.
 - Routers añadidos en `Assets/Scripts/BattleV2/AnimationSystem/Execution/Routers/`: `AnimationVfxRouter`, `AnimationSfxRouter`, `AnimationCameraRouter`, `AnimationUiRouter`. Cada uno expone contrato de servicio (`IAnimationVfxService`, etc.) y logs de guardrail cuando faltan bindings o cancelación libera locks.
 - Timelines actualizados (carpeta `Assets/Animation/Timelines/`): `basic_attack.asset` incluye clip `basic_attack_swing`, payloads `vfx=/sfx=/camera=` y prompt UI para ventana; `magic_bolt.asset` define clips de charge/cast/projectile/impact con IDs únicos y payloads SFX/VFX camera shake.
-- Checklist de validación en escena: abrir `Assets/Scenes/CombatSandbox.unity`, habilitar `BattleManagerV2.useAnimationSystemInstaller`, asignar `AnimationSystemInstaller`, `ActionSequencerDriver` y servicios para routers; reproducir acciones `basic_attack` y `magic_bolt` verificando animación Playables visible, VFX/SFX disparados y locks liberados (fin controlado por `LockRelease`).
+- `NewAnimOrchestratorAdapter` en `Assets/Scripts/BattleV2/AnimationSystem/Runtime/NewAnimOrchestratorAdapter.cs` instancia `AnimatorWrapperResolver`, resuelve clips vía `AnimationClipResolver`, lanza secuencias con `ActionSequencerDriver` y coordina routers mediante `AnimationRouterBundle`.
+- `AnimationSystemInstaller` ahora expone bindings serializables (`actorBindings`, `clipBindings`) y slots para servicios VFX/SFX/Camera/UI; si no se asignan, se usa un servicio nulo (solo logs).
+- Para preparar escena: rellenar `actorBindings` con cada `CombatantState` (Animator + fallback), poblar `clipBindings` con IDs usados por los timelines y apuntar `vfxServiceSource`/`sfxServiceSource`/`cameraServiceSource`/`uiServiceSource` a componentes que implementen los contratos. Luego habilitar `useAnimationSystemInstaller` en `BattleManagerV2` y ejecutar `basic_attack` + `magic_bolt` verificando animación Playables visible, VFX/SFX disparados y locks liberados (fin controlado por `LockRelease`).
+- Checklist de validación en escena (cuando Unity esté disponible):
+  1. Abrir `Assets/Scenes/CombatSandbox.unity` (o una copia de validación).
+  2. Seleccionar el objeto que contiene `AnimationSystemInstaller` y rellenar los nuevos campos:
+     - `Sequencer Driver`: referencia al `ActionSequencerDriver` presente en escena.
+     - `Timeline Catalog`: `ActionTimelineCatalog` con los timelines `basic_attack` y `magic_bolt`.
+     - `Actor Bindings`: por cada `CombatantState` usado en pruebas (jugador/enemigo) asignar:
+       * `Actor`: referencia al componente `CombatantState`.
+       * `Animator`: el `Animator` que debe ser conducido por Playables.
+       * `Fallback Clip`: `AnimationClip` estático o loop idle.
+       * `Sockets`: transforms opcionales para spawn de VFX.
+     - `Clip Bindings`: lista de pares `Id → AnimationClip` para todos los IDs presentes en los timelines (`basic_attack_swing`, `magic_charge_loop`, `magic_cast_release`, `magic_projectile_flight`, `magic_impact`, etc.).
+     - Servicios:
+       * `Vfx Service Source`: componente/ScriptableObject que implemente `IAnimationVfxService` (por ahora puede quedar nulo y usará el stub que solo loguea).
+       * `Sfx Service Source`: idem para `IAnimationSfxService`.
+       * `Camera Service Source`: idem para `IAnimationCameraService`.
+       * `Ui Service Source`: idem para `IAnimationUiService`.
+  3. En `BattleManagerV2`, activar `useAnimationSystemInstaller` y asignar el `AnimationSystemInstaller` configurado.
+  4. Ejecutar la escena disparando acciones `basic_attack` y `magic_bolt`; observar:
+     - Animación se reproduce vía Playables (verificar blend al fallback al finalizar/cancelar).
+     - Eventos Impact/Phase disparan routers (cuando existan servicios concretos).
+     - Locks se liberan al final (`timeline:{id}`) y `PlayAsync` sólo se completa tras `LockRelease`.
+- Próximo orden sugerido: Routers → Adapter → Data → Escena de validación → Documentación adicional.
 - Próximo orden sugerido: Routers → Adapter → Data → Escena de validación → Documentación adicional.
