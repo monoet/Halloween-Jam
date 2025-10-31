@@ -144,6 +144,28 @@ namespace BattleV2.AnimationSystem.Execution
             completed = true;
             lockManager?.PopLock(baseLockReason);
             PublishLockEvent(false, baseLockReason);
+
+            double totalDuration = timeline.Duration;
+            double now = clock?.Now ?? (startTime + totalDuration);
+            double elapsed = now - startTime;
+            if (elapsed < 0d)
+            {
+                elapsed = 0d;
+            }
+
+            if (!string.IsNullOrEmpty(baseLockReason))
+            {
+                EventDispatched?.Invoke(new SequencerEventInfo(
+                    ScheduledEventType.LockRelease,
+                    elapsed,
+                    elapsed,
+                    default,
+                    schedule.Count,
+                    schedule.Count,
+                    null,
+                    null,
+                    baseLockReason));
+            }
         }
 
         private void ExecuteEvent(SequencerScheduledEvent scheduled, double elapsed)

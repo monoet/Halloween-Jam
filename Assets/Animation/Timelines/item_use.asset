@@ -10,13 +10,20 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c24f69b1e2354b1da8df74155a8d580f, type: 3}
-  m_Name: magic_bolt
-  m_EditorClassIdentifier: Assembly-CSharp::BattleV2.AnimationSystem.Timelines.ActionTimeline
-  actionId: magic_bolt
-  displayName: Magic Bolt
+  m_Name: item_use
+  m_EditorClassIdentifier: 
+  actionId: item_use
+  displayName: ItemUse
   metadata:
-    Length: 0
-    Tags: []
+    Length: 1
+    Tags:
+    - magic
+    - ranged
   tracks:
   - type: 0
-    phases: []
+    phases:
+    - Start: 0
+      End: 0.12
+      OnEnterEvent: charge_start
+      OnExitEvent: charge_ready
+      Payload: clip=magic_charge_loop;vfx=magic_charge_glow_blue;sfx=magic_charge_up;glow=blue

@@ -12,5 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 77ab6aa1e3194875b957c474e1b73f09, type: 3}
   m_Name: ActionTimelineCatalog
   m_EditorClassIdentifier: Assembly-CSharp::BattleV2.AnimationSystem.Catalog.ActionTimelineCatalog
-  timelines: []
+  timelines:
+  - {fileID: 11400000, guid: 17f865915f5f4d9f9ae1ed91028a80cb, type: 2}
+  - {fileID: 11400000, guid: 06aafca9dfbeeba44b26709ba5c83b57, type: 2}
+  - {fileID: 11400000, guid: e58010448aba54543af86a3016c4beee, type: 2}
   logMissingTimelines: 1

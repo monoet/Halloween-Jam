@@ -23,7 +23,7 @@ MonoBehaviour:
   - type: 0
     phases:
     - Start: 0
-      End: 0.35
+      End: 0.348
       OnEnterEvent: anim_start
       OnExitEvent: anim_end
       Payload: clip=basic_attack_swing;speed=1

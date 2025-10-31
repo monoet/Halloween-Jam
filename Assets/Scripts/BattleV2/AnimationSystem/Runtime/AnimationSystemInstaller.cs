@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using BattleV2.AnimationSystem.Catalog;
 using BattleV2.AnimationSystem.Execution;
 using BattleV2.AnimationSystem.Execution.Runtime;
@@ -23,6 +24,8 @@ namespace BattleV2.AnimationSystem.Runtime
 
         [Header("Optional Services")]
         [SerializeField] private CombatClock combatClock;
+        [SerializeField] private bool autoPopulateActorBindings = true;
+        [SerializeField] private AnimationClip defaultFallbackClip;
         [SerializeField] private AnimationActorBinding[] actorBindings;
         [SerializeField] private AnimationClipBinding[] clipBindings;
         [SerializeField] private UnityEngine.Object vfxServiceSource;
@@ -66,7 +69,7 @@ namespace BattleV2.AnimationSystem.Runtime
             timedHitService = new TimedHitService(combatClock, timedInputBuffer, toleranceProfile, eventBus);
 
             var clipResolver = new AnimationClipResolver(clipBindings);
-            wrapperResolver = new AnimatorWrapperResolver(actorBindings);
+            wrapperResolver = new AnimatorWrapperResolver(ResolveActorBindings());
 
             var vfxService = ResolveService<IAnimationVfxService>(vfxServiceSource, "VFX");
             var sfxService = ResolveService<IAnimationSfxService>(sfxServiceSource, "SFX");
@@ -122,5 +125,114 @@ namespace BattleV2.AnimationSystem.Runtime
             return null;
         }
 
+        private AnimationActorBinding[] ResolveActorBindings()
+        {
+            var resolved = new List<AnimationActorBinding>();
+            if (actorBindings != null)
+            {
+                for (int i = 0; i < actorBindings.Length; i++)
+                {
+                    var existing = actorBindings[i];
+                    if (existing != null && existing.IsValid)
+                    {
+                        resolved.Add(existing);
+                    }
+                }
+            }
+
+            if (autoPopulateActorBindings)
+            {
+                PopulateMissingActors(resolved);
+                actorBindings = resolved.ToArray();
+            }
+
+            return resolved.ToArray();
+        }
+
+        private void PopulateMissingActors(List<AnimationActorBinding> bindings)
+        {
+            var knownActors = new HashSet<CombatantState>();
+            for (int i = 0; i < bindings.Count; i++)
+            {
+                if (bindings[i].Actor != null)
+                {
+                    knownActors.Add(bindings[i].Actor);
+                }
+            }
+
+#if UNITY_2022_1_OR_NEWER
+            var actorsInScene = FindObjectsByType<CombatantState>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+#else
+            var actorsInScene = FindObjectsOfType<CombatantState>();
+#endif
+
+            for (int i = 0; i < actorsInScene.Length; i++)
+            {
+                var actor = actorsInScene[i];
+                if (actor == null || knownActors.Contains(actor))
+                {
+                    continue;
+                }
+
+                var animator = actor.GetComponentInChildren<Animator>(true);
+                if (animator == null)
+                {
+                    Debug.LogWarning($"[AnimationSystemInstaller] Auto-populate could not find Animator for '{actor.name}'. Skipping binding.", actor);
+                    continue;
+                }
+
+                bindings.Add(new AnimationActorBinding(actor, animator, defaultFallbackClip));
+                knownActors.Add(actor);
+            }
+        }
+
+        public void RegisterActor(
+            CombatantState actor,
+            Animator animatorOverride = null,
+            AnimationClip fallbackOverride = null,
+            Transform[] socketsOverride = null)
+        {
+            if (actor == null)
+            {
+                return;
+            }
+
+            var animator = animatorOverride != null ? animatorOverride : actor.GetComponentInChildren<Animator>(true);
+            if (animator == null)
+            {
+                Debug.LogWarning($"[AnimationSystemInstaller] RegisterActor could not find Animator for '{actor.name}'.", actor);
+                return;
+            }
+
+            var fallback = fallbackOverride != null ? fallbackOverride : defaultFallbackClip;
+            var binding = new AnimationActorBinding(actor, animator, fallback, socketsOverride);
+
+            Debug.Log($"[AnimationSystemInstaller] Registered actor '{actor.name}' with animator '{animator.name}'.", actor);
+            wrapperResolver?.AddOrUpdateBinding(binding);
+            UpdateBindingArray(binding);
+        }
+
+        private void UpdateBindingArray(AnimationActorBinding binding)
+        {
+            if (actorBindings == null)
+            {
+                actorBindings = new[] { binding };
+                return;
+            }
+
+            for (int i = 0; i < actorBindings.Length; i++)
+            {
+                if (actorBindings[i] != null && actorBindings[i].Actor == binding.Actor)
+                {
+                    actorBindings[i] = binding;
+                    return;
+                }
+            }
+
+            var list = new List<AnimationActorBinding>(actorBindings) { binding };
+            actorBindings = list.ToArray();
+        }
+
     }
 }
+

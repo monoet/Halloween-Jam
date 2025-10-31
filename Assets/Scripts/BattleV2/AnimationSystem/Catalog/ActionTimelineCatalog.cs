@@ -17,6 +17,12 @@ namespace BattleV2.AnimationSystem.Catalog
         public IReadOnlyList<ActionTimeline> Timelines => timelines;
         public int TimelineCount => timelines?.Count ?? 0;
 
+        private void OnEnable()
+        {
+            lookup.Clear();
+            initialized = false;
+        }
+
         public void Initialize()
         {
             if (initialized)
@@ -64,6 +70,14 @@ namespace BattleV2.AnimationSystem.Catalog
             }
 
             initialized = anyRegistered;
+            if (initialized)
+            {
+                Debug.Log($"[ActionTimelineCatalog] Registrados: {string.Join(", ", lookup.Keys)}", this);
+            }
+            else
+            {
+                Debug.LogWarning("[ActionTimelineCatalog] Lookup vacio tras Rebuild.", this);
+            }
         }
 
         public bool TryGetTimeline(string actionId, out ActionTimeline timeline)
@@ -88,3 +102,5 @@ namespace BattleV2.AnimationSystem.Catalog
         }
     }
 }
+
+

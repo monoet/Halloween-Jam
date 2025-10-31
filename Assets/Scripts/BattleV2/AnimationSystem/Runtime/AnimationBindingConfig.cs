@@ -20,6 +20,16 @@ namespace BattleV2.AnimationSystem.Runtime
         [Tooltip("Optional sockets used by routers (VFX spawn points, etc.).")]
         public Transform[] Sockets;
 
+        public AnimationActorBinding() { }
+
+        public AnimationActorBinding(CombatantState actor, Animator animator, AnimationClip fallbackClip, Transform[] sockets = null)
+        {
+            Actor = actor;
+            Animator = animator;
+            FallbackClip = fallbackClip;
+            Sockets = sockets ?? Array.Empty<Transform>();
+        }
+
         public bool IsValid => Actor != null && Animator != null;
     }
 

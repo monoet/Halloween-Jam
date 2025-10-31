@@ -12,8 +12,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1096caf6ca1891c4498d528b29431fd5, type: 3}
   m_Name: LightHealing
   m_EditorClassIdentifier: Assembly-CSharp::BattleV2.Actions.MagicAttackAction
-  actionId: magic_attack
+  actionId: magic_bolt
   costSp: 5
-  costCp: 3
-  damage: 15
+  costCp: 0
+  baseDamage: 15
+  magicPowerMultiplier: 1
+  minimumDamage: 1
   element: Fire
+  chargeProfile: {fileID: 0}

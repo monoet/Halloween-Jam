@@ -64,5 +64,16 @@ namespace BattleV2.AnimationSystem.Timelines
             Lock,
             Custom
         }
+
+#if UNITY_EDITOR
+        private void OnValidate()
+        {
+            var assetName = name?.Trim();
+            if (!string.IsNullOrEmpty(assetName) && !string.Equals(actionId, assetName, StringComparison.Ordinal))
+            {
+                actionId = assetName;
+            }
+        }
+#endif
     }
 }

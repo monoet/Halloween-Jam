@@ -59,18 +59,28 @@ namespace BattleV2.AnimationSystem.Runtime
                 return Task.CompletedTask;
             }
 
-            if (timelineCatalog == null || request.Selection?.Action == null)
+            var selection = request.Selection;
+            var action = selection.Action;
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            Debug.Log($"[AnimAdapter] PlayAsync request for action '{action?.id ?? "(null)"}' (actor={request.Actor.name})");
+#endif
+
+            if (timelineCatalog == null || action == null)
             {
-                BattleLogger.Warn("AnimAdapter", $"Missing catalog or action for request '{request.Selection?.Action?.id ?? "(null)"}'.");
+                BattleLogger.Warn("AnimAdapter", $"Missing catalog or action for request '{action?.id ?? "(null)"}'.");
                 return Task.CompletedTask;
             }
 
-            var timeline = timelineCatalog.GetTimelineOrDefault(request.Selection.Action.id);
+            var timeline = timelineCatalog.GetTimelineOrDefault(action.id);
             if (timeline == null)
             {
-                BattleLogger.Warn("AnimAdapter", $"No timeline registered for action '{request.Selection.Action.id}'.");
+                BattleLogger.Warn("AnimAdapter", $"No timeline registered for action '{action.id}'.");
                 return Task.CompletedTask;
             }
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            Debug.Log($"[AnimAdapter] Timeline '{timeline.ActionId}' resolved for action '{action.id}'.");
+#endif
 
             var wrapper = wrapperResolver.Resolve(request.Actor);
             if (wrapper == null)
@@ -378,13 +388,7 @@ namespace BattleV2.AnimationSystem.Runtime
 
             foreach (var binding in actorBindings)
             {
-                if (binding == null || !binding.IsValid)
-                {
-                    continue;
-                }
-
-                var wrapperBinding = new AnimatorWrapperBinding(binding.Animator, binding.FallbackClip, binding.Sockets);
-                bindings[binding.Actor] = wrapperBinding;
+                AddOrUpdateBinding(binding);
             }
         }
 
@@ -419,6 +423,23 @@ namespace BattleV2.AnimationSystem.Runtime
 
             wrappers.Clear();
             bindings.Clear();
+        }
+
+        public void AddOrUpdateBinding(AnimationActorBinding binding)
+        {
+            if (binding == null || !binding.IsValid)
+            {
+                return;
+            }
+
+            var wrapperBinding = new AnimatorWrapperBinding(binding.Animator, binding.FallbackClip, binding.Sockets);
+            bindings[binding.Actor] = wrapperBinding;
+
+            if (wrappers.TryGetValue(binding.Actor, out var existing))
+            {
+                existing.Dispose();
+                wrappers.Remove(binding.Actor);
+            }
         }
     }
 }

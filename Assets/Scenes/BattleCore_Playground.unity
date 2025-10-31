@@ -3126,6 +3126,100 @@ MonoBehaviour:
   m_ChildScaleWidth: 0
   m_ChildScaleHeight: 0
   m_ReverseArrangement: 0
+--- !u!1 &1144566322
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1144566325}
+  - component: {fileID: 1144566324}
+  - component: {fileID: 1144566323}
+  - component: {fileID: 1144566326}
+  m_Layer: 0
+  m_Name: AnimationSystemRuntime
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1144566323
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1144566322}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0df0a3de96b8d63499b41d8e371909a9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BattleV2.AnimationSystem.Runtime.AnimationSystemInstaller
+  sequencerDriver: {fileID: 1144566324}
+  timelineCatalog: {fileID: 11400000, guid: 43b00c44b56c688418507c2fe18a2cab, type: 2}
+  autoPopulateActorBindings: 1
+  defaultFallbackClip: {fileID: 7400000, guid: e952de01e48eeb64e95187bad76832ab, type: 2}
+  actorBindings:
+  - Actor: {fileID: 0}
+    Animator: {fileID: 0}
+    FallbackClip: {fileID: 0}
+    Sockets: []
+  - Actor: {fileID: 0}
+    Animator: {fileID: 0}
+    FallbackClip: {fileID: 0}
+    Sockets: []
+  clipBindings: []
+  vfxServiceSource: {fileID: 11400000, guid: 20090a1018d7c7c428861b7cd92e7169, type: 2}
+  sfxServiceSource: {fileID: 11400000, guid: 20090a1018d7c7c428861b7cd92e7169, type: 2}
+  cameraServiceSource: {fileID: 11400000, guid: 498d77ca35e7bf24a9f774d2626c4f73, type: 2}
+  uiServiceSource: {fileID: 11400000, guid: 3a5f9f304036093478571e1b26f49f51, type: 2}
+--- !u!114 &1144566324
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1144566322}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2fb204d1d70145c1b15dcb8d032f0d45, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BattleV2.AnimationSystem.Execution.ActionSequencerDriver
+--- !u!4 &1144566325
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1144566322}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.46171, y: -0.64594, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1144566326
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1144566322}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c6d318c9b308447aaf0c9d44eca7a205, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BattleV2.AnimationSystem.Runtime.TimedHitInputRelay
+  installer: {fileID: 1144566323}
+  battleManager: {fileID: 1941987470}
+  inputKey: 32
+  usePlayerActor: 1
+  explicitActor: {fileID: 0}
+  sourceId: Keyboard
 --- !u!1 &1252835749
 GameObject:
   m_ObjectHideFlags: 0
@@ -5405,6 +5499,8 @@ MonoBehaviour:
   inputProviderAsset: {fileID: 0}
   inputProviderComponent: {fileID: 1941987473}
   hudManager: {fileID: 2028473516}
+  animationSystemInstaller: {fileID: 1144566323}
+  useAnimationSystemInstaller: 1
   timingConfig: {fileID: 11400000, guid: 6ce2fd39e4ebacd469ba3c7e7cdb8b70, type: 2}
   player: {fileID: 0}
   playerRuntime: {fileID: 0}
@@ -6617,6 +6713,7 @@ SceneRoots:
   m_Roots:
   - {fileID: 519420032}
   - {fileID: 1941987469}
+  - {fileID: 1144566325}
   - {fileID: 1759042697}
   - {fileID: 216218941}
   - {fileID: 1495472033}

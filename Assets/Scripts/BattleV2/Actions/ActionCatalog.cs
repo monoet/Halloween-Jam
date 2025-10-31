@@ -43,13 +43,18 @@ namespace BattleV2.Actions
                     }
                 }
                 catch (System.Exception ex)
-                {
-                    BattleLogger.Warn("Catalog", $"Error evaluating action '{data.id}': {ex.Message}");
-                }
+            {
+                BattleLogger.Warn("Catalog", $"Error evaluating action '{data.id}': {ex.Message}");
             }
-
-            return filtered;
         }
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        var ids = filtered.Select(d => d?.id ?? "(null)").ToArray();
+        Debug.Log($"[ActionCatalog] Actions available for '{actor?.name ?? "(null)"}': {string.Join(", ", ids)}", this);
+#endif
+
+        return filtered;
+    }
 
         public IAction Resolve(BattleActionData data)
         {

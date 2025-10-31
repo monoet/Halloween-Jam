@@ -16,6 +16,7 @@ GameObject:
   - component: {fileID: 3334198569571169196}
   - component: {fileID: 7435201213487041278}
   - component: {fileID: 4480268491100758734}
+  - component: {fileID: -5324924551612036084}
   m_Layer: 0
   m_Name: RabbidActual
   m_TagString: Untagged
@@ -116,11 +117,11 @@ MonoBehaviour:
     Level: 1
     CurrentEXP: 0
     MaxEXP: 0
-    BaseSTR: 0
-    BaseRES: 0
-    BaseAGI: 0
-    BaseLCK: 0
-    BaseVIT: 0
+    BaseSTR: 10
+    BaseRES: 10
+    BaseAGI: 10
+    BaseLCK: 10
+    BaseVIT: 10
     BonusSTR: 0
     BonusRES: 0
     BonusAGI: 0
@@ -224,7 +225,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 53bf100e9cae8d24a87191891014ebd1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CombatantState
-  characterRuntime: {fileID: 0}
+  characterRuntime: {fileID: 3902140429990400388}
   autoInitializeFromRuntime: 1
   preserveFractionOnRuntimeUpdate: 1
   maxHP: 15
@@ -274,6 +275,28 @@ MonoBehaviour:
   meshFlashRenderer: {fileID: 0}
   flashMaterialProperty: _Color
   flashColor: {r: 1, g: 1, b: 1, a: 1}
+--- !u!95 &-5324924551612036084
+Animator:
+  serializedVersion: 7
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 452103125886275884}
+  m_Enabled: 1
+  m_Avatar: {fileID: 0}
+  m_Controller: {fileID: 0}
+  m_CullingMode: 0
+  m_UpdateMode: 0
+  m_ApplyRootMotion: 0
+  m_LinearVelocityBlending: 0
+  m_StabilizeFeet: 0
+  m_AnimatePhysics: 0
+  m_WarningMessage: 
+  m_HasTransformHierarchy: 1
+  m_AllowConstantClipSamplingOptimization: 1
+  m_KeepAnimatorStateOnDisable: 0
+  m_WriteDefaultValuesOnDisable: 0
 --- !u!1 &1764982086385956112
 GameObject:
   m_ObjectHideFlags: 0

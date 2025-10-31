@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using BattleV2.AnimationSystem.Runtime;
 using BattleV2.Core;
 using BattleV2.Orchestration;
 using HalloweenJam.Combat;
@@ -477,6 +478,7 @@ namespace BattleV2.Orchestration.Services
                 return null;
             }
 
+            AnimationSystemInstaller.Current?.RegisterActor(combatant);
             dropTable = entry.DropTable;
             return combatant;
         }

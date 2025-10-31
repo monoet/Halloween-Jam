@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e56e4d372c34a5842b33ed2588051950, type: 3}
   m_Name: Lunar Chain Action
   m_EditorClassIdentifier: Assembly-CSharp::BattleV2.Actions.LunarChainAction
-  actionId: ks1_lunar_chain
+  actionId: basic_attack
   costSp: 0
   costCp: 0
   baseDamage: 5

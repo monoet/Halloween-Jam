@@ -13,19 +13,19 @@ MonoBehaviour:
   m_Name: Action Catalog
   m_EditorClassIdentifier: Assembly-CSharp::BattleV2.Actions.ActionCatalog
   basic:
-  - id: Attack
+  - id: basic_attack
     displayName: LunarChain
     costSP: 0
     costCP: 0
     actionImpl: {fileID: 11400000, guid: 4745de80e7fe7514d89cc7cb730891eb, type: 2}
   magic:
-  - id: 
-    displayName: MAGICMISSLESTRONG
-    costSP: 0
-    costCP: 3
+  - id: magic_bolt
+    displayName: Magic Bolt
+    costSP: 3
+    costCP: 0
     actionImpl: {fileID: 11400000, guid: 45b5c0ac06cae82449ed9e6dd1e74156, type: 2}
   items:
-  - id: 
+  - id: item_use
     displayName: MinorHealthpot
     costSP: 0
     costCP: 0
