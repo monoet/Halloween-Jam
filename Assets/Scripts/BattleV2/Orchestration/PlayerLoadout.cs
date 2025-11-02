@@ -5,7 +5,7 @@ namespace BattleV2.Orchestration
     /// <summary>
     /// Defines the prefab and optional runtime overrides required to spawn the player at battle start.
     /// </summary>
-    [CreateAssetMenu(menuName = "BattleV2/Players/Player Loadout")]
+    [CreateAssetMenu(menuName = "Loadouts/Player Loadout")]
     public class PlayerLoadout : ScriptableObject
     {
         [Header("Prefab")]

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using BattleV2.AnimationSystem.Runtime;
 
 namespace BattleV2.AnimationSystem.Execution.Runtime
 {
@@ -61,6 +62,17 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
                 ? tolerance
                 : defaultTolerance;
         }
+
+        public static DefaultTimedHitToleranceProfile FromAsset(TimedHitToleranceProfileAsset asset)
+        {
+            if (asset == null)
+            {
+                return new DefaultTimedHitToleranceProfile();
+            }
+
+            var overrides = asset.BuildOverridesDictionary();
+            var defaultTolerance = asset.GetDefaultTolerance();
+            return new DefaultTimedHitToleranceProfile(defaultTolerance, overrides);
+        }
     }
 }
-

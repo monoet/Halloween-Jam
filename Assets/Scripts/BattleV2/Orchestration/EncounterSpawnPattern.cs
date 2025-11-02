@@ -5,7 +5,7 @@ namespace BattleV2.Orchestration
     /// <summary>
     /// Defines positional offsets for different enemy counts so encounters can spawn in formations.
     /// </summary>
-    [CreateAssetMenu(menuName = "BattleV2/Loadouts/Encounter Spawn Pattern")]
+    [CreateAssetMenu(menuName = "Loadouts/Encounter Spawn Pattern")]
     public class EncounterSpawnPattern : ScriptableObject
     {
         public enum SpawnDimension

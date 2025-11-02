@@ -6,7 +6,7 @@ namespace BattleV2.Anim
     /// <summary>
     /// Default tween-based animation strategy for player/enemy combatants.
     /// </summary>
-    [CreateAssetMenu(menuName = "BattleV2/Anim/Strategies/Tween Default")]
+    [CreateAssetMenu(menuName = "Legacy/BattleV2/Anim/Strategies/Tween Default")]
     public class TweenBattleAnimationStrategy : BattleAnimationStrategy
     {
         [SerializeField] private bool pauseFlowDuringAttack = true;

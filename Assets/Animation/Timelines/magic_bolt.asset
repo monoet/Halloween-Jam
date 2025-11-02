@@ -15,8 +15,63 @@ MonoBehaviour:
   actionId: magic_bolt
   displayName: Magic Bolt
   metadata:
-    Length: 0
-    Tags: []
+    Length: 1.4
+    Tags:
+    - magic
+    - ranged
   tracks:
   - type: 0
-    phases: []
+    phases:
+    - Start: 0
+      End: 0.32
+      OnEnterEvent: charge_start
+      OnExitEvent: charge_hold
+      Payload: clip=magic_charge_loop;speed=1
+    - Start: 0.32
+      End: 0.64
+      OnEnterEvent: cast_release
+      OnExitEvent: cast_end
+      Payload: clip=magic_cast_release;speed=1.05
+    - Start: 0.64
+      End: 1
+      OnEnterEvent: recover_start
+      OnExitEvent: recover_end
+      Payload: clip=magic_idle_recover;loop=true;speed=1
+  - type: 1
+    phases:
+    - Start: 0.58
+      End: 0.58
+      OnEnterEvent: impact_primary
+      OnExitEvent: impact_primary_end
+      Payload: vfx=magic_bolt_primary;sfx=magic_shot_primary;camera=shake_arcane_light
+    - Start: 0.78
+      End: 0.78
+      OnEnterEvent: impact_secondary
+      OnExitEvent: impact_secondary_end
+      Payload: vfx=magic_bolt_secondary;sfx=magic_shot_secondary;camera=shake_arcane_light
+  - type: 2
+    phases:
+    - Start: 0.52
+      End: 0.6
+      OnEnterEvent: window_open
+      OnExitEvent: window_close
+      Payload: perfect=0.56;ui=timed_hit_prompt_magic;tolerance=magic_primary
+    - Start: 0.72
+      End: 0.82
+      OnEnterEvent: window_open
+      OnExitEvent: window_close
+      Payload: perfect=0.76;ui=timed_hit_prompt_magic;tolerance=magic_secondary
+  - type: 3
+    phases:
+    - Start: 0
+      End: 1
+      OnEnterEvent: lock_on
+      OnExitEvent: lock_off
+      Payload: lock=magic_bolt
+  - type: 4
+    phases:
+    - Start: 0.32
+      End: 0.64
+      OnEnterEvent: projectile_spawn
+      OnExitEvent: projectile_despawn
+      Payload: vfx=magic_projectile_spawn;ui=timed_hit_prompt_magic

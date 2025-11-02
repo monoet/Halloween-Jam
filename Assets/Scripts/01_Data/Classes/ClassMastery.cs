@@ -1,6 +1,6 @@
 using UnityEngine;
 
-[CreateAssetMenu(fileName = "ClassMastery", menuName = "RPG/Class Mastery")]
+[CreateAssetMenu(fileName = "ClassMastery", menuName = "JRPG/Class Mastery")]
 public class ClassMastery : ScriptableObject
 {
     [Header("Identidad de la clase")]

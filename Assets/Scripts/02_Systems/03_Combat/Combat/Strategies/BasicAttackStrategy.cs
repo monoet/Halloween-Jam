@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace HalloweenJam.Combat.Strategies
 {
-    [CreateAssetMenu(menuName = "Combat/Attack Strategies/Basic Attack")]
+    [CreateAssetMenu(menuName = "Legacy/Combat/Attack Strategies/Basic Attack")]
     public sealed class BasicAttackStrategy : AttackStrategyBase
     {
         [SerializeField] private int minimumDamage = 1;

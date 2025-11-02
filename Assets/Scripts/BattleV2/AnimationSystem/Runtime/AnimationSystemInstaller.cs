@@ -4,6 +4,7 @@ using BattleV2.AnimationSystem.Catalog;
 using BattleV2.AnimationSystem.Execution;
 using BattleV2.AnimationSystem.Execution.Runtime;
 using BattleV2.AnimationSystem.Execution.Routers;
+using BattleV2.AnimationSystem.Runtime.Internal;
 using BattleV2.AnimationSystem.Timelines;
 using BattleV2.Core;
 using UnityEngine;
@@ -32,6 +33,8 @@ namespace BattleV2.AnimationSystem.Runtime
         [SerializeField] private UnityEngine.Object sfxServiceSource;
         [SerializeField] private UnityEngine.Object cameraServiceSource;
         [SerializeField] private UnityEngine.Object uiServiceSource;
+        [Header("Timed Hit Settings")]
+        [SerializeField] private TimedHitToleranceProfileAsset toleranceProfileAsset;
 
         private AnimationEventBus eventBus;
         private ActionLockManager lockManager;
@@ -65,7 +68,7 @@ namespace BattleV2.AnimationSystem.Runtime
             timelineCompiler = new TimelineCompiler();
             runtimeBuilder = new TimelineRuntimeBuilder(timelineCompiler, combatClock, eventBus, lockManager);
             timedInputBuffer = new TimedInputBuffer(combatClock);
-            toleranceProfile = new DefaultTimedHitToleranceProfile();
+            toleranceProfile = DefaultTimedHitToleranceProfile.FromAsset(toleranceProfileAsset);
             timedHitService = new TimedHitService(combatClock, timedInputBuffer, toleranceProfile, eventBus);
 
             var clipResolver = new AnimationClipResolver(clipBindings);

@@ -1,6 +1,6 @@
 using UnityEngine;
 
-[CreateAssetMenu(menuName = "RPG/Ability Data")]
+[CreateAssetMenu(menuName = "JRPG/Ability Data")]
 public class AbilityData : ScriptableObject
 {
     public string abilityName;

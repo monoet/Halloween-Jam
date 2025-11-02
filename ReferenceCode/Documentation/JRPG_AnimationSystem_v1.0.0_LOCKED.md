@@ -461,3 +461,4 @@ Al iniciar o concluir cualquier tarea o milestone se debe registrar en **Registr
 - 2025-11-02 | D.M. | Milestone 1 – Contrato base y arquitectura | Iniciado | Preparando interfaces base.
 - 2025-11-03 | D.M. | Milestone 1 – Contrato base y arquitectura | Completado | Contrato PlayAsync validado en BattleManagerV2.
 z
+- 2025-11-04 | Codex | Milestone 5 - Timed hit y precisión | Iniciado | Perfil de tolerancias data-driven y parsing de payload.

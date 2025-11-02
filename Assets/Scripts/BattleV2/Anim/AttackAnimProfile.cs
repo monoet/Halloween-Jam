@@ -7,7 +7,7 @@ namespace BattleV2.Anim
     /// Perfil de animación para ataque básico: pre-delay, windup, lunge, impacto y recover.
     /// Diseñadores pueden tunear sin tocar código.
     /// </summary>
-    [CreateAssetMenu(menuName = "BattleV2/Anim/AttackAnimProfile")]
+    [CreateAssetMenu(menuName = "Legacy/BattleV2/Anim/AttackAnimProfile")]
     public class AttackAnimProfile : ScriptableObject
     {
         [Header("PreDelay (Anticipation Flashes)")]

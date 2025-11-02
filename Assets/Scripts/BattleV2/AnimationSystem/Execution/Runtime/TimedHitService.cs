@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using BattleV2.AnimationSystem;
+using BattleV2.AnimationSystem.Execution.Routers;
 
 namespace BattleV2.AnimationSystem.Execution.Runtime
 {
@@ -95,6 +96,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
             {
                 list.Add(new ActiveWindow(
                     evt.Tag,
+                    evt.Payload,
                     timestamp,
                     evt.WindowStart,
                     evt.WindowEnd,
@@ -131,12 +133,14 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
             list.RemoveAt(matchIndex);
 
             double openTimestamp = window.OpenTimestamp;
-            var tolerance = toleranceProfile.Resolve(tag);
+            string toleranceId = !string.IsNullOrWhiteSpace(window.ToleranceId) ? window.ToleranceId : tag;
+            var tolerance = toleranceProfile.Resolve(toleranceId);
             int resolvedIndex = window.WindowIndex > 0 ? window.WindowIndex : windowIndex;
             int resolvedCount = window.WindowCount > 0 ? window.WindowCount : windowCount;
             string resolvedTag = string.IsNullOrWhiteSpace(tag) ? window.Tag : tag;
+            double centerTimestamp = window.ComputeCenterTimestamp(openTimestamp, closeTimestamp);
 
-            if (inputBuffer.TryConsume(actor, openTimestamp, closeTimestamp, tolerance, out var buffered, out var deltaSeconds))
+            if (inputBuffer.TryConsume(actor, openTimestamp, closeTimestamp, tolerance, out var buffered, out var deltaSeconds, centerTimestamp))
             {
                 double deltaMs = Math.Abs(deltaSeconds) * 1000d;
                 var judgment = Classify(deltaMs, tolerance);
@@ -255,22 +259,118 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
 
         private readonly struct ActiveWindow
         {
-            public ActiveWindow(string tag, double openTimestamp, float startNormalized, float endNormalized, int windowIndex, int windowCount)
+            public ActiveWindow(
+                string tag,
+                string payload,
+                double openTimestamp,
+                float startNormalized,
+                float endNormalized,
+                int windowIndex,
+                int windowCount)
             {
                 Tag = tag;
+                Payload = AnimationEventPayload.Parse(payload);
                 OpenTimestamp = openTimestamp;
                 StartNormalized = startNormalized;
                 EndNormalized = endNormalized;
                 WindowIndex = windowIndex;
                 WindowCount = windowCount;
+                ToleranceId = ResolveToleranceId(tag, Payload);
+                PerfectNormalized = ResolvePerfectNormalized(Payload);
             }
 
             public string Tag { get; }
+            public AnimationEventPayload Payload { get; }
+            public string ToleranceId { get; }
+            public double PerfectNormalized { get; }
             public double OpenTimestamp { get; }
             public float StartNormalized { get; }
             public float EndNormalized { get; }
             public int WindowIndex { get; }
             public int WindowCount { get; }
+
+            public double ComputeCenterTimestamp(double openTimestamp, double closeTimestamp)
+            {
+                double duration = closeTimestamp - openTimestamp;
+                if (duration <= 0d)
+                {
+                    return openTimestamp;
+                }
+
+                if (!double.IsNaN(PerfectNormalized))
+                {
+                    double start = StartNormalized;
+                    double end = EndNormalized;
+                    double span = end - start;
+                    if (span > 1e-6d)
+                    {
+                        double clamped = Clamp(PerfectNormalized, start, end);
+                        double fraction = Clamp01((clamped - start) / span);
+                        return openTimestamp + (duration * fraction);
+                    }
+                }
+
+                return openTimestamp + (duration * 0.5d);
+            }
+
+            private static string ResolveToleranceId(string tag, AnimationEventPayload payload)
+            {
+                if ((payload.TryGetString("toleranceProfileId", out var value) ||
+                     payload.TryGetString("toleranceProfile", out value) ||
+                     payload.TryGetString("toleranceId", out value) ||
+                     payload.TryGetString("tolerance", out value)) &&
+                    !string.IsNullOrWhiteSpace(value))
+                {
+                    return value;
+                }
+
+                return tag;
+            }
+
+            private static double ResolvePerfectNormalized(AnimationEventPayload payload)
+            {
+                if (payload.TryGetDouble("perfect", out var perfect))
+                {
+                    return perfect;
+                }
+
+                if (payload.TryGetDouble("center", out var center))
+                {
+                    return center;
+                }
+
+                return double.NaN;
+            }
+
+            private static double Clamp01(double value)
+            {
+                if (value < 0d)
+                {
+                    return 0d;
+                }
+
+                if (value > 1d)
+                {
+                    return 1d;
+                }
+
+                return value;
+            }
+
+            private static double Clamp(double value, double min, double max)
+            {
+                if (value < min)
+                {
+                    return min;
+                }
+
+                if (value > max)
+                {
+                    return max;
+                }
+
+                return value;
+            }
         }
     }
 }

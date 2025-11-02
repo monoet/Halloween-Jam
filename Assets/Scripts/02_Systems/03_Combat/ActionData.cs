@@ -3,7 +3,7 @@ using UnityEngine;
 /// <summary>
 /// Defines combat action parameters for rapid iteration.
 /// </summary>
-[CreateAssetMenu(fileName = "ActionData", menuName = "Combat/Action Data")]
+[CreateAssetMenu(fileName = "ActionData", menuName = "Legacy/Combat/Action Data")]
 public class ActionData : ScriptableObject
 {
     [Header("Identity")]

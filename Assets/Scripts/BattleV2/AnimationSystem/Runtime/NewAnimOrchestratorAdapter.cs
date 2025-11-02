@@ -1,10 +1,11 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using BattleV2.AnimationSystem.Catalog;
 using BattleV2.AnimationSystem.Execution;
 using BattleV2.AnimationSystem.Execution.Routers;
+using BattleV2.AnimationSystem.Runtime.Internal;
 using BattleV2.AnimationSystem.Timelines;
 using BattleV2.Core;
 using UnityEngine;
@@ -12,7 +13,7 @@ using UnityEngine;
 namespace BattleV2.AnimationSystem.Runtime
 {
     /// <summary>
-    /// Adapter defined in JRPG Animation System LOCKED (sección 5).
+    /// Adapter defined in JRPG Animation System LOCKED (secciÃ³n 5).
     /// Coordinates timeline playback (sequencer + wrapper + routers) without touching BattleManagerV2.
     /// </summary>
     public sealed class NewAnimOrchestratorAdapter : IAnimationOrchestrator, IDisposable
@@ -23,6 +24,7 @@ namespace BattleV2.AnimationSystem.Runtime
         private readonly AnimatorWrapperResolver wrapperResolver;
         private readonly AnimationClipResolver clipResolver;
         private readonly AnimationRouterBundle routerBundle;
+        private readonly Dictionary<CombatantState, AnimationSequenceSession> activeSessions = new();
 
         private bool disposed;
 
@@ -46,7 +48,7 @@ namespace BattleV2.AnimationSystem.Runtime
             this.routerBundle = routerBundle ?? throw new ArgumentNullException(nameof(routerBundle));
         }
 
-        public Task PlayAsync(AnimationRequest request, CancellationToken cancellationToken = default)
+        public async Task PlayAsync(AnimationRequest request, CancellationToken cancellationToken = default)
         {
             if (disposed)
             {
@@ -56,7 +58,7 @@ namespace BattleV2.AnimationSystem.Runtime
             if (request.Actor == null)
             {
                 BattleLogger.Warn("AnimAdapter", "AnimationRequest missing actor. Ignoring playback.");
-                return Task.CompletedTask;
+                return;
             }
 
             var selection = request.Selection;
@@ -69,14 +71,14 @@ namespace BattleV2.AnimationSystem.Runtime
             if (timelineCatalog == null || action == null)
             {
                 BattleLogger.Warn("AnimAdapter", $"Missing catalog or action for request '{action?.id ?? "(null)"}'.");
-                return Task.CompletedTask;
+                return;
             }
 
             var timeline = timelineCatalog.GetTimelineOrDefault(action.id);
             if (timeline == null)
             {
                 BattleLogger.Warn("AnimAdapter", $"No timeline registered for action '{action.id}'.");
-                return Task.CompletedTask;
+                return;
             }
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             Debug.Log($"[AnimAdapter] Timeline '{timeline.ActionId}' resolved for action '{action.id}'.");
@@ -86,7 +88,29 @@ namespace BattleV2.AnimationSystem.Runtime
             if (wrapper == null)
             {
                 BattleLogger.Warn("AnimAdapter", $"No AnimatorWrapper binding configured for actor '{request.Actor.name}'.");
-                return Task.CompletedTask;
+                return;
+            }
+
+            if (activeSessions.TryGetValue(request.Actor, out var previousSession))
+            {
+                try
+                {
+                    await previousSession.CancelAsync();
+                }
+                catch (OperationCanceledException)
+                {
+                    // Expected when the previous session completes via cancellation.
+                }
+
+                if (activeSessions.TryGetValue(request.Actor, out var current) && ReferenceEquals(current, previousSession))
+                {
+                    activeSessions.Remove(request.Actor);
+                }
+
+                if (!previousSession.IsDisposed)
+                {
+                    previousSession.Dispose();
+                }
             }
 
             var sequencer = runtimeBuilder.Create(request, timeline);
@@ -98,8 +122,20 @@ namespace BattleV2.AnimationSystem.Runtime
                 clipResolver,
                 routerBundle);
 
-            var completion = session.Start(sequencerDriver, cancellationToken);
-            return completion;
+            activeSessions[request.Actor] = session;
+            try
+            {
+                await session.RunAsync(sequencerDriver, cancellationToken);
+            }
+            finally
+            {
+                if (activeSessions.TryGetValue(request.Actor, out var current) && ReferenceEquals(current, session))
+                {
+                    activeSessions.Remove(request.Actor);
+                }
+
+                session.Dispose();
+            }
         }
 
         public void Dispose()
@@ -112,334 +148,6 @@ namespace BattleV2.AnimationSystem.Runtime
             disposed = true;
             routerBundle.Dispose();
             wrapperResolver.Dispose();
-        }
-
-        private sealed class AnimationSequenceSession : IDisposable
-        {
-            private readonly AnimationRequest request;
-            private readonly ActionTimeline timeline;
-            private readonly ActionSequencer sequencer;
-            private readonly AnimatorWrapper wrapper;
-            private readonly AnimationClipResolver clipResolver;
-            private readonly AnimationRouterBundle routerBundle;
-
-            private readonly TaskCompletionSource<bool> completion;
-            private CancellationTokenRegistration cancellationRegistration;
-            private bool disposed;
-            private readonly string sequencerLockReason;
-
-            public AnimationSequenceSession(
-                AnimationRequest request,
-                ActionTimeline timeline,
-                ActionSequencer sequencer,
-                AnimatorWrapper wrapper,
-                AnimationClipResolver clipResolver,
-                AnimationRouterBundle routerBundle)
-            {
-                this.request = request;
-                this.timeline = timeline;
-                this.sequencer = sequencer;
-                this.wrapper = wrapper;
-                this.clipResolver = clipResolver;
-                this.routerBundle = routerBundle;
-
-                completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-                sequencerLockReason = string.IsNullOrWhiteSpace(timeline.ActionId)
-                    ? "timeline"
-                    : $"timeline:{timeline.ActionId}";
-            }
-
-            public Task Start(ActionSequencerDriver driver, CancellationToken cancellationToken)
-            {
-                if (disposed)
-                {
-                    throw new ObjectDisposedException(nameof(AnimationSequenceSession));
-                }
-
-                sequencer.EventDispatched += OnSequencerEvent;
-                routerBundle.RegisterActor(request.Actor);
-                driver.Register(sequencer);
-
-                if (cancellationToken.CanBeCanceled)
-                {
-                    cancellationRegistration = cancellationToken.Register(OnCancelled);
-                }
-
-                completion.Task.ContinueWith(
-                    _ => Dispose(),
-                    CancellationToken.None,
-                    TaskContinuationOptions.ExecuteSynchronously,
-                    TaskScheduler.Current);
-
-                return completion.Task;
-            }
-
-            private void OnSequencerEvent(SequencerEventInfo info)
-            {
-                if (disposed)
-                {
-                    return;
-                }
-
-                if (info.Type == ScheduledEventType.PhaseEnter &&
-                    info.Phase.Track == ActionTimeline.TrackType.Animation)
-                {
-                    HandleAnimationPhase(info);
-                }
-
-                if (info.Type == ScheduledEventType.LockRelease &&
-                    string.Equals(info.Reason, sequencerLockReason, StringComparison.Ordinal))
-                {
-                    completion.TrySetResult(true);
-                }
-            }
-
-            private void HandleAnimationPhase(in SequencerEventInfo info)
-            {
-                var payload = AnimationEventPayload.Parse(info.Payload);
-                var clipId = payload.ResolveId("clip", "animation", "id");
-                if (!clipResolver.TryGetClip(clipId, out var clip))
-                {
-                    BattleLogger.Warn("AnimAdapter", $"Clip '{clipId ?? "(null)"}' not found for action '{timeline.ActionId}'.");
-                    return;
-                }
-
-                var options = BuildClipOptions(payload, info);
-                wrapper.PlayClip(clip, options);
-            }
-
-            private static AnimatorClipOptions BuildClipOptions(AnimationEventPayload payload, SequencerEventInfo info)
-            {
-                float speed = 1f;
-                if (payload.TryGetFloat("speed", out var speedValue))
-                {
-                    speed = Mathf.Approximately(speedValue, 0f) ? 1f : speedValue;
-                }
-
-                float normalizedStart = 0f;
-                if (payload.TryGetFloat("start", out var startNorm))
-                {
-                    normalizedStart = Mathf.Clamp01(startNorm);
-                }
-                else if (payload.TryGetFloat("startNormalized", out var alt))
-                {
-                    normalizedStart = Mathf.Clamp01(alt);
-                }
-
-                bool loop = true;
-                if (payload.TryGetBool("loop", out var loopValue))
-                {
-                    loop = loopValue;
-                }
-
-                return new AnimatorClipOptions(
-                    loop,
-                    normalizedStart,
-                    speed,
-                    applyFootIK: true,
-                    applyPlayableIK: false,
-                    overrideDuration: 0d);
-            }
-
-            private void OnCancelled()
-            {
-                if (disposed)
-                {
-                    return;
-                }
-
-                sequencer.Cancel();
-                wrapper.Stop();
-                completion.TrySetCanceled();
-            }
-
-            public void Dispose()
-            {
-                if (disposed)
-                {
-                    return;
-                }
-
-                disposed = true;
-                sequencer.EventDispatched -= OnSequencerEvent;
-                cancellationRegistration.Dispose();
-                routerBundle.UnregisterActor(request.Actor);
-                wrapper.ResetToFallback(0.2f);
-            }
-        }
-    }
-
-    public sealed class AnimationRouterBundle : IDisposable
-    {
-        private readonly AnimationVfxRouter vfxRouter;
-        private readonly AnimationSfxRouter sfxRouter;
-        private readonly AnimationCameraRouter cameraRouter;
-        private readonly AnimationUiRouter uiRouter;
-        private readonly IAnimationVfxService vfxService;
-        private readonly IAnimationSfxService sfxService;
-        private readonly IAnimationCameraService cameraService;
-        private readonly IAnimationUiService uiService;
-
-        public AnimationRouterBundle(
-            IAnimationEventBus eventBus,
-            IAnimationVfxService vfxService,
-            IAnimationSfxService sfxService,
-            IAnimationCameraService cameraService,
-            IAnimationUiService uiService)
-        {
-            this.vfxService = vfxService ?? new NullVfxService();
-            this.sfxService = sfxService ?? new NullSfxService();
-            this.cameraService = cameraService ?? new NullCameraService();
-            this.uiService = uiService ?? new NullUiService();
-
-            vfxRouter = new AnimationVfxRouter(eventBus, this.vfxService);
-            sfxRouter = new AnimationSfxRouter(eventBus, this.sfxService);
-            cameraRouter = new AnimationCameraRouter(eventBus, this.cameraService);
-            uiRouter = new AnimationUiRouter(eventBus, this.uiService);
-        }
-
-        public void RegisterActor(CombatantState actor)
-        {
-            if (actor == null)
-            {
-                return;
-            }
-
-            // Gives services a chance to prepare state per actor.
-            vfxService.StopAllFor(actor);
-            sfxService.StopAllFor(actor);
-            cameraService.Reset(actor);
-            uiService.Clear(actor);
-        }
-
-        public void UnregisterActor(CombatantState actor)
-        {
-            if (actor == null)
-            {
-                return;
-            }
-
-            vfxService.StopAllFor(actor);
-            sfxService.StopAllFor(actor);
-            cameraService.Reset(actor);
-            uiService.Clear(actor);
-        }
-
-        public void Dispose()
-        {
-            vfxRouter?.Dispose();
-            sfxRouter?.Dispose();
-            cameraRouter?.Dispose();
-            uiRouter?.Dispose();
-        }
-
-        private sealed class NullVfxService : IAnimationVfxService
-        {
-            public bool TryPlay(string vfxId, in AnimationImpactEvent evt, in AnimationEventPayload payload)
-            {
-                return false;
-            }
-
-            public void StopAllFor(CombatantState actor) { }
-        }
-
-        private sealed class NullSfxService : IAnimationSfxService
-        {
-            public bool TryPlay(string sfxId, CombatantState actor, AnimationImpactEvent? impactEvent, AnimationPhaseEvent? phaseEvent, in AnimationEventPayload payload)
-            {
-                return false;
-            }
-
-            public void StopAllFor(CombatantState actor) { }
-        }
-
-        private sealed class NullCameraService : IAnimationCameraService
-        {
-            public bool TryApply(string effectId, CombatantState actor, AnimationImpactEvent? impactEvent, AnimationPhaseEvent? phaseEvent, in AnimationEventPayload payload)
-            {
-                return false;
-            }
-
-            public void Reset(CombatantState actor) { }
-        }
-
-        private sealed class NullUiService : IAnimationUiService
-        {
-            public bool TryHandle(string uiId, CombatantState actor, AnimationPhaseEvent? phaseEvent, AnimationWindowEvent? windowEvent, AnimationImpactEvent? impactEvent, in AnimationEventPayload payload)
-            {
-                return false;
-            }
-
-            public void Clear(CombatantState actor) { }
-        }
-    }
-
-    public sealed class AnimatorWrapperResolver : IDisposable
-    {
-        private readonly Dictionary<CombatantState, AnimatorWrapper> wrappers = new();
-        private readonly Dictionary<CombatantState, AnimatorWrapperBinding> bindings = new();
-
-        public AnimatorWrapperResolver(IEnumerable<AnimationActorBinding> actorBindings)
-        {
-            if (actorBindings == null)
-            {
-                return;
-            }
-
-            foreach (var binding in actorBindings)
-            {
-                AddOrUpdateBinding(binding);
-            }
-        }
-
-        public AnimatorWrapper Resolve(CombatantState actor)
-        {
-            if (actor == null)
-            {
-                return null;
-            }
-
-            if (wrappers.TryGetValue(actor, out var existing))
-            {
-                return existing;
-            }
-
-            if (!bindings.TryGetValue(actor, out var binding))
-            {
-                return null;
-            }
-
-            var wrapper = new AnimatorWrapper(binding);
-            wrappers[actor] = wrapper;
-            return wrapper;
-        }
-
-        public void Dispose()
-        {
-            foreach (var kvp in wrappers)
-            {
-                kvp.Value?.Dispose();
-            }
-
-            wrappers.Clear();
-            bindings.Clear();
-        }
-
-        public void AddOrUpdateBinding(AnimationActorBinding binding)
-        {
-            if (binding == null || !binding.IsValid)
-            {
-                return;
-            }
-
-            var wrapperBinding = new AnimatorWrapperBinding(binding.Animator, binding.FallbackClip, binding.Sockets);
-            bindings[binding.Actor] = wrapperBinding;
-
-            if (wrappers.TryGetValue(binding.Actor, out var existing))
-            {
-                existing.Dispose();
-                wrappers.Remove(binding.Actor);
-            }
         }
     }
 }

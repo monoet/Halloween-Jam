@@ -86,3 +86,15 @@ Notas:
      - Locks se liberan al final (`timeline:{id}`) y `PlayAsync` sólo se completa tras `LockRelease`.
 - Próximo orden sugerido: Routers → Adapter → Data → Escena de validación → Documentación adicional.
 - Próximo orden sugerido: Routers → Adapter → Data → Escena de validación → Documentación adicional.
+
+## 2025-11-04 - Milestone 5 - Timed hit y precisión (kickoff)
+- [x] TimedHitToleranceProfileAsset permite definir tolerancias por ID (Perfect/Good/Early/Late) y se expone desde AnimationSystemInstaller.
+- [x] TimedHitService parsea payloads (	olerance*, perfect, center) para resolver perfiles dedicados y calcular el centro real usando CombatClock.
+- [x] TimedInputBuffer.TryConsume acepta centro personalizado, preservando deltas ms exactos para los juicios.
+- [x] Las ventanas almacenan payloads completos, dejando preparada la UI/routers para reutilizar la metadata.
+- [ ] Pendiente: capturar snapshots 30/60/120 FPS con los nuevos perfiles y afinar presets definitivos por timeline.
+
+
+\n## 2025-11-04 - Milestone 5 - Timed hit y precisión (kickoff)\n- [x] TimedHitToleranceProfileAsset permite definir tolerancias por ID (Perfect/Good/Early/Late) y se expone desde AnimationSystemInstaller.\n- [x] TimedHitService parsea payloads (	olerance*, perfect, center) para resolver perfiles dedicados y calcular el centro real usando CombatClock.\n- [x] TimedInputBuffer.TryConsume acepta centro personalizado, preservando deltas ms exactos para los juicios.\n- [x] Las ventanas almacenan payloads completos; UI y routers pueden reutilizar metadata sin perder la tolerancia.\n- [x] Timeline magic_bolt actualizado con ventanas dobles (magic_primary / magic_secondary) y payloads consistentes con los nuevos IDs.\n- [ ] Pendiente: capturar snapshots 30/60/120 FPS con los nuevos perfiles y afinar presets definitivos por timeline.\n
+- [x] Ks1TimedHitRunner usa TimelineDuration como duración por fase (timeline fijo aunque aumente el CP).
+- [x] BattleDebugHarness ajustado para reflejar la misma duración por fase.

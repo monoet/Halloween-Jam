@@ -1,6 +1,6 @@
 using UnityEngine;
 
-[CreateAssetMenu(menuName = "RPG/Equipment Data")]
+[CreateAssetMenu(menuName = "JRPG/Equipment Data")]
 public class EquipmentData : ScriptableObject
 {
     [Header("Identidad del equipo")]

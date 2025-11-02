@@ -40,7 +40,7 @@ MonoBehaviour:
       End: 0.28
       OnEnterEvent: window_open
       OnExitEvent: window_close
-      Payload: perfect=0.23;ui=timed_hit_prompt_basic
+      Payload: perfect=0.23;ui=timed_hit_prompt_basic;tolerance=default_melee
   - type: 3
     phases:
     - Start: 0

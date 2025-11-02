@@ -13,7 +13,8 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
             double windowEndTime,
             TimedHitTolerance tolerance,
             out BufferedInput input,
-            out double deltaToCenterSeconds);
+            out double deltaToCenterSeconds,
+            double? windowCenterTime = null);
         void Clear(CombatantState actor);
         void ClearAll();
     }
@@ -71,7 +72,8 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
             double windowEndTime,
             TimedHitTolerance tolerance,
             out BufferedInput input,
-            out double deltaToCenterSeconds)
+            out double deltaToCenterSeconds,
+            double? windowCenterTime = null)
         {
             input = default;
             deltaToCenterSeconds = double.NaN;
@@ -99,7 +101,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
                 return false;
             }
 
-            double windowCenter = windowStartTime + ((windowEndTime - windowStartTime) * 0.5d);
+            double windowCenter = windowCenterTime ?? (windowStartTime + ((windowEndTime - windowStartTime) * 0.5d));
             int bestIndex = -1;
             double bestDistance = double.MaxValue;
             double bestDelta = double.NaN;

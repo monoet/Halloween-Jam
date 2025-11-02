@@ -1103,9 +1103,7 @@ namespace BattleV2.Debugging
 
             liveTier = combatProfile.GetTierForCharge(combatCharge);
             liveTotalPhases = Mathf.Max(1, liveTier.Hits);
-            livePhaseDuration = liveTotalPhases > 0
-                ? Mathf.Max(0.05f, liveTier.TimelineDuration / liveTotalPhases)
-                : Mathf.Max(0.05f, liveTier.TimelineDuration);
+            livePhaseDuration = Mathf.Max(0.05f, liveTier.TimelineDuration);
 
             livePhaseTimer = 0f;
             liveHoldTimer = 0f;
@@ -1359,7 +1357,7 @@ namespace BattleV2.Debugging
                     Tier = tier,
                     CpCharge = cpCharge,
                     TotalPhases = hits,
-                    PhaseDuration = hits > 0 ? Mathf.Max(0.1f, tier.TimelineDuration / hits) : 0.5f,
+                    PhaseDuration = Mathf.Max(0.1f, tier.TimelineDuration),
                     PhaseIndex = 0,
                     Timer = 0f,
                     HoldTimer = 0f,

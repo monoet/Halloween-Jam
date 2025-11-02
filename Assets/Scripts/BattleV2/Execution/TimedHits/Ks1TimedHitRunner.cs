@@ -130,8 +130,9 @@ namespace BattleV2.Execution.TimedHits
             OnSequenceStarted?.Invoke();
             Debug.Log($"[Ks1TimedHitRunner] Sequence start -> CP:{request.CpCharge} totalPhases:{totalPhases}", this);
 
-            float timelineDuration = tier.TimelineDuration > 0f ? tier.TimelineDuration : 1f;
-            float phaseDuration = timelineDuration / Mathf.Max(1, totalPhases);
+            float basePhaseDuration = tier.TimelineDuration > 0f ? tier.TimelineDuration : 1f;
+            float phaseDuration = basePhaseDuration;
+            float timelineDuration = basePhaseDuration * Mathf.Max(1, totalPhases);
             float resultHold = Mathf.Max(0f, tier.ResultHoldDuration);
 
             int perfectCount = 0;

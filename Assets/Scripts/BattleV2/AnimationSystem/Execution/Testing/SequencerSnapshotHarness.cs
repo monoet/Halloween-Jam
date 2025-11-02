@@ -1,115 +1,105 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.Text;
+using BattleV2.AnimationSystem.Execution;
 using BattleV2.AnimationSystem.Timelines;
-using BattleV2.Core;
+using UnityEngine;
 
 namespace BattleV2.AnimationSystem.Execution.Testing
 {
-    public sealed class SequencerSnapshot
-    {
-        public SequencerSnapshot(int framesPerSecond, IReadOnlyList<SequencerEventInfo> events)
-        {
-            FramesPerSecond = framesPerSecond;
-            Events = events;
-        }
-
-        public int FramesPerSecond { get; }
-        public IReadOnlyList<SequencerEventInfo> Events { get; }
-    }
-
+    /// <summary>
+    /// Helper to capture sequencer event traces at fixed frame rates.
+    /// Drive SequencerSnapshotHarness.RunForFps in editor or tests to compare outputs.
+    /// </summary>
     public static class SequencerSnapshotHarness
     {
-        public static IReadOnlyList<SequencerSnapshot> CaptureSnapshots(
-            ActionTimeline timeline,
-            ITimelineCompiler compiler,
-            params int[] fps)
+        public static SequencerSnapshot Run(ActionSequencer sequencer, float fps, int maxIterations = 1200)
         {
-            if (timeline == null)
+            if (sequencer == null)
             {
-                throw new ArgumentNullException(nameof(timeline));
+                throw new ArgumentNullException(nameof(sequencer));
             }
 
-            if (compiler == null)
-            {
-                throw new ArgumentNullException(nameof(compiler));
-            }
-
-            if (fps == null || fps.Length == 0)
-            {
-                fps = new[] { 60 };
-            }
-
-            float duration = timeline.Info.Length;
-            if (duration <= 0f)
-            {
-                duration = 1f;
-            }
-
-            var compiled = compiler.Compile(timeline, duration);
-            var results = new List<SequencerSnapshot>(fps.Length);
-
-            foreach (int framesPerSecond in fps)
-            {
-                if (framesPerSecond <= 0)
-                {
-                    continue;
-                }
-
-                var snapshot = CaptureSingle(compiled, framesPerSecond);
-                results.Add(snapshot);
-            }
-
-            return results;
-        }
-
-        private static SequencerSnapshot CaptureSingle(CompiledTimeline compiled, int fps)
-        {
-            var clock = new ManualCombatClock();
-            var eventBus = new AnimationEventBus();
-            var lockManager = new ActionLockManager();
-
-            var request = new AnimationRequest(null, default, Array.Empty<CombatantState>(), 1f);
-            var sequencer = new ActionSequencer(request, compiled, clock, eventBus, lockManager);
-
-            var events = new List<SequencerEventInfo>();
-            sequencer.EventDispatched += info => events.Add(info);
-
+            double delta = fps <= 0f ? 1.0 / 60.0 : 1.0 / fps;
+            var log = new List<EventLogEntry>(64);
+            sequencer.EventDispatched += HandleEvent;
             sequencer.Start();
 
-            double step = 1.0d / fps;
-            double safety = compiled.Duration + 2.0d;
-            double elapsed = 0d;
-
-            while (!sequencer.IsCompleted && elapsed < safety)
+            int iterations = 0;
+            while (!sequencer.IsCompleted && iterations < maxIterations)
             {
-                elapsed += step;
-                clock.Advance(step);
                 sequencer.Tick();
+                iterations++;
             }
 
-            return new SequencerSnapshot(fps, events);
+            sequencer.EventDispatched -= HandleEvent;
+            sequencer.Dispose();
+            return new SequencerSnapshot(fps, log);
+
+            void HandleEvent(SequencerEventInfo info)
+            {
+                log.Add(new EventLogEntry(info));
+            }
         }
 
-        private sealed class ManualCombatClock : ICombatClock
+        public static void SaveSnapshot(SequencerSnapshot snapshot, string path)
         {
-            private double now;
-
-            public double Now => now;
-
-            public void Reset()
+            if (snapshot.Events == null)
             {
-                now = 0d;
+                return;
             }
 
-            public void Sample()
+            var builder = new StringBuilder();
+            builder.AppendLine($"# Snapshot FPS={snapshot.Fps.ToString(CultureInfo.InvariantCulture)}");
+            for (int i = 0; i < snapshot.Events.Count; i++)
             {
+                builder.AppendLine(snapshot.Events[i].ToString());
             }
 
-            public void Advance(double deltaSeconds)
+            File.WriteAllText(path, builder.ToString());
+        }
+
+        public readonly struct SequencerSnapshot
+        {
+            public SequencerSnapshot(float fps, IReadOnlyList<EventLogEntry> events)
             {
-                now = Math.Max(0d, now + Math.Max(0d, deltaSeconds));
+                Fps = fps;
+                Events = events;
+            }
+
+            public float Fps { get; }
+            public IReadOnlyList<EventLogEntry> Events { get; }
+        }
+
+        public readonly struct EventLogEntry
+        {
+            public EventLogEntry(SequencerEventInfo info)
+            {
+                Type = info.Type;
+                Scheduled = info.ScheduledTime;
+                Elapsed = info.ElapsedTime;
+                Index = info.Index;
+                Count = info.TotalCount;
+                Tag = info.Tag ?? string.Empty;
+                Payload = info.Payload ?? string.Empty;
+                Reason = info.Reason ?? string.Empty;
+            }
+
+            public ScheduledEventType Type { get; }
+            public double Scheduled { get; }
+            public double Elapsed { get; }
+            public int Index { get; }
+            public int Count { get; }
+            public string Tag { get; }
+            public string Payload { get; }
+            public string Reason { get; }
+
+            public override string ToString()
+            {
+                return $"{Type}|{Scheduled:F6}|{Elapsed:F6}|{Index}/{Count}|{Tag}|{Reason}|{Payload}";
             }
         }
     }
 }
-

@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-[CreateAssetMenu(menuName = "RPG/Archetype")]
+[CreateAssetMenu(menuName = "JRPG/Archetype")]
 public class Archetype : ScriptableObject
 {
     [Header("Identidad del Personaje")]
