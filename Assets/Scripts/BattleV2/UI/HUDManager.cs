@@ -21,7 +21,7 @@ namespace BattleV2.UI
 
         public void RegisterCombatants(IEnumerable<CombatantState> combatants, bool isEnemy)
         {
-            if (!isEnemy)
+            if (!isEnemy && HasPresetAllyWidgets())
             {
                 BindAllyWidgets(combatants);
                 return;
@@ -45,7 +45,7 @@ namespace BattleV2.UI
                 return;
             }
 
-            if (!isEnemy)
+            if (!isEnemy && HasPresetAllyWidgets())
             {
                 var currentAllies = new List<CombatantState>();
                 foreach (var pair in widgets)
@@ -56,11 +56,7 @@ namespace BattleV2.UI
                     }
                 }
 
-                if (combatant != null)
-                {
-                    currentAllies.Add(combatant);
-                }
-
+                currentAllies.Add(combatant);
                 BindAllyWidgets(currentAllies);
                 return;
             }
@@ -92,6 +88,17 @@ namespace BattleV2.UI
                 return;
             }
 
+            if (HasPresetAllyWidgets() &&
+                widgets.TryGetValue(combatant, out var presetWidget) &&
+                presetWidget != null &&
+                allyWidgets.Contains(presetWidget))
+            {
+                widgets.Remove(combatant);
+                presetWidget.Unbind();
+                presetWidget.gameObject.SetActive(false);
+                return;
+            }
+
             if (!widgets.TryGetValue(combatant, out var widget))
             {
                 return;
@@ -104,20 +111,13 @@ namespace BattleV2.UI
                 return;
             }
 
-            if (allyWidgets != null && allyWidgets.Contains(widget))
-            {
-                widget.Unbind();
-                widget.gameObject.SetActive(false);
-                return;
-            }
-
             widget.Unbind();
             Destroy(widget.gameObject);
         }
 
         public void Clear()
         {
-            if (allyWidgets != null)
+            if (HasPresetAllyWidgets())
             {
                 for (int i = 0; i < allyWidgets.Count; i++)
                 {
@@ -134,6 +134,11 @@ namespace BattleV2.UI
 
             foreach (var widget in widgets.Values)
             {
+                if (HasPresetAllyWidgets() && allyWidgets.Contains(widget))
+                {
+                    continue;
+                }
+
                 if (widget == null)
                 {
                     continue;
@@ -153,8 +158,17 @@ namespace BattleV2.UI
 
         private void BindAllyWidgets(IEnumerable<CombatantState> combatants)
         {
-            if (allyWidgets == null || allyWidgets.Count == 0)
+            if (!HasPresetAllyWidgets())
             {
+                if (combatants == null)
+                {
+                    return;
+                }
+
+                foreach (var combatant in combatants)
+                {
+                    RegisterCombatant(combatant, isEnemy: false);
+                }
                 return;
             }
 
@@ -209,6 +223,11 @@ namespace BattleV2.UI
             {
                 widgets.Remove(toRemove[i]);
             }
+        }
+
+        private bool HasPresetAllyWidgets()
+        {
+            return allyWidgets != null && allyWidgets.Count > 0;
         }
     }
 }
