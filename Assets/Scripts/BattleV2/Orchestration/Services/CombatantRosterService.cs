@@ -1,10 +1,10 @@
 using System.Collections.Generic;
-using BattleV2.AnimationSystem.Runtime;
-using BattleV2.Core;
 using BattleV2.Orchestration;
 using HalloweenJam.Combat;
 using UnityEngine;
 using BattleV2.UI;
+using BattleV2.AnimationSystem.Runtime;
+using BattleV2.Core;
 
 namespace BattleV2.Orchestration.Services
 {
@@ -28,58 +28,10 @@ namespace BattleV2.Orchestration.Services
         public HUDManager HudManager { get; init; }
     }
 
-    public readonly struct RosterSnapshot
-    {
-        public RosterSnapshot(
-            CombatantState player,
-            CharacterRuntime playerRuntime,
-            CombatantState enemy,
-            CharacterRuntime enemyRuntime,
-            IReadOnlyList<CombatantState> allies,
-            IReadOnlyList<CombatantState> enemies,
-            IReadOnlyList<GameObject> spawnedPlayerInstances,
-            IReadOnlyList<GameObject> spawnedEnemyInstances,
-            ScriptableObject enemyDropTable,
-            float averageSpeed)
-        {
-            Player = player;
-            PlayerRuntime = playerRuntime;
-            Enemy = enemy;
-            EnemyRuntime = enemyRuntime;
-            Allies = allies;
-            Enemies = enemies;
-            SpawnedPlayerInstances = spawnedPlayerInstances;
-            SpawnedEnemyInstances = spawnedEnemyInstances;
-            EnemyDropTable = enemyDropTable;
-            AverageSpeed = averageSpeed;
-        }
-
-        public CombatantState Player { get; }
-        public CharacterRuntime PlayerRuntime { get; }
-        public CombatantState Enemy { get; }
-        public CharacterRuntime EnemyRuntime { get; }
-        public IReadOnlyList<CombatantState> Allies { get; }
-        public IReadOnlyList<CombatantState> Enemies { get; }
-        public IReadOnlyList<GameObject> SpawnedPlayerInstances { get; }
-        public IReadOnlyList<GameObject> SpawnedEnemyInstances { get; }
-        public ScriptableObject EnemyDropTable { get; }
-        public float AverageSpeed { get; }
-
-        public static RosterSnapshot Empty => new RosterSnapshot(
-            null,
-            null,
-            null,
-            null,
-            System.Array.Empty<CombatantState>(),
-            System.Array.Empty<CombatantState>(),
-            System.Array.Empty<GameObject>(),
-            System.Array.Empty<GameObject>(),
-            null,
-            0f);
-    }
-
     public sealed class CombatantRosterService
     {
+        private const int MaxActiveAllies = 4;
+
         private readonly List<CombatantState> allies = new();
         private readonly List<CombatantState> enemies = new();
         private readonly List<GameObject> spawnedPlayerInstances = new();
@@ -106,7 +58,7 @@ namespace BattleV2.Orchestration.Services
             {
                 if (config.Player != null)
                 {
-                    allies.Add(config.Player);
+                    TryAddAlly(config.Player);
                 }
             }
             else
@@ -205,6 +157,11 @@ namespace BattleV2.Orchestration.Services
 
         private void EnsurePlayerSpawned()
         {
+            if (ReachedPartyLimit())
+            {
+                return;
+            }
+
             var fallbackParent = IsSceneTransform(config.PlayerSpawnPoint)
                 ? config.PlayerSpawnPoint
                 : config.OwnerTransform;
@@ -212,7 +169,7 @@ namespace BattleV2.Orchestration.Services
             if (config.PlayerPartyLoadout != null && config.PlayerPartyLoadout.Members.Count > 0)
             {
                 var members = config.PlayerPartyLoadout.Members;
-                for (int i = 0; i < members.Count; i++)
+                for (int i = 0; i < members.Count && !ReachedPartyLimit(); i++)
                 {
                     var entry = members[i];
                     if (!entry.IsValid)
@@ -229,11 +186,11 @@ namespace BattleV2.Orchestration.Services
                     var combatant = SpawnCombatant(entry, parent, worldPosition, worldRotation, spawnedPlayerInstances, out _);
                     if (combatant != null)
                     {
-                        allies.Add(combatant);
+                        TryAddAlly(combatant);
                     }
                 }
             }
-            else if (config.PlayerLoadout != null && config.PlayerLoadout.IsValid)
+            else if (config.PlayerLoadout != null && config.PlayerLoadout.IsValid && !ReachedPartyLimit())
             {
                 var entry = new CombatantLoadoutEntry(config.PlayerLoadout.PlayerPrefab, config.PlayerLoadout.SpawnOffset);
                 var parent = ResolveSpawnTransform(config.PlayerSpawnPoints, config.PlayerSpawnPoint, 0) ?? fallbackParent;
@@ -244,7 +201,7 @@ namespace BattleV2.Orchestration.Services
                 var combatant = SpawnCombatant(entry, parent, worldPosition, worldRotation, spawnedPlayerInstances, out _);
                 if (combatant != null)
                 {
-                    allies.Add(combatant);
+                    TryAddAlly(combatant);
                 }
             }
         }
@@ -500,6 +457,28 @@ namespace BattleV2.Orchestration.Services
             }
 
             instances.Clear();
+        }
+
+        private bool TryAddAlly(CombatantState combatant)
+        {
+            if (combatant == null || allies.Contains(combatant))
+            {
+                return false;
+            }
+
+            if (ReachedPartyLimit())
+            {
+                Debug.LogWarning("[CombatantRosterService] Party limit reached (4). Additional allies will be ignored.", combatant);
+                return false;
+            }
+
+            allies.Add(combatant);
+            return true;
+        }
+
+        private bool ReachedPartyLimit()
+        {
+            return allies.Count >= MaxActiveAllies;
         }
 
         private Transform ResolveSpawnTransform(Transform[] points, Transform fallback, int index)

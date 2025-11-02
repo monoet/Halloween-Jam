@@ -37,12 +37,15 @@ public class CombatantState : MonoBehaviour
     private bool initialized;
     private UnityAction runtimeStatsListener;
     private string displayName;
+    private bool isDowned;
+    private bool isAlive = true;
 
     public int MaxHP => maxHP;
     public int CurrentHP => currentHP;
     public int MaxSP => maxSP;
     public int CurrentSP => currentSP;
-    public bool IsAlive => currentHP > 0;
+    public bool IsAlive => isAlive;
+    public bool IsDowned => isDowned;
     public bool IsDead() => !IsAlive;
     public int MaxCP => maxCP;
     public int CurrentCP => currentCP;
@@ -67,6 +70,8 @@ public class CombatantState : MonoBehaviour
         {
             InitializeFrom(characterRuntime, preserveCurrentFraction: false);
         }
+
+        RefreshLifeFlags();
     }
 
     private void OnEnable()
@@ -132,6 +137,7 @@ public class CombatantState : MonoBehaviour
             currentSP = maxSP;
         }
 
+        RefreshLifeFlags();
         initialized = true;
         Log($"Inicializado HP: {currentHP}/{maxHP} en {DisplayName}");
         OnVitalsChanged.Invoke();
@@ -179,6 +185,7 @@ public class CombatantState : MonoBehaviour
             Log($"{DisplayName} ha caido.");
         }
 
+        RefreshLifeFlags();
         OnVitalsChanged.Invoke();
     }
 
@@ -197,6 +204,25 @@ public class CombatantState : MonoBehaviour
 
         currentHP = Mathf.Min(maxHP, currentHP + amount);
         Log($"{DisplayName} cura {amount}. HP: {currentHP}/{maxHP}");
+        RefreshLifeFlags();
+        OnVitalsChanged.Invoke();
+    }
+
+    public void SetDowned(bool value)
+    {
+        if (isDowned == value)
+        {
+            return;
+        }
+
+        if (value && currentHP > 0)
+        {
+            currentHP = 0;
+        }
+
+        isDowned = value;
+        RefreshLifeFlags();
+        Log($"{DisplayName} {(value ? "queda incapacitado" : "se reincorpora")}. Downed={isDowned}");
         OnVitalsChanged.Invoke();
     }
 
@@ -252,6 +278,7 @@ public class CombatantState : MonoBehaviour
 
         currentSP -= amount;
         Log($"{DisplayName} gasta {amount} SP. SP: {currentSP}/{maxSP}");
+        RefreshLifeFlags();
         OnVitalsChanged.Invoke();
         return true;
     }
@@ -270,6 +297,7 @@ public class CombatantState : MonoBehaviour
         if (gained > 0)
         {
             Log($"{DisplayName} recupera {gained} SP. SP: {currentSP}/{maxSP}");
+            RefreshLifeFlags();
             OnVitalsChanged.Invoke();
         }
     }
@@ -317,6 +345,11 @@ public class CombatantState : MonoBehaviour
         {
             characterRuntime.OnStatsChanged.RemoveListener(runtimeStatsListener);
         }
+    }
+
+    private void RefreshLifeFlags()
+    {
+        isAlive = !isDowned && currentHP > 0;
     }
 
     private void HandleRuntimeStatsChanged()

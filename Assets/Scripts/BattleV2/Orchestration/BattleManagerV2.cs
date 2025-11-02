@@ -94,9 +94,11 @@ namespace BattleV2.Orchestration
         public BattleActionData LastExecutedAction { get; private set; }
         public ITimedHitRunner TimedHitRunner => timedHitRunner ?? InstantTimedHitRunner.Shared;
         public TargetResolverRegistry TargetResolvers { get; private set; }
-        public CombatantState Player => referenceService?.Player ?? player;
+        public IReadOnlyList<CombatantState> ActiveAllies => rosterSnapshot.ActiveAllies ?? Array.Empty<CombatantState>();
+        public CombatantState PrimaryPlayer => ActiveAllies.Count > 0 ? ActiveAllies[0] : null;
+        public CombatantState Player => referenceService?.Player ?? PrimaryPlayer ?? player;
         public CombatantState Enemy => referenceService?.Enemy ?? enemy;
-        public IReadOnlyList<CombatantState> Allies => rosterSnapshot.Allies ?? Array.Empty<CombatantState>();
+        public IReadOnlyList<CombatantState> Allies => ActiveAllies;
         public IReadOnlyList<CombatantState> Enemies => rosterSnapshot.Enemies ?? Array.Empty<CombatantState>();
         public float PreActionDelaySeconds
         {
@@ -109,7 +111,7 @@ namespace BattleV2.Orchestration
         public GameObject SpawnedEnemyInstance => rosterSnapshot.SpawnedEnemyInstances.Count > 0 ? rosterSnapshot.SpawnedEnemyInstances[0] : null;
         public GameObject SpawnedPlayerInstance => rosterSnapshot.SpawnedPlayerInstances.Count > 0 ? rosterSnapshot.SpawnedPlayerInstances[0] : null;
 
-        private IReadOnlyList<CombatantState> AlliesList => rosterSnapshot.Allies ?? Array.Empty<CombatantState>();
+        private IReadOnlyList<CombatantState> AlliesList => ActiveAllies;
         private IReadOnlyList<CombatantState> EnemiesList => rosterSnapshot.Enemies ?? Array.Empty<CombatantState>();
 
         private bool IsAlly(CombatantState combatant)
