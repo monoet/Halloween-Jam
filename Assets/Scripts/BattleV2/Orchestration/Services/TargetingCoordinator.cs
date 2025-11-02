@@ -5,11 +5,13 @@ using BattleV2.Actions;
 using BattleV2.Core;
 using BattleV2.Orchestration.Events;
 using BattleV2.Targeting;
+using UnityEngine;
 
 namespace BattleV2.Orchestration.Services
 {
     public interface ITargetingCoordinator
     {
+        void SetInteractor(ITargetSelectionInteractor interactor);
         Task<TargetResolutionResult> ResolveAsync(
             CombatantState origin,
             BattleActionData action,
@@ -27,14 +29,24 @@ namespace BattleV2.Orchestration.Services
         private readonly TargetResolverRegistry resolverRegistry;
         private readonly IBattleEventBus eventBus;
         private readonly List<CombatantState> scratchTargets = new();
+        private ITargetSelectionInteractor selectionInteractor;
 
-        public TargetingCoordinator(TargetResolverRegistry resolverRegistry, IBattleEventBus eventBus)
+        public TargetingCoordinator(
+            TargetResolverRegistry resolverRegistry,
+            IBattleEventBus eventBus,
+            ITargetSelectionInteractor selectionInteractor = null)
         {
             this.resolverRegistry = resolverRegistry;
             this.eventBus = eventBus;
+            this.selectionInteractor = selectionInteractor;
         }
 
-        public Task<TargetResolutionResult> ResolveAsync(
+        public void SetInteractor(ITargetSelectionInteractor interactor)
+        {
+            selectionInteractor = interactor;
+        }
+
+        public async Task<TargetResolutionResult> ResolveAsync(
             CombatantState origin,
             BattleActionData action,
             TargetSourceType sourceType,
@@ -56,6 +68,18 @@ namespace BattleV2.Orchestration.Services
                 set = EnsureFallbackSet(sourceType, fallback, allies, enemies);
             }
 
+            if (sourceType == TargetSourceType.Manual && selectionInteractor != null)
+            {
+                try
+                {
+                    set = await selectionInteractor.SelectAsync(context, set);
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogWarning($"[TargetingCoordinator] Manual selection failed ({ex.Message}). Falling back to auto resolution.");
+                }
+            }
+
             scratchTargets.Clear();
             PopulateTargets(set, allies, enemies, scratchTargets);
 
@@ -66,7 +90,7 @@ namespace BattleV2.Orchestration.Services
 
             var targetsCopy = scratchTargets.ToArray();
             scratchTargets.Clear();
-            return Task.FromResult(new TargetResolutionResult(set, targetsCopy));
+            return new TargetResolutionResult(set, targetsCopy);
         }
 
         private static TargetQuery ResolveQuery(CombatantState origin, IReadOnlyList<CombatantState> allies, IReadOnlyList<CombatantState> enemies)

@@ -71,6 +71,18 @@ namespace BattleV2.Orchestration.Events
         public int Damage { get; }
     }
 
+    public readonly struct CombatantDefeatedEvent
+    {
+        public CombatantDefeatedEvent(CombatantState combatant, CombatantState killer)
+        {
+            Combatant = combatant;
+            Killer = killer;
+        }
+
+        public CombatantState Combatant { get; }
+        public CombatantState Killer { get; }
+    }
+
     public readonly struct TargetHighlightEvent
     {
         public TargetHighlightEvent(CombatantState actor, TargetSet targets)

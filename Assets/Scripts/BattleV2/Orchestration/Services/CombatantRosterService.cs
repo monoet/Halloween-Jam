@@ -161,6 +161,48 @@ namespace BattleV2.Orchestration.Services
             snapshot = RosterSnapshot.Empty;
         }
 
+        public RosterSnapshot RefreshAfterDeath(CombatantState combatant)
+        {
+            if (combatant == null)
+            {
+                return snapshot;
+            }
+
+            bool removed = allies.Remove(combatant);
+            if (!removed)
+            {
+                removed = enemies.Remove(combatant);
+            }
+
+            if (!removed)
+            {
+                return snapshot;
+            }
+
+            hudManager?.UnregisterCombatant(combatant);
+            RemoveSpawnedInstance(combatant);
+
+            var (player, playerRuntime, enemy, enemyRuntime) = BindCombatants(
+                preservePlayerVitals: true,
+                preserveEnemyVitals: true);
+
+            float averageSpeed = ComputeAverageSpeed(allies, enemies);
+
+            snapshot = new RosterSnapshot(
+                player,
+                playerRuntime,
+                enemy,
+                enemyRuntime,
+                allies,
+                enemies,
+                spawnedPlayerInstances,
+                spawnedEnemyInstances,
+                enemyDropTable,
+                averageSpeed);
+
+            return snapshot;
+        }
+
         private void EnsurePlayerSpawned()
         {
             var fallbackParent = IsSceneTransform(config.PlayerSpawnPoint)
@@ -397,6 +439,41 @@ namespace BattleV2.Orchestration.Services
             return combatant.GetComponent<CharacterRuntime>();
         }
 
+        private void RemoveSpawnedInstance(CombatantState combatant)
+        {
+            if (combatant == null)
+            {
+                return;
+            }
+
+            DestroyInstance(spawnedPlayerInstances, combatant.gameObject);
+            DestroyInstance(spawnedEnemyInstances, combatant.gameObject);
+        }
+
+        private static void DestroyInstance(List<GameObject> instances, GameObject instance)
+        {
+            if (instances == null || instance == null)
+            {
+                return;
+            }
+
+            for (int i = instances.Count - 1; i >= 0; i--)
+            {
+                if (instances[i] == instance)
+                {
+                    instances.RemoveAt(i);
+                    if (Application.isPlaying)
+                    {
+                        Object.Destroy(instance);
+                    }
+                    else
+                    {
+                        Object.DestroyImmediate(instance);
+                    }
+                }
+            }
+        }
+
         private static void DestroyAutoSpawned(List<GameObject> instances)
         {
             if (instances == null)
@@ -479,7 +556,28 @@ namespace BattleV2.Orchestration.Services
             }
 
             AnimationSystemInstaller.Current?.RegisterActor(combatant);
-            dropTable = entry.DropTable;
+
+            var resolvedDrop = entry.DropTable;
+            if (resolvedDrop == null)
+            {
+                var metadata = instance.GetComponentInChildren<EnemyMetadata>(true);
+                if (metadata != null && metadata.DropTable != null)
+                {
+                    resolvedDrop = metadata.DropTable;
+                }
+            }
+
+            if (resolvedDrop == null)
+            {
+                var runtime = combatant.CharacterRuntime;
+                var archetype = runtime != null ? runtime.Archetype : null;
+                if (archetype != null && archetype.DropTable != null)
+                {
+                    resolvedDrop = archetype.DropTable;
+                }
+            }
+
+            dropTable = resolvedDrop;
             return combatant;
         }
 
@@ -515,3 +613,4 @@ namespace BattleV2.Orchestration.Services
         }
     }
 }
+

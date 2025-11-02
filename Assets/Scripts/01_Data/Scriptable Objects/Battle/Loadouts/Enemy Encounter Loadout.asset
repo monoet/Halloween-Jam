@@ -16,6 +16,12 @@ MonoBehaviour:
   - prefab: {fileID: 452103125886275884, guid: ec28216cd1afaa346affc682d8817434, type: 3}
     spawnOffset: {x: -0.15, y: 0, z: 0}
     dropTable: {fileID: 0}
+  - prefab: {fileID: 452103125886275884, guid: ec28216cd1afaa346affc682d8817434, type: 3}
+    spawnOffset: {x: -0.15, y: 0, z: 0}
+    dropTable: {fileID: 0}
+  - prefab: {fileID: 452103125886275884, guid: ec28216cd1afaa346affc682d8817434, type: 3}
+    spawnOffset: {x: -0.15, y: 0, z: 0}
+    dropTable: {fileID: 0}
   spawnPattern: {fileID: 11400000, guid: 05058e87f8c40424b81b9b10ac3d785a, type: 2}
   useSceneAnchors: 1
   fallbackOriginOffset: {x: 0, y: 0, z: 0}

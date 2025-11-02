@@ -59,6 +59,9 @@ public class Archetype : ScriptableObject
     public GameObject battlePrefab;
     public GameObject overworldPrefab;
 
+    [Header("Loot")]
+    [SerializeField] private ScriptableObject dropTable;
+
     public int GetHPFromVit(float vit)
     {
         float curve = gainCurve.Evaluate(vit);
@@ -75,4 +78,6 @@ public class Archetype : ScriptableObject
     {
         return baseValue + curve.Evaluate(level);
     }
+
+    public ScriptableObject DropTable => dropTable;
 }

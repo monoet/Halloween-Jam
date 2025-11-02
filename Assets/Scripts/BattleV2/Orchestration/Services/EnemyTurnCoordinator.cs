@@ -180,6 +180,8 @@ namespace BattleV2.Orchestration.Services
                     ? animOrchestrator.PlayAsync(new ActionPlaybackRequest(attacker, enrichedSelection, resolution.Targets, context.AverageSpeed))
                     : Task.CompletedTask;
 
+                var defeatCandidates = CollectDeathCandidates(resolution.Targets);
+
                 var request = new ActionRequest(
                     context.Manager,
                     attacker,
@@ -217,6 +219,8 @@ namespace BattleV2.Orchestration.Services
 
                 context.RefreshCombatContext();
 
+                PublishDefeatEvents(defeatCandidates, attacker);
+
                 bool battleEnded = context.TryResolveBattleEnd();
                 eventBus?.Publish(new ActionCompletedEvent(attacker, enrichedSelection.WithTimedResult(result.TimedResult), resolution.Targets));
 
@@ -232,6 +236,48 @@ namespace BattleV2.Orchestration.Services
                 Debug.LogError($"[EnemyTurnCoordinator] Enemy action error: {ex}");
                 context.AdvanceTurn(attacker);
                 context.StateController?.Set(BattleState.AwaitingAction);
+            }
+        }
+
+        private static List<CombatantState> CollectDeathCandidates(IReadOnlyList<CombatantState> targets)
+        {
+            var result = new List<CombatantState>();
+            if (targets == null)
+            {
+                return result;
+            }
+
+            for (int i = 0; i < targets.Count; i++)
+            {
+                var target = targets[i];
+                if (target == null || !target.IsAlive)
+                {
+                    continue;
+                }
+
+                if (!result.Contains(target))
+                {
+                    result.Add(target);
+                }
+            }
+
+            return result;
+        }
+
+        private void PublishDefeatEvents(List<CombatantState> candidates, CombatantState killer)
+        {
+            if (candidates == null || candidates.Count == 0)
+            {
+                return;
+            }
+
+            for (int i = 0; i < candidates.Count; i++)
+            {
+                var combatant = candidates[i];
+                if (combatant != null && combatant.IsDead())
+                {
+                    eventBus?.Publish(new CombatantDefeatedEvent(combatant, killer));
+                }
             }
         }
     }

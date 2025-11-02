@@ -18,6 +18,11 @@ MonoBehaviour:
     costSP: 0
     costCP: 0
     actionImpl: {fileID: 11400000, guid: 4745de80e7fe7514d89cc7cb730891eb, type: 2}
+  - id: basic_attack
+    displayName: basic_attack
+    costSP: 0
+    costCP: 0
+    actionImpl: {fileID: 11400000, guid: 4745de80e7fe7514d89cc7cb730891eb, type: 2}
   magic:
   - id: magic_bolt
     displayName: Magic Bolt

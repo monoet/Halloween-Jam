@@ -32,6 +32,7 @@ namespace BattleV2.Debugging
 
         [Header("Integrations")]
         [SerializeField] private bool hijackTimedHitRunner;
+        [SerializeField] private DebugManualTargetSelector targetSelector;
 
         public static BattleDebugHarnessV2 Instance { get; private set; }
 
@@ -120,6 +121,14 @@ namespace BattleV2.Debugging
             manager.SetRuntimeInputProvider(this);
             manager.SetTimedHitRunner(this);
             Debug.Log("[BattleDebugHarnessV2] Provider registered.");
+
+            targetSelector ??= GetComponent<DebugManualTargetSelector>();
+            if (targetSelector == null)
+            {
+                targetSelector = gameObject.AddComponent<DebugManualTargetSelector>();
+            }
+            targetSelector.Initialise(manager);
+
             if (hijackTimedHitRunner)
             {
                 Debug.Log("[BattleDebugHarnessV2] Hijacking timed hit runner (Awake).", this);
@@ -1486,6 +1495,7 @@ namespace BattleV2.Debugging
     #endregion
 }
 }
+
 
 
 

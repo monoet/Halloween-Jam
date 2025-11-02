@@ -29,6 +29,10 @@ namespace BattleV2.UI
         [Header("Optional CP Pips")]
         [SerializeField] private GameObject[] cpPips;
 
+        [Header("Highlight")]
+        [SerializeField] private GameObject highlightRoot;
+        [SerializeField] private Color highlightNameColor = new Color(1f, 0.85f, 0.2f);
+
         [Header("Formatting")]
         [SerializeField] private string hpFormat = "{0}/{1}";
         [SerializeField] private string spFormat = "{0}/{1}";
@@ -37,12 +41,16 @@ namespace BattleV2.UI
         private UnityAction vitalsListener;
         private bool pendingRefresh;
         private WorldSpaceHudAnchor worldAnchor;
+        private Color originalNameColor = Color.white;
+        private bool originalColorCaptured;
+        private bool isHighlighted;
 
         private void Awake()
         {
             vitalsListener = ScheduleRefresh;
             EnsurePortraitReference();
             worldAnchor = GetComponent<WorldSpaceHudAnchor>();
+            CaptureOriginalNameColor();
             ScheduleRefresh();
         }
 
@@ -71,6 +79,7 @@ namespace BattleV2.UI
             Subscribe(source);
             ScheduleRefresh();
             SyncAnchorTarget();
+            SyncHighlightState();
         }
 
         private void OnDisable()
@@ -92,6 +101,7 @@ namespace BattleV2.UI
             if (isActiveAndEnabled)
             {
                 ApplyVisuals();
+                SyncHighlightState();
             }
             else
             {
@@ -112,6 +122,7 @@ namespace BattleV2.UI
             Unsubscribe(source);
             source = null;
             ScheduleRefresh();
+            SetHighlighted(false);
         }
 
         private void SetSourceInternal(CombatantState newSource)
@@ -125,8 +136,10 @@ namespace BattleV2.UI
             source = newSource;
             Subscribe(source);
             EnsurePortraitReference();
+            CaptureOriginalNameColor();
             ScheduleRefresh();
             SyncAnchorTarget();
+            SyncHighlightState();
         }
 
         private void Subscribe(CombatantState target)
@@ -335,6 +348,41 @@ namespace BattleV2.UI
             {
                 portraitImage = GetComponentInChildren<Image>(includeInactive: true);
             }
+        }
+
+        public void SetHighlighted(bool highlighted)
+        {
+            if (isHighlighted == highlighted)
+            {
+                return;
+            }
+
+            isHighlighted = highlighted;
+            if (highlightRoot != null)
+            {
+                highlightRoot.SetActive(highlighted);
+            }
+
+            if (nameText != null && originalColorCaptured)
+            {
+                nameText.color = highlighted ? highlightNameColor : originalNameColor;
+            }
+        }
+
+        private void CaptureOriginalNameColor()
+        {
+            if (nameText == null)
+            {
+                return;
+            }
+
+            originalNameColor = nameText.color;
+            originalColorCaptured = true;
+        }
+
+        private void SyncHighlightState()
+        {
+            SetHighlighted(isHighlighted);
         }
     }
 }

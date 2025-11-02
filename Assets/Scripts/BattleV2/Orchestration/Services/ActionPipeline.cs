@@ -7,6 +7,7 @@ using BattleV2.Core;
 using BattleV2.Execution;
 using BattleV2.Execution.TimedHits;
 using BattleV2.Providers;
+using UnityEngine;
 
 namespace BattleV2.Orchestration.Services
 {
@@ -91,6 +92,7 @@ namespace BattleV2.Orchestration.Services
             var pipeline = pipelineFactory.CreatePipeline(request.Selection.Action, request.Implementation);
 
             CombatantState effectiveTarget = request.PrimaryTarget ?? request.CombatContext?.Enemy;
+            var combatContext = EnsureTargetContext(request.CombatContext, effectiveTarget);
 
             var actionContext = new Execution.ActionContext(
                 request.Manager,
@@ -98,11 +100,37 @@ namespace BattleV2.Orchestration.Services
                 effectiveTarget,
                 request.Selection.Action,
                 request.Implementation,
-                request.CombatContext,
+                combatContext,
                 request.Selection);
 
             await pipeline.ExecuteAsync(actionContext);
             return ActionResult.From(actionContext.TimedResult, actionContext.ComboPointsAwarded);
+        }
+
+        private static CombatContext EnsureTargetContext(CombatContext context, CombatantState target)
+        {
+            if (context == null || target == null || context.Enemy == target)
+            {
+                return context;
+            }
+
+            var runtime = ResolveRuntime(target);
+            return context.WithEnemy(target, runtime);
+        }
+
+        private static CharacterRuntime ResolveRuntime(CombatantState combatant)
+        {
+            if (combatant == null)
+            {
+                return null;
+            }
+
+            if (combatant.CharacterRuntime != null)
+            {
+                return combatant.CharacterRuntime;
+            }
+
+            return combatant.GetComponent<CharacterRuntime>();
         }
     }
 }

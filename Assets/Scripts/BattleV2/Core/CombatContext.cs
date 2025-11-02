@@ -31,5 +31,16 @@ namespace BattleV2.Core
             Services = services;
             Catalog = catalog;
         }
+
+        public CombatContext WithEnemy(CombatantState enemy, CharacterRuntime enemyRuntime)
+        {
+            return new CombatContext(
+                Player,
+                enemy,
+                PlayerRuntime,
+                enemyRuntime,
+                Services,
+                Catalog);
+        }
     }
 }

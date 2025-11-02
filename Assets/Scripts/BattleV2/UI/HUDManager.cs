@@ -96,5 +96,10 @@ namespace BattleV2.UI
 
             widgets.Clear();
         }
+
+        public bool TryGetWidget(CombatantState combatant, out CombatantHudWidget widget)
+        {
+            return widgets.TryGetValue(combatant, out widget);
+        }
     }
 }
