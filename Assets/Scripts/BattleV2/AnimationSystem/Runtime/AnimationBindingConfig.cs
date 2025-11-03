@@ -52,11 +52,31 @@ namespace BattleV2.AnimationSystem.Runtime
                 return;
             }
 
+            RegisterBindings(bindings);
+        }
+
+        public void RegisterBindings(IEnumerable<AnimationClipBinding> bindings)
+        {
+            if (bindings == null)
+            {
+                return;
+            }
+
             foreach (var binding in bindings)
             {
                 if (string.IsNullOrWhiteSpace(binding.Id) || binding.Clip == null)
                 {
                     continue;
+                }
+
+                if (lookup.TryGetValue(binding.Id, out var existingClip))
+                {
+                    if (existingClip == binding.Clip)
+                    {
+                        continue;
+                    }
+
+                    Debug.LogWarning($"[AnimationClipResolver] Overriding clip binding for id '{binding.Id}'.", binding.Clip);
                 }
 
                 lookup[binding.Id] = binding.Clip;

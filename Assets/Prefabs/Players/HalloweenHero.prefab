@@ -32,7 +32,7 @@ Transform:
   m_GameObject: {fileID: 2209887660875536834}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 5.73999, y: -2.4699707, z: 0}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 4.98, y: 4.98, z: 4.98}
   m_ConstrainProportionsScale: 1
   m_Children: []
@@ -249,8 +249,8 @@ MonoBehaviour:
   characterRuntime: {fileID: 6900589994264770311}
   combatantState: {fileID: 4547551006955442222}
   availableActions:
-  - {fileID: 11400000, guid: 5afbcca36a680644eb4021d662a8908b, type: 2}
-  - {fileID: 11400000, guid: 8d272fdaa2dbc4a488a77a752fe45448, type: 2}
+  - {fileID: 0}
+  - {fileID: 0}
   attackStrategy: {fileID: 11400000, guid: 04c831de83be67c41b3e574193b3742b, type: 2}
   initializeOnAwake: 1
 --- !u!114 &7111068164001014537
@@ -265,7 +265,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8448065db93cd6d4dbfd313e44a7a6ee, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BattleV2.Anim.BattleAnimationController
-  profile: {fileID: 11400000, guid: ef5308e0b6beea24bbc1312786e83756, type: 2}
+  profile: {fileID: 0}
   root: {fileID: 5914491807628125836}
   directionMultiplier: 1
   spriteFlashRenderer: {fileID: 0}

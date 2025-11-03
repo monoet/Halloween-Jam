@@ -68,6 +68,11 @@ namespace BattleV2.AnimationSystem.Runtime.Internal
             uiRouter?.Dispose();
         }
 
+        public IAnimationVfxService VfxService => vfxService;
+        public IAnimationSfxService SfxService => sfxService;
+        public IAnimationCameraService CameraService => cameraService;
+        public IAnimationUiService UiService => uiService;
+
         private sealed class NullVfxService : IAnimationVfxService
         {
             public bool TryPlay(string vfxId, in AnimationImpactEvent evt, in AnimationEventPayload payload) => false;

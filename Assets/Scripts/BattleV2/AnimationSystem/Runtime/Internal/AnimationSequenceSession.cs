@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using BattleV2.AnimationSystem.Execution;
@@ -6,6 +6,7 @@ using BattleV2.AnimationSystem.Execution.Routers;
 using BattleV2.AnimationSystem.Timelines;
 using BattleV2.Core;
 using UnityEngine;
+using BattleV2.Orchestration.Runtime;
 
 namespace BattleV2.AnimationSystem.Runtime.Internal
 {
@@ -14,7 +15,7 @@ namespace BattleV2.AnimationSystem.Runtime.Internal
         private readonly AnimationRequest request;
         private readonly ActionTimeline timeline;
         private readonly ActionSequencer sequencer;
-        private readonly AnimatorWrapper wrapper;
+        private readonly IAnimationWrapper wrapper;
         private readonly AnimationClipResolver clipResolver;
         private readonly AnimationRouterBundle routerBundle;
 
@@ -22,6 +23,9 @@ namespace BattleV2.AnimationSystem.Runtime.Internal
         private CancellationTokenRegistration cancellationRegistration;
         private bool disposed;
         private readonly string sequencerLockReason;
+        private CancellationToken sessionCancellationToken;
+        private CancellationTokenSource wrapperPlaybackCts;
+        private Task wrapperPlaybackTask;
 
         public bool IsDisposed => disposed;
 
@@ -29,7 +33,7 @@ namespace BattleV2.AnimationSystem.Runtime.Internal
             AnimationRequest request,
             ActionTimeline timeline,
             ActionSequencer sequencer,
-            AnimatorWrapper wrapper,
+            IAnimationWrapper wrapper,
             AnimationClipResolver clipResolver,
             AnimationRouterBundle routerBundle)
         {
@@ -66,6 +70,7 @@ namespace BattleV2.AnimationSystem.Runtime.Internal
             sequencer.EventDispatched += OnSequencerEvent;
             routerBundle.RegisterActor(request.Actor);
             driver.Register(sequencer);
+            sessionCancellationToken = cancellationToken;
 
             if (cancellationToken.CanBeCanceled)
             {
@@ -111,11 +116,14 @@ namespace BattleV2.AnimationSystem.Runtime.Internal
                 return;
             }
 
-            var options = BuildClipOptions(payload, info);
-            wrapper.PlayClip(clip, options);
+
+            var playbackRequest = BuildPlaybackRequest(payload, clip);
+            CancelWrapperPlayback();
+            wrapperPlaybackCts = CancellationTokenSource.CreateLinkedTokenSource(sessionCancellationToken);
+            wrapperPlaybackTask = wrapper.PlayAsync(playbackRequest, wrapperPlaybackCts.Token);
         }
 
-        private static AnimatorClipOptions BuildClipOptions(AnimationEventPayload payload, SequencerEventInfo info)
+        private static AnimationPlaybackRequest BuildPlaybackRequest(AnimationEventPayload payload, AnimationClip clip)
         {
             float speed = 1f;
             if (payload.TryGetFloat("speed", out var speedValue))
@@ -139,13 +147,7 @@ namespace BattleV2.AnimationSystem.Runtime.Internal
                 loop = loopValue;
             }
 
-            return new AnimatorClipOptions(
-                loop,
-                normalizedStart,
-                speed,
-                applyFootIK: true,
-                applyPlayableIK: false,
-                overrideDuration: 0d);
+            return AnimationPlaybackRequest.ForAnimatorClip(clip, speed, normalizedStart, loop);
         }
 
         private void OnCancelled()
@@ -173,7 +175,8 @@ namespace BattleV2.AnimationSystem.Runtime.Internal
             }
 
             routerBundle.UnregisterActor(request.Actor);
-            wrapper.ResetToFallback(0.2f);
+            CancelWrapperPlayback();
+            wrapper.Stop();
         }
 
         private void CancelInternal(bool asCancellation)
@@ -184,6 +187,7 @@ namespace BattleV2.AnimationSystem.Runtime.Internal
             }
 
             sequencer.Cancel();
+            CancelWrapperPlayback();
             wrapper.Stop();
 
             if (asCancellation)
@@ -195,6 +199,22 @@ namespace BattleV2.AnimationSystem.Runtime.Internal
                 completion.TrySetResult(false);
             }
         }
+
+        private void CancelWrapperPlayback()
+        {
+            if (wrapperPlaybackCts == null)
+            {
+                return;
+            }
+
+            if (!wrapperPlaybackCts.IsCancellationRequested)
+            {
+                wrapperPlaybackCts.Cancel();
+            }
+
+            wrapperPlaybackCts.Dispose();
+            wrapperPlaybackCts = null;
+            wrapperPlaybackTask = null;
+        }
     }
 }
-

@@ -5,6 +5,7 @@ using UnityEngine;
 using BattleV2.UI;
 using BattleV2.AnimationSystem.Runtime;
 using BattleV2.Core;
+using BattleV2.Orchestration.Runtime;
 
 namespace BattleV2.Orchestration.Services
 {
@@ -58,7 +59,10 @@ namespace BattleV2.Orchestration.Services
             {
                 if (config.Player != null)
                 {
-                    TryAddAlly(config.Player);
+                    if (TryAddAlly(config.Player))
+                    {
+                        RegisterWrapperForCombatant(config.Player);
+                    }
                 }
             }
             else
@@ -72,6 +76,7 @@ namespace BattleV2.Orchestration.Services
                 if (config.Enemy != null)
                 {
                     enemies.Add(config.Enemy);
+                    RegisterWrapperForCombatant(config.Enemy);
                 }
             }
             else
@@ -169,6 +174,9 @@ namespace BattleV2.Orchestration.Services
             if (config.PlayerPartyLoadout != null && config.PlayerPartyLoadout.Members.Count > 0)
             {
                 var members = config.PlayerPartyLoadout.Members;
+                Vector3[] patternOffsets = ResolvePlayerPatternOffsets(members);
+                int formationIndex = 0;
+
                 for (int i = 0; i < members.Count && !ReachedPartyLimit(); i++)
                 {
                     var entry = members[i];
@@ -179,14 +187,26 @@ namespace BattleV2.Orchestration.Services
 
                     Transform spawnTransform = ResolveSpawnTransform(config.PlayerSpawnPoints, config.PlayerSpawnPoint, i);
                     var parent = spawnTransform != null ? spawnTransform : fallbackParent;
+                    Vector3 basePosition = parent != null ? parent.position : Vector3.zero;
+                    Quaternion baseRotation = parent != null ? parent.rotation : Quaternion.identity;
 
-                    Vector3 worldPosition = parent.position + entry.SpawnOffset;
-                    Quaternion worldRotation = parent.rotation;
+                    Vector3 offset = entry.SpawnOffset;
+                    if (patternOffsets != null && patternOffsets.Length > 0)
+                    {
+                        offset += patternOffsets[Mathf.Clamp(formationIndex, 0, patternOffsets.Length - 1)];
+                    }
+
+                    Vector3 worldPosition = basePosition + offset;
+                    Quaternion worldRotation = baseRotation;
 
                     var combatant = SpawnCombatant(entry, parent, worldPosition, worldRotation, spawnedPlayerInstances, out _);
                     if (combatant != null)
                     {
-                        TryAddAlly(combatant);
+                        if (TryAddAlly(combatant))
+                        {
+                            formationIndex++;
+                            RegisterWrapperForCombatant(combatant);
+                        }
                     }
                 }
             }
@@ -201,7 +221,10 @@ namespace BattleV2.Orchestration.Services
                 var combatant = SpawnCombatant(entry, parent, worldPosition, worldRotation, spawnedPlayerInstances, out _);
                 if (combatant != null)
                 {
-                    TryAddAlly(combatant);
+                    if (TryAddAlly(combatant))
+                    {
+                        RegisterWrapperForCombatant(combatant);
+                    }
                 }
             }
         }
@@ -268,6 +291,7 @@ namespace BattleV2.Orchestration.Services
                     if (combatant != null)
                     {
                         enemies.Add(combatant);
+                        RegisterWrapperForCombatant(combatant);
                         if (enemyDropTable == null && dropTable != null)
                         {
                             enemyDropTable = dropTable;
@@ -286,6 +310,7 @@ namespace BattleV2.Orchestration.Services
                 if (combatant != null)
                 {
                     enemies.Add(combatant);
+                    RegisterWrapperForCombatant(combatant);
                     if (dropTable != null)
                     {
                         enemyDropTable = dropTable;
@@ -479,6 +504,59 @@ namespace BattleV2.Orchestration.Services
         private bool ReachedPartyLimit()
         {
             return allies.Count >= MaxActiveAllies;
+        }
+
+        private Vector3[] ResolvePlayerPatternOffsets(IReadOnlyList<CombatantLoadoutEntry> members)
+        {
+            var pattern = config.PlayerPartyLoadout?.SpawnPattern;
+            if (pattern == null || members == null)
+            {
+                return null;
+            }
+
+            int desiredCount = 0;
+            for (int i = 0; i < members.Count && desiredCount < MaxActiveAllies; i++)
+            {
+                if (members[i].IsValid)
+                {
+                    desiredCount++;
+                }
+            }
+
+            if (desiredCount == 0)
+            {
+                return null;
+            }
+
+            return pattern.TryGetOffsets(desiredCount, out var offsets) ? offsets : null;
+        }
+
+        private void RegisterWrapperForCombatant(CombatantState combatant)
+        {
+            if (combatant == null)
+            {
+                return;
+            }
+
+            var wrappers = combatant.GetComponentsInChildren<AnimatorWrapper>(true);
+            if (wrappers == null || wrappers.Length == 0)
+            {
+                Debug.LogWarning($"[CombatantRosterService] Combatant '{combatant.name}' is missing an AnimatorWrapper component.", combatant);
+                return;
+            }
+
+            for (int i = 0; i < wrappers.Length; i++)
+            {
+                var wrapper = wrappers[i];
+                if (wrapper == null)
+                {
+                    continue;
+                }
+
+                wrapper.AssignOwner(combatant);
+                AnimatorRegistry.Instance.Register(wrapper);
+                wrapper.RegisterAnimationSet();
+            }
         }
 
         private Transform ResolveSpawnTransform(Transform[] points, Transform fallback, int index)

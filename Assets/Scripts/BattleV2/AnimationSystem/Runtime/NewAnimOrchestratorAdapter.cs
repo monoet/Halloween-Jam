@@ -9,6 +9,7 @@ using BattleV2.AnimationSystem.Runtime.Internal;
 using BattleV2.AnimationSystem.Timelines;
 using BattleV2.Core;
 using UnityEngine;
+using BattleV2.Orchestration.Runtime;
 
 namespace BattleV2.AnimationSystem.Runtime
 {
@@ -24,7 +25,9 @@ namespace BattleV2.AnimationSystem.Runtime
         private readonly AnimatorWrapperResolver wrapperResolver;
         private readonly AnimationClipResolver clipResolver;
         private readonly AnimationRouterBundle routerBundle;
+        private readonly AnimatorRegistry registry;
         private readonly Dictionary<CombatantState, AnimationSequenceSession> activeSessions = new();
+        private readonly Dictionary<CombatantState, IAnimationWrapper> legacyAdapters = new();
 
         private bool disposed;
 
@@ -36,7 +39,8 @@ namespace BattleV2.AnimationSystem.Runtime
             IAnimationEventBus eventBus,
             AnimatorWrapperResolver wrapperResolver,
             AnimationClipResolver clipResolver,
-            AnimationRouterBundle routerBundle)
+            AnimationRouterBundle routerBundle,
+            AnimatorRegistry registry)
         {
             this.runtimeBuilder = runtimeBuilder ?? throw new ArgumentNullException(nameof(runtimeBuilder));
             this.sequencerDriver = sequencerDriver ?? throw new ArgumentNullException(nameof(sequencerDriver));
@@ -46,6 +50,7 @@ namespace BattleV2.AnimationSystem.Runtime
             this.wrapperResolver = wrapperResolver ?? throw new ArgumentNullException(nameof(wrapperResolver));
             this.clipResolver = clipResolver ?? throw new ArgumentNullException(nameof(clipResolver));
             this.routerBundle = routerBundle ?? throw new ArgumentNullException(nameof(routerBundle));
+            this.registry = registry ?? AnimatorRegistry.Instance;
         }
 
         public async Task PlayAsync(AnimationRequest request, CancellationToken cancellationToken = default)
@@ -84,7 +89,28 @@ namespace BattleV2.AnimationSystem.Runtime
             Debug.Log($"[AnimAdapter] Timeline '{timeline.ActionId}' resolved for action '{action.id}'.");
 #endif
 
-            var wrapper = wrapperResolver.Resolve(request.Actor);
+            IAnimationWrapper wrapper = null;
+            if (registry != null)
+            {
+                registry.TryGetWrapper(request.Actor, out wrapper);
+            }
+
+            if (wrapper == null && wrapperResolver != null)
+            {
+                var legacyWrapper = wrapperResolver.Resolve(request.Actor);
+                if (legacyWrapper != null)
+                {
+                    if (!legacyAdapters.TryGetValue(request.Actor, out wrapper))
+                    {
+                        wrapper = registry.ResolveLegacyWrapper(request.Actor, legacyWrapper);
+                        if (wrapper != null)
+                        {
+                            legacyAdapters[request.Actor] = wrapper;
+                        }
+                    }
+                }
+            }
+
             if (wrapper == null)
             {
                 BattleLogger.Warn("AnimAdapter", $"No AnimatorWrapper binding configured for actor '{request.Actor.name}'.");
@@ -148,6 +174,7 @@ namespace BattleV2.AnimationSystem.Runtime
             disposed = true;
             routerBundle.Dispose();
             wrapperResolver.Dispose();
+            legacyAdapters.Clear();
         }
     }
 }

@@ -1,0 +1,2301 @@
+fileFormatVersion: 2
+guid: 1839b05a64f64b34a9369a5322c520fb
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -7680884669124106498
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_0
+  - first:
+      213: -5584216710086090996
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_1
+  - first:
+      213: 7957369060268715717
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_2
+  - first:
+      213: -7382156005311912077
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_3
+  - first:
+      213: -9046110333162250608
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_4
+  - first:
+      213: -3987639573315032209
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_5
+  - first:
+      213: -6638552512160448711
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_6
+  - first:
+      213: -642001250542291122
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_7
+  - first:
+      213: -898912434209846838
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_8
+  - first:
+      213: -8127265467967691617
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_9
+  - first:
+      213: -1860828423976946366
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_10
+  - first:
+      213: -2538699386439990912
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_11
+  - first:
+      213: 4778603982730367139
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_12
+  - first:
+      213: 3757201978998647470
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_13
+  - first:
+      213: 4151721337927442776
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_14
+  - first:
+      213: 2753927878675483492
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_15
+  - first:
+      213: 3526476109979216497
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_16
+  - first:
+      213: 5079424183001902278
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_17
+  - first:
+      213: -3336278104942550623
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_18
+  - first:
+      213: -2778113096697579515
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_19
+  - first:
+      213: -2706309710314543932
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_20
+  - first:
+      213: 2755157935850411891
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_21
+  - first:
+      213: -4480772974360769561
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_22
+  - first:
+      213: -4772496746288291089
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_23
+  - first:
+      213: 5225709675563384060
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_24
+  - first:
+      213: -7518881712889185264
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_25
+  - first:
+      213: 4702946780761737613
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_26
+  - first:
+      213: 3204416298244335293
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_27
+  - first:
+      213: 822765398587084548
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_28
+  - first:
+      213: -1026658467919031575
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_29
+  - first:
+      213: -6878570870118696769
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_30
+  - first:
+      213: -8715036956239277644
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_31
+  - first:
+      213: 7519738203560933459
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_32
+  - first:
+      213: 5519861242916641868
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_33
+  - first:
+      213: 4682634325431275751
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_34
+  - first:
+      213: 966076867553457603
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_35
+  - first:
+      213: -3902456329130940678
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_36
+  - first:
+      213: -6075296915487191779
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_37
+  - first:
+      213: 8790218431151108158
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_38
+  - first:
+      213: 8770017061800005826
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_39
+  - first:
+      213: -1792749199184888809
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_40
+  - first:
+      213: -724114251784968783
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_41
+  - first:
+      213: 6073325239754240816
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_42
+  - first:
+      213: -7563022387073612214
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_43
+  - first:
+      213: -7829559453116560748
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_44
+  - first:
+      213: 4514075576828136781
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_45
+  - first:
+      213: 7595186821483270496
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_46
+  - first:
+      213: -431856701744227478
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_47
+  - first:
+      213: -6042679343200217497
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_48
+  - first:
+      213: 826977436085306772
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_49
+  - first:
+      213: 5014167449040322224
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_50
+  - first:
+      213: 6501587413070950768
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_51
+  - first:
+      213: -7870908748431841010
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_52
+  - first:
+      213: 5236384646776438872
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_53
+  - first:
+      213: 1956597138240693316
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_54
+  - first:
+      213: 8156289476313404651
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_55
+  - first:
+      213: 1349087671401815833
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_56
+  - first:
+      213: 1554576403741383441
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_57
+  - first:
+      213: -5776603030758688321
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_58
+  - first:
+      213: -6731561131897240859
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_59
+  - first:
+      213: -1243422026007848357
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_60
+  - first:
+      213: -2715054404329907152
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_61
+  - first:
+      213: -8561098042220864850
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_62
+  - first:
+      213: 3101814376592001227
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_63
+  - first:
+      213: 2731955742709248279
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_64
+  - first:
+      213: -4375082960648336681
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_65
+  - first:
+      213: 7036557033503891188
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_66
+  - first:
+      213: -2509884157648693075
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_67
+  - first:
+      213: -8414400198207611946
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_68
+  - first:
+      213: -3054564397976958763
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_69
+  - first:
+      213: -2728888579684472256
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_70
+  - first:
+      213: 8572380051958541646
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_71
+  - first:
+      213: 456634805641601706
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_72
+  - first:
+      213: 2362198981836166931
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_73
+  - first:
+      213: 4117944654140951011
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_74
+  - first:
+      213: -8556577711414597856
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_75
+  - first:
+      213: 5761040748179941733
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_76
+  - first:
+      213: 3143096475369803380
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_77
+  - first:
+      213: -987767420048790827
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_78
+  - first:
+      213: 7811114046344791861
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_79
+  - first:
+      213: -845323208409559520
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_80
+  - first:
+      213: -2715883815120090257
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_81
+  - first:
+      213: 3981249518781008433
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_82
+  - first:
+      213: -2923346261087023700
+    second: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_83
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 0
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 0
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_0
+      rect:
+        serializedVersion: 2
+        x: 1
+        y: 219
+        width: 22
+        height: 36
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ef62d18a614086590800000000000000
+      internalID: -7680884669124106498
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_1
+      rect:
+        serializedVersion: 2
+        x: 23
+        y: 219
+        width: 25
+        height: 36
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c0f94861d70e082b0800000000000000
+      internalID: -5584216710086090996
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_2
+      rect:
+        serializedVersion: 2
+        x: 48
+        y: 219
+        width: 25
+        height: 36
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5ce200810014e6e60800000000000000
+      internalID: 7957369060268715717
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_3
+      rect:
+        serializedVersion: 2
+        x: 73
+        y: 219
+        width: 20
+        height: 36
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 377eddab9305d8990800000000000000
+      internalID: -7382156005311912077
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_4
+      rect:
+        serializedVersion: 2
+        x: 93
+        y: 220
+        width: 29
+        height: 35
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 09e9fd09492c57280800000000000000
+      internalID: -9046110333162250608
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_5
+      rect:
+        serializedVersion: 2
+        x: 122
+        y: 223
+        width: 31
+        height: 32
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f6b644c7fee09a8c0800000000000000
+      internalID: -3987639573315032209
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_6
+      rect:
+        serializedVersion: 2
+        x: 153
+        y: 223
+        width: 29
+        height: 32
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 93f36e9a9af1fd3a0800000000000000
+      internalID: -6638552512160448711
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_7
+      rect:
+        serializedVersion: 2
+        x: 182
+        y: 224
+        width: 30
+        height: 31
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e47f11c93472717f0800000000000000
+      internalID: -642001250542291122
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_8
+      rect:
+        serializedVersion: 2
+        x: 212
+        y: 224
+        width: 25
+        height: 31
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ac98dba57eb6683f0800000000000000
+      internalID: -898912434209846838
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_9
+      rect:
+        serializedVersion: 2
+        x: 237
+        y: 224
+        width: 24
+        height: 31
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f94ac72fd17263f80800000000000000
+      internalID: -8127265467967691617
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_10
+      rect:
+        serializedVersion: 2
+        x: 261
+        y: 223
+        width: 25
+        height: 32
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 24577e058620d26e0800000000000000
+      internalID: -1860828423976946366
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_11
+      rect:
+        serializedVersion: 2
+        x: 286
+        y: 221
+        width: 21
+        height: 34
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0810ebfcb5ab4ccd0800000000000000
+      internalID: -2538699386439990912
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_12
+      rect:
+        serializedVersion: 2
+        x: 307
+        y: 222
+        width: 25
+        height: 33
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3a019e01103015240800000000000000
+      internalID: 4778603982730367139
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_13
+      rect:
+        serializedVersion: 2
+        x: 332
+        y: 227
+        width: 26
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: eaaeb9b1b43442430800000000000000
+      internalID: 3757201978998647470
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_14
+      rect:
+        serializedVersion: 2
+        x: 358
+        y: 227
+        width: 26
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 85123916f80ed9930800000000000000
+      internalID: 4151721337927442776
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_15
+      rect:
+        serializedVersion: 2
+        x: 384
+        y: 227
+        width: 26
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 46b4f7190dae73620800000000000000
+      internalID: 2753927878675483492
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_16
+      rect:
+        serializedVersion: 2
+        x: 410
+        y: 219
+        width: 19
+        height: 36
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 17a6634865f80f030800000000000000
+      internalID: 3526476109979216497
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_17
+      rect:
+        serializedVersion: 2
+        x: 429
+        y: 226
+        width: 21
+        height: 29
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6cc6b5be16dbd7640800000000000000
+      internalID: 5079424183001902278
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_18
+      rect:
+        serializedVersion: 2
+        x: 450
+        y: 226
+        width: 21
+        height: 29
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1a16cfa6db823b1d0800000000000000
+      internalID: -3336278104942550623
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_19
+      rect:
+        serializedVersion: 2
+        x: 471
+        y: 225
+        width: 21
+        height: 30
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 508fa7d8bd82279d0800000000000000
+      internalID: -2778113096697579515
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_20
+      rect:
+        serializedVersion: 2
+        x: 1
+        y: 189
+        width: 21
+        height: 30
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4c4e28838a1417ad0800000000000000
+      internalID: -2706309710314543932
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_21
+      rect:
+        serializedVersion: 2
+        x: 22
+        y: 183
+        width: 20
+        height: 36
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 37756729b894c3620800000000000000
+      internalID: 2755157935850411891
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_22
+      rect:
+        serializedVersion: 2
+        x: 42
+        y: 184
+        width: 32
+        height: 35
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7eb4e0058b811d1c0800000000000000
+      internalID: -4480772974360769561
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_23
+      rect:
+        serializedVersion: 2
+        x: 74
+        y: 180
+        width: 31
+        height: 39
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: fe267c9be7fa4cdb0800000000000000
+      internalID: -4772496746288291089
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_24
+      rect:
+        serializedVersion: 2
+        x: 105
+        y: 187
+        width: 43
+        height: 32
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cfcf64f4343758840800000000000000
+      internalID: 5225709675563384060
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_25
+      rect:
+        serializedVersion: 2
+        x: 148
+        y: 188
+        width: 45
+        height: 31
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 01c3f0b3be097a790800000000000000
+      internalID: -7518881712889185264
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_26
+      rect:
+        serializedVersion: 2
+        x: 193
+        y: 188
+        width: 40
+        height: 31
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d89ced80e29344140800000000000000
+      internalID: 4702946780761737613
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_27
+      rect:
+        serializedVersion: 2
+        x: 233
+        y: 188
+        width: 39
+        height: 31
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: db6635145af587c20800000000000000
+      internalID: 3204416298244335293
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_28
+      rect:
+        serializedVersion: 2
+        x: 272
+        y: 187
+        width: 40
+        height: 32
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 40f044455cc0b6b00800000000000000
+      internalID: 822765398587084548
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_29
+      rect:
+        serializedVersion: 2
+        x: 312
+        y: 185
+        width: 39
+        height: 34
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9e21a0a109390c1f0800000000000000
+      internalID: -1026658467919031575
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_30
+      rect:
+        serializedVersion: 2
+        x: 351
+        y: 183
+        width: 30
+        height: 36
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: fb8b934ec386a80a0800000000000000
+      internalID: -6878570870118696769
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_31
+      rect:
+        serializedVersion: 2
+        x: 381
+        y: 184
+        width: 29
+        height: 35
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4b1d4f20018fd0780800000000000000
+      internalID: -8715036956239277644
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_32
+      rect:
+        serializedVersion: 2
+        x: 410
+        y: 185
+        width: 26
+        height: 34
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 358fe2b0e0a7b5860800000000000000
+      internalID: 7519738203560933459
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_33
+      rect:
+        serializedVersion: 2
+        x: 436
+        y: 185
+        width: 36
+        height: 34
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c4c1e711e8c7a9c40800000000000000
+      internalID: 5519861242916641868
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_34
+      rect:
+        serializedVersion: 2
+        x: 472
+        y: 184
+        width: 27
+        height: 35
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7e0d16cfb1f0cf040800000000000000
+      internalID: 4682634325431275751
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_35
+      rect:
+        serializedVersion: 2
+        x: 1
+        y: 145
+        width: 34
+        height: 35
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3c5fe34eac1386d00800000000000000
+      internalID: 966076867553457603
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_36
+      rect:
+        serializedVersion: 2
+        x: 35
+        y: 141
+        width: 31
+        height: 39
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: af6ecae05a0b7d9c0800000000000000
+      internalID: -3902456329130940678
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_37
+      rect:
+        serializedVersion: 2
+        x: 66
+        y: 148
+        width: 43
+        height: 32
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d1d0c57c4a530bba0800000000000000
+      internalID: -6075296915487191779
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_38
+      rect:
+        serializedVersion: 2
+        x: 109
+        y: 149
+        width: 45
+        height: 31
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e307ade27112df970800000000000000
+      internalID: 8790218431151108158
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_39
+      rect:
+        serializedVersion: 2
+        x: 154
+        y: 149
+        width: 40
+        height: 31
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2c054ba5d0c55b970800000000000000
+      internalID: 8770017061800005826
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_40
+      rect:
+        serializedVersion: 2
+        x: 194
+        y: 149
+        width: 39
+        height: 31
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 71cf73b0a10ee17e0800000000000000
+      internalID: -1792749199184888809
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_41
+      rect:
+        serializedVersion: 2
+        x: 233
+        y: 148
+        width: 40
+        height: 32
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1b52f8daced63f5f0800000000000000
+      internalID: -724114251784968783
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_42
+      rect:
+        serializedVersion: 2
+        x: 273
+        y: 146
+        width: 38
+        height: 34
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 03337f0b029c84450800000000000000
+      internalID: 6073325239754240816
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_43
+      rect:
+        serializedVersion: 2
+        x: 311
+        y: 147
+        width: 22
+        height: 33
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a468626a53fba0790800000000000000
+      internalID: -7563022387073612214
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_44
+      rect:
+        serializedVersion: 2
+        x: 333
+        y: 144
+        width: 22
+        height: 36
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 49a8f210921d75390800000000000000
+      internalID: -7829559453116560748
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_45
+      rect:
+        serializedVersion: 2
+        x: 355
+        y: 144
+        width: 21
+        height: 36
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d4d8b1e02d735ae30800000000000000
+      internalID: 4514075576828136781
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_46
+      rect:
+        serializedVersion: 2
+        x: 376
+        y: 144
+        width: 22
+        height: 36
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0611d315c26876960800000000000000
+      internalID: 7595186821483270496
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_47
+      rect:
+        serializedVersion: 2
+        x: 398
+        y: 145
+        width: 28
+        height: 35
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a6bd9aa2e9cb10af0800000000000000
+      internalID: -431856701744227478
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_48
+      rect:
+        serializedVersion: 2
+        x: 426
+        y: 144
+        width: 25
+        height: 36
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 766d5f02727142ca0800000000000000
+      internalID: -6042679343200217497
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_49
+      rect:
+        serializedVersion: 2
+        x: 451
+        y: 144
+        width: 29
+        height: 36
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 495c02bb8930a7b00800000000000000
+      internalID: 826977436085306772
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_50
+      rect:
+        serializedVersion: 2
+        x: 1
+        y: 125
+        width: 34
+        height: 16
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0beff5c8ab6e59540800000000000000
+      internalID: 5014167449040322224
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_51
+      rect:
+        serializedVersion: 2
+        x: 35
+        y: 106
+        width: 22
+        height: 35
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 071be382e474a3a50800000000000000
+      internalID: 6501587413070950768
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_52
+      rect:
+        serializedVersion: 2
+        x: 57
+        y: 107
+        width: 23
+        height: 34
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e09a436f13ae4c290800000000000000
+      internalID: -7870908748431841010
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_53
+      rect:
+        serializedVersion: 2
+        x: 80
+        y: 107
+        width: 24
+        height: 34
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8504b6ab7106ba840800000000000000
+      internalID: 5236384646776438872
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_54
+      rect:
+        serializedVersion: 2
+        x: 104
+        y: 107
+        width: 24
+        height: 34
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 444e1611bba372b10800000000000000
+      internalID: 1956597138240693316
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_55
+      rect:
+        serializedVersion: 2
+        x: 128
+        y: 105
+        width: 24
+        height: 36
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: be4dae89016f03170800000000000000
+      internalID: 8156289476313404651
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_56
+      rect:
+        serializedVersion: 2
+        x: 152
+        y: 105
+        width: 23
+        height: 36
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 91f93c0e61ce8b210800000000000000
+      internalID: 1349087671401815833
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_57
+      rect:
+        serializedVersion: 2
+        x: 175
+        y: 105
+        width: 25
+        height: 36
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 11b9531b007f29510800000000000000
+      internalID: 1554576403741383441
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_58
+      rect:
+        serializedVersion: 2
+        x: 200
+        y: 105
+        width: 22
+        height: 36
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: fb9fe27362265dfa0800000000000000
+      internalID: -5776603030758688321
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_59
+      rect:
+        serializedVersion: 2
+        x: 222
+        y: 105
+        width: 20
+        height: 36
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5e2407dd0d0b492a0800000000000000
+      internalID: -6731561131897240859
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_60
+      rect:
+        serializedVersion: 2
+        x: 242
+        y: 105
+        width: 20
+        height: 36
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b5ad7e9514a7ebee0800000000000000
+      internalID: -1243422026007848357
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_61
+      rect:
+        serializedVersion: 2
+        x: 262
+        y: 105
+        width: 20
+        height: 36
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 03c5e0c7760325ad0800000000000000
+      internalID: -2715054404329907152
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_62
+      rect:
+        serializedVersion: 2
+        x: 282
+        y: 105
+        width: 20
+        height: 36
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: eaa122270bed03980800000000000000
+      internalID: -8561098042220864850
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_63
+      rect:
+        serializedVersion: 2
+        x: 302
+        y: 105
+        width: 20
+        height: 36
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: bc847fbcdbbdb0b20800000000000000
+      internalID: 3101814376592001227
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_64
+      rect:
+        serializedVersion: 2
+        x: 322
+        y: 105
+        width: 20
+        height: 36
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 711f542064bd9e520800000000000000
+      internalID: 2731955742709248279
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_65
+      rect:
+        serializedVersion: 2
+        x: 342
+        y: 105
+        width: 19
+        height: 36
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7da01bb3a359843c0800000000000000
+      internalID: -4375082960648336681
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_66
+      rect:
+        serializedVersion: 2
+        x: 361
+        y: 106
+        width: 20
+        height: 35
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4fe96c7375fd6a160800000000000000
+      internalID: 7036557033503891188
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_67
+      rect:
+        serializedVersion: 2
+        x: 381
+        y: 105
+        width: 25
+        height: 36
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: da818f318a91b2dd0800000000000000
+      internalID: -2509884157648693075
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_68
+      rect:
+        serializedVersion: 2
+        x: 406
+        y: 105
+        width: 25
+        height: 36
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6dbdbd3e99b0a3b80800000000000000
+      internalID: -8414400198207611946
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_69
+      rect:
+        serializedVersion: 2
+        x: 431
+        y: 105
+        width: 20
+        height: 36
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5d847032dd10c95d0800000000000000
+      internalID: -3054564397976958763
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_70
+      rect:
+        serializedVersion: 2
+        x: 451
+        y: 105
+        width: 20
+        height: 36
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 04a69488b4a012ad0800000000000000
+      internalID: -2728888579684472256
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_71
+      rect:
+        serializedVersion: 2
+        x: 471
+        y: 124
+        width: 36
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e4d22a42d3637f670800000000000000
+      internalID: 8572380051958541646
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_72
+      rect:
+        serializedVersion: 2
+        x: 1
+        y: 68
+        width: 26
+        height: 37
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: aa2e856bfea465600800000000000000
+      internalID: 456634805641601706
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_73
+      rect:
+        serializedVersion: 2
+        x: 27
+        y: 69
+        width: 23
+        height: 36
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3175221657738c020800000000000000
+      internalID: 2362198981836166931
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_74
+      rect:
+        serializedVersion: 2
+        x: 50
+        y: 68
+        width: 21
+        height: 37
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3e94aca58d0e52930800000000000000
+      internalID: 4117944654140951011
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_75
+      rect:
+        serializedVersion: 2
+        x: 71
+        y: 70
+        width: 25
+        height: 35
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 027ab1af7ede04980800000000000000
+      internalID: -8556577711414597856
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_76
+      rect:
+        serializedVersion: 2
+        x: 96
+        y: 70
+        width: 24
+        height: 35
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 569e0d3890453ff40800000000000000
+      internalID: 5761040748179941733
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_77
+      rect:
+        serializedVersion: 2
+        x: 120
+        y: 69
+        width: 22
+        height: 36
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 47e033d67958e9b20800000000000000
+      internalID: 3143096475369803380
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_78
+      rect:
+        serializedVersion: 2
+        x: 142
+        y: 68
+        width: 26
+        height: 37
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5daa94fc3ceba42f0800000000000000
+      internalID: -987767420048790827
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_79
+      rect:
+        serializedVersion: 2
+        x: 168
+        y: 69
+        width: 23
+        height: 36
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 537027017d6a66c60800000000000000
+      internalID: 7811114046344791861
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_80
+      rect:
+        serializedVersion: 2
+        x: 191
+        y: 68
+        width: 21
+        height: 37
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 02eca5a450fc444f0800000000000000
+      internalID: -845323208409559520
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_81
+      rect:
+        serializedVersion: 2
+        x: 212
+        y: 70
+        width: 25
+        height: 35
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f6bc88c3f0e3f4ad0800000000000000
+      internalID: -2715883815120090257
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_82
+      rect:
+        serializedVersion: 2
+        x: 237
+        y: 70
+        width: 24
+        height: 35
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 13a0321085d304730800000000000000
+      internalID: 3981249518781008433
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_83
+      rect:
+        serializedVersion: 2
+        x: 261
+        y: 69
+        width: 22
+        height: 36
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cad017860103e67d0800000000000000
+      internalID: -2923346261087023700
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_0: -7680884669124106498
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_1: -5584216710086090996
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_10: -1860828423976946366
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_11: -2538699386439990912
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_12: 4778603982730367139
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_13: 3757201978998647470
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_14: 4151721337927442776
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_15: 2753927878675483492
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_16: 3526476109979216497
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_17: 5079424183001902278
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_18: -3336278104942550623
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_19: -2778113096697579515
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_2: 7957369060268715717
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_20: -2706309710314543932
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_21: 2755157935850411891
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_22: -4480772974360769561
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_23: -4772496746288291089
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_24: 5225709675563384060
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_25: -7518881712889185264
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_26: 4702946780761737613
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_27: 3204416298244335293
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_28: 822765398587084548
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_29: -1026658467919031575
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_3: -7382156005311912077
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_30: -6878570870118696769
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_31: -8715036956239277644
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_32: 7519738203560933459
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_33: 5519861242916641868
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_34: 4682634325431275751
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_35: 966076867553457603
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_36: -3902456329130940678
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_37: -6075296915487191779
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_38: 8790218431151108158
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_39: 8770017061800005826
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_4: -9046110333162250608
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_40: -1792749199184888809
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_41: -724114251784968783
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_42: 6073325239754240816
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_43: -7563022387073612214
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_44: -7829559453116560748
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_45: 4514075576828136781
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_46: 7595186821483270496
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_47: -431856701744227478
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_48: -6042679343200217497
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_49: 826977436085306772
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_5: -3987639573315032209
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_50: 5014167449040322224
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_51: 6501587413070950768
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_52: -7870908748431841010
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_53: 5236384646776438872
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_54: 1956597138240693316
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_55: 8156289476313404651
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_56: 1349087671401815833
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_57: 1554576403741383441
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_58: -5776603030758688321
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_59: -6731561131897240859
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_6: -6638552512160448711
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_60: -1243422026007848357
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_61: -2715054404329907152
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_62: -8561098042220864850
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_63: 3101814376592001227
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_64: 2731955742709248279
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_65: -4375082960648336681
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_66: 7036557033503891188
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_67: -2509884157648693075
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_68: -8414400198207611946
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_69: -3054564397976958763
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_7: -642001250542291122
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_70: -2728888579684472256
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_71: 8572380051958541646
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_72: 456634805641601706
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_73: 2362198981836166931
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_74: 4117944654140951011
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_75: -8556577711414597856
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_76: 5761040748179941733
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_77: 3143096475369803380
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_78: -987767420048790827
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_79: 7811114046344791861
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_8: -898912434209846838
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_80: -845323208409559520
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_81: -2715883815120090257
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_82: 3981249518781008433
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_83: -2923346261087023700
+      Nintendo Switch - Octopath Traveler - Cyrus - Cyrus (Thief)_9: -8127265467967691617
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

@@ -1,0 +1,274 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &2209887660875536834
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 5914491807628125836}
+  - component: {fileID: 3604114383740727844}
+  - component: {fileID: 3868530006061863476}
+  - component: {fileID: 6900589994264770311}
+  - component: {fileID: 4547551006955442222}
+  - component: {fileID: 4476092375838962311}
+  - component: {fileID: 3880240336937654642}
+  - component: {fileID: 7111068164001014537}
+  m_Layer: 0
+  m_Name: Ciro
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &5914491807628125836
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2209887660875536834}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 0.25, y: 0.25, z: 0.25}
+  m_ConstrainProportionsScale: 1
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!212 &3604114383740727844
+SpriteRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2209887660875536834}
+  m_Enabled: 1
+  m_CastShadows: 0
+  m_ReceiveShadows: 0
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 0
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 10754, guid: 0000000000000000f000000000000000, type: 0}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 0
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_Sprite: {fileID: -8994262598206749609, guid: 399abfc2829df8648b507ac5cc529469, type: 3}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_FlipX: 0
+  m_FlipY: 0
+  m_DrawMode: 0
+  m_Size: {x: 0.96, y: 0.96}
+  m_AdaptiveModeThreshold: 0.5
+  m_SpriteTileMode: 0
+  m_WasSpriteAssigned: 1
+  m_MaskInteraction: 0
+  m_SpriteSortPoint: 0
+--- !u!95 &3868530006061863476
+Animator:
+  serializedVersion: 7
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2209887660875536834}
+  m_Enabled: 1
+  m_Avatar: {fileID: 0}
+  m_Controller: {fileID: 0}
+  m_CullingMode: 0
+  m_UpdateMode: 0
+  m_ApplyRootMotion: 0
+  m_LinearVelocityBlending: 0
+  m_StabilizeFeet: 0
+  m_AnimatePhysics: 0
+  m_WarningMessage: 
+  m_HasTransformHierarchy: 1
+  m_AllowConstantClipSamplingOptimization: 1
+  m_KeepAnimatorStateOnDisable: 0
+  m_WriteDefaultValuesOnDisable: 0
+--- !u!114 &6900589994264770311
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2209887660875536834}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b2c30c3d31825140a9192b375e5f1d2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CharacterRuntime
+  archetype: {fileID: 11400000, guid: c539e972a7dc87c4dba21fc6e6340f12, type: 2}
+  core:
+    characterName: Halloboy
+    portrait: {fileID: 5404585191308233458, guid: 88e723ccbe534984cad73fdd89bb90c3, type: 3}
+    Level: 10
+    CurrentEXP: 0
+    MaxEXP: 0
+    BaseSTR: 17.998077
+    BaseRES: 21.33306
+    BaseAGI: 39.95036
+    BaseLCK: 41.335938
+    BaseVIT: 21.33306
+    BonusSTR: 0
+    BonusRES: 0
+    BonusAGI: 0
+    BonusLCK: 0
+    BonusVIT: 0
+    IsPoisoned: 0
+    IsStunned: 0
+    IsBuffed: 0
+  statFormula: {fileID: 11400000, guid: 943f0ce7b7ee16141b617a468b1f579e, type: 2}
+  derivedFormula: {fileID: 11400000, guid: a1296c306844aa740a8b5b5cf45f5082, type: 2}
+  final:
+    HP: 0
+    SP: 0
+    STR: 0
+    RES: 0
+    AGI: 0
+    LCK: 0
+    VIT: 0
+    Physical: 0
+    MagicPower: 0
+    PhysDefense: 0
+    MagDefense: 0
+    CritChance: 0
+    Speed: 0
+  OnStatsChanged:
+    m_PersistentCalls:
+      m_Calls: []
+--- !u!114 &4547551006955442222
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2209887660875536834}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 53bf100e9cae8d24a87191891014ebd1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CombatantState
+  characterRuntime: {fileID: 6900589994264770311}
+  autoInitializeFromRuntime: 1
+  preserveFractionOnRuntimeUpdate: 1
+  maxHP: 50
+  currentHP: 0
+  maxSP: 10
+  currentSP: 0
+  fallbackMaxHP: 10
+  maxCP: 5
+  currentCP: 0
+  OnVitalsChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  enableDebugLogs: 0
+--- !u!114 &4476092375838962311
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2209887660875536834}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2429a782707d87745a52da86b7a6a168, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  modelRoot: {fileID: 5914491807628125836}
+  spriteRenderer: {fileID: 3604114383740727844}
+  enemyRoot: {fileID: 0}
+  enemySprite: {fileID: 0}
+  audioSource: {fileID: 0}
+  chargeSfx: {fileID: 0}
+  slashSfx: {fileID: 8300000, guid: 1eb2f50c0e00e764989d4a3ea785cfeb, type: 3}
+  settleSfx: {fileID: 0}
+  backStepDistance: 0.3
+  backStepDuration: 0.125
+  chargeHoldDuration: 0.1
+  lungeDistance: 1.2
+  lungeDuration: 0.333
+  recoverDuration: 0.02
+  enemyKnockbackDistance: 1
+  enemyKnockbackDuration: 0.3
+  enemyHitColor: {r: 1, g: 0, b: 0, a: 1}
+  glowLoopDuration: 0.25
+  glowLoops: 4
+  glowRecoverDuration: 0.3
+  glowChargeIntensity: 1.5
+  cameraTransform: {fileID: 0}
+  cameraShakeDuration: 0.1
+  cameraShakeStrength: 0.2
+  autoPlayOnStart: 0
+  enableDebugLogs: 1
+  showTimingOverlay: 0
+--- !u!114 &3880240336937654642
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2209887660875536834}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a95066699bb268046aea3097c9048fa5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::HalloweenJam.Combat.RuntimeCombatEntity
+  characterRuntime: {fileID: 6900589994264770311}
+  combatantState: {fileID: 4547551006955442222}
+  availableActions:
+  - {fileID: 0}
+  - {fileID: 0}
+  attackStrategy: {fileID: 11400000, guid: 04c831de83be67c41b3e574193b3742b, type: 2}
+  initializeOnAwake: 1
+--- !u!114 &7111068164001014537
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2209887660875536834}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8448065db93cd6d4dbfd313e44a7a6ee, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BattleV2.Anim.BattleAnimationController
+  profile: {fileID: 0}
+  root: {fileID: 5914491807628125836}
+  directionMultiplier: 1
+  spriteFlashRenderer: {fileID: 0}
+  meshFlashRenderer: {fileID: 0}
+  flashMaterialProperty: _Color
+  flashColor: {r: 0.9622642, g: 0.9622642, b: 0.9622642, a: 1}

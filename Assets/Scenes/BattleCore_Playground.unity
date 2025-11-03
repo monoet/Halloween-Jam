@@ -3377,6 +3377,136 @@ MonoBehaviour:
   usePlayerActor: 1
   explicitActor: {fileID: 0}
   sourceId: Keyboard
+--- !u!1 &1190842360
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1190842364}
+  - component: {fileID: 1190842363}
+  - component: {fileID: 1190842362}
+  - component: {fileID: 1190842361}
+  m_Layer: 0
+  m_Name: GameObject
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!111 &1190842361
+Animation:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1190842360}
+  m_Enabled: 1
+  serializedVersion: 4
+  m_Animation: {fileID: 7400000, guid: 6ca8564e96bea0e41a894c6792636f51, type: 2}
+  m_Animations: []
+  m_WrapMode: 0
+  m_PlayAutomatically: 1
+  m_AnimatePhysics: 0
+  m_UpdateMode: 0
+  m_CullingType: 0
+--- !u!95 &1190842362
+Animator:
+  serializedVersion: 7
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1190842360}
+  m_Enabled: 1
+  m_Avatar: {fileID: 0}
+  m_Controller: {fileID: 9100000, guid: 43b013d8428494c46ad349fc98adae62, type: 2}
+  m_CullingMode: 0
+  m_UpdateMode: 0
+  m_ApplyRootMotion: 0
+  m_LinearVelocityBlending: 0
+  m_StabilizeFeet: 0
+  m_AnimatePhysics: 0
+  m_WarningMessage: 
+  m_HasTransformHierarchy: 1
+  m_AllowConstantClipSamplingOptimization: 1
+  m_KeepAnimatorStateOnDisable: 0
+  m_WriteDefaultValuesOnDisable: 0
+--- !u!212 &1190842363
+SpriteRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1190842360}
+  m_Enabled: 1
+  m_CastShadows: 0
+  m_ReceiveShadows: 0
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 0
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 10754, guid: 0000000000000000f000000000000000, type: 0}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 0
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_Sprite: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_FlipX: 0
+  m_FlipY: 0
+  m_DrawMode: 0
+  m_Size: {x: 0.54, y: 0.67}
+  m_AdaptiveModeThreshold: 0.5
+  m_SpriteTileMode: 0
+  m_WasSpriteAssigned: 1
+  m_MaskInteraction: 0
+  m_SpriteSortPoint: 0
+--- !u!4 &1190842364
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1190842360}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 1.42, y: -4.53, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 1
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1252835749
 GameObject:
   m_ObjectHideFlags: 0
@@ -4509,7 +4639,7 @@ MonoBehaviour:
   playerAnim: {fileID: 0}
   enemyAnim: {fileID: 0}
   autoBindControllers: 1
-  sharedStrategy: {fileID: 11400000, guid: 6c516d05a3d80fc4a9dc07afa8bad460, type: 2}
+  sharedStrategy: {fileID: 0}
   playerStrategyOverride: {fileID: 0}
   enemyStrategyOverride: {fileID: 0}
 --- !u!4 &1759042697
@@ -5616,6 +5746,7 @@ GameObject:
   - component: {fileID: 1941987472}
   - component: {fileID: 1941987473}
   - component: {fileID: 1941987474}
+  - component: {fileID: 1941987475}
   m_Layer: 0
   m_Name: BattleManagerRoot
   m_TagString: Untagged
@@ -5726,6 +5857,7 @@ MonoBehaviour:
   fallbackChargeProfile: {fileID: 0}
   timedHitKey: 32
   hijackTimedHitRunner: 0
+  targetSelector: {fileID: 1941987475}
 --- !u!114 &1941987474
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5742,6 +5874,23 @@ MonoBehaviour:
   inputKey: 32
   autoMissGrace: 0.05
   fallBackToInstantWhenDisabled: 1
+--- !u!114 &1941987475
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1941987467}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b21d7a9417c03d479966f311cf6e918, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BattleV2.Debugging.DebugManualTargetSelector
+  previousKey: 97
+  nextKey: 100
+  confirmKey: 13
+  cancelKey: 27
+  hudManager: {fileID: 2028473516}
 --- !u!1 &1987719219
 GameObject:
   m_ObjectHideFlags: 0
@@ -6045,6 +6194,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BattleV2.UI.HUDManager
   allyWidgetPrefab: {fileID: 6212449838973905969, guid: e0f15db580fe2c34ea2d452f23690be3, type: 3}
   allyContainer: {fileID: 858323717}
+  allyWidgets: []
   enemyWidgetPrefab: {fileID: 3517421721807249185, guid: f99f54831db4dca4498ea9ea48095f78, type: 3}
   enemyContainer: {fileID: 2028473512}
 --- !u!1 &2099051955
@@ -6877,3 +7027,4 @@ SceneRoots:
   - {fileID: 1922216903}
   - {fileID: 1440837549}
   - {fileID: 833976877}
+  - {fileID: 1190842364}

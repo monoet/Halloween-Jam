@@ -7,7 +7,9 @@ namespace BattleV2.Orchestration
     public class PlayerPartyLoadout : ScriptableObject
     {
         [SerializeField] private List<CombatantLoadoutEntry> members = new();
+        [SerializeField] private EncounterSpawnPattern spawnPattern;
 
         public IReadOnlyList<CombatantLoadoutEntry> Members => members;
+        public EncounterSpawnPattern SpawnPattern => spawnPattern;
     }
 }

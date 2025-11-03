@@ -7,6 +7,7 @@ using BattleV2.AnimationSystem.Execution.Routers;
 using BattleV2.AnimationSystem.Runtime.Internal;
 using BattleV2.AnimationSystem.Timelines;
 using BattleV2.Core;
+using BattleV2.Orchestration.Runtime;
 using UnityEngine;
 
 namespace BattleV2.AnimationSystem.Runtime
@@ -44,6 +45,7 @@ namespace BattleV2.AnimationSystem.Runtime
         private DefaultTimedHitToleranceProfile toleranceProfile;
         private TimedHitService timedHitService;
         private AnimatorWrapperResolver wrapperResolver;
+        private AnimationClipResolver clipResolver;
         private AnimationRouterBundle routerBundle;
         private NewAnimOrchestratorAdapter orchestrator;
 
@@ -52,6 +54,7 @@ namespace BattleV2.AnimationSystem.Runtime
         public IActionLockManager LockManager => lockManager;
         public ITimedHitService TimedHitService => timedHitService;
         public IAnimationOrchestrator Orchestrator => orchestrator;
+        public AnimationClipResolver ClipResolver => clipResolver;
 
         private void Awake()
         {
@@ -71,7 +74,7 @@ namespace BattleV2.AnimationSystem.Runtime
             toleranceProfile = DefaultTimedHitToleranceProfile.FromAsset(toleranceProfileAsset);
             timedHitService = new TimedHitService(combatClock, timedInputBuffer, toleranceProfile, eventBus);
 
-            var clipResolver = new AnimationClipResolver(clipBindings);
+            clipResolver = new AnimationClipResolver(clipBindings);
             wrapperResolver = new AnimatorWrapperResolver(ResolveActorBindings());
 
             var vfxService = ResolveService<IAnimationVfxService>(vfxServiceSource, "VFX");
@@ -88,7 +91,8 @@ namespace BattleV2.AnimationSystem.Runtime
                 eventBus,
                 wrapperResolver,
                 clipResolver,
-                routerBundle);
+                routerBundle,
+                AnimatorRegistry.Instance);
 
             if (sequencerDriver == null)
             {
@@ -106,6 +110,7 @@ namespace BattleV2.AnimationSystem.Runtime
             timedHitService?.Dispose();
             routerBundle?.Dispose();
             wrapperResolver?.Dispose();
+            AnimatorRegistry.Instance.Clear();
             if (Current == this)
             {
                 Current = null;
@@ -213,6 +218,18 @@ namespace BattleV2.AnimationSystem.Runtime
             Debug.Log($"[AnimationSystemInstaller] Registered actor '{actor.name}' with animator '{animator.name}'.", actor);
             wrapperResolver?.AddOrUpdateBinding(binding);
             UpdateBindingArray(binding);
+
+            var orchestrationWrapper = actor.GetComponentInChildren<BattleV2.Orchestration.Runtime.AnimatorWrapper>(true);
+            if (orchestrationWrapper != null)
+            {
+                if (animatorOverride != null)
+                {
+                    orchestrationWrapper.OverrideAnimator(animatorOverride);
+                }
+
+                orchestrationWrapper.AssignOwner(actor);
+                AnimatorRegistry.Instance.Register(orchestrationWrapper);
+            }
         }
 
         private void UpdateBindingArray(AnimationActorBinding binding)
