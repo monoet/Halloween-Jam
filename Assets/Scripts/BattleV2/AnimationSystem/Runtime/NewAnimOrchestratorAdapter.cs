@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using BattleV2.AnimationSystem.Catalog;
 using BattleV2.AnimationSystem.Execution;
 using BattleV2.AnimationSystem.Execution.Routers;
+using BattleV2.AnimationSystem.Execution.Runtime;
 using BattleV2.AnimationSystem.Runtime.Internal;
 using BattleV2.AnimationSystem.Timelines;
 using BattleV2.Core;
@@ -25,6 +26,7 @@ namespace BattleV2.AnimationSystem.Runtime
         private readonly AnimatorWrapperResolver wrapperResolver;
         private readonly AnimationClipResolver clipResolver;
         private readonly AnimationRouterBundle routerBundle;
+        private readonly StepScheduler stepScheduler;
         private readonly AnimatorRegistry registry;
         private readonly Dictionary<CombatantState, AnimationSequenceSession> activeSessions = new();
         private readonly Dictionary<CombatantState, IAnimationWrapper> legacyAdapters = new();
@@ -40,6 +42,7 @@ namespace BattleV2.AnimationSystem.Runtime
             AnimatorWrapperResolver wrapperResolver,
             AnimationClipResolver clipResolver,
             AnimationRouterBundle routerBundle,
+            StepScheduler stepScheduler,
             AnimatorRegistry registry)
         {
             this.runtimeBuilder = runtimeBuilder ?? throw new ArgumentNullException(nameof(runtimeBuilder));
@@ -50,6 +53,7 @@ namespace BattleV2.AnimationSystem.Runtime
             this.wrapperResolver = wrapperResolver ?? throw new ArgumentNullException(nameof(wrapperResolver));
             this.clipResolver = clipResolver ?? throw new ArgumentNullException(nameof(clipResolver));
             this.routerBundle = routerBundle ?? throw new ArgumentNullException(nameof(routerBundle));
+            this.stepScheduler = stepScheduler ?? throw new ArgumentNullException(nameof(stepScheduler));
             this.registry = registry ?? AnimatorRegistry.Instance;
         }
 
@@ -146,7 +150,8 @@ namespace BattleV2.AnimationSystem.Runtime
                 sequencer,
                 wrapper,
                 clipResolver,
-                routerBundle);
+                routerBundle,
+                stepScheduler);
 
             activeSessions[request.Actor] = session;
             try

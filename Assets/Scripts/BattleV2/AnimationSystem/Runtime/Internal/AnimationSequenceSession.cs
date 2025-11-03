@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BattleV2.AnimationSystem.Execution;
 using BattleV2.AnimationSystem.Execution.Routers;
+using BattleV2.AnimationSystem.Execution.Runtime;
 using BattleV2.AnimationSystem.Timelines;
 using BattleV2.Core;
 using UnityEngine;
@@ -18,6 +19,7 @@ namespace BattleV2.AnimationSystem.Runtime.Internal
         private readonly IAnimationWrapper wrapper;
         private readonly AnimationClipResolver clipResolver;
         private readonly AnimationRouterBundle routerBundle;
+        private readonly StepScheduler stepScheduler;
 
         private readonly TaskCompletionSource<bool> completion;
         private CancellationTokenRegistration cancellationRegistration;
@@ -35,7 +37,8 @@ namespace BattleV2.AnimationSystem.Runtime.Internal
             ActionSequencer sequencer,
             IAnimationWrapper wrapper,
             AnimationClipResolver clipResolver,
-            AnimationRouterBundle routerBundle)
+            AnimationRouterBundle routerBundle,
+            StepScheduler stepScheduler)
         {
             if (request.Actor == null)
             {
@@ -46,6 +49,7 @@ namespace BattleV2.AnimationSystem.Runtime.Internal
             if (wrapper == null) throw new ArgumentNullException(nameof(wrapper));
             if (clipResolver == null) throw new ArgumentNullException(nameof(clipResolver));
             if (routerBundle == null) throw new ArgumentNullException(nameof(routerBundle));
+            if (stepScheduler == null) throw new ArgumentNullException(nameof(stepScheduler));
 
             this.request = request;
             this.timeline = timeline;
@@ -53,6 +57,7 @@ namespace BattleV2.AnimationSystem.Runtime.Internal
             this.wrapper = wrapper;
             this.clipResolver = clipResolver;
             this.routerBundle = routerBundle;
+            this.stepScheduler = stepScheduler;
 
             completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             sequencerLockReason = string.IsNullOrWhiteSpace(timeline.ActionId)

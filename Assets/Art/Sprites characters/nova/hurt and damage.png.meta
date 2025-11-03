@@ -1,0 +1,507 @@
+fileFormatVersion: 2
+guid: 5b8b721569bb201409b68e603be244e3
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: 4356929187161735713
+    second: hurt and damage_0
+  - first:
+      213: 4247923610570317654
+    second: hurt and damage_1
+  - first:
+      213: 3824289097620594651
+    second: hurt and damage_2
+  - first:
+      213: 34533396900107208
+    second: hurt and damage_3
+  - first:
+      213: 3600987375506911251
+    second: hurt and damage_4
+  - first:
+      213: -5373684391271170930
+    second: hurt and damage_5
+  - first:
+      213: -560230882801433120
+    second: hurt and damage_6
+  - first:
+      213: -5079691428445183843
+    second: hurt and damage_7
+  - first:
+      213: -5757370838920525092
+    second: hurt and damage_8
+  - first:
+      213: 889135809525017490
+    second: hurt and damage_9
+  - first:
+      213: -6228879877436327095
+    second: hurt and damage_10
+  - first:
+      213: 235901518131042058
+    second: hurt and damage_11
+  - first:
+      213: -5490524782465375796
+    second: hurt and damage_12
+  - first:
+      213: 83421601363178956
+    second: hurt and damage_13
+  - first:
+      213: 7835226418231857042
+    second: hurt and damage_14
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: hurt and damage_0
+      rect:
+        serializedVersion: 2
+        x: 1
+        y: 227
+        width: 80
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1228e40030ce67c30800000000000000
+      internalID: 4356929187161735713
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hurt and damage_1
+      rect:
+        serializedVersion: 2
+        x: 83
+        y: 198
+        width: 40
+        height: 57
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 65fd9017408a3fa30800000000000000
+      internalID: 4247923610570317654
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hurt and damage_2
+      rect:
+        serializedVersion: 2
+        x: 125
+        y: 198
+        width: 40
+        height: 57
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: bdf131e1caa921530800000000000000
+      internalID: 3824289097620594651
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hurt and damage_3
+      rect:
+        serializedVersion: 2
+        x: 167
+        y: 197
+        width: 40
+        height: 58
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8c35e1701ffaa7000800000000000000
+      internalID: 34533396900107208
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hurt and damage_4
+      rect:
+        serializedVersion: 2
+        x: 209
+        y: 189
+        width: 40
+        height: 66
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 31071cd60f649f130800000000000000
+      internalID: 3600987375506911251
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hurt and damage_5
+      rect:
+        serializedVersion: 2
+        x: 1
+        y: 119
+        width: 40
+        height: 68
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e8c78336486dc65b0800000000000000
+      internalID: -5373684391271170930
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hurt and damage_6
+      rect:
+        serializedVersion: 2
+        x: 43
+        y: 119
+        width: 40
+        height: 68
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0e5ca66faf8a938f0800000000000000
+      internalID: -560230882801433120
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hurt and damage_7
+      rect:
+        serializedVersion: 2
+        x: 85
+        y: 117
+        width: 38
+        height: 70
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d90ade62f8f4189b0800000000000000
+      internalID: -5079691428445183843
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hurt and damage_8
+      rect:
+        serializedVersion: 2
+        x: 125
+        y: 113
+        width: 42
+        height: 74
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cda03f1d9b5b910b0800000000000000
+      internalID: -5757370838920525092
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hurt and damage_9
+      rect:
+        serializedVersion: 2
+        x: 169
+        y: 113
+        width: 34
+        height: 74
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 29b61d3de48d65c00800000000000000
+      internalID: 889135809525017490
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hurt and damage_10
+      rect:
+        serializedVersion: 2
+        x: 205
+        y: 111
+        width: 44
+        height: 76
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 94b34d4e0c29e89a0800000000000000
+      internalID: -6228879877436327095
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hurt and damage_11
+      rect:
+        serializedVersion: 2
+        x: 1
+        y: 33
+        width: 34
+        height: 76
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a071d2e4e27164300800000000000000
+      internalID: 235901518131042058
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hurt and damage_12
+      rect:
+        serializedVersion: 2
+        x: 37
+        y: 33
+        width: 34
+        height: 76
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cc12ca6ecccbdc3b0800000000000000
+      internalID: -5490524782465375796
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hurt and damage_13
+      rect:
+        serializedVersion: 2
+        x: 73
+        y: 33
+        width: 34
+        height: 76
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cc5b8d3218f582100800000000000000
+      internalID: 83421601363178956
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hurt and damage_14
+      rect:
+        serializedVersion: 2
+        x: 109
+        y: 31
+        width: 42
+        height: 78
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 29f47712ae05cbc60800000000000000
+      internalID: 7835226418231857042
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      hurt and damage_0: 4356929187161735713
+      hurt and damage_1: 4247923610570317654
+      hurt and damage_10: -6228879877436327095
+      hurt and damage_11: 235901518131042058
+      hurt and damage_12: -5490524782465375796
+      hurt and damage_13: 83421601363178956
+      hurt and damage_14: 7835226418231857042
+      hurt and damage_2: 3824289097620594651
+      hurt and damage_3: 34533396900107208
+      hurt and damage_4: 3600987375506911251
+      hurt and damage_5: -5373684391271170930
+      hurt and damage_6: -560230882801433120
+      hurt and damage_7: -5079691428445183843
+      hurt and damage_8: -5757370838920525092
+      hurt and damage_9: 889135809525017490
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

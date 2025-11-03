@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using BattleV2.AnimationSystem.Catalog;
 using BattleV2.AnimationSystem.Execution;
 using BattleV2.AnimationSystem.Execution.Runtime;
+using BattleV2.AnimationSystem.Execution.Runtime.Executors;
 using BattleV2.AnimationSystem.Execution.Routers;
 using BattleV2.AnimationSystem.Runtime.Internal;
 using BattleV2.AnimationSystem.Timelines;
@@ -48,6 +49,7 @@ namespace BattleV2.AnimationSystem.Runtime
         private AnimationClipResolver clipResolver;
         private AnimationRouterBundle routerBundle;
         private NewAnimOrchestratorAdapter orchestrator;
+        private StepScheduler stepScheduler;
 
         public IAnimationEventBus EventBus => eventBus;
         public ICombatClock Clock => combatClock;
@@ -83,6 +85,7 @@ namespace BattleV2.AnimationSystem.Runtime
             var uiService = ResolveService<IAnimationUiService>(uiServiceSource, "UI");
 
             routerBundle = new AnimationRouterBundle(eventBus, vfxService, sfxService, cameraService, uiService);
+            stepScheduler = BuildStepScheduler();
             orchestrator = new NewAnimOrchestratorAdapter(
                 runtimeBuilder,
                 sequencerDriver,
@@ -92,6 +95,7 @@ namespace BattleV2.AnimationSystem.Runtime
                 wrapperResolver,
                 clipResolver,
                 routerBundle,
+                stepScheduler,
                 AnimatorRegistry.Instance);
 
             if (sequencerDriver == null)
@@ -253,6 +257,16 @@ namespace BattleV2.AnimationSystem.Runtime
             actorBindings = list.ToArray();
         }
 
+        private StepScheduler BuildStepScheduler()
+        {
+            var scheduler = new StepScheduler();
+            scheduler.RegisterExecutor(new AnimatorClipExecutor());
+            scheduler.RegisterExecutor(new FlipbookExecutor());
+            scheduler.RegisterExecutor(new TweenExecutor());
+            scheduler.RegisterExecutor(new WaitExecutor());
+            scheduler.RegisterExecutor(new SfxExecutor());
+            scheduler.RegisterExecutor(new VfxExecutor());
+            return scheduler;
+        }
     }
 }
-
