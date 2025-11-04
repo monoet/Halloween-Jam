@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BattleV2.Core;
@@ -15,6 +17,8 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
 
         private readonly Dictionary<string, IActionStepExecutor> executors = new Dictionary<string, IActionStepExecutor>(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, ActiveExecution> activeExecutions = new Dictionary<string, ActiveExecution>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, ActionRecipe> recipeRegistry = new Dictionary<string, ActionRecipe>(StringComparer.OrdinalIgnoreCase);
+        private readonly List<IStepSchedulerObserver> observers = new List<IStepSchedulerObserver>();
         private readonly object executionGate = new object();
 
         public void RegisterExecutor(IActionStepExecutor executor)
@@ -51,6 +55,75 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
             }
         }
 
+        public void RegisterRecipe(ActionRecipe recipe)
+        {
+            if (recipe == null || string.IsNullOrWhiteSpace(recipe.Id))
+            {
+                return;
+            }
+
+            lock (executionGate)
+            {
+                recipeRegistry[recipe.Id] = recipe;
+            }
+        }
+
+        public bool TryGetRecipe(string recipeId, out ActionRecipe recipe)
+        {
+            if (string.IsNullOrWhiteSpace(recipeId))
+            {
+                recipe = null;
+                return false;
+            }
+
+            lock (executionGate)
+            {
+                return recipeRegistry.TryGetValue(recipeId, out recipe);
+            }
+        }
+
+        public bool UnregisterRecipe(string recipeId)
+        {
+            if (string.IsNullOrWhiteSpace(recipeId))
+            {
+                return false;
+            }
+
+            lock (executionGate)
+            {
+                return recipeRegistry.Remove(recipeId);
+            }
+        }
+
+        public void RegisterObserver(IStepSchedulerObserver observer)
+        {
+            if (observer == null)
+            {
+                return;
+            }
+
+            lock (executionGate)
+            {
+                if (!observers.Contains(observer))
+                {
+                    observers.Add(observer);
+                }
+            }
+        }
+
+        public void UnregisterObserver(IStepSchedulerObserver observer)
+        {
+            if (observer == null)
+            {
+                return;
+            }
+
+            lock (executionGate)
+            {
+                observers.Remove(observer);
+            }
+        }
+
         public async Task ExecuteAsync(ActionRecipe recipe, StepSchedulerContext context, CancellationToken cancellationToken = default)
         {
             if (recipe == null || recipe.IsEmpty)
@@ -58,10 +131,18 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
                 return;
             }
 
+            NotifyObservers(o => o.OnRecipeStarted(recipe, context));
+
+            var recipeWatch = Stopwatch.StartNew();
+            bool recipeCancelled = false;
+
             for (int groupIndex = 0; groupIndex < recipe.Groups.Count; groupIndex++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var group = recipe.Groups[groupIndex];
+                NotifyObservers(o => o.OnGroupStarted(group, context));
+                var groupWatch = Stopwatch.StartNew();
+                bool groupCancelled = false;
 
                 if (group.ExecutionMode == StepGroupExecutionMode.Sequential)
                 {
@@ -71,6 +152,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
                         var step = group.Steps[i];
                         if (!TryResolveExecutor(step, out var executor))
                         {
+                            NotifyObservers(o => o.OnStepCompleted(new StepExecutionReport(step, StepExecutionOutcome.Skipped, TimeSpan.Zero), context));
                             continue;
                         }
 
@@ -80,6 +162,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
                 else
                 {
                     var tasks = ListPool<Task>.Rent();
+                    var stepRefs = ListPool<ActionStep>.Rent();
                     try
                     {
                         for (int i = 0; i < group.Steps.Count; i++)
@@ -88,6 +171,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
                             var step = group.Steps[i];
                             if (!TryResolveExecutor(step, out var executor))
                             {
+                                NotifyObservers(o => o.OnStepCompleted(new StepExecutionReport(step, StepExecutionOutcome.Skipped, TimeSpan.Zero), context));
                                 continue;
                             }
 
@@ -96,7 +180,16 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
 
                         if (tasks.Count > 0)
                         {
-                            await Task.WhenAll(tasks).ConfigureAwait(false);
+                            try
+                            {
+                                await Task.WhenAll(tasks).ConfigureAwait(false);
+                            }
+                            catch (OperationCanceledException)
+                            {
+                                groupCancelled = true;
+                                recipeCancelled = true;
+                                throw;
+                            }
                         }
                     }
                     finally
@@ -104,7 +197,13 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
                         ListPool<Task>.Return(tasks);
                     }
                 }
+
+                groupWatch.Stop();
+                NotifyObservers(o => o.OnGroupCompleted(new StepGroupExecutionReport(group, groupWatch.Elapsed, groupCancelled), context));
             }
+
+            recipeWatch.Stop();
+            NotifyObservers(o => o.OnRecipeCompleted(new RecipeExecutionReport(recipe, recipeWatch.Elapsed, recipeCancelled), context));
         }
 
         private bool TryResolveExecutor(in ActionStep step, out IActionStepExecutor executor)
@@ -135,6 +234,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
             if (!await ResolveConflictAsync(executor.Id, step.ConflictPolicy, cancellationToken).ConfigureAwait(false))
             {
                 BattleLogger.Log(LogTag, $"Step '{step.Id ?? "(no id)"}' skipped due to conflict policy '{step.ConflictPolicy}'.");
+                NotifyObservers(o => o.OnStepCompleted(new StepExecutionReport(step, StepExecutionOutcome.Skipped, TimeSpan.Zero), schedulerContext));
                 return;
             }
 
@@ -143,10 +243,19 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
 
             var executionTask = RunExecutorAsync(executor, context, linkedCts);
             RegisterActiveExecution(executor.Id, executionTask, linkedCts);
+            var stopwatch = Stopwatch.StartNew();
 
             try
             {
                 await executionTask.ConfigureAwait(false);
+                stopwatch.Stop();
+                NotifyObservers(o => o.OnStepCompleted(new StepExecutionReport(step, StepExecutionOutcome.Completed, stopwatch.Elapsed), schedulerContext));
+            }
+            catch (OperationCanceledException)
+            {
+                stopwatch.Stop();
+                NotifyObservers(o => o.OnStepCompleted(new StepExecutionReport(step, StepExecutionOutcome.Cancelled, stopwatch.Elapsed), schedulerContext));
+                throw;
             }
             finally
             {
@@ -267,6 +376,37 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
             public CancellationTokenSource Cancellation { get; }
         }
 
+        private void NotifyObservers(Action<IStepSchedulerObserver> notify)
+        {
+            if (notify == null)
+            {
+                return;
+            }
+
+            IStepSchedulerObserver[] snapshot;
+            lock (executionGate)
+            {
+                if (observers.Count == 0)
+                {
+                    return;
+                }
+
+               snapshot = observers.ToArray();
+            }
+
+            for (int i = 0; i < snapshot.Length; i++)
+            {
+                try
+                {
+                    notify(snapshot[i]);
+                }
+                catch (Exception ex)
+                {
+                    BattleLogger.Warn(LogTag, $"Observer '{snapshot[i].GetType().Name}' threw during notification: {ex.Message}");
+                }
+            }
+        }
+
         private static class ListPool<T>
         {
             [ThreadStatic] private static Stack<List<T>> pool;
@@ -298,3 +438,4 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
         }
     }
 }
+

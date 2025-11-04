@@ -4,6 +4,8 @@ using BattleV2.AnimationSystem.Catalog;
 using BattleV2.AnimationSystem.Execution;
 using BattleV2.AnimationSystem.Execution.Runtime;
 using BattleV2.AnimationSystem.Execution.Runtime.Executors;
+using BattleV2.AnimationSystem.Execution.Runtime.Recipes;
+using BattleV2.AnimationSystem.Execution.Runtime.Telemetry;
 using BattleV2.AnimationSystem.Execution.Routers;
 using BattleV2.AnimationSystem.Runtime.Internal;
 using BattleV2.AnimationSystem.Timelines;
@@ -50,6 +52,7 @@ namespace BattleV2.AnimationSystem.Runtime
         private AnimationRouterBundle routerBundle;
         private NewAnimOrchestratorAdapter orchestrator;
         private StepScheduler stepScheduler;
+        private StepSchedulerMetricsObserver schedulerMetrics;
 
         public IAnimationEventBus EventBus => eventBus;
         public ICombatClock Clock => combatClock;
@@ -57,6 +60,8 @@ namespace BattleV2.AnimationSystem.Runtime
         public ITimedHitService TimedHitService => timedHitService;
         public IAnimationOrchestrator Orchestrator => orchestrator;
         public AnimationClipResolver ClipResolver => clipResolver;
+        public StepScheduler StepScheduler => stepScheduler;
+        public StepSchedulerMetricsObserver SchedulerMetrics => schedulerMetrics;
 
         private void Awake()
         {
@@ -266,6 +271,10 @@ namespace BattleV2.AnimationSystem.Runtime
             scheduler.RegisterExecutor(new WaitExecutor());
             scheduler.RegisterExecutor(new SfxExecutor());
             scheduler.RegisterExecutor(new VfxExecutor());
+            scheduler.RegisterRecipe(SampleActionRecipes.BasicAttack);
+            scheduler.RegisterRecipe(SampleActionRecipes.UseItem);
+            schedulerMetrics = new StepSchedulerMetricsObserver();
+            scheduler.RegisterObserver(schedulerMetrics);
             return scheduler;
         }
     }

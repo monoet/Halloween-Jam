@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using BattleV2.AnimationSystem.Execution;
@@ -28,6 +30,8 @@ namespace BattleV2.AnimationSystem.Runtime.Internal
         private CancellationToken sessionCancellationToken;
         private CancellationTokenSource wrapperPlaybackCts;
         private Task wrapperPlaybackTask;
+        private CancellationTokenSource schedulerCts;
+        private Task schedulerTask;
 
         public bool IsDisposed => disposed;
 
@@ -114,6 +118,12 @@ namespace BattleV2.AnimationSystem.Runtime.Internal
         private void HandleAnimationPhase(in SequencerEventInfo info)
         {
             var payload = AnimationEventPayload.Parse(info.Payload);
+
+            if (TryHandleRecipe(payload))
+            {
+                return;
+            }
+
             var clipId = payload.ResolveId("clip", "animation", "id");
             if (!clipResolver.TryGetClip(clipId, out var clip))
             {
@@ -121,8 +131,8 @@ namespace BattleV2.AnimationSystem.Runtime.Internal
                 return;
             }
 
-
             var playbackRequest = BuildPlaybackRequest(payload, clip);
+            CancelScheduler();
             CancelWrapperPlayback();
             wrapperPlaybackCts = CancellationTokenSource.CreateLinkedTokenSource(sessionCancellationToken);
             wrapperPlaybackTask = wrapper.PlayAsync(playbackRequest, wrapperPlaybackCts.Token);
@@ -181,6 +191,7 @@ namespace BattleV2.AnimationSystem.Runtime.Internal
 
             routerBundle.UnregisterActor(request.Actor);
             CancelWrapperPlayback();
+            CancelScheduler();
             wrapper.Stop();
         }
 
@@ -193,6 +204,7 @@ namespace BattleV2.AnimationSystem.Runtime.Internal
 
             sequencer.Cancel();
             CancelWrapperPlayback();
+            CancelScheduler();
             wrapper.Stop();
 
             if (asCancellation)
@@ -220,6 +232,242 @@ namespace BattleV2.AnimationSystem.Runtime.Internal
             wrapperPlaybackCts.Dispose();
             wrapperPlaybackCts = null;
             wrapperPlaybackTask = null;
+        }
+
+        private void CancelScheduler()
+        {
+            if (schedulerCts == null)
+            {
+                return;
+            }
+
+            if (!schedulerCts.IsCancellationRequested)
+            {
+                schedulerCts.Cancel();
+            }
+
+            schedulerCts.Dispose();
+            schedulerCts = null;
+            schedulerTask = null;
+        }
+
+        private bool TryHandleRecipe(AnimationEventPayload payload)
+        {
+            if (stepScheduler == null)
+            {
+                return false;
+            }
+
+            if (!TryBuildRecipe(payload, out var recipe))
+            {
+                return false;
+            }
+
+            if (recipe == null || recipe.IsEmpty)
+            {
+                return false;
+            }
+
+            CancelWrapperPlayback();
+            CancelScheduler();
+
+            schedulerCts = CancellationTokenSource.CreateLinkedTokenSource(sessionCancellationToken);
+            var bindingResolver = wrapper as IAnimationBindingResolver;
+            if (bindingResolver == null)
+            {
+                BattleLogger.Warn("AnimAdapter", $"Wrapper for actor '{request.Actor?.name ?? "(null)"}' does not implement binding resolver.");
+                schedulerCts.Dispose();
+                schedulerCts = null;
+                return false;
+            }
+
+            var context = new StepSchedulerContext(request, timeline, wrapper, bindingResolver, routerBundle);
+            var localCts = schedulerCts;
+            schedulerTask = stepScheduler.ExecuteAsync(recipe, context, localCts.Token);
+            schedulerTask.ContinueWith(t =>
+            {
+                if (t.IsFaulted && t.Exception != null)
+                {
+                    BattleLogger.Error("AnimAdapter", $"Recipe '{recipe.Id}' execution failed: {t.Exception.GetBaseException()}");
+                }
+
+                localCts.Dispose();
+
+                if (ReferenceEquals(schedulerTask, t))
+                {
+                    schedulerTask = null;
+                    schedulerCts = null;
+                }
+            }, TaskContinuationOptions.ExecuteSynchronously);
+
+            return true;
+        }
+
+        private bool TryBuildRecipe(AnimationEventPayload payload, out ActionRecipe recipe)
+        {
+            recipe = null;
+
+            string recipeId = null;
+            if (payload.TryGetString("recipeId", out var explicitRecipeId) && !string.IsNullOrWhiteSpace(explicitRecipeId))
+            {
+                recipeId = explicitRecipeId;
+            }
+            else if (payload.TryGetString("recipe", out var altRecipeId) && !string.IsNullOrWhiteSpace(altRecipeId))
+            {
+                recipeId = altRecipeId;
+            }
+
+            if (!string.IsNullOrWhiteSpace(recipeId) && stepScheduler.TryGetRecipe(recipeId, out var predefined))
+            {
+                recipe = predefined;
+                return true;
+            }
+
+            if (!payload.TryGetString("steps", out var stepsRaw) || string.IsNullOrWhiteSpace(stepsRaw))
+            {
+                return false;
+            }
+
+            var steps = new List<ActionStep>();
+            var definitions = stepsRaw.Split('|', StringSplitOptions.RemoveEmptyEntries);
+            for (int i = 0; i < definitions.Length; i++)
+            {
+                var def = definitions[i].Trim();
+                if (def.Length == 0)
+                {
+                    continue;
+                }
+
+                if (!TryParseStep(def, out var step))
+                {
+                    BattleLogger.Warn("AnimAdapter", $"Failed to parse step definition '{def}' for action '{timeline.ActionId}'.");
+                    steps.Clear();
+                    return false;
+                }
+
+                steps.Add(step);
+            }
+
+            if (steps.Count == 0)
+            {
+                return false;
+            }
+
+            var group = new ActionStepGroup(null, steps, StepGroupExecutionMode.Sequential);
+            var inlineId = !string.IsNullOrWhiteSpace(recipeId) ? recipeId : timeline.ActionId ?? "(inline)";
+            recipe = new ActionRecipe(inlineId, new[] { group });
+            return true;
+        }
+
+        private static bool TryParseStep(string definition, out ActionStep step)
+        {
+            step = default;
+            if (string.IsNullOrWhiteSpace(definition))
+            {
+                return false;
+            }
+
+            string prefix = definition;
+            string parameterSection = null;
+
+            int paramStart = definition.IndexOf('(');
+            if (paramStart >= 0)
+            {
+                int paramEnd = definition.LastIndexOf(')');
+                if (paramEnd <= paramStart)
+                {
+                    return false;
+                }
+
+                prefix = definition.Substring(0, paramStart);
+                parameterSection = definition.Substring(paramStart + 1, paramEnd - paramStart - 1);
+            }
+
+            prefix = prefix.Trim();
+            if (prefix.Length == 0)
+            {
+                return false;
+            }
+
+            string executorId = prefix;
+            string bindingId = null;
+            int bindingSeparator = prefix.IndexOf(':');
+            if (bindingSeparator >= 0)
+            {
+                executorId = prefix.Substring(0, bindingSeparator).Trim();
+                bindingId = prefix.Substring(bindingSeparator + 1).Trim();
+                if (bindingId.Length == 0)
+                {
+                    bindingId = null;
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(executorId))
+            {
+                return false;
+            }
+
+            var parameters = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (!string.IsNullOrWhiteSpace(parameterSection))
+            {
+                var pairs = parameterSection.Split(',', StringSplitOptions.RemoveEmptyEntries);
+                for (int i = 0; i < pairs.Length; i++)
+                {
+                    var pair = pairs[i].Trim();
+                    if (pair.Length == 0)
+                    {
+                        continue;
+                    }
+
+                    int equalsIndex = pair.IndexOf('=');
+                    if (equalsIndex <= 0 || equalsIndex >= pair.Length - 1)
+                    {
+                        continue;
+                    }
+
+                    var key = pair.Substring(0, equalsIndex).Trim();
+                    var value = pair.Substring(equalsIndex + 1).Trim();
+                    if (key.Length == 0 || value.Length == 0)
+                    {
+                        continue;
+                    }
+
+                    parameters[key] = value;
+                }
+            }
+
+            if (bindingId == null && parameters.TryGetValue("binding", out var bindingFromParameter))
+            {
+                bindingId = bindingFromParameter;
+                parameters.Remove("binding");
+            }
+
+            string stepId = null;
+            if (parameters.TryGetValue("id", out var idValue))
+            {
+                stepId = idValue;
+                parameters.Remove("id");
+            }
+
+            StepConflictPolicy conflictPolicy = StepConflictPolicy.WaitForCompletion;
+            if (parameters.TryGetValue("conflict", out var conflictValue) &&
+                Enum.TryParse(conflictValue, true, out StepConflictPolicy parsedPolicy))
+            {
+                conflictPolicy = parsedPolicy;
+                parameters.Remove("conflict");
+            }
+
+            float delay = 0f;
+            if (parameters.TryGetValue("delay", out var delayValue) &&
+                float.TryParse(delayValue, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsedDelay))
+            {
+                delay = Mathf.Max(0f, parsedDelay);
+                parameters.Remove("delay");
+            }
+
+            var actionParameters = new ActionStepParameters(parameters);
+            step = new ActionStep(executorId, bindingId, actionParameters, conflictPolicy, stepId, delay);
+            return true;
         }
     }
 }
