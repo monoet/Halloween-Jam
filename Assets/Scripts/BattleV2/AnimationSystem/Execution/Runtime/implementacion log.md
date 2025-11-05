@@ -9,6 +9,7 @@
 - Sequential execution: no change from the baseline; steps run in order with conflict policies.
 - Parallel execution (join = Any only): waits for the first Branch/Abort/Failure, cancels siblings, and honours group-level cancellation.
 - System steps supported: `window.open`, `window.close`, `gate.on`, `damage.apply`, `fallback` (emits `AnimationFallbackRequestedEvent`).
+- System step handlers viven ahora en `SystemStepRunner`, fuera de `StepScheduler`.
 - Conflict defaults: evaluator enforces `WaitForCompletion` vs `SkipIfRunning` based on requested policy; MVP assumes animator/tween register those policies on the recipe side.
 - Observability: `IStepSchedulerObserver` now sees `OnStepStarted` and receives outcome `Branch`; scheduler logs Branch target and Abort reason, metrics observer counts branched/cancelled/skipped.
 - Cleanup: `ExecutionState.ImmediateCleanup()` closes open windows immediately when a group aborts before the final dispose.

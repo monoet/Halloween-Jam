@@ -4,6 +4,8 @@ using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using BattleV2.AnimationSystem;
+using BattleV2.AnimationSystem.Execution.Runtime.Core;
+using BattleV2.AnimationSystem.Execution.Runtime.SystemSteps;
 using BattleV2.Core;
 
 namespace BattleV2.AnimationSystem.Execution.Runtime
@@ -15,23 +17,12 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
     {
         private const string LogTag = "StepScheduler";
 
-        private const string SystemStepWindowOpen = "window.open";
-        private const string SystemStepWindowClose = "window.close";
-        private const string SystemStepGate = "gate.on";
-        private const string SystemStepDamage = "damage.apply";
-        private const string SystemStepFallback = "fallback";
-
-        private static readonly TimedHitJudgment[] DefaultSuccessJudgments =
-        {
-            TimedHitJudgment.Perfect,
-            TimedHitJudgment.Good
-        };
-
         private readonly Dictionary<string, IActionStepExecutor> executors = new Dictionary<string, IActionStepExecutor>(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, ActiveExecution> activeExecutions = new Dictionary<string, ActiveExecution>(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, ActionRecipe> recipeRegistry = new Dictionary<string, ActionRecipe>(StringComparer.OrdinalIgnoreCase);
         private readonly List<IStepSchedulerObserver> observers = new List<IStepSchedulerObserver>();
         private readonly object executionGate = new object();
+        private readonly SystemStepRunner systemStepRunner = new SystemStepRunner(LogTag);
 
         public void RegisterExecutor(IActionStepExecutor executor)
         {
@@ -362,9 +353,9 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                if (IsSystemStep(step))
+                if (systemStepRunner.TryHandle(step, schedulerContext, state, out var systemResult))
                 {
-                    result = ExecuteSystemStep(step, schedulerContext, state);
+                    result = systemResult;
                 }
                 else if (!TryResolveExecutor(step, out var executor))
                 {
@@ -405,35 +396,6 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
             }
 
             return result;
-        }
-
-        private StepResult ExecuteSystemStep(ActionStep step, StepSchedulerContext context, ExecutionState state)
-        {
-            string id = step.ExecutorId ?? string.Empty;
-            switch (id.ToLowerInvariant())
-            {
-                case SystemStepWindowOpen:
-                    HandleWindowOpen(step, context, state);
-                    return StepResult.Completed;
-
-                case SystemStepWindowClose:
-                    HandleWindowClose(step, context, state);
-                    return StepResult.Completed;
-
-                case SystemStepGate:
-                    return HandleGate(step, context, state);
-
-                case SystemStepDamage:
-                    HandleDamage(step, context);
-                    return StepResult.Completed;
-
-                case SystemStepFallback:
-                    return HandleFallback(step, context);
-
-                default:
-                    BattleLogger.Warn(LogTag, $"Unknown system step '{step.ExecutorId}'. Marking as skipped.");
-                    return StepResult.Skipped;
-            }
         }
 
         private async Task<StepResult> ExecuteExecutorStepAsync(
@@ -478,146 +440,6 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
                 RemoveActiveExecution(executor.Id, executionTask);
             }
         }
-
-        private void HandleWindowOpen(ActionStep step, StepSchedulerContext context, ExecutionState state)
-        {
-            var parameters = step.Parameters;
-            if (!TryGetRequired(parameters, "id", out var id))
-            {
-                BattleLogger.Warn(LogTag, "window.open missing 'id'.");
-                return;
-            }
-
-            string tag = parameters.TryGetString("tag", out var tagValue) ? tagValue : id;
-            float start = parameters.TryGetFloat("start", out var s) ? s : parameters.TryGetFloat("startNormalized", out s) ? s : 0f;
-            float end = parameters.TryGetFloat("end", out var e) ? e : parameters.TryGetFloat("endNormalized", out e) ? e : 1f;
-            int index = parameters.TryGetInt("index", out var idx) ? idx : parameters.TryGetInt("windowIndex", out idx) ? idx : 0;
-            int count = parameters.TryGetInt("count", out var cnt) ? cnt : parameters.TryGetInt("windowCount", out cnt) ? cnt : 1;
-            string payload = BuildPayload(parameters, new[] { "id", "tag", "start", "startNormalized", "end", "endNormalized", "index", "windowIndex", "count", "windowCount" });
-
-            state.RegisterWindow(id, new ExecutionState.WindowState(id, tag));
-            context.EventBus?.Publish(new AnimationWindowEvent(context.Actor, tag, payload, start, end, true, index, count));
-        }
-
-        private void HandleWindowClose(ActionStep step, StepSchedulerContext context, ExecutionState state)
-        {
-            var parameters = step.Parameters;
-            if (!TryGetRequired(parameters, "id", out var id))
-            {
-                BattleLogger.Warn(LogTag, "window.close missing 'id'.");
-                return;
-            }
-
-            if (!state.TryRemoveWindow(id, out var window))
-            {
-                BattleLogger.Warn(LogTag, $"window.close('{id}') called but window not open.");
-            }
-
-            string tag = parameters.TryGetString("tag", out var tagValue) ? tagValue : window?.Tag ?? id;
-            float start = parameters.TryGetFloat("start", out var s) ? s : parameters.TryGetFloat("startNormalized", out s) ? s : 0f;
-            float end = parameters.TryGetFloat("end", out var e) ? e : parameters.TryGetFloat("endNormalized", out e) ? e : 1f;
-            int index = parameters.TryGetInt("index", out var idx) ? idx : parameters.TryGetInt("windowIndex", out idx) ? idx : 0;
-            int count = parameters.TryGetInt("count", out var cnt) ? cnt : parameters.TryGetInt("windowCount", out cnt) ? cnt : 1;
-            string payload = BuildPayload(parameters, new[] { "id", "tag", "start", "startNormalized", "end", "endNormalized", "index", "windowIndex", "count", "windowCount" });
-
-            context.EventBus?.Publish(new AnimationWindowEvent(context.Actor, tag, payload, start, end, false, index, count));
-        }
-
-        private StepResult HandleGate(ActionStep step, StepSchedulerContext context, ExecutionState state)
-        {
-            var parameters = step.Parameters;
-            if (!TryGetRequired(parameters, "id", out var id))
-            {
-                BattleLogger.Warn(LogTag, "gate.on missing 'id'.");
-                return StepResult.Failed;
-            }
-
-            string successLabel = parameters.TryGetString("success", out var success) ? success : null;
-            string failLabel = parameters.TryGetString("fail", out var fail) ? fail : null;
-            string timeoutLabel = parameters.TryGetString("timeout", out var timeout) ? timeout : failLabel;
-
-            var judgments = ParseJudgmentList(parameters.TryGetString("successOn", out var list) ? list : null);
-            if (!state.TryGetWindowResult(id, out var hitResult))
-            {
-                if (string.IsNullOrWhiteSpace(timeoutLabel))
-                {
-                    return StepResult.Completed;
-                }
-
-                bool abortOnTimeout = parameters.TryGetBool("abortOnTimeout", out var abortTimeout) && abortTimeout;
-                return abortOnTimeout ? StepResult.Abort("GateTimeout") : StepResult.Branch(timeoutLabel);
-            }
-
-            bool isSuccess = judgments.Contains(hitResult.Judgment);
-            string branchTarget = isSuccess ? successLabel : failLabel;
-
-            if (string.IsNullOrWhiteSpace(branchTarget))
-            {
-                return StepResult.Completed;
-            }
-
-            bool abort =
-                (isSuccess && parameters.TryGetBool("abortOnSuccess", out var abortOnSuccess) && abortOnSuccess) ||
-                (!isSuccess && parameters.TryGetBool("abortOnFail", out var abortOnFail) && abortOnFail);
-
-            if (abort)
-            {
-                return StepResult.Abort(isSuccess ? "GateAbortSuccess" : "GateAbortFail");
-            }
-
-            return StepResult.Branch(branchTarget);
-        }
-
-        private void HandleDamage(ActionStep step, StepSchedulerContext context)
-        {
-            if (!TryGetRequired(step.Parameters, "formula", out var formula))
-            {
-                BattleLogger.Warn(LogTag, "damage.apply missing 'formula'.");
-                return;
-            }
-
-            var evt = new AnimationDamageRequestEvent(
-                context.Actor,
-                context.Request.Selection.Action,
-                context.Request.Targets,
-                formula,
-                step.Parameters.Data);
-
-            context.EventBus?.Publish(evt);
-        }
-
-        private StepResult HandleFallback(ActionStep step, StepSchedulerContext context)
-        {
-            string timelineId = step.Parameters.TryGetString("timelineId", out var timeline) ? timeline : null;
-            string recipeId = step.Parameters.TryGetString("recipeId", out var recipe) ? recipe : null;
-            string reason = step.Parameters.TryGetString("reason", out var r) ? r : "FallbackTriggered";
-
-            if (string.IsNullOrWhiteSpace(timelineId) && string.IsNullOrWhiteSpace(recipeId))
-            {
-                BattleLogger.Warn(LogTag, "fallback step requires 'timelineId' or 'recipeId'.");
-                return StepResult.Failed;
-            }
-
-            context.EventBus?.Publish(new AnimationFallbackRequestedEvent(context.Actor, timelineId, recipeId, reason));
-            return StepResult.Abort(reason);
-        }
-
-        private static bool IsSystemStep(ActionStep step)
-        {
-            string id = step.ExecutorId ?? string.Empty;
-            switch (id.ToLowerInvariant())
-            {
-                case SystemStepWindowOpen:
-                case SystemStepWindowClose:
-                case SystemStepGate:
-                case SystemStepDamage:
-                case SystemStepFallback:
-                    return true;
-                default:
-                    return false;
-            }
-        }
-
         private static StepExecutionOutcome MapOutcome(StepRunStatus status)
         {
             return status switch
@@ -629,69 +451,6 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
                 StepRunStatus.Failed => StepExecutionOutcome.Faulted,
                 _ => StepExecutionOutcome.Completed
             };
-        }
-
-        private static string BuildPayload(ActionStepParameters parameters, IEnumerable<string> excludedKeys)
-        {
-            var excluded = new HashSet<string>(excludedKeys ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
-            var list = new List<string>();
-
-            if (!parameters.IsEmpty)
-            {
-                foreach (var kv in parameters.Data)
-                {
-                    if (excluded.Contains(kv.Key))
-                    {
-                        continue;
-                    }
-
-                    if (string.IsNullOrWhiteSpace(kv.Key) || string.IsNullOrWhiteSpace(kv.Value))
-                    {
-                        continue;
-                    }
-
-                    list.Add($"{kv.Key}={kv.Value}");
-                }
-            }
-
-            return list.Count == 0 ? string.Empty : string.Join(";", list);
-        }
-
-        private static bool TryGetRequired(ActionStepParameters parameters, string key, out string value)
-        {
-            if (parameters.TryGetString(key, out value) && !string.IsNullOrWhiteSpace(value))
-            {
-                return true;
-            }
-
-            value = null;
-            return false;
-        }
-
-        private static HashSet<TimedHitJudgment> ParseJudgmentList(string csv)
-        {
-            if (string.IsNullOrWhiteSpace(csv))
-            {
-                return new HashSet<TimedHitJudgment>(DefaultSuccessJudgments);
-            }
-
-            var set = new HashSet<TimedHitJudgment>();
-            var tokens = csv.Split(',');
-            for (int i = 0; i < tokens.Length; i++)
-            {
-                var token = tokens[i].Trim();
-                if (Enum.TryParse<TimedHitJudgment>(token, true, out var judgment))
-                {
-                    set.Add(judgment);
-                }
-            }
-
-            if (set.Count == 0)
-            {
-                return new HashSet<TimedHitJudgment>(DefaultSuccessJudgments);
-            }
-
-            return set;
         }
 
         private bool TryResolveExecutor(in ActionStep step, out IActionStepExecutor executor)
@@ -852,4 +611,5 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
     }
 
 }
+
 
