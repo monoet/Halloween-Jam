@@ -12,6 +12,7 @@
 - Conflict defaults: evaluator enforces `WaitForCompletion` vs `SkipIfRunning` based on requested policy; MVP assumes animator/tween register those policies on the recipe side.
 - Observability: `IStepSchedulerObserver` now sees `OnStepStarted` and receives outcome `Branch`; scheduler logs Branch target and Abort reason, metrics observer counts branched/cancelled/skipped.
 - Cleanup: `ExecutionState.ImmediateCleanup()` closes open windows immediately when a group aborts before the final dispose.
+- Core split (en progreso): `ExecutionState`, `StepResult`, `StepGroupResult` and `ListPool` viven ahora en `Execution/Runtime/Core/StepSchedulerCoreTypes.cs` para reducir el tamaño del scheduler y facilitar pruebas.
 
 ## Gaps / Next Steps
 1. **Telemetry polish**
