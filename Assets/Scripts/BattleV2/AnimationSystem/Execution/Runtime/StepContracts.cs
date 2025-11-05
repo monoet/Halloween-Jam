@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
+using BattleV2.AnimationSystem;
 using BattleV2.AnimationSystem.Runtime.Internal;
 using BattleV2.AnimationSystem.Timelines;
 using BattleV2.Core;
@@ -150,7 +151,8 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
             ActionStepParameters parameters,
             StepConflictPolicy conflictPolicy = StepConflictPolicy.WaitForCompletion,
             string id = null,
-            float delaySeconds = 0f)
+            float delaySeconds = 0f,
+            bool hasExplicitConflictPolicy = false)
         {
             if (string.IsNullOrWhiteSpace(executorId))
             {
@@ -163,6 +165,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
             ConflictPolicy = conflictPolicy;
             Id = id;
             DelaySeconds = Mathf.Max(0f, delaySeconds);
+            HasExplicitConflictPolicy = hasExplicitConflictPolicy;
         }
 
         public string Id { get; }
@@ -171,9 +174,19 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
         public ActionStepParameters Parameters { get; }
         public StepConflictPolicy ConflictPolicy { get; }
         public float DelaySeconds { get; }
+        public bool HasExplicitConflictPolicy { get; }
 
         public bool HasBinding => !string.IsNullOrWhiteSpace(BindingId);
         public bool HasDelay => DelaySeconds > 0f;
+    }
+
+    /// <summary>
+    /// Determines how a parallel group resolves completion.
+    /// </summary>
+    public enum StepGroupJoinPolicy
+    {
+        All = 0,
+        Any = 1
     }
 
     /// <summary>
@@ -184,7 +197,9 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
         public ActionStepGroup(
             string id,
             IReadOnlyList<ActionStep> steps,
-            StepGroupExecutionMode executionMode = StepGroupExecutionMode.Sequential)
+            StepGroupExecutionMode executionMode = StepGroupExecutionMode.Sequential,
+            StepGroupJoinPolicy joinPolicy = StepGroupJoinPolicy.Any,
+            float timeoutSeconds = 0f)
         {
             if (steps == null || steps.Count == 0)
             {
@@ -194,11 +209,16 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
             Id = id;
             Steps = steps;
             ExecutionMode = executionMode;
+            JoinPolicy = joinPolicy;
+            TimeoutSeconds = Mathf.Max(0f, timeoutSeconds);
         }
 
         public string Id { get; }
         public IReadOnlyList<ActionStep> Steps { get; }
         public StepGroupExecutionMode ExecutionMode { get; }
+        public StepGroupJoinPolicy JoinPolicy { get; }
+        public float TimeoutSeconds { get; }
+        public bool HasTimeout => TimeoutSeconds > 0f;
     }
 
     /// <summary>
@@ -230,13 +250,17 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
             ActionTimeline timeline,
             IAnimationWrapper wrapper,
             IAnimationBindingResolver bindingResolver,
-            AnimationRouterBundle routerBundle)
+            AnimationRouterBundle routerBundle,
+            IAnimationEventBus eventBus,
+            ITimedHitService timedHitService)
         {
             Request = request;
             Timeline = timeline;
             Wrapper = wrapper;
             BindingResolver = bindingResolver;
             RouterBundle = routerBundle;
+            EventBus = eventBus;
+            TimedHitService = timedHitService;
         }
 
         public AnimationRequest Request { get; }
@@ -244,6 +268,8 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
         public IAnimationWrapper Wrapper { get; }
         public IAnimationBindingResolver BindingResolver { get; }
         public AnimationRouterBundle RouterBundle { get; }
+        public IAnimationEventBus EventBus { get; }
+        public ITimedHitService TimedHitService { get; }
 
         public CombatantState Actor => Request.Actor;
     }

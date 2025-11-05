@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using BattleV2.AnimationSystem;
 using BattleV2.Core;
 
 namespace BattleV2.AnimationSystem.Execution.Runtime
@@ -14,6 +14,18 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
     public sealed class StepScheduler
     {
         private const string LogTag = "StepScheduler";
+
+        private const string SystemStepWindowOpen = "window.open";
+        private const string SystemStepWindowClose = "window.close";
+        private const string SystemStepGate = "gate.on";
+        private const string SystemStepDamage = "damage.apply";
+        private const string SystemStepFallback = "fallback";
+
+        private static readonly TimedHitJudgment[] DefaultSuccessJudgments =
+        {
+            TimedHitJudgment.Perfect,
+            TimedHitJudgment.Good
+        };
 
         private readonly Dictionary<string, IActionStepExecutor> executors = new Dictionary<string, IActionStepExecutor>(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, ActiveExecution> activeExecutions = new Dictionary<string, ActiveExecution>(StringComparer.OrdinalIgnoreCase);
@@ -133,77 +145,553 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
 
             NotifyObservers(o => o.OnRecipeStarted(recipe, context));
 
+            using var state = new ExecutionState(recipe, context);
+            state.Initialize();
+
             var recipeWatch = Stopwatch.StartNew();
             bool recipeCancelled = false;
+            int groupIndex = 0;
 
-            for (int groupIndex = 0; groupIndex < recipe.Groups.Count; groupIndex++)
+            while (groupIndex < recipe.Groups.Count)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+
                 var group = recipe.Groups[groupIndex];
                 NotifyObservers(o => o.OnGroupStarted(group, context));
                 var groupWatch = Stopwatch.StartNew();
-                bool groupCancelled = false;
+                StepGroupResult groupResult = StepGroupResult.Completed();
 
-                if (group.ExecutionMode == StepGroupExecutionMode.Sequential)
+                try
                 {
-                    for (int i = 0; i < group.Steps.Count; i++)
-                    {
-                        cancellationToken.ThrowIfCancellationRequested();
-                        var step = group.Steps[i];
-                        if (!TryResolveExecutor(step, out var executor))
-                        {
-                            NotifyObservers(o => o.OnStepCompleted(new StepExecutionReport(step, StepExecutionOutcome.Skipped, TimeSpan.Zero), context));
-                            continue;
-                        }
-
-                        await ExecuteStepAsync(executor, step, context, cancellationToken).ConfigureAwait(false);
-                    }
+                    groupResult = await ExecuteGroupAsync(group, context, state, cancellationToken).ConfigureAwait(false);
                 }
-                else
+                catch (OperationCanceledException)
                 {
-                    var tasks = ListPool<Task>.Rent();
-                    var stepRefs = ListPool<ActionStep>.Rent();
-                    try
-                    {
-                        for (int i = 0; i < group.Steps.Count; i++)
-                        {
-                            cancellationToken.ThrowIfCancellationRequested();
-                            var step = group.Steps[i];
-                            if (!TryResolveExecutor(step, out var executor))
-                            {
-                                NotifyObservers(o => o.OnStepCompleted(new StepExecutionReport(step, StepExecutionOutcome.Skipped, TimeSpan.Zero), context));
-                                continue;
-                            }
-
-                            tasks.Add(ExecuteStepAsync(executor, step, context, cancellationToken));
-                        }
-
-                        if (tasks.Count > 0)
-                        {
-                            try
-                            {
-                                await Task.WhenAll(tasks).ConfigureAwait(false);
-                            }
-                            catch (OperationCanceledException)
-                            {
-                                groupCancelled = true;
-                                recipeCancelled = true;
-                                throw;
-                            }
-                        }
-                    }
-                    finally
-                    {
-                        ListPool<Task>.Return(tasks);
-                    }
+                    recipeCancelled = true;
+                    groupResult = StepGroupResult.Abort("Cancelled");
+                    throw;
+                }
+                finally
+                {
+                    groupWatch.Stop();
+                    NotifyObservers(o => o.OnGroupCompleted(new StepGroupExecutionReport(group, groupWatch.Elapsed, groupResult.Status == StepGroupResultStatus.Abort), context));
                 }
 
-                groupWatch.Stop();
-                NotifyObservers(o => o.OnGroupCompleted(new StepGroupExecutionReport(group, groupWatch.Elapsed, groupCancelled), context));
+                if (groupResult.Status == StepGroupResultStatus.Branch)
+                {
+                    if (!state.TryGetGroupIndex(groupResult.BranchTargetId, out var target))
+                    {
+                        BattleLogger.Warn(LogTag, $"Branch target '{groupResult.BranchTargetId ?? "(null)"}' not found. Ending recipe '{recipe.Id}'.");
+                        break;
+                    }
+
+                    groupIndex = target;
+                    continue;
+                }
+
+                if (groupResult.Status == StepGroupResultStatus.Abort)
+                {
+                    recipeCancelled = true;
+                    if (!string.IsNullOrWhiteSpace(groupResult.AbortReason))
+                    {
+                        state.RequestAbort(groupResult.AbortReason);
+                    }
+
+                    state.ImmediateCleanup();
+                    break;
+                }
+
+                groupIndex++;
             }
 
             recipeWatch.Stop();
-            NotifyObservers(o => o.OnRecipeCompleted(new RecipeExecutionReport(recipe, recipeWatch.Elapsed, recipeCancelled), context));
+            NotifyObservers(o => o.OnRecipeCompleted(new RecipeExecutionReport(recipe, recipeWatch.Elapsed, recipeCancelled || state.AbortRequested), context));
+        }
+
+        private Task<StepGroupResult> ExecuteGroupAsync(
+            ActionStepGroup group,
+            StepSchedulerContext context,
+            ExecutionState state,
+            CancellationToken cancellationToken)
+        {
+            if (group.ExecutionMode == StepGroupExecutionMode.Sequential)
+            {
+                return ExecuteSequentialGroupAsync(group, context, state, cancellationToken);
+            }
+
+            if (group.JoinPolicy != StepGroupJoinPolicy.Any)
+            {
+                BattleLogger.Warn(LogTag, $"Parallel group '{group.Id ?? "(no id)"}' uses join '{group.JoinPolicy}'. Only 'Any' is supported in MVP; falling back to sequential execution.");
+                return ExecuteSequentialGroupAsync(group, context, state, cancellationToken);
+            }
+
+            return ExecuteParallelGroupAsync(group, context, state, cancellationToken);
+        }
+
+        private async Task<StepGroupResult> ExecuteSequentialGroupAsync(
+            ActionStepGroup group,
+            StepSchedulerContext context,
+            ExecutionState state,
+            CancellationToken cancellationToken)
+        {
+            for (int i = 0; i < group.Steps.Count; i++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var step = group.Steps[i];
+                var result = await ExecuteStepAsync(step, context, state, cancellationToken, swallowCancellation: false).ConfigureAwait(false);
+
+                if (result.Status == StepRunStatus.Branch)
+                {
+                    return StepGroupResult.Branch(result.BranchTargetId);
+                }
+
+                if (result.Status == StepRunStatus.Abort)
+                {
+                    return StepGroupResult.Abort(result.AbortReason);
+                }
+
+                if (result.Status == StepRunStatus.Failed)
+                {
+                    return StepGroupResult.Abort("StepFailed");
+                }
+            }
+
+            return StepGroupResult.Completed();
+        }
+
+        private async Task<StepGroupResult> ExecuteParallelGroupAsync(
+            ActionStepGroup group,
+            StepSchedulerContext context,
+            ExecutionState state,
+            CancellationToken cancellationToken)
+        {
+            if (group.Steps.Count == 0)
+            {
+                return StepGroupResult.Completed();
+            }
+
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            var tasks = ListPool<Task<StepResult>>.Rent();
+
+            try
+            {
+                for (int i = 0; i < group.Steps.Count; i++)
+                {
+                    tasks.Add(ExecuteStepAsync(group.Steps[i], context, state, linkedCts.Token, swallowCancellation: true));
+                }
+
+                if (tasks.Count == 0)
+                {
+                    return StepGroupResult.Completed();
+                }
+
+                var remaining = new List<Task<StepResult>>(tasks);
+                StepGroupResult aggregate = StepGroupResult.Completed();
+
+                while (remaining.Count > 0)
+                {
+                    var finished = await Task.WhenAny(remaining).ConfigureAwait(false);
+                    remaining.Remove(finished);
+
+                    var result = await finished.ConfigureAwait(false);
+
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        throw new OperationCanceledException(cancellationToken);
+                    }
+
+                    if (aggregate.Status != StepGroupResultStatus.Completed)
+                    {
+                        continue;
+                    }
+
+                    if (result.Status == StepRunStatus.Branch)
+                    {
+                        aggregate = StepGroupResult.Branch(result.BranchTargetId);
+                        linkedCts.Cancel();
+                    }
+                    else if (result.Status == StepRunStatus.Abort)
+                    {
+                        aggregate = StepGroupResult.Abort(result.AbortReason);
+                        linkedCts.Cancel();
+                    }
+                    else if (result.Status == StepRunStatus.Failed)
+                    {
+                        aggregate = StepGroupResult.Abort("StepFailed");
+                        linkedCts.Cancel();
+                    }
+                }
+
+                return aggregate;
+            }
+            finally
+            {
+                foreach (var task in tasks)
+                {
+                    if (!task.IsCompleted)
+                    {
+                        continue;
+                    }
+
+                    try
+                    {
+                        _ = task.Result;
+                    }
+                    catch
+                    {
+                        // logged at step level
+                    }
+                }
+
+                ListPool<Task<StepResult>>.Return(tasks);
+            }
+        }
+
+        private async Task<StepResult> ExecuteStepAsync(
+            ActionStep step,
+            StepSchedulerContext schedulerContext,
+            ExecutionState state,
+            CancellationToken cancellationToken,
+            bool swallowCancellation)
+        {
+            NotifyObservers(o => o.OnStepStarted(step, schedulerContext));
+            var watch = Stopwatch.StartNew();
+            StepResult result = StepResult.Completed;
+
+            try
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (IsSystemStep(step))
+                {
+                    result = ExecuteSystemStep(step, schedulerContext, state);
+                }
+                else if (!TryResolveExecutor(step, out var executor))
+                {
+                    result = StepResult.Skipped;
+                }
+                else
+                {
+                    result = await ExecuteExecutorStepAsync(executor, step, schedulerContext, cancellationToken, swallowCancellation).ConfigureAwait(false);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                if (!swallowCancellation)
+                {
+                    throw;
+                }
+
+                result = StepResult.Abort("Cancelled");
+            }
+            catch (Exception ex)
+            {
+                BattleLogger.Error(LogTag, $"Step '{step.Id ?? "(no id)"}' crashed: {ex}");
+                result = StepResult.Failed;
+            }
+            finally
+            {
+                watch.Stop();
+                NotifyObservers(o => o.OnStepCompleted(new StepExecutionReport(step, MapOutcome(result.Status), watch.Elapsed), schedulerContext));
+            }
+
+            if (result.Status == StepRunStatus.Branch)
+            {
+                BattleLogger.Log(LogTag, $"Step '{step.Id ?? "(no id)"}' branched to '{result.BranchTargetId ?? "(null)"}'.");
+            }
+            else if (result.Status == StepRunStatus.Abort)
+            {
+                BattleLogger.Warn(LogTag, $"Step '{step.Id ?? "(no id)"}' aborted. Reason={result.AbortReason ?? "(null)"}.");
+            }
+
+            return result;
+        }
+
+        private StepResult ExecuteSystemStep(ActionStep step, StepSchedulerContext context, ExecutionState state)
+        {
+            string id = step.ExecutorId ?? string.Empty;
+            switch (id.ToLowerInvariant())
+            {
+                case SystemStepWindowOpen:
+                    HandleWindowOpen(step, context, state);
+                    return StepResult.Completed;
+
+                case SystemStepWindowClose:
+                    HandleWindowClose(step, context, state);
+                    return StepResult.Completed;
+
+                case SystemStepGate:
+                    return HandleGate(step, context, state);
+
+                case SystemStepDamage:
+                    HandleDamage(step, context);
+                    return StepResult.Completed;
+
+                case SystemStepFallback:
+                    return HandleFallback(step, context);
+
+                default:
+                    BattleLogger.Warn(LogTag, $"Unknown system step '{step.ExecutorId}'. Marking as skipped.");
+                    return StepResult.Skipped;
+            }
+        }
+
+        private async Task<StepResult> ExecuteExecutorStepAsync(
+            IActionStepExecutor executor,
+            ActionStep step,
+            StepSchedulerContext schedulerContext,
+            CancellationToken cancellationToken,
+            bool swallowCancellation)
+        {
+            if (!await ResolveConflictAsync(executor.Id, step.ConflictPolicy, cancellationToken).ConfigureAwait(false))
+            {
+                BattleLogger.Log(LogTag, $"Step '{step.Id ?? "(no id)"}' skipped due to conflict policy '{step.ConflictPolicy}'.");
+                return StepResult.Skipped;
+            }
+
+            var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            var context = new StepExecutionContext(schedulerContext, step, linkedCts.Token);
+            var executionTask = RunExecutorAsync(executor, context, linkedCts);
+            RegisterActiveExecution(executor.Id, executionTask, linkedCts);
+
+            try
+            {
+                await executionTask.ConfigureAwait(false);
+                return StepResult.Completed;
+            }
+            catch (OperationCanceledException)
+            {
+                if (!swallowCancellation)
+                {
+                    throw;
+                }
+
+                return StepResult.Abort("Cancelled");
+            }
+            catch (Exception ex)
+            {
+                BattleLogger.Error(LogTag, $"Executor '{executor.Id}' crashed while running step '{step.Id ?? "(no id)"}': {ex}");
+                return StepResult.Failed;
+            }
+            finally
+            {
+                RemoveActiveExecution(executor.Id, executionTask);
+            }
+        }
+
+        private void HandleWindowOpen(ActionStep step, StepSchedulerContext context, ExecutionState state)
+        {
+            var parameters = step.Parameters;
+            if (!TryGetRequired(parameters, "id", out var id))
+            {
+                BattleLogger.Warn(LogTag, "window.open missing 'id'.");
+                return;
+            }
+
+            string tag = parameters.TryGetString("tag", out var tagValue) ? tagValue : id;
+            float start = parameters.TryGetFloat("start", out var s) ? s : parameters.TryGetFloat("startNormalized", out s) ? s : 0f;
+            float end = parameters.TryGetFloat("end", out var e) ? e : parameters.TryGetFloat("endNormalized", out e) ? e : 1f;
+            int index = parameters.TryGetInt("index", out var idx) ? idx : parameters.TryGetInt("windowIndex", out idx) ? idx : 0;
+            int count = parameters.TryGetInt("count", out var cnt) ? cnt : parameters.TryGetInt("windowCount", out cnt) ? cnt : 1;
+            string payload = BuildPayload(parameters, new[] { "id", "tag", "start", "startNormalized", "end", "endNormalized", "index", "windowIndex", "count", "windowCount" });
+
+            state.RegisterWindow(id, new ExecutionState.WindowState(id, tag));
+            context.EventBus?.Publish(new AnimationWindowEvent(context.Actor, tag, payload, start, end, true, index, count));
+        }
+
+        private void HandleWindowClose(ActionStep step, StepSchedulerContext context, ExecutionState state)
+        {
+            var parameters = step.Parameters;
+            if (!TryGetRequired(parameters, "id", out var id))
+            {
+                BattleLogger.Warn(LogTag, "window.close missing 'id'.");
+                return;
+            }
+
+            if (!state.TryRemoveWindow(id, out var window))
+            {
+                BattleLogger.Warn(LogTag, $"window.close('{id}') called but window not open.");
+            }
+
+            string tag = parameters.TryGetString("tag", out var tagValue) ? tagValue : window?.Tag ?? id;
+            float start = parameters.TryGetFloat("start", out var s) ? s : parameters.TryGetFloat("startNormalized", out s) ? s : 0f;
+            float end = parameters.TryGetFloat("end", out var e) ? e : parameters.TryGetFloat("endNormalized", out e) ? e : 1f;
+            int index = parameters.TryGetInt("index", out var idx) ? idx : parameters.TryGetInt("windowIndex", out idx) ? idx : 0;
+            int count = parameters.TryGetInt("count", out var cnt) ? cnt : parameters.TryGetInt("windowCount", out cnt) ? cnt : 1;
+            string payload = BuildPayload(parameters, new[] { "id", "tag", "start", "startNormalized", "end", "endNormalized", "index", "windowIndex", "count", "windowCount" });
+
+            context.EventBus?.Publish(new AnimationWindowEvent(context.Actor, tag, payload, start, end, false, index, count));
+        }
+
+        private StepResult HandleGate(ActionStep step, StepSchedulerContext context, ExecutionState state)
+        {
+            var parameters = step.Parameters;
+            if (!TryGetRequired(parameters, "id", out var id))
+            {
+                BattleLogger.Warn(LogTag, "gate.on missing 'id'.");
+                return StepResult.Failed;
+            }
+
+            string successLabel = parameters.TryGetString("success", out var success) ? success : null;
+            string failLabel = parameters.TryGetString("fail", out var fail) ? fail : null;
+            string timeoutLabel = parameters.TryGetString("timeout", out var timeout) ? timeout : failLabel;
+
+            var judgments = ParseJudgmentList(parameters.TryGetString("successOn", out var list) ? list : null);
+            if (!state.TryGetWindowResult(id, out var hitResult))
+            {
+                if (string.IsNullOrWhiteSpace(timeoutLabel))
+                {
+                    return StepResult.Completed;
+                }
+
+                bool abortOnTimeout = parameters.TryGetBool("abortOnTimeout", out var abortTimeout) && abortTimeout;
+                return abortOnTimeout ? StepResult.Abort("GateTimeout") : StepResult.Branch(timeoutLabel);
+            }
+
+            bool isSuccess = judgments.Contains(hitResult.Judgment);
+            string branchTarget = isSuccess ? successLabel : failLabel;
+
+            if (string.IsNullOrWhiteSpace(branchTarget))
+            {
+                return StepResult.Completed;
+            }
+
+            bool abort =
+                (isSuccess && parameters.TryGetBool("abortOnSuccess", out var abortOnSuccess) && abortOnSuccess) ||
+                (!isSuccess && parameters.TryGetBool("abortOnFail", out var abortOnFail) && abortOnFail);
+
+            if (abort)
+            {
+                return StepResult.Abort(isSuccess ? "GateAbortSuccess" : "GateAbortFail");
+            }
+
+            return StepResult.Branch(branchTarget);
+        }
+
+        private void HandleDamage(ActionStep step, StepSchedulerContext context)
+        {
+            if (!TryGetRequired(step.Parameters, "formula", out var formula))
+            {
+                BattleLogger.Warn(LogTag, "damage.apply missing 'formula'.");
+                return;
+            }
+
+            var evt = new AnimationDamageRequestEvent(
+                context.Actor,
+                context.Request.Selection.Action,
+                context.Request.Targets,
+                formula,
+                step.Parameters.Data);
+
+            context.EventBus?.Publish(evt);
+        }
+
+        private StepResult HandleFallback(ActionStep step, StepSchedulerContext context)
+        {
+            string timelineId = step.Parameters.TryGetString("timelineId", out var timeline) ? timeline : null;
+            string recipeId = step.Parameters.TryGetString("recipeId", out var recipe) ? recipe : null;
+            string reason = step.Parameters.TryGetString("reason", out var r) ? r : "FallbackTriggered";
+
+            if (string.IsNullOrWhiteSpace(timelineId) && string.IsNullOrWhiteSpace(recipeId))
+            {
+                BattleLogger.Warn(LogTag, "fallback step requires 'timelineId' or 'recipeId'.");
+                return StepResult.Failed;
+            }
+
+            context.EventBus?.Publish(new AnimationFallbackRequestedEvent(context.Actor, timelineId, recipeId, reason));
+            return StepResult.Abort(reason);
+        }
+
+        private static bool IsSystemStep(ActionStep step)
+        {
+            string id = step.ExecutorId ?? string.Empty;
+            switch (id.ToLowerInvariant())
+            {
+                case SystemStepWindowOpen:
+                case SystemStepWindowClose:
+                case SystemStepGate:
+                case SystemStepDamage:
+                case SystemStepFallback:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        private static StepExecutionOutcome MapOutcome(StepRunStatus status)
+        {
+            return status switch
+            {
+                StepRunStatus.Completed => StepExecutionOutcome.Completed,
+                StepRunStatus.Branch => StepExecutionOutcome.Branch,
+                StepRunStatus.Skipped => StepExecutionOutcome.Skipped,
+                StepRunStatus.Abort => StepExecutionOutcome.Cancelled,
+                StepRunStatus.Failed => StepExecutionOutcome.Faulted,
+                _ => StepExecutionOutcome.Completed
+            };
+        }
+
+        private static string BuildPayload(ActionStepParameters parameters, IEnumerable<string> excludedKeys)
+        {
+            var excluded = new HashSet<string>(excludedKeys ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
+            var list = new List<string>();
+
+            if (!parameters.IsEmpty)
+            {
+                foreach (var kv in parameters.Data)
+                {
+                    if (excluded.Contains(kv.Key))
+                    {
+                        continue;
+                    }
+
+                    if (string.IsNullOrWhiteSpace(kv.Key) || string.IsNullOrWhiteSpace(kv.Value))
+                    {
+                        continue;
+                    }
+
+                    list.Add($"{kv.Key}={kv.Value}");
+                }
+            }
+
+            return list.Count == 0 ? string.Empty : string.Join(";", list);
+        }
+
+        private static bool TryGetRequired(ActionStepParameters parameters, string key, out string value)
+        {
+            if (parameters.TryGetString(key, out value) && !string.IsNullOrWhiteSpace(value))
+            {
+                return true;
+            }
+
+            value = null;
+            return false;
+        }
+
+        private static HashSet<TimedHitJudgment> ParseJudgmentList(string csv)
+        {
+            if (string.IsNullOrWhiteSpace(csv))
+            {
+                return new HashSet<TimedHitJudgment>(DefaultSuccessJudgments);
+            }
+
+            var set = new HashSet<TimedHitJudgment>();
+            var tokens = csv.Split(',');
+            for (int i = 0; i < tokens.Length; i++)
+            {
+                var token = tokens[i].Trim();
+                if (Enum.TryParse<TimedHitJudgment>(token, true, out var judgment))
+                {
+                    set.Add(judgment);
+                }
+            }
+
+            if (set.Count == 0)
+            {
+                return new HashSet<TimedHitJudgment>(DefaultSuccessJudgments);
+            }
+
+            return set;
         }
 
         private bool TryResolveExecutor(in ActionStep step, out IActionStepExecutor executor)
@@ -225,42 +713,6 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
             }
 
             return true;
-        }
-
-        private async Task ExecuteStepAsync(IActionStepExecutor executor, ActionStep step, StepSchedulerContext schedulerContext, CancellationToken cancellationToken)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            if (!await ResolveConflictAsync(executor.Id, step.ConflictPolicy, cancellationToken).ConfigureAwait(false))
-            {
-                BattleLogger.Log(LogTag, $"Step '{step.Id ?? "(no id)"}' skipped due to conflict policy '{step.ConflictPolicy}'.");
-                NotifyObservers(o => o.OnStepCompleted(new StepExecutionReport(step, StepExecutionOutcome.Skipped, TimeSpan.Zero), schedulerContext));
-                return;
-            }
-
-            var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            var context = new StepExecutionContext(schedulerContext, step, linkedCts.Token);
-
-            var executionTask = RunExecutorAsync(executor, context, linkedCts);
-            RegisterActiveExecution(executor.Id, executionTask, linkedCts);
-            var stopwatch = Stopwatch.StartNew();
-
-            try
-            {
-                await executionTask.ConfigureAwait(false);
-                stopwatch.Stop();
-                NotifyObservers(o => o.OnStepCompleted(new StepExecutionReport(step, StepExecutionOutcome.Completed, stopwatch.Elapsed), schedulerContext));
-            }
-            catch (OperationCanceledException)
-            {
-                stopwatch.Stop();
-                NotifyObservers(o => o.OnStepCompleted(new StepExecutionReport(step, StepExecutionOutcome.Cancelled, stopwatch.Elapsed), schedulerContext));
-                throw;
-            }
-            finally
-            {
-                RemoveActiveExecution(executor.Id, executionTask);
-            }
         }
 
         private async Task<bool> ResolveConflictAsync(string executorId, StepConflictPolicy policy, CancellationToken cancellationToken)
@@ -287,7 +739,6 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
                     }
                     catch (OperationCanceledException)
                     {
-                        // Expected when the previous step observes cancellation.
                     }
                     catch (Exception ex)
                     {
@@ -302,7 +753,6 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
                     }
                     catch (OperationCanceledException)
                     {
-                        // Previous step was cancelled; continue.
                     }
                     return true;
 
@@ -330,14 +780,6 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
                 }
 
                 await executor.ExecuteAsync(context).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException) when (context.CancellationToken.IsCancellationRequested)
-            {
-                // Swallow expected cancellation.
-            }
-            catch (Exception ex)
-            {
-                BattleLogger.Error(LogTag, $"Executor '{executor.Id}' crashed while running step '{context.Step.Id ?? "(no id)"}': {ex}");
             }
             finally
             {
@@ -376,6 +818,204 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
             public CancellationTokenSource Cancellation { get; }
         }
 
+        private enum StepRunStatus
+        {
+            Completed,
+            Skipped,
+            Failed,
+            Branch,
+            Abort
+        }
+
+        private enum StepGroupResultStatus
+        {
+            Completed,
+            Branch,
+            Abort
+        }
+
+        private readonly struct StepResult
+        {
+            private StepResult(StepRunStatus status, string branchTargetId, string abortReason)
+            {
+                Status = status;
+                BranchTargetId = branchTargetId;
+                AbortReason = abortReason;
+            }
+
+            public StepRunStatus Status { get; }
+            public string BranchTargetId { get; }
+            public string AbortReason { get; }
+
+            public static StepResult Completed => new(StepRunStatus.Completed, null, null);
+            public static StepResult Skipped => new(StepRunStatus.Skipped, null, null);
+            public static StepResult Failed => new(StepRunStatus.Failed, null, null);
+            public static StepResult Branch(string targetId) => new(StepRunStatus.Branch, targetId, null);
+            public static StepResult Abort(string reason) => new(StepRunStatus.Abort, null, reason);
+        }
+
+        private readonly struct StepGroupResult
+        {
+            private StepGroupResult(StepGroupResultStatus status, string branchTargetId, string abortReason)
+            {
+                Status = status;
+                BranchTargetId = branchTargetId;
+                AbortReason = abortReason;
+            }
+
+            public StepGroupResultStatus Status { get; }
+            public string BranchTargetId { get; }
+            public string AbortReason { get; }
+
+            public static StepGroupResult Completed() => new(StepGroupResultStatus.Completed, null, null);
+            public static StepGroupResult Branch(string targetId) => new(StepGroupResultStatus.Branch, targetId, null);
+            public static StepGroupResult Abort(string reason) => new(StepGroupResultStatus.Abort, null, reason);
+        }
+
+        private sealed class ExecutionState : IDisposable
+        {
+            private readonly Dictionary<string, WindowState> openWindows = new(StringComparer.OrdinalIgnoreCase);
+            private readonly Dictionary<string, TimedHitResultEvent> windowResults = new(StringComparer.OrdinalIgnoreCase);
+            private readonly Dictionary<string, int> groupLookup = new(StringComparer.OrdinalIgnoreCase);
+            private readonly List<IDisposable> subscriptions = new();
+            private readonly StepSchedulerContext context;
+            private readonly ActionRecipe recipe;
+
+            public ExecutionState(ActionRecipe recipe, StepSchedulerContext context)
+            {
+                this.recipe = recipe ?? throw new ArgumentNullException(nameof(recipe));
+                this.context = context;
+
+                if (recipe.Groups != null)
+                {
+                    for (int i = 0; i < recipe.Groups.Count; i++)
+                    {
+                        var id = recipe.Groups[i].Id;
+                        if (!string.IsNullOrWhiteSpace(id) && !groupLookup.ContainsKey(id))
+                        {
+                            groupLookup[id] = i;
+                        }
+                    }
+                }
+            }
+
+            public bool AbortRequested { get; private set; }
+
+            public void Initialize()
+            {
+                if (context.EventBus != null)
+                {
+                    subscriptions.Add(context.EventBus.Subscribe<TimedHitResultEvent>(OnTimedHitResult));
+                }
+            }
+
+            public void RequestAbort(string reason)
+            {
+                AbortRequested = true;
+                BattleLogger.Warn(LogTag, $"Recipe '{recipe.Id}' aborted. Reason={reason ?? "(null)"}");
+            }
+
+            public bool TryGetGroupIndex(string id, out int index)
+            {
+                if (string.IsNullOrWhiteSpace(id))
+                {
+                    index = -1;
+                    return false;
+                }
+
+                return groupLookup.TryGetValue(id, out index);
+            }
+
+            public void RegisterWindow(string id, WindowState window)
+            {
+                if (string.IsNullOrWhiteSpace(id) || window == null)
+                {
+                    return;
+                }
+
+                openWindows[id] = window;
+            }
+
+            public bool TryRemoveWindow(string id, out WindowState window)
+            {
+                if (string.IsNullOrWhiteSpace(id))
+                {
+                    window = null;
+                    return false;
+                }
+
+                return openWindows.Remove(id, out window);
+            }
+
+            public bool TryGetWindowResult(string id, out TimedHitResultEvent result)
+            {
+                if (string.IsNullOrWhiteSpace(id))
+                {
+                    result = default;
+                    return false;
+                }
+
+                return windowResults.Remove(id, out result);
+            }
+
+            public void ImmediateCleanup()
+            {
+                CleanupWindows();
+            }
+
+            private void OnTimedHitResult(TimedHitResultEvent evt)
+            {
+                if (evt.Actor != context.Actor)
+                {
+                    return;
+                }
+
+                windowResults[evt.Tag] = evt;
+            }
+
+            public void Dispose()
+            {
+                CleanupWindows();
+
+                for (int i = 0; i < subscriptions.Count; i++)
+                {
+                    subscriptions[i]?.Dispose();
+                }
+
+                subscriptions.Clear();
+
+                if (context.TimedHitService != null && context.Actor != null)
+                {
+                    context.TimedHitService.Reset(context.Actor);
+                }
+            }
+
+            private void CleanupWindows()
+            {
+                if (context.EventBus != null)
+                {
+                    foreach (var window in openWindows.Values)
+                    {
+                        context.EventBus.Publish(new AnimationWindowEvent(context.Actor, window.Tag, string.Empty, 0f, 0f, false, 0, 0));
+                    }
+                }
+
+                openWindows.Clear();
+            }
+
+            public sealed class WindowState
+            {
+                public WindowState(string id, string tag)
+                {
+                    Id = id;
+                    Tag = tag;
+                }
+
+                public string Id { get; }
+                public string Tag { get; }
+            }
+        }
+
         private void NotifyObservers(Action<IStepSchedulerObserver> notify)
         {
             if (notify == null)
@@ -391,7 +1031,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
                     return;
                 }
 
-               snapshot = observers.ToArray();
+                snapshot = observers.ToArray();
             }
 
             for (int i = 0; i < snapshot.Length; i++)
@@ -437,5 +1077,6 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
             }
         }
     }
+
 }
 

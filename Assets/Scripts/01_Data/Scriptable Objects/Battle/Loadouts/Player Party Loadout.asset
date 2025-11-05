@@ -13,9 +13,6 @@ MonoBehaviour:
   m_Name: Player Party Loadout
   m_EditorClassIdentifier: Assembly-CSharp::BattleV2.Orchestration.PlayerPartyLoadout
   members:
-  - prefab: {fileID: 2209887660875536834, guid: 39d03d2bcaaa9234e89844c9eb4c290c, type: 3}
-    spawnOffset: {x: 0, y: 0, z: 0}
-    dropTable: {fileID: 0}
   - prefab: {fileID: 2209887660875536834, guid: 98ac496b13a25bc449f9648f0a3a3d4b, type: 3}
     spawnOffset: {x: 0, y: 0, z: 0}
     dropTable: {fileID: 0}

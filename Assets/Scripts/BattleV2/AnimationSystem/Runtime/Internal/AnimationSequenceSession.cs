@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
+using BattleV2.AnimationSystem;
 using BattleV2.AnimationSystem.Execution;
 using BattleV2.AnimationSystem.Execution.Routers;
 using BattleV2.AnimationSystem.Execution.Runtime;
@@ -22,6 +23,8 @@ namespace BattleV2.AnimationSystem.Runtime.Internal
         private readonly AnimationClipResolver clipResolver;
         private readonly AnimationRouterBundle routerBundle;
         private readonly StepScheduler stepScheduler;
+        private readonly IAnimationEventBus eventBus;
+        private readonly ITimedHitService timedHitService;
 
         private readonly TaskCompletionSource<bool> completion;
         private CancellationTokenRegistration cancellationRegistration;
@@ -42,7 +45,9 @@ namespace BattleV2.AnimationSystem.Runtime.Internal
             IAnimationWrapper wrapper,
             AnimationClipResolver clipResolver,
             AnimationRouterBundle routerBundle,
-            StepScheduler stepScheduler)
+            StepScheduler stepScheduler,
+            IAnimationEventBus eventBus,
+            ITimedHitService timedHitService)
         {
             if (request.Actor == null)
             {
@@ -54,6 +59,8 @@ namespace BattleV2.AnimationSystem.Runtime.Internal
             if (clipResolver == null) throw new ArgumentNullException(nameof(clipResolver));
             if (routerBundle == null) throw new ArgumentNullException(nameof(routerBundle));
             if (stepScheduler == null) throw new ArgumentNullException(nameof(stepScheduler));
+            if (eventBus == null) throw new ArgumentNullException(nameof(eventBus));
+            if (timedHitService == null) throw new ArgumentNullException(nameof(timedHitService));
 
             this.request = request;
             this.timeline = timeline;
@@ -62,6 +69,8 @@ namespace BattleV2.AnimationSystem.Runtime.Internal
             this.clipResolver = clipResolver;
             this.routerBundle = routerBundle;
             this.stepScheduler = stepScheduler;
+            this.eventBus = eventBus;
+            this.timedHitService = timedHitService;
 
             completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             sequencerLockReason = string.IsNullOrWhiteSpace(timeline.ActionId)
@@ -281,7 +290,7 @@ namespace BattleV2.AnimationSystem.Runtime.Internal
                 return false;
             }
 
-            var context = new StepSchedulerContext(request, timeline, wrapper, bindingResolver, routerBundle);
+            var context = new StepSchedulerContext(request, timeline, wrapper, bindingResolver, routerBundle, eventBus, timedHitService);
             var localCts = schedulerCts;
             schedulerTask = stepScheduler.ExecuteAsync(recipe, context, localCts.Token);
             schedulerTask.ContinueWith(t =>
@@ -450,10 +459,12 @@ namespace BattleV2.AnimationSystem.Runtime.Internal
             }
 
             StepConflictPolicy conflictPolicy = StepConflictPolicy.WaitForCompletion;
+            bool conflictPolicyExplicit = false;
             if (parameters.TryGetValue("conflict", out var conflictValue) &&
                 Enum.TryParse(conflictValue, true, out StepConflictPolicy parsedPolicy))
             {
                 conflictPolicy = parsedPolicy;
+                conflictPolicyExplicit = true;
                 parameters.Remove("conflict");
             }
 
@@ -466,7 +477,7 @@ namespace BattleV2.AnimationSystem.Runtime.Internal
             }
 
             var actionParameters = new ActionStepParameters(parameters);
-            step = new ActionStep(executorId, bindingId, actionParameters, conflictPolicy, stepId, delay);
+            step = new ActionStep(executorId, bindingId, actionParameters, conflictPolicy, stepId, delay, conflictPolicyExplicit);
             return true;
         }
     }

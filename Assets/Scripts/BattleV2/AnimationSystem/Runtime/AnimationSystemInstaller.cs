@@ -97,6 +97,7 @@ namespace BattleV2.AnimationSystem.Runtime
                 timelineCatalog,
                 lockManager,
                 eventBus,
+                timedHitService,
                 wrapperResolver,
                 clipResolver,
                 routerBundle,

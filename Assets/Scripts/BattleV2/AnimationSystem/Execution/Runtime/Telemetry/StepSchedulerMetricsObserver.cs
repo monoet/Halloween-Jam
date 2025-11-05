@@ -10,11 +10,13 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Telemetry
         private int totalStepsExecuted;
         private int totalStepsSkipped;
         private int totalStepsCancelled;
+        private int totalStepsBranched;
 
         public IReadOnlyDictionary<string, RecipeMetrics> RecipeMetrics => recipeMetrics;
         public int TotalStepsExecuted => totalStepsExecuted;
         public int TotalStepsSkipped => totalStepsSkipped;
         public int TotalStepsCancelled => totalStepsCancelled;
+        public int TotalStepsBranched => totalStepsBranched;
 
         public void OnRecipeStarted(ActionRecipe recipe, StepSchedulerContext context)
         {
@@ -50,11 +52,20 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Telemetry
             // No aggregated metrics yet per group.
         }
 
+        public void OnStepStarted(ActionStep step, StepSchedulerContext context)
+        {
+            // Metrics do not currently track step start events.
+        }
+
         public void OnStepCompleted(StepExecutionReport report, StepSchedulerContext context)
         {
             switch (report.Outcome)
             {
                 case StepExecutionOutcome.Completed:
+                    totalStepsExecuted++;
+                    break;
+                case StepExecutionOutcome.Branch:
+                    totalStepsBranched++;
                     totalStepsExecuted++;
                     break;
                 case StepExecutionOutcome.Skipped:
@@ -68,7 +79,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Telemetry
 
         public StepSchedulerMetricsSnapshot CreateSnapshot()
         {
-            return new StepSchedulerMetricsSnapshot(totalStepsExecuted, totalStepsSkipped, totalStepsCancelled, recipeMetrics);
+            return new StepSchedulerMetricsSnapshot(totalStepsExecuted, totalStepsSkipped, totalStepsCancelled, totalStepsBranched, recipeMetrics);
         }
     }
 
@@ -111,11 +122,13 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Telemetry
             int executed,
             int skipped,
             int cancelled,
+            int branched,
             IReadOnlyDictionary<string, RecipeMetrics> recipeMetrics)
         {
             ExecutedSteps = executed;
             SkippedSteps = skipped;
             CancelledSteps = cancelled;
+            BranchedSteps = branched;
             RecipeMetrics = recipeMetrics != null
                 ? new Dictionary<string, RecipeMetrics>(recipeMetrics)
                 : new Dictionary<string, RecipeMetrics>();
@@ -124,6 +137,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Telemetry
         public int ExecutedSteps { get; }
         public int SkippedSteps { get; }
         public int CancelledSteps { get; }
+        public int BranchedSteps { get; }
         public IReadOnlyDictionary<string, RecipeMetrics> RecipeMetrics { get; }
     }
 }

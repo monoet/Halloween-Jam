@@ -185,6 +185,73 @@ namespace BattleV2.AnimationSystem
         public string Reason { get; }
     }
 
+    public readonly struct AnimationDamageRequestEvent
+    {
+        public AnimationDamageRequestEvent(
+            CombatantState actor,
+            BattleActionData action,
+            IReadOnlyList<CombatantState> targets,
+            string formulaId,
+            IReadOnlyDictionary<string, string> parameters)
+        {
+            Actor = actor;
+            Action = action;
+            Targets = targets ?? Array.Empty<CombatantState>();
+            FormulaId = formulaId ?? string.Empty;
+            Parameters = parameters ?? EmptyParameters.Instance;
+        }
+
+        public CombatantState Actor { get; }
+        public BattleActionData Action { get; }
+        public IReadOnlyList<CombatantState> Targets { get; }
+        public string FormulaId { get; }
+        public IReadOnlyDictionary<string, string> Parameters { get; }
+
+        private sealed class EmptyParameters : IReadOnlyDictionary<string, string>
+        {
+            public static readonly EmptyParameters Instance = new EmptyParameters();
+
+            public IEnumerator<KeyValuePair<string, string>> GetEnumerator()
+            {
+                yield break;
+            }
+
+            System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+
+            public int Count => 0;
+            public bool ContainsKey(string key) => false;
+            public bool TryGetValue(string key, out string value)
+            {
+                value = null;
+                return false;
+            }
+
+            public string this[string key] => null;
+            public IEnumerable<string> Keys => Array.Empty<string>();
+            public IEnumerable<string> Values => Array.Empty<string>();
+        }
+    }
+
+    public readonly struct AnimationFallbackRequestedEvent
+    {
+        public AnimationFallbackRequestedEvent(
+            CombatantState actor,
+            string timelineId,
+            string recipeId,
+            string reason)
+        {
+            Actor = actor;
+            TimelineId = timelineId ?? string.Empty;
+            RecipeId = recipeId ?? string.Empty;
+            Reason = reason ?? string.Empty;
+        }
+
+        public CombatantState Actor { get; }
+        public string TimelineId { get; }
+        public string RecipeId { get; }
+        public string Reason { get; }
+    }
+
     public enum TimedHitJudgment
     {
         Perfect,

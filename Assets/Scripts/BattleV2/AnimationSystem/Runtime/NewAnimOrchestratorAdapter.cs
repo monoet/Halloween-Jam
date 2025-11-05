@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using BattleV2.AnimationSystem;
 using BattleV2.AnimationSystem.Catalog;
 using BattleV2.AnimationSystem.Execution;
 using BattleV2.AnimationSystem.Execution.Routers;
@@ -27,6 +28,8 @@ namespace BattleV2.AnimationSystem.Runtime
         private readonly AnimationClipResolver clipResolver;
         private readonly AnimationRouterBundle routerBundle;
         private readonly StepScheduler stepScheduler;
+        private readonly IAnimationEventBus eventBus;
+        private readonly ITimedHitService timedHitService;
         private readonly AnimatorRegistry registry;
         private readonly Dictionary<CombatantState, AnimationSequenceSession> activeSessions = new();
         private readonly Dictionary<CombatantState, IAnimationWrapper> legacyAdapters = new();
@@ -39,6 +42,7 @@ namespace BattleV2.AnimationSystem.Runtime
             ActionTimelineCatalog timelineCatalog,
             IActionLockManager lockManager,
             IAnimationEventBus eventBus,
+            ITimedHitService timedHitService,
             AnimatorWrapperResolver wrapperResolver,
             AnimationClipResolver clipResolver,
             AnimationRouterBundle routerBundle,
@@ -49,7 +53,8 @@ namespace BattleV2.AnimationSystem.Runtime
             this.sequencerDriver = sequencerDriver ?? throw new ArgumentNullException(nameof(sequencerDriver));
             this.timelineCatalog = timelineCatalog ?? throw new ArgumentNullException(nameof(timelineCatalog));
             _ = lockManager ?? throw new ArgumentNullException(nameof(lockManager));
-            _ = eventBus ?? throw new ArgumentNullException(nameof(eventBus));
+            this.eventBus = eventBus ?? throw new ArgumentNullException(nameof(eventBus));
+            this.timedHitService = timedHitService ?? throw new ArgumentNullException(nameof(timedHitService));
             this.wrapperResolver = wrapperResolver ?? throw new ArgumentNullException(nameof(wrapperResolver));
             this.clipResolver = clipResolver ?? throw new ArgumentNullException(nameof(clipResolver));
             this.routerBundle = routerBundle ?? throw new ArgumentNullException(nameof(routerBundle));
@@ -151,7 +156,9 @@ namespace BattleV2.AnimationSystem.Runtime
                 wrapper,
                 clipResolver,
                 routerBundle,
-                stepScheduler);
+                stepScheduler,
+                eventBus,
+                timedHitService);
 
             activeSessions[request.Actor] = session;
             try

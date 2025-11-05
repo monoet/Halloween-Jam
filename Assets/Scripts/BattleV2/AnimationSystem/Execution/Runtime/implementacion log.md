@@ -1,0 +1,41 @@
+﻿# StepScheduler MVP Hand-off
+
+## Context
+- Goal: deliver a lean runtime that can execute ActionRecipes for the pilot "BasicAttack_KS_Light" while we stand up the authoring surface.
+- Legacy AnimationSequenceSession now routes payloads that include recipes/steps through the StepScheduler, keeping classic clip playback untouched.
+- Event bus + timed-hit services are already injected so window/gate flow can raise gameplay events.
+
+## Current Runtime State
+- Sequential execution: no change from the baseline; steps run in order with conflict policies.
+- Parallel execution (join = Any only): waits for the first Branch/Abort/Failure, cancels siblings, and honours group-level cancellation.
+- System steps supported: `window.open`, `window.close`, `gate.on`, `damage.apply`, `fallback` (emits `AnimationFallbackRequestedEvent`).
+- Conflict defaults: evaluator enforces `WaitForCompletion` vs `SkipIfRunning` based on requested policy; MVP assumes animator/tween register those policies on the recipe side.
+- Observability: `IStepSchedulerObserver` now sees `OnStepStarted` and receives outcome `Branch`; scheduler logs Branch target and Abort reason, metrics observer counts branched/cancelled/skipped.
+- Cleanup: `ExecutionState.ImmediateCleanup()` closes open windows immediately when a group aborts before the final dispose.
+
+## Gaps / Next Steps
+1. **Telemetry polish**
+   - Extend observers to surface branch targets and abort reasons explicitly (currently only logged).
+   - Capture parallel group timeout/cancellation counts.
+2. **Validation tooling**
+   - Recipe validator should flag unmatched window open/close, unsupported join policies, and required conflict defaults.
+3. **Authoring / Builder**
+   - Build an ActionTimeline builder (asset + importer) that produces `ActionRecipe` instances from timeline data.
+   - Seed catalog with `BasicAttack_KS_Light`, `BasicAttack_KS_Success`, `BasicAttack_Mediocre`, `UseItem`.
+4. **Gameplay integration**
+   - Subscribe battle systems to `AnimationDamageRequestEvent` and `AnimationFallbackRequestedEvent`.
+   - Define fallback policy (timeline vs recipe) in the orchestrator when the event fires.
+5. **Refactor / cleanup**
+   - Split StepScheduler into façade + helpers (e.g., `ParallelGroupRunner`, `SystemStepRunner`, `ExecutionState`).
+   - Move event definitions to a shared location (e.g., `AnimationEventBus`) once fallback handling is wired.
+
+## Definition of Done for the Pilot
+- BasicAttack_KS_Light plays clip + tween in parallel; window opens/closes correctly.
+- `gate.on` branches to success/fail recipes, with Abort causing immediate cleanup and fallback dispatch.
+- Metrics observer reports executed/skipped/branched/cancelled counts; logs show branch targets and abort reasons.
+- No dangling windows or timed-hit locks after abort or cancellation.
+
+## Suggested Workflow for the Next Iteration
+1. Finish telemetry observer updates (branch target, abort reason) and wire a lightweight validator pass.
+2. Extract builder layer for ActionTimeline assets and connect pilot recipes.
+3. Revisit StepScheduler structure to reduce file size once tests pass for the MVP path.

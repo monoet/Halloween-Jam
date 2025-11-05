@@ -13,9 +13,8 @@ GameObject:
   - component: {fileID: 3868530006061863476}
   - component: {fileID: 6900589994264770311}
   - component: {fileID: 4547551006955442222}
-  - component: {fileID: 4476092375838962311}
   - component: {fileID: 3880240336937654642}
-  - component: {fileID: 7111068164001014537}
+  - component: {fileID: 2403949855969705108}
   m_Layer: 0
   m_Name: Ciro
   m_TagString: Untagged
@@ -195,45 +194,6 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   enableDebugLogs: 0
---- !u!114 &4476092375838962311
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2209887660875536834}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2429a782707d87745a52da86b7a6a168, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  modelRoot: {fileID: 5914491807628125836}
-  spriteRenderer: {fileID: 3604114383740727844}
-  enemyRoot: {fileID: 0}
-  enemySprite: {fileID: 0}
-  audioSource: {fileID: 0}
-  chargeSfx: {fileID: 0}
-  slashSfx: {fileID: 8300000, guid: 1eb2f50c0e00e764989d4a3ea785cfeb, type: 3}
-  settleSfx: {fileID: 0}
-  backStepDistance: 0.3
-  backStepDuration: 0.125
-  chargeHoldDuration: 0.1
-  lungeDistance: 1.2
-  lungeDuration: 0.333
-  recoverDuration: 0.02
-  enemyKnockbackDistance: 1
-  enemyKnockbackDuration: 0.3
-  enemyHitColor: {r: 1, g: 0, b: 0, a: 1}
-  glowLoopDuration: 0.25
-  glowLoops: 4
-  glowRecoverDuration: 0.3
-  glowChargeIntensity: 1.5
-  cameraTransform: {fileID: 0}
-  cameraShakeDuration: 0.1
-  cameraShakeStrength: 0.2
-  autoPlayOnStart: 0
-  enableDebugLogs: 1
-  showTimingOverlay: 0
 --- !u!114 &3880240336937654642
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -253,7 +213,7 @@ MonoBehaviour:
   - {fileID: 0}
   attackStrategy: {fileID: 11400000, guid: 04c831de83be67c41b3e574193b3742b, type: 2}
   initializeOnAwake: 1
---- !u!114 &7111068164001014537
+--- !u!114 &2403949855969705108
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -262,13 +222,16 @@ MonoBehaviour:
   m_GameObject: {fileID: 2209887660875536834}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8448065db93cd6d4dbfd313e44a7a6ee, type: 3}
+  m_Script: {fileID: 11500000, guid: 4409179532fc584458b64fc9601c0511, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BattleV2.Anim.BattleAnimationController
-  profile: {fileID: 0}
-  root: {fileID: 5914491807628125836}
-  directionMultiplier: 1
-  spriteFlashRenderer: {fileID: 0}
-  meshFlashRenderer: {fileID: 0}
-  flashMaterialProperty: _Color
-  flashColor: {r: 0.9622642, g: 0.9622642, b: 0.9622642, a: 1}
+  m_EditorClassIdentifier: Assembly-CSharp::BattleV2.Orchestration.Runtime.AnimatorWrapper
+  animator: {fileID: 3868530006061863476}
+  spriteRenderer: {fileID: 3604114383740727844}
+  animatedRoot: {fileID: 5914491807628125836}
+  animationSet: {fileID: 11400000, guid: ab87af0db41fc8642ad2869694052716, type: 2}
+  combatantIdOverride: 
+  autoRegister: 1
+  logPlayback: 0
+  onAnimationEvent:
+    m_PersistentCalls:
+      m_Calls: []
