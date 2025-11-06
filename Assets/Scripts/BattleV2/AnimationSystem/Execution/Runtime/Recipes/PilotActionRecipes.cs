@@ -4,7 +4,7 @@ using BattleV2.AnimationSystem.Execution.Runtime.Executors;
 
 namespace BattleV2.AnimationSystem.Execution.Runtime.Recipes
 {
-    internal static class PilotActionRecipes
+    public static class PilotActionRecipes
     {
         public const string BasicAttackLightId = "BasicAttack_KS_Light";
         public const string BasicAttackSuccessId = "BasicAttack_KS_Success";
