@@ -93,27 +93,32 @@ namespace BattleV2.AnimationSystem.Runtime
 
             var selection = request.Selection;
             var action = selection.Action;
+            var overrideRecipeId = !string.IsNullOrWhiteSpace(request.RecipeOverride)
+                ? request.RecipeOverride
+                : selection.AnimationRecipeId;
+            var actionId = !string.IsNullOrWhiteSpace(overrideRecipeId)
+                ? overrideRecipeId
+                : action?.id;
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-            Debug.Log($"[AnimAdapter] PlayAsync request for action '{action?.id ?? "(null)"}' (actor={request.Actor.name})");
+            Debug.Log($"[AnimAdapter] PlayAsync request for action '{actionId ?? "(null)"}' (actor={request.Actor.name})");
 #endif
 
-            if (timelineCatalog == null || action == null)
+            if (string.IsNullOrWhiteSpace(actionId))
             {
-                BattleLogger.Warn("AnimAdapter", $"Missing catalog or action for request '{action?.id ?? "(null)"}'.");
+                BattleLogger.Warn("AnimAdapter", "PlayAsync request missing action and recipe id. Aborting.");
                 return;
             }
 
             ActionRecipe recipe = null;
-            var actionId = action.id;
             var hasRecipe = !string.IsNullOrWhiteSpace(actionId) &&
                             ((recipeCatalog != null && recipeCatalog.TryGet(actionId, out recipe)) ||
                              stepScheduler.TryGetRecipe(actionId, out recipe));
 
             ActionTimeline timeline = null;
-            if (timelineCatalog != null && !string.IsNullOrWhiteSpace(actionId))
+            if (timelineCatalog != null && action != null && !string.IsNullOrWhiteSpace(action.id))
             {
-                timeline = timelineCatalog.GetTimelineOrDefault(actionId);
+                timeline = timelineCatalog.GetTimelineOrDefault(action.id);
             }
 
             if (!hasRecipe && timeline == null)

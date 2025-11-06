@@ -36,6 +36,7 @@ namespace BattleV2.Orchestration
         [Header("Animation System")]
         [SerializeField] private AnimationSystemInstaller animationSystemInstaller;
         [SerializeField] private bool useAnimationSystemInstaller = false;
+        [SerializeField] private string playerTurnIntroRecipeId = "spotlight_intro";
 
         [Header("Timing")]
         [SerializeField] private BattleTimingConfig timingConfig;
@@ -626,7 +627,7 @@ namespace BattleV2.Orchestration
             OnPlayerActionSelected?.Invoke(enrichedSelection, cpBefore);
 
             var playbackTask = animOrchestrator != null
-                ? animOrchestrator.PlayAsync(new ActionPlaybackRequest(currentPlayer, enrichedSelection, targets, CalculateAverageSpeed(), TimedHitRunner))
+                ? animOrchestrator.PlayAsync(new ActionPlaybackRequest(currentPlayer, enrichedSelection, targets, CalculateAverageSpeed(), TimedHitRunner, enrichedSelection.AnimationRecipeId))
                 : Task.CompletedTask;
 
             state?.Set(BattleState.Resolving);
@@ -723,6 +724,7 @@ namespace BattleV2.Orchestration
             if (IsAlly(actor))
             {
                 state?.Set(BattleState.AwaitingAction);
+                await PlayTurnIntroAsync(actor);
                 RequestPlayerAction();
             }
             else
@@ -763,6 +765,37 @@ namespace BattleV2.Orchestration
                     total += combatant.FinalStats.Speed;
                     count++;
                 }
+            }
+        }
+
+        private async Task PlayTurnIntroAsync(CombatantState actor)
+        {
+            if (animOrchestrator == null || string.IsNullOrWhiteSpace(playerTurnIntroRecipeId) || actor == null)
+            {
+                return;
+            }
+
+            var introSelection = new BattleSelection(
+                action: null,
+                animationRecipeId: playerTurnIntroRecipeId);
+
+            try
+            {
+                await animOrchestrator.PlayAsync(new ActionPlaybackRequest(
+                    actor,
+                    introSelection,
+                    Array.Empty<CombatantState>(),
+                    CalculateAverageSpeed(),
+                    TimedHitRunner,
+                    playerTurnIntroRecipeId)).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                // Turn was cancelled; nothing else to do.
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[BattleManagerV2] Turn intro recipe '{playerTurnIntroRecipeId}' failed: {ex}", this);
             }
         }
 

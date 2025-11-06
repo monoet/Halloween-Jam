@@ -29,7 +29,8 @@ namespace BattleV2.AnimationSystem
             BattleSelection selection,
             IReadOnlyList<CombatantState> targets,
             float averageSpeed,
-            ITimedHitRunner timedHitRunner = null)
+            ITimedHitRunner timedHitRunner = null,
+            string recipeOverride = null)
         {
             Actor = actor;
             Selection = selection;
@@ -37,14 +38,16 @@ namespace BattleV2.AnimationSystem
             AverageSpeed = averageSpeed <= 0f ? 1f : averageSpeed;
             ActorSpeed = actor != null ? actor.FinalStats.Speed : 1f;
             TimedHitRunner = timedHitRunner;
+            RecipeOverride = recipeOverride;
         }
 
         public AnimationRequest(
             CombatantState actor,
             BattleSelection selection,
             IReadOnlyList<CombatantState> targets,
-            ITimedHitRunner timedHitRunner = null)
-            : this(actor, selection, targets, 1f, timedHitRunner)
+            ITimedHitRunner timedHitRunner = null,
+            string recipeOverride = null)
+            : this(actor, selection, targets, 1f, timedHitRunner, recipeOverride)
         {
         }
 
@@ -54,5 +57,6 @@ namespace BattleV2.AnimationSystem
         public float AverageSpeed { get; }
         public float ActorSpeed { get; }
         public ITimedHitRunner TimedHitRunner { get; }
+        public string RecipeOverride { get; }
     }
 }
