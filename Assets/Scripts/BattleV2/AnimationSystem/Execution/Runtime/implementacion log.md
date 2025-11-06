@@ -10,10 +10,17 @@
 - Parallel execution (join = Any only): waits for the first Branch/Abort/Failure, cancels siblings, and honours group-level cancellation.
 - System steps supported: `window.open`, `window.close`, `gate.on`, `damage.apply`, `fallback` (emits `AnimationFallbackRequestedEvent`).
 - System step handlers viven ahora en `SystemStepRunner`, fuera de `StepScheduler`.
+- `ActionRecipeCatalog` mantiene las recetas piloto (`BasicAttack_KS_*`, `UseItem`) generadas por `ActionRecipeBuilder`/`PilotActionRecipes` y las registra en el `StepScheduler` al iniciar.
 - Conflict defaults: evaluator enforces `WaitForCompletion` vs `SkipIfRunning` based on requested policy; MVP assumes animator/tween register those policies on the recipe side.
 - Observability: `IStepSchedulerObserver` now sees `OnStepStarted` and receives outcome `Branch`; scheduler logs Branch target and Abort reason, metrics observer counts branched/cancelled/skipped.
 - Cleanup: `ExecutionState.ImmediateCleanup()` closes open windows immediately when a group aborts before the final dispose.
 - Core split (en progreso): `ExecutionState`, `StepResult`, `StepGroupResult` and `ListPool` viven ahora en `Execution/Runtime/Core/StepSchedulerCoreTypes.cs` para reducir el tamaño del scheduler y facilitar pruebas.
+
+## Builder & Catálogo
+- `ActionRecipeBuilder` ofrece un blueprint DTO (`ActionRecipeDefinition`, `GroupDefinition`, `StepDefinition`) y un adaptador simple `BuildFromTimeline(ActionTimeline)` para traducir eventos con formato inline a recetas.
+- `ActionRecipeCatalog` actúa como registro in-memory; expone `Register/RegisterRange/TryGet` y permite poblarse desde código o futuros assets serializados.
+- `PilotActionRecipes` encapsula las recetas base (ventana + gate, paths success/mediocre, uso de item). Cada rama cierra la ventana y dispara `damage.apply`/`fallback` según corresponda.
+- `ActionRecipeCatalogDiagnostics.ValidatePilotRecipes` corre en editor/desarrollo para verificar que BasicAttack_Light contenga los grupos esperados y que las recetas piloto incluyan los ejecutores clave.
 
 ## Gaps / Next Steps
 1. **Telemetry polish**
@@ -22,8 +29,8 @@
 2. **Validation tooling**
    - Recipe validator should flag unmatched window open/close, unsupported join policies, and required conflict defaults.
 3. **Authoring / Builder**
-   - Build an ActionTimeline builder (asset + importer) that produces `ActionRecipe` instances from timeline data.
-   - Seed catalog with `BasicAttack_KS_Light`, `BasicAttack_KS_Success`, `BasicAttack_Mediocre`, `UseItem`.
+   - Integrar el builder con assets `ActionTimeline` (importer/editor) en lugar de blueprints hardcodeados.
+   - Serializar catálogo en assets/scriptable para authoring (el runtime ya soporta `RegisterRange`).
 4. **Gameplay integration**
    - Subscribe battle systems to `AnimationDamageRequestEvent` and `AnimationFallbackRequestedEvent`.
    - Define fallback policy (timeline vs recipe) in the orchestrator when the event fires.

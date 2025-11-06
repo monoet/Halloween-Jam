@@ -7,6 +7,7 @@ using BattleV2.AnimationSystem.Catalog;
 using BattleV2.AnimationSystem.Execution;
 using BattleV2.AnimationSystem.Execution.Routers;
 using BattleV2.AnimationSystem.Execution.Runtime;
+using BattleV2.AnimationSystem.Execution.Runtime.Recipes;
 using BattleV2.AnimationSystem.Runtime.Internal;
 using BattleV2.AnimationSystem.Timelines;
 using BattleV2.Core;
@@ -31,6 +32,7 @@ namespace BattleV2.AnimationSystem.Runtime
         private readonly IAnimationEventBus eventBus;
         private readonly ITimedHitService timedHitService;
         private readonly AnimatorRegistry registry;
+        private readonly ActionRecipeCatalog recipeCatalog;
         private readonly Dictionary<CombatantState, AnimationSequenceSession> activeSessions = new();
         private readonly Dictionary<CombatantState, IAnimationWrapper> legacyAdapters = new();
 
@@ -47,6 +49,7 @@ namespace BattleV2.AnimationSystem.Runtime
             AnimationClipResolver clipResolver,
             AnimationRouterBundle routerBundle,
             StepScheduler stepScheduler,
+            ActionRecipeCatalog recipeCatalog,
             AnimatorRegistry registry)
         {
             this.runtimeBuilder = runtimeBuilder ?? throw new ArgumentNullException(nameof(runtimeBuilder));
@@ -59,6 +62,7 @@ namespace BattleV2.AnimationSystem.Runtime
             this.clipResolver = clipResolver ?? throw new ArgumentNullException(nameof(clipResolver));
             this.routerBundle = routerBundle ?? throw new ArgumentNullException(nameof(routerBundle));
             this.stepScheduler = stepScheduler ?? throw new ArgumentNullException(nameof(stepScheduler));
+            this.recipeCatalog = recipeCatalog ?? throw new ArgumentNullException(nameof(recipeCatalog));
             this.registry = registry ?? AnimatorRegistry.Instance;
         }
 
@@ -157,6 +161,7 @@ namespace BattleV2.AnimationSystem.Runtime
                 clipResolver,
                 routerBundle,
                 stepScheduler,
+                recipeCatalog,
                 eventBus,
                 timedHitService);
 

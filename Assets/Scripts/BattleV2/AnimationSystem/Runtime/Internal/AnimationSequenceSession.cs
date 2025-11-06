@@ -1,12 +1,12 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using BattleV2.AnimationSystem;
 using BattleV2.AnimationSystem.Execution;
 using BattleV2.AnimationSystem.Execution.Routers;
 using BattleV2.AnimationSystem.Execution.Runtime;
+using BattleV2.AnimationSystem.Execution.Runtime.Recipes;
 using BattleV2.AnimationSystem.Timelines;
 using BattleV2.Core;
 using UnityEngine;
@@ -23,6 +23,7 @@ namespace BattleV2.AnimationSystem.Runtime.Internal
         private readonly AnimationClipResolver clipResolver;
         private readonly AnimationRouterBundle routerBundle;
         private readonly StepScheduler stepScheduler;
+        private readonly ActionRecipeCatalog recipeCatalog;
         private readonly IAnimationEventBus eventBus;
         private readonly ITimedHitService timedHitService;
 
@@ -46,6 +47,7 @@ namespace BattleV2.AnimationSystem.Runtime.Internal
             AnimationClipResolver clipResolver,
             AnimationRouterBundle routerBundle,
             StepScheduler stepScheduler,
+            ActionRecipeCatalog recipeCatalog,
             IAnimationEventBus eventBus,
             ITimedHitService timedHitService)
         {
@@ -59,6 +61,7 @@ namespace BattleV2.AnimationSystem.Runtime.Internal
             if (clipResolver == null) throw new ArgumentNullException(nameof(clipResolver));
             if (routerBundle == null) throw new ArgumentNullException(nameof(routerBundle));
             if (stepScheduler == null) throw new ArgumentNullException(nameof(stepScheduler));
+            if (recipeCatalog == null) throw new ArgumentNullException(nameof(recipeCatalog));
             if (eventBus == null) throw new ArgumentNullException(nameof(eventBus));
             if (timedHitService == null) throw new ArgumentNullException(nameof(timedHitService));
 
@@ -69,6 +72,7 @@ namespace BattleV2.AnimationSystem.Runtime.Internal
             this.clipResolver = clipResolver;
             this.routerBundle = routerBundle;
             this.stepScheduler = stepScheduler;
+            this.recipeCatalog = recipeCatalog;
             this.eventBus = eventBus;
             this.timedHitService = timedHitService;
 
@@ -326,9 +330,10 @@ namespace BattleV2.AnimationSystem.Runtime.Internal
                 recipeId = altRecipeId;
             }
 
-            if (!string.IsNullOrWhiteSpace(recipeId) && stepScheduler.TryGetRecipe(recipeId, out var predefined))
+            if (!string.IsNullOrWhiteSpace(recipeId) &&
+                (recipeCatalog.TryGet(recipeId, out var catalogRecipe) || stepScheduler.TryGetRecipe(recipeId, out catalogRecipe)))
             {
-                recipe = predefined;
+                recipe = catalogRecipe;
                 return true;
             }
 
@@ -337,25 +342,7 @@ namespace BattleV2.AnimationSystem.Runtime.Internal
                 return false;
             }
 
-            var steps = new List<ActionStep>();
-            var definitions = stepsRaw.Split('|', StringSplitOptions.RemoveEmptyEntries);
-            for (int i = 0; i < definitions.Length; i++)
-            {
-                var def = definitions[i].Trim();
-                if (def.Length == 0)
-                {
-                    continue;
-                }
-
-                if (!TryParseStep(def, out var step))
-                {
-                    BattleLogger.Warn("AnimAdapter", $"Failed to parse step definition '{def}' for action '{timeline.ActionId}'.");
-                    steps.Clear();
-                    return false;
-                }
-
-                steps.Add(step);
-            }
+            var steps = new List<ActionStep>(ActionStepParser.ParseList(stepsRaw));
 
             if (steps.Count == 0)
             {
@@ -365,119 +352,6 @@ namespace BattleV2.AnimationSystem.Runtime.Internal
             var group = new ActionStepGroup(null, steps, StepGroupExecutionMode.Sequential);
             var inlineId = !string.IsNullOrWhiteSpace(recipeId) ? recipeId : timeline.ActionId ?? "(inline)";
             recipe = new ActionRecipe(inlineId, new[] { group });
-            return true;
-        }
-
-        private static bool TryParseStep(string definition, out ActionStep step)
-        {
-            step = default;
-            if (string.IsNullOrWhiteSpace(definition))
-            {
-                return false;
-            }
-
-            string prefix = definition;
-            string parameterSection = null;
-
-            int paramStart = definition.IndexOf('(');
-            if (paramStart >= 0)
-            {
-                int paramEnd = definition.LastIndexOf(')');
-                if (paramEnd <= paramStart)
-                {
-                    return false;
-                }
-
-                prefix = definition.Substring(0, paramStart);
-                parameterSection = definition.Substring(paramStart + 1, paramEnd - paramStart - 1);
-            }
-
-            prefix = prefix.Trim();
-            if (prefix.Length == 0)
-            {
-                return false;
-            }
-
-            string executorId = prefix;
-            string bindingId = null;
-            int bindingSeparator = prefix.IndexOf(':');
-            if (bindingSeparator >= 0)
-            {
-                executorId = prefix.Substring(0, bindingSeparator).Trim();
-                bindingId = prefix.Substring(bindingSeparator + 1).Trim();
-                if (bindingId.Length == 0)
-                {
-                    bindingId = null;
-                }
-            }
-
-            if (string.IsNullOrWhiteSpace(executorId))
-            {
-                return false;
-            }
-
-            var parameters = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            if (!string.IsNullOrWhiteSpace(parameterSection))
-            {
-                var pairs = parameterSection.Split(',', StringSplitOptions.RemoveEmptyEntries);
-                for (int i = 0; i < pairs.Length; i++)
-                {
-                    var pair = pairs[i].Trim();
-                    if (pair.Length == 0)
-                    {
-                        continue;
-                    }
-
-                    int equalsIndex = pair.IndexOf('=');
-                    if (equalsIndex <= 0 || equalsIndex >= pair.Length - 1)
-                    {
-                        continue;
-                    }
-
-                    var key = pair.Substring(0, equalsIndex).Trim();
-                    var value = pair.Substring(equalsIndex + 1).Trim();
-                    if (key.Length == 0 || value.Length == 0)
-                    {
-                        continue;
-                    }
-
-                    parameters[key] = value;
-                }
-            }
-
-            if (bindingId == null && parameters.TryGetValue("binding", out var bindingFromParameter))
-            {
-                bindingId = bindingFromParameter;
-                parameters.Remove("binding");
-            }
-
-            string stepId = null;
-            if (parameters.TryGetValue("id", out var idValue))
-            {
-                stepId = idValue;
-                parameters.Remove("id");
-            }
-
-            StepConflictPolicy conflictPolicy = StepConflictPolicy.WaitForCompletion;
-            bool conflictPolicyExplicit = false;
-            if (parameters.TryGetValue("conflict", out var conflictValue) &&
-                Enum.TryParse(conflictValue, true, out StepConflictPolicy parsedPolicy))
-            {
-                conflictPolicy = parsedPolicy;
-                conflictPolicyExplicit = true;
-                parameters.Remove("conflict");
-            }
-
-            float delay = 0f;
-            if (parameters.TryGetValue("delay", out var delayValue) &&
-                float.TryParse(delayValue, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsedDelay))
-            {
-                delay = Mathf.Max(0f, parsedDelay);
-                parameters.Remove("delay");
-            }
-
-            var actionParameters = new ActionStepParameters(parameters);
-            step = new ActionStep(executorId, bindingId, actionParameters, conflictPolicy, stepId, delay, conflictPolicyExplicit);
             return true;
         }
     }

@@ -53,6 +53,7 @@ namespace BattleV2.AnimationSystem.Runtime
         private NewAnimOrchestratorAdapter orchestrator;
         private StepScheduler stepScheduler;
         private StepSchedulerMetricsObserver schedulerMetrics;
+        private ActionRecipeCatalog recipeCatalog;
 
         public IAnimationEventBus EventBus => eventBus;
         public ICombatClock Clock => combatClock;
@@ -62,6 +63,7 @@ namespace BattleV2.AnimationSystem.Runtime
         public AnimationClipResolver ClipResolver => clipResolver;
         public StepScheduler StepScheduler => stepScheduler;
         public StepSchedulerMetricsObserver SchedulerMetrics => schedulerMetrics;
+        public ActionRecipeCatalog RecipeCatalog => recipeCatalog;
 
         private void Awake()
         {
@@ -91,6 +93,7 @@ namespace BattleV2.AnimationSystem.Runtime
 
             routerBundle = new AnimationRouterBundle(eventBus, vfxService, sfxService, cameraService, uiService);
             stepScheduler = BuildStepScheduler();
+            recipeCatalog = BuildRecipeCatalog(stepScheduler);
             orchestrator = new NewAnimOrchestratorAdapter(
                 runtimeBuilder,
                 sequencerDriver,
@@ -102,6 +105,7 @@ namespace BattleV2.AnimationSystem.Runtime
                 clipResolver,
                 routerBundle,
                 stepScheduler,
+                recipeCatalog,
                 AnimatorRegistry.Instance);
 
             if (sequencerDriver == null)
@@ -272,11 +276,28 @@ namespace BattleV2.AnimationSystem.Runtime
             scheduler.RegisterExecutor(new WaitExecutor());
             scheduler.RegisterExecutor(new SfxExecutor());
             scheduler.RegisterExecutor(new VfxExecutor());
-            scheduler.RegisterRecipe(SampleActionRecipes.BasicAttack);
-            scheduler.RegisterRecipe(SampleActionRecipes.UseItem);
             schedulerMetrics = new StepSchedulerMetricsObserver();
             scheduler.RegisterObserver(schedulerMetrics);
             return scheduler;
+        }
+
+        private ActionRecipeCatalog BuildRecipeCatalog(StepScheduler scheduler)
+        {
+            var builder = new ActionRecipeBuilder();
+            var catalogInstance = new ActionRecipeCatalog();
+            var recipes = new List<ActionRecipe>(PilotActionRecipes.Build(builder));
+            catalogInstance.RegisterRange(recipes);
+
+            for (int i = 0; i < recipes.Count; i++)
+            {
+                scheduler.RegisterRecipe(recipes[i]);
+            }
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            ActionRecipeCatalogDiagnostics.ValidatePilotRecipes(catalogInstance);
+#endif
+
+            return catalogInstance;
         }
     }
 }

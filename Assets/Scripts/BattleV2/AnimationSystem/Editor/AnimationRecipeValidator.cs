@@ -139,20 +139,34 @@ namespace BattleV2.AnimationSystem.Editor
             }
 
             var stepScheduler = installer.StepScheduler;
+            var catalog = installer.RecipeCatalog;
             if (stepScheduler == null)
             {
                 issues.Add("StepScheduler instance not initialised on installer.");
                 return;
             }
 
-            if (!stepScheduler.TryGetRecipe(SampleActionRecipes.BasicAttack.Id, out _))
+            if (catalog == null)
             {
-                issues.Add("Sample recipe 'BasicAttack' is not registered.");
+                issues.Add("ActionRecipeCatalog not initialised on installer.");
+                return;
             }
 
-            if (!stepScheduler.TryGetRecipe(SampleActionRecipes.UseItem.Id, out _))
+            var requiredIds = new[]
             {
-                issues.Add("Sample recipe 'UseItem' is not registered.");
+                PilotActionRecipes.BasicAttackLightId,
+                PilotActionRecipes.BasicAttackSuccessId,
+                PilotActionRecipes.BasicAttackMediocreId,
+                PilotActionRecipes.UseItemId
+            };
+
+            for (int i = 0; i < requiredIds.Length; i++)
+            {
+                var id = requiredIds[i];
+                if (!catalog.TryGet(id, out _) || !stepScheduler.TryGetRecipe(id, out _))
+                {
+                    issues.Add($"Pilot recipe '{id}' is not registered in catalog/scheduler.");
+                }
             }
         }
     }

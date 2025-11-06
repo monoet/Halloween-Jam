@@ -367,49 +367,6 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
             return true;
         }
 
-            switch (policy)
-            {
-                case StepConflictPolicy.SkipIfRunning:
-                    return false;
-
-                case StepConflictPolicy.CancelRunning:
-                    active.Cancellation.Cancel();
-                    try
-                    {
-                        await active.Task.ConfigureAwait(false);
-                    }
-                    catch (OperationCanceledException)
-                    {
-                    }
-                    catch (Exception ex)
-                    {
-                        BattleLogger.Warn(LogTag, $"Executor '{executorId}' threw while being cancelled: {ex.Message}");
-                    }
-                    return true;
-
-                case StepConflictPolicy.WaitForCompletion:
-                    try
-                    {
-                        await active.Task.ConfigureAwait(false);
-                    }
-                    catch (OperationCanceledException)
-                    {
-                    }
-                    return true;
-
-                default:
-                    BattleLogger.Warn(LogTag, $"Unknown conflict policy '{policy}' for executor '{executorId}'. Defaulting to wait.");
-                    try
-                    {
-                        await active.Task.ConfigureAwait(false);
-                    }
-                    catch (OperationCanceledException)
-                    {
-                    }
-                    return true;
-            }
-        }
-
         private static async Task RunExecutorAsync(IActionStepExecutor executor, StepExecutionContext context, CancellationTokenSource linkedCts)
         {
             try
@@ -426,11 +383,6 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
             {
                 linkedCts.Dispose();
             }
-        }
-        }
-
-            public Task Task { get; }
-            public CancellationTokenSource Cancellation { get; }
         }
 
         private void NotifyObservers(Action<IStepSchedulerObserver> notify)
