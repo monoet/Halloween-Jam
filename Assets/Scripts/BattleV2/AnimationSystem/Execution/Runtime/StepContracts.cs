@@ -7,6 +7,7 @@ using BattleV2.AnimationSystem.Runtime.Internal;
 using BattleV2.AnimationSystem.Timelines;
 using BattleV2.Core;
 using BattleV2.Orchestration.Runtime;
+using BattleV2.Execution.TimedHits;
 using UnityEngine;
 
 namespace BattleV2.AnimationSystem.Execution.Runtime
@@ -252,7 +253,8 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
             IAnimationBindingResolver bindingResolver,
             AnimationRouterBundle routerBundle,
             IAnimationEventBus eventBus,
-            ITimedHitService timedHitService)
+            ITimedHitService timedHitService,
+            ITimedHitRunner timedHitRunner)
         {
             Request = request;
             Timeline = timeline;
@@ -261,6 +263,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
             RouterBundle = routerBundle;
             EventBus = eventBus;
             TimedHitService = timedHitService;
+            TimedHitRunner = timedHitRunner;
         }
 
         public AnimationRequest Request { get; }
@@ -270,6 +273,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
         public AnimationRouterBundle RouterBundle { get; }
         public IAnimationEventBus EventBus { get; }
         public ITimedHitService TimedHitService { get; }
+        public ITimedHitRunner TimedHitRunner { get; }
 
         public CombatantState Actor => Request.Actor;
     }
@@ -298,6 +302,8 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
         public IAnimationBindingResolver Bindings => schedulerContext.BindingResolver;
         public AnimationRouterBundle RouterBundle => schedulerContext.RouterBundle;
         public CombatantState Actor => schedulerContext.Actor;
+        public ITimedHitService TimedHitService => schedulerContext.TimedHitService;
+        public ITimedHitRunner TimedHitRunner => schedulerContext.TimedHitRunner;
         public CancellationToken CancellationToken { get; }
     }
 }

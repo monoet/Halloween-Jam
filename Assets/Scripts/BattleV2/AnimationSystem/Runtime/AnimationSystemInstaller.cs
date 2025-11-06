@@ -280,6 +280,7 @@ namespace BattleV2.AnimationSystem.Runtime
             scheduler.RegisterExecutor(new WaitExecutor());
             scheduler.RegisterExecutor(new SfxExecutor());
             scheduler.RegisterExecutor(new VfxExecutor());
+            scheduler.RegisterExecutor(new TimedHitStepExecutor());
             schedulerMetrics = new StepSchedulerMetricsObserver();
             scheduler.RegisterObserver(schedulerMetrics);
             return scheduler;

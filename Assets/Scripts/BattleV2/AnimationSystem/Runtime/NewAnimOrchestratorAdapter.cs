@@ -363,7 +363,7 @@ namespace BattleV2.AnimationSystem.Runtime
                 actorRegistered = true;
 
                 linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                var context = new StepSchedulerContext(request, timeline, wrapper, bindingResolver, routerBundle, eventBus, timedHitService);
+                var context = new StepSchedulerContext(request, timeline, wrapper, bindingResolver, routerBundle, eventBus, timedHitService, request.TimedHitRunner);
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
                 Debug.Log($"[AnimAdapter] Executing recipe '{recipe.Id}' for action '{request.Selection.Action?.id ?? "(null)"}'.");

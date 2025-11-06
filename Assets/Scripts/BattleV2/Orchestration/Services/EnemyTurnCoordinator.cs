@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using BattleV2.Actions;
 using BattleV2.Core;
 using BattleV2.Execution;
+using BattleV2.Execution.TimedHits;
 using BattleV2.Orchestration.Events;
 using BattleV2.Providers;
 using BattleV2.Targeting;
@@ -175,6 +176,10 @@ namespace BattleV2.Orchestration.Services
                 }
 
                 var enrichedSelection = selection.WithTargets(resolution.TargetSet);
+                if (enrichedSelection.TimedHitProfile != null)
+                {
+                    enrichedSelection = enrichedSelection.WithTimedHitHandle(new TimedHitExecutionHandle(enrichedSelection.TimedHitResult));
+                }
 
                 var playbackTask = animOrchestrator != null
                     ? animOrchestrator.PlayAsync(new ActionPlaybackRequest(attacker, enrichedSelection, resolution.Targets, context.AverageSpeed))

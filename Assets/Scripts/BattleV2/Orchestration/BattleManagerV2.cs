@@ -616,13 +616,17 @@ namespace BattleV2.Orchestration
             RefreshCombatContext();
 
             var enrichedSelection = selection.WithTargets(resolution.TargetSet);
+            if (enrichedSelection.TimedHitProfile != null)
+            {
+                enrichedSelection = enrichedSelection.WithTimedHitHandle(new TimedHitExecutionHandle(enrichedSelection.TimedHitResult));
+            }
 
             int cpBefore = currentPlayer != null ? currentPlayer.CurrentCP : 0;
             LastExecutedAction = enrichedSelection.Action;
             OnPlayerActionSelected?.Invoke(enrichedSelection, cpBefore);
 
             var playbackTask = animOrchestrator != null
-                ? animOrchestrator.PlayAsync(new ActionPlaybackRequest(currentPlayer, enrichedSelection, targets, CalculateAverageSpeed()))
+                ? animOrchestrator.PlayAsync(new ActionPlaybackRequest(currentPlayer, enrichedSelection, targets, CalculateAverageSpeed(), TimedHitRunner))
                 : Task.CompletedTask;
 
             state?.Set(BattleState.Resolving);

@@ -6,6 +6,7 @@ using BattleV2.Orchestration.Events;
 using BattleV2.Orchestration.Services.Animation;
 using BattleV2.Providers;
 using UnityEngine;
+using BattleV2.Execution.TimedHits;
 
 namespace BattleV2.Orchestration.Services
 {
@@ -77,20 +78,23 @@ namespace BattleV2.Orchestration.Services
             CombatantState actor,
             BattleSelection selection,
             IReadOnlyList<CombatantState> targets,
-            float averageSpeed)
+            float averageSpeed,
+            ITimedHitRunner timedHitRunner = null)
         {
             Actor = actor;
             Selection = selection;
             Targets = targets ?? Array.Empty<CombatantState>();
             AverageSpeed = averageSpeed;
             ActorSpeed = actor != null ? actor.FinalStats.Speed : 1f;
+            TimedHitRunner = timedHitRunner;
         }
 
         public ActionPlaybackRequest(
             CombatantState actor,
             BattleSelection selection,
-            IReadOnlyList<CombatantState> targets)
-            : this(actor, selection, targets, 1f)
+            IReadOnlyList<CombatantState> targets,
+            ITimedHitRunner timedHitRunner = null)
+            : this(actor, selection, targets, 1f, timedHitRunner)
         {
         }
 
@@ -99,5 +103,6 @@ namespace BattleV2.Orchestration.Services
         public IReadOnlyList<CombatantState> Targets { get; }
         public float AverageSpeed { get; }
         public float ActorSpeed { get; }
+        public ITimedHitRunner TimedHitRunner { get; }
     }
 }

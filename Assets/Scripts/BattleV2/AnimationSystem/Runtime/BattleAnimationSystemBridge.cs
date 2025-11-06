@@ -30,7 +30,8 @@ namespace BattleV2.AnimationSystem.Runtime
                 request.Actor,
                 request.Selection,
                 request.Targets,
-                request.AverageSpeed);
+                request.AverageSpeed,
+                request.TimedHitRunner);
 
             return orchestrator.PlayAsync(animationRequest);
         }

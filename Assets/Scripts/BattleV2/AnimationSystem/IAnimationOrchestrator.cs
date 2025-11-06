@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BattleV2.Core;
 using BattleV2.Providers;
+using BattleV2.Execution.TimedHits;
 
 namespace BattleV2.AnimationSystem
 {
@@ -27,20 +28,23 @@ namespace BattleV2.AnimationSystem
             CombatantState actor,
             BattleSelection selection,
             IReadOnlyList<CombatantState> targets,
-            float averageSpeed)
+            float averageSpeed,
+            ITimedHitRunner timedHitRunner = null)
         {
             Actor = actor;
             Selection = selection;
             Targets = targets ?? System.Array.Empty<CombatantState>();
             AverageSpeed = averageSpeed <= 0f ? 1f : averageSpeed;
             ActorSpeed = actor != null ? actor.FinalStats.Speed : 1f;
+            TimedHitRunner = timedHitRunner;
         }
 
         public AnimationRequest(
             CombatantState actor,
             BattleSelection selection,
-            IReadOnlyList<CombatantState> targets)
-            : this(actor, selection, targets, 1f)
+            IReadOnlyList<CombatantState> targets,
+            ITimedHitRunner timedHitRunner = null)
+            : this(actor, selection, targets, 1f, timedHitRunner)
         {
         }
 
@@ -49,5 +53,6 @@ namespace BattleV2.AnimationSystem
         public IReadOnlyList<CombatantState> Targets { get; }
         public float AverageSpeed { get; }
         public float ActorSpeed { get; }
+        public ITimedHitRunner TimedHitRunner { get; }
     }
 }

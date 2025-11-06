@@ -1,5 +1,6 @@
 using BattleV2.Actions;
 using BattleV2.Charge;
+using BattleV2.Execution.TimedHits;
 using BattleV2.Targeting;
 
 namespace BattleV2.Providers
@@ -12,7 +13,8 @@ namespace BattleV2.Providers
             ChargeProfile chargeProfile = null,
             Ks1TimedHitProfile timedHitProfile = null,
             TimedHitResult? timedHitResult = null,
-            TargetSet? targets = null)
+            TargetSet? targets = null,
+            TimedHitExecutionHandle timedHitHandle = null)
         {
             Action = action;
             CpCharge = cpCharge;
@@ -20,6 +22,7 @@ namespace BattleV2.Providers
             TimedHitProfile = timedHitProfile;
             TimedHitResult = timedHitResult;
             Targets = targets;
+            TimedHitHandle = timedHitHandle;
         }
 
         public BattleActionData Action { get; }
@@ -28,15 +31,21 @@ namespace BattleV2.Providers
         public Ks1TimedHitProfile TimedHitProfile { get; }
         public TimedHitResult? TimedHitResult { get; }
         public TargetSet? Targets { get; }
+        public TimedHitExecutionHandle TimedHitHandle { get; }
 
         public BattleSelection WithTargets(TargetSet? targets)
         {
-            return new BattleSelection(Action, CpCharge, ChargeProfile, TimedHitProfile, TimedHitResult, targets);
+            return new BattleSelection(Action, CpCharge, ChargeProfile, TimedHitProfile, TimedHitResult, targets, TimedHitHandle);
         }
 
         public BattleSelection WithTimedResult(TimedHitResult? timedHitResult)
         {
-            return new BattleSelection(Action, CpCharge, ChargeProfile, TimedHitProfile, timedHitResult, Targets);
+            return new BattleSelection(Action, CpCharge, ChargeProfile, TimedHitProfile, timedHitResult, Targets, TimedHitHandle);
+        }
+
+        public BattleSelection WithTimedHitHandle(TimedHitExecutionHandle handle)
+        {
+            return new BattleSelection(Action, CpCharge, ChargeProfile, TimedHitProfile, TimedHitResult, Targets, handle);
         }
     }
 }

@@ -294,7 +294,7 @@ namespace BattleV2.AnimationSystem.Runtime.Internal
                 return false;
             }
 
-            var context = new StepSchedulerContext(request, timeline, wrapper, bindingResolver, routerBundle, eventBus, timedHitService);
+            var context = new StepSchedulerContext(request, timeline, wrapper, bindingResolver, routerBundle, eventBus, timedHitService, request.TimedHitRunner);
             var localCts = schedulerCts;
             schedulerTask = stepScheduler.ExecuteAsync(recipe, context, localCts.Token);
             schedulerTask.ContinueWith(t =>
