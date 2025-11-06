@@ -34,6 +34,9 @@ namespace BattleV2.Debugging
         [SerializeField] private bool hijackTimedHitRunner;
         [SerializeField] private DebugManualTargetSelector targetSelector;
 
+        [Header("Debug")]
+        [SerializeField] private bool enableDebugLogs = false;
+
         public static BattleDebugHarnessV2 Instance { get; private set; }
 
         private BattleManagerV2 manager;
@@ -98,6 +101,23 @@ namespace BattleV2.Debugging
         private GUIStyle headerStyle;
         private GUIStyle boldLabelStyle;
 
+        private void LogDebug(string message, UnityEngine.Object context = null)
+        {
+            if (!enableDebugLogs)
+            {
+                return;
+            }
+
+            if (context != null)
+            {
+                Debug.Log(message, context);
+            }
+            else
+            {
+                Debug.Log(message);
+            }
+        }
+
         #region Mono
 
         private void Awake()
@@ -120,7 +140,7 @@ namespace BattleV2.Debugging
 
             manager.SetRuntimeInputProvider(this);
             manager.SetTimedHitRunner(this);
-            Debug.Log("[BattleDebugHarnessV2] Provider registered.");
+            LogDebug("[BattleDebugHarnessV2] Provider registered.");
 
             targetSelector ??= GetComponent<DebugManualTargetSelector>();
             if (targetSelector == null)
@@ -131,7 +151,7 @@ namespace BattleV2.Debugging
 
             if (hijackTimedHitRunner)
             {
-                Debug.Log("[BattleDebugHarnessV2] Hijacking timed hit runner (Awake).", this);
+                LogDebug("[BattleDebugHarnessV2] Hijacking timed hit runner (Awake).", this);
             }
             ensureRunnerCoroutine = StartCoroutine(EnsureTimedRunnerOwnership());
             AddLog("Arnes listo. Esperando peticiones de accion.");
@@ -157,7 +177,7 @@ namespace BattleV2.Debugging
 
             if (hijackTimedHitRunner && manager != null && !ReferenceEquals(manager.TimedHitRunner, this))
             {
-                Debug.Log("[BattleDebugHarnessV2] Hijacking timed hit runner (Update).", this);
+                LogDebug("[BattleDebugHarnessV2] Hijacking timed hit runner (Update).", this);
                 manager.SetTimedHitRunner(this);
             }
 
@@ -205,7 +225,7 @@ namespace BattleV2.Debugging
 
         public void RequestAction(BattleActionContext context, Action<BattleSelection> onSelected, Action onCancel)
         {
-            Debug.Log("[BattleDebugHarnessV2] RequestAction called.");
+            LogDebug("[BattleDebugHarnessV2] RequestAction called.");
             ClearPendingRequest();
 
             if (context?.AvailableActions == null || context.AvailableActions.Count == 0)

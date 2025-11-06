@@ -63,6 +63,9 @@ namespace BattleV2.Orchestration
         [Header("Pipeline Tuning")]
         [SerializeField, Min(0f)] private float preActionDelaySeconds = 0.12f;
 
+        [Header("Debug")]
+        [SerializeField] private bool enableDebugLogs = false;
+
         private IBattleInputProvider inputProvider;
         private CombatContext context;
         private ITimedHitRunner timedHitRunner;
@@ -445,7 +448,7 @@ namespace BattleV2.Orchestration
         public void SetRuntimeInputProvider(IBattleInputProvider provider)
         {
             string name = provider != null ? provider.GetType().Name : "(null)";
-            Debug.Log($"[BattleManagerV2] Runtime provider set to {name}.\nCall stack:\n{Environment.StackTrace}", this);
+            LogDebug($"[BattleManagerV2] Runtime provider set to {name}.\nCall stack:\n{Environment.StackTrace}", this);
             inputProvider = provider;
             TryFlushPendingPlayerRequest();
         }
@@ -453,7 +456,7 @@ namespace BattleV2.Orchestration
         public void SetTimedHitRunner(ITimedHitRunner runner)
         {
             string name = runner != null ? runner.GetType().Name : "(null)";
-            Debug.Log($"[BattleManagerV2] Timed hit runner set to {name}.\nCall stack:\n{Environment.StackTrace}", this);
+            LogDebug($"[BattleManagerV2] Timed hit runner set to {name}.\nCall stack:\n{Environment.StackTrace}", this);
             timedHitRunner = runner;
         }
 
@@ -481,6 +484,23 @@ namespace BattleV2.Orchestration
             state?.Set(BattleState.AwaitingAction);
             turnService?.Stop();
             turnService?.Begin();
+        }
+
+        private void LogDebug(string message, UnityEngine.Object context = null)
+        {
+            if (!enableDebugLogs)
+            {
+                return;
+            }
+
+            if (context != null)
+            {
+                Debug.Log(message, context);
+            }
+            else
+            {
+                Debug.Log(message);
+            }
         }
 
         private void ConfigureAnimationOrchestrator(BattleTimingProfile timingProfile)
@@ -760,7 +780,7 @@ namespace BattleV2.Orchestration
                 return;
             }
 
-            Debug.Log($"[BattleManagerV2] RequestPlayerAction: provider={inputProvider?.GetType().Name ?? "(null)"} actions={available.Count}", this);
+            LogDebug($"[BattleManagerV2] RequestPlayerAction: provider={inputProvider?.GetType().Name ?? "(null)"} actions={available.Count}", this);
 
             var actionContext = new BattleActionContext
             {

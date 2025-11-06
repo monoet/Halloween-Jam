@@ -26,7 +26,7 @@ MonoBehaviour:
       End: 0.348
       OnEnterEvent: anim_start
       OnExitEvent: anim_end
-      Payload: clip=KS_Light_Windup
+      Payload: clip=Ciro/Windup
   - type: 1
     phases:
     - Start: 0.15

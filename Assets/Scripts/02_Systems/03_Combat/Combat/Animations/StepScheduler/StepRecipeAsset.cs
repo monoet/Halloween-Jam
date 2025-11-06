@@ -4,12 +4,12 @@ using BattleV2.AnimationSystem.Execution.Runtime;
 using BattleV2.AnimationSystem.Execution.Runtime.Recipes;
 using UnityEngine;
 
-namespace BattleV2.AnimationSystem.Runtime.Recipes
+namespace HalloweenJam.Combat.Animations.StepScheduler
 {
     /// <summary>
     /// ScriptableObject representation of an <see cref="ActionRecipe"/> so designers can author step-scheduler flows.
     /// </summary>
-    [CreateAssetMenu(menuName = "BattleV2/Animation/Step Recipe")]
+    [CreateAssetMenu(menuName = "Battle/Animation/Step Recipe")]
     public sealed class StepRecipeAsset : ScriptableObject
     {
         [SerializeField] private string recipeId;

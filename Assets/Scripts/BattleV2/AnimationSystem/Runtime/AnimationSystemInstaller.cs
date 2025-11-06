@@ -8,10 +8,10 @@ using BattleV2.AnimationSystem.Execution.Runtime.Recipes;
 using BattleV2.AnimationSystem.Execution.Runtime.Telemetry;
 using BattleV2.AnimationSystem.Execution.Routers;
 using BattleV2.AnimationSystem.Runtime.Internal;
-using BattleV2.AnimationSystem.Runtime.Recipes;
 using BattleV2.AnimationSystem.Timelines;
 using BattleV2.Core;
 using BattleV2.Orchestration.Runtime;
+using HalloweenJam.Combat.Animations.StepScheduler;
 using UnityEngine;
 
 namespace BattleV2.AnimationSystem.Runtime
