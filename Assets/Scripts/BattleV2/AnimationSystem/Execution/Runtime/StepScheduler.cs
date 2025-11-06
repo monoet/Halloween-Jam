@@ -5,6 +5,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using BattleV2.AnimationSystem;
 using BattleV2.AnimationSystem.Execution.Runtime.Core;
+using BattleV2.AnimationSystem.Execution.Runtime.Core.Conflict;
+using BattleV2.AnimationSystem.Execution.Runtime.Core.GroupRunners;
 using BattleV2.AnimationSystem.Execution.Runtime.SystemSteps;
 using BattleV2.Core;
 
@@ -18,11 +20,21 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
         private const string LogTag = "StepScheduler";
 
         private readonly Dictionary<string, IActionStepExecutor> executors = new Dictionary<string, IActionStepExecutor>(StringComparer.OrdinalIgnoreCase);
-        private readonly Dictionary<string, ActiveExecution> activeExecutions = new Dictionary<string, ActiveExecution>(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, ActionRecipe> recipeRegistry = new Dictionary<string, ActionRecipe>(StringComparer.OrdinalIgnoreCase);
         private readonly List<IStepSchedulerObserver> observers = new List<IStepSchedulerObserver>();
         private readonly object executionGate = new object();
-        private readonly SystemStepRunner systemStepRunner = new SystemStepRunner(LogTag);
+        private readonly SystemStepRunner systemStepRunner;
+        private readonly SequentialGroupRunner sequentialRunner;
+        private readonly ParallelGroupRunner parallelRunner;
+        private readonly ActiveExecutionRegistry activeExecutionRegistry;
+
+        public StepScheduler()
+        {
+            systemStepRunner = new SystemStepRunner(LogTag);
+            sequentialRunner = new SequentialGroupRunner(this);
+            parallelRunner = new ParallelGroupRunner(this);
+            activeExecutionRegistry = new ActiveExecutionRegistry(LogTag);
+        }
 
         public void RegisterExecutor(IActionStepExecutor executor)
         {
@@ -207,138 +219,19 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
         {
             if (group.ExecutionMode == StepGroupExecutionMode.Sequential)
             {
-                return ExecuteSequentialGroupAsync(group, context, state, cancellationToken);
+                return sequentialRunner.ExecuteAsync(group, context, state, cancellationToken);
             }
 
             if (group.JoinPolicy != StepGroupJoinPolicy.Any)
             {
                 BattleLogger.Warn(LogTag, $"Parallel group '{group.Id ?? "(no id)"}' uses join '{group.JoinPolicy}'. Only 'Any' is supported in MVP; falling back to sequential execution.");
-                return ExecuteSequentialGroupAsync(group, context, state, cancellationToken);
+                return sequentialRunner.ExecuteAsync(group, context, state, cancellationToken);
             }
 
-            return ExecuteParallelGroupAsync(group, context, state, cancellationToken);
+            return parallelRunner.ExecuteAsync(group, context, state, cancellationToken);
         }
 
-        private async Task<StepGroupResult> ExecuteSequentialGroupAsync(
-            ActionStepGroup group,
-            StepSchedulerContext context,
-            ExecutionState state,
-            CancellationToken cancellationToken)
-        {
-            for (int i = 0; i < group.Steps.Count; i++)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                var step = group.Steps[i];
-                var result = await ExecuteStepAsync(step, context, state, cancellationToken, swallowCancellation: false).ConfigureAwait(false);
-
-                if (result.Status == StepRunStatus.Branch)
-                {
-                    return StepGroupResult.Branch(result.BranchTargetId);
-                }
-
-                if (result.Status == StepRunStatus.Abort)
-                {
-                    return StepGroupResult.Abort(result.AbortReason);
-                }
-
-                if (result.Status == StepRunStatus.Failed)
-                {
-                    return StepGroupResult.Abort("StepFailed");
-                }
-            }
-
-            return StepGroupResult.Completed();
-        }
-
-        private async Task<StepGroupResult> ExecuteParallelGroupAsync(
-            ActionStepGroup group,
-            StepSchedulerContext context,
-            ExecutionState state,
-            CancellationToken cancellationToken)
-        {
-            if (group.Steps.Count == 0)
-            {
-                return StepGroupResult.Completed();
-            }
-
-            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            var tasks = ListPool<Task<StepResult>>.Rent();
-
-            try
-            {
-                for (int i = 0; i < group.Steps.Count; i++)
-                {
-                    tasks.Add(ExecuteStepAsync(group.Steps[i], context, state, linkedCts.Token, swallowCancellation: true));
-                }
-
-                if (tasks.Count == 0)
-                {
-                    return StepGroupResult.Completed();
-                }
-
-                var remaining = new List<Task<StepResult>>(tasks);
-                StepGroupResult aggregate = StepGroupResult.Completed();
-
-                while (remaining.Count > 0)
-                {
-                    var finished = await Task.WhenAny(remaining).ConfigureAwait(false);
-                    remaining.Remove(finished);
-
-                    var result = await finished.ConfigureAwait(false);
-
-                    if (cancellationToken.IsCancellationRequested)
-                    {
-                        throw new OperationCanceledException(cancellationToken);
-                    }
-
-                    if (aggregate.Status != StepGroupResultStatus.Completed)
-                    {
-                        continue;
-                    }
-
-                    if (result.Status == StepRunStatus.Branch)
-                    {
-                        aggregate = StepGroupResult.Branch(result.BranchTargetId);
-                        linkedCts.Cancel();
-                    }
-                    else if (result.Status == StepRunStatus.Abort)
-                    {
-                        aggregate = StepGroupResult.Abort(result.AbortReason);
-                        linkedCts.Cancel();
-                    }
-                    else if (result.Status == StepRunStatus.Failed)
-                    {
-                        aggregate = StepGroupResult.Abort("StepFailed");
-                        linkedCts.Cancel();
-                    }
-                }
-
-                return aggregate;
-            }
-            finally
-            {
-                foreach (var task in tasks)
-                {
-                    if (!task.IsCompleted)
-                    {
-                        continue;
-                    }
-
-                    try
-                    {
-                        _ = task.Result;
-                    }
-                    catch
-                    {
-                        // logged at step level
-                    }
-                }
-
-                ListPool<Task<StepResult>>.Return(tasks);
-            }
-        }
-
-        private async Task<StepResult> ExecuteStepAsync(
+        internal async Task<StepResult> ExecuteStepInternalAsync(
             ActionStep step,
             StepSchedulerContext schedulerContext,
             ExecutionState state,
@@ -405,7 +298,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
             CancellationToken cancellationToken,
             bool swallowCancellation)
         {
-            if (!await ResolveConflictAsync(executor.Id, step.ConflictPolicy, cancellationToken).ConfigureAwait(false))
+            if (!await activeExecutionRegistry.ResolveConflictAsync(executor.Id, step.ConflictPolicy, cancellationToken).ConfigureAwait(false))
             {
                 BattleLogger.Log(LogTag, $"Step '{step.Id ?? "(no id)"}' skipped due to conflict policy '{step.ConflictPolicy}'.");
                 return StepResult.Skipped;
@@ -414,7 +307,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
             var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             var context = new StepExecutionContext(schedulerContext, step, linkedCts.Token);
             var executionTask = RunExecutorAsync(executor, context, linkedCts);
-            RegisterActiveExecution(executor.Id, executionTask, linkedCts);
+            activeExecutionRegistry.Register(executor.Id, executionTask, linkedCts);
 
             try
             {
@@ -437,7 +330,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
             }
             finally
             {
-                RemoveActiveExecution(executor.Id, executionTask);
+                activeExecutionRegistry.Remove(executor.Id, executionTask);
             }
         }
         private static StepExecutionOutcome MapOutcome(StepRunStatus status)
@@ -473,17 +366,6 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
 
             return true;
         }
-
-        private async Task<bool> ResolveConflictAsync(string executorId, StepConflictPolicy policy, CancellationToken cancellationToken)
-        {
-            ActiveExecution active;
-            lock (executionGate)
-            {
-                if (!activeExecutions.TryGetValue(executorId, out active))
-                {
-                    return true;
-                }
-            }
 
             switch (policy)
             {
@@ -545,33 +427,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
                 linkedCts.Dispose();
             }
         }
-
-        private void RegisterActiveExecution(string executorId, Task task, CancellationTokenSource cancellationSource)
-        {
-            lock (executionGate)
-            {
-                activeExecutions[executorId] = new ActiveExecution(task, cancellationSource);
-            }
         }
-
-        private void RemoveActiveExecution(string executorId, Task task)
-        {
-            lock (executionGate)
-            {
-                if (activeExecutions.TryGetValue(executorId, out var active) && ReferenceEquals(active.Task, task))
-                {
-                    activeExecutions.Remove(executorId);
-                }
-            }
-        }
-
-        private readonly struct ActiveExecution
-        {
-            public ActiveExecution(Task task, CancellationTokenSource cancellation)
-            {
-                Task = task;
-                Cancellation = cancellation;
-            }
 
             public Task Task { get; }
             public CancellationTokenSource Cancellation { get; }
