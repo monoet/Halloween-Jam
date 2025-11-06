@@ -41,3 +41,4 @@
 1. Finish telemetry observer updates (branch target, abort reason) and wire a lightweight validator pass.
 2. Extract builder layer for ActionTimeline assets and connect pilot recipes.
 3. Revisit StepScheduler structure to reduce file size once tests pass for the MVP path.
+- Group execution split: SequentialGroupRunner y ParallelGroupRunner manejan la lógica de slots, reduciendo StepScheduler.

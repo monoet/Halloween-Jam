@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BattleV2.AnimationSystem;
 using BattleV2.AnimationSystem.Execution.Runtime.Core;
+using BattleV2.AnimationSystem.Execution.Runtime.Core.GroupRunners;
 using BattleV2.AnimationSystem.Execution.Runtime.SystemSteps;
 using BattleV2.Core;
 
@@ -22,7 +23,16 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
         private readonly Dictionary<string, ActionRecipe> recipeRegistry = new Dictionary<string, ActionRecipe>(StringComparer.OrdinalIgnoreCase);
         private readonly List<IStepSchedulerObserver> observers = new List<IStepSchedulerObserver>();
         private readonly object executionGate = new object();
-        private readonly SystemStepRunner systemStepRunner = new SystemStepRunner(LogTag);
+        private readonly SystemStepRunner systemStepRunner;
+        private readonly SequentialGroupRunner sequentialRunner;
+        private readonly ParallelGroupRunner parallelRunner;
+
+        public StepScheduler()
+        {
+            systemStepRunner = new SystemStepRunner(LogTag);
+            sequentialRunner = new SequentialGroupRunner(this);
+            parallelRunner = new ParallelGroupRunner(this);
+        }
 
         public void RegisterExecutor(IActionStepExecutor executor)
         {
@@ -207,138 +217,19 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
         {
             if (group.ExecutionMode == StepGroupExecutionMode.Sequential)
             {
-                return ExecuteSequentialGroupAsync(group, context, state, cancellationToken);
+                return sequentialRunner.ExecuteAsync(group, context, state, cancellationToken);
             }
 
             if (group.JoinPolicy != StepGroupJoinPolicy.Any)
             {
                 BattleLogger.Warn(LogTag, $"Parallel group '{group.Id ?? "(no id)"}' uses join '{group.JoinPolicy}'. Only 'Any' is supported in MVP; falling back to sequential execution.");
-                return ExecuteSequentialGroupAsync(group, context, state, cancellationToken);
+                return sequentialRunner.ExecuteAsync(group, context, state, cancellationToken);
             }
 
-            return ExecuteParallelGroupAsync(group, context, state, cancellationToken);
+            return parallelRunner.ExecuteAsync(group, context, state, cancellationToken);
         }
 
-        private async Task<StepGroupResult> ExecuteSequentialGroupAsync(
-            ActionStepGroup group,
-            StepSchedulerContext context,
-            ExecutionState state,
-            CancellationToken cancellationToken)
-        {
-            for (int i = 0; i < group.Steps.Count; i++)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                var step = group.Steps[i];
-                var result = await ExecuteStepAsync(step, context, state, cancellationToken, swallowCancellation: false).ConfigureAwait(false);
-
-                if (result.Status == StepRunStatus.Branch)
-                {
-                    return StepGroupResult.Branch(result.BranchTargetId);
-                }
-
-                if (result.Status == StepRunStatus.Abort)
-                {
-                    return StepGroupResult.Abort(result.AbortReason);
-                }
-
-                if (result.Status == StepRunStatus.Failed)
-                {
-                    return StepGroupResult.Abort("StepFailed");
-                }
-            }
-
-            return StepGroupResult.Completed();
-        }
-
-        private async Task<StepGroupResult> ExecuteParallelGroupAsync(
-            ActionStepGroup group,
-            StepSchedulerContext context,
-            ExecutionState state,
-            CancellationToken cancellationToken)
-        {
-            if (group.Steps.Count == 0)
-            {
-                return StepGroupResult.Completed();
-            }
-
-            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            var tasks = ListPool<Task<StepResult>>.Rent();
-
-            try
-            {
-                for (int i = 0; i < group.Steps.Count; i++)
-                {
-                    tasks.Add(ExecuteStepAsync(group.Steps[i], context, state, linkedCts.Token, swallowCancellation: true));
-                }
-
-                if (tasks.Count == 0)
-                {
-                    return StepGroupResult.Completed();
-                }
-
-                var remaining = new List<Task<StepResult>>(tasks);
-                StepGroupResult aggregate = StepGroupResult.Completed();
-
-                while (remaining.Count > 0)
-                {
-                    var finished = await Task.WhenAny(remaining).ConfigureAwait(false);
-                    remaining.Remove(finished);
-
-                    var result = await finished.ConfigureAwait(false);
-
-                    if (cancellationToken.IsCancellationRequested)
-                    {
-                        throw new OperationCanceledException(cancellationToken);
-                    }
-
-                    if (aggregate.Status != StepGroupResultStatus.Completed)
-                    {
-                        continue;
-                    }
-
-                    if (result.Status == StepRunStatus.Branch)
-                    {
-                        aggregate = StepGroupResult.Branch(result.BranchTargetId);
-                        linkedCts.Cancel();
-                    }
-                    else if (result.Status == StepRunStatus.Abort)
-                    {
-                        aggregate = StepGroupResult.Abort(result.AbortReason);
-                        linkedCts.Cancel();
-                    }
-                    else if (result.Status == StepRunStatus.Failed)
-                    {
-                        aggregate = StepGroupResult.Abort("StepFailed");
-                        linkedCts.Cancel();
-                    }
-                }
-
-                return aggregate;
-            }
-            finally
-            {
-                foreach (var task in tasks)
-                {
-                    if (!task.IsCompleted)
-                    {
-                        continue;
-                    }
-
-                    try
-                    {
-                        _ = task.Result;
-                    }
-                    catch
-                    {
-                        // logged at step level
-                    }
-                }
-
-                ListPool<Task<StepResult>>.Return(tasks);
-            }
-        }
-
-        private async Task<StepResult> ExecuteStepAsync(
+        internal async Task<StepResult> ExecuteStepInternalAsync(
             ActionStep step,
             StepSchedulerContext schedulerContext,
             ExecutionState state,
