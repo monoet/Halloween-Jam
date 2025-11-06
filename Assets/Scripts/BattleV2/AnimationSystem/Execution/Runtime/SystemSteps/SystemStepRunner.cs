@@ -31,11 +31,10 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.SystemSteps
         {
             result = StepResult.Skipped;
 
-            if (step == null)
+            if (string.IsNullOrWhiteSpace(step.ExecutorId))
             {
                 return false;
             }
-
             string executorId = step.ExecutorId ?? string.Empty;
             switch (executorId.ToLowerInvariant())
             {
@@ -255,4 +254,5 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.SystemSteps
         }
     }
 }
+
 
