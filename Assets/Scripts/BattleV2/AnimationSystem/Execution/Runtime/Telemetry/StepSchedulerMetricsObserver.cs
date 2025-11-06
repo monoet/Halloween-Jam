@@ -52,6 +52,11 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Telemetry
             // No aggregated metrics yet per group.
         }
 
+        public void OnBranchTaken(string sourceId, string targetId, StepSchedulerContext context)
+        {
+            // Metrics observer does not track specific branch sources yet.
+        }
+
         public void OnStepStarted(ActionStep step, StepSchedulerContext context)
         {
             // Metrics do not currently track step start events.

@@ -8,6 +8,7 @@ using BattleV2.AnimationSystem.Execution.Runtime.Recipes;
 using BattleV2.AnimationSystem.Execution.Runtime.Telemetry;
 using BattleV2.AnimationSystem.Execution.Routers;
 using BattleV2.AnimationSystem.Runtime.Internal;
+using BattleV2.AnimationSystem.Runtime.Recipes;
 using BattleV2.AnimationSystem.Timelines;
 using BattleV2.Core;
 using BattleV2.Orchestration.Runtime;
@@ -39,6 +40,8 @@ namespace BattleV2.AnimationSystem.Runtime
         [SerializeField] private UnityEngine.Object uiServiceSource;
         [Header("Timed Hit Settings")]
         [SerializeField] private TimedHitToleranceProfileAsset toleranceProfileAsset;
+        [Header("Step Scheduler Recipes")]
+        [SerializeField] private StepRecipeAsset[] stepRecipeAssets = Array.Empty<StepRecipeAsset>();
 
         private AnimationEventBus eventBus;
         private ActionLockManager lockManager;
@@ -94,6 +97,7 @@ namespace BattleV2.AnimationSystem.Runtime
             routerBundle = new AnimationRouterBundle(eventBus, vfxService, sfxService, cameraService, uiService);
             stepScheduler = BuildStepScheduler();
             recipeCatalog = BuildRecipeCatalog(stepScheduler);
+            RegisterInspectorRecipes();
             orchestrator = new NewAnimOrchestratorAdapter(
                 runtimeBuilder,
                 sequencerDriver,
@@ -298,6 +302,32 @@ namespace BattleV2.AnimationSystem.Runtime
 #endif
 
             return catalogInstance;
+        }
+
+        private void RegisterInspectorRecipes()
+        {
+            if (recipeCatalog == null || stepScheduler == null || stepRecipeAssets == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < stepRecipeAssets.Length; i++)
+            {
+                var asset = stepRecipeAssets[i];
+                if (asset == null)
+                {
+                    continue;
+                }
+
+                if (!asset.TryBuild(out var recipe) || recipe == null || recipe.IsEmpty)
+                {
+                    Debug.LogWarning($"[AnimationSystemInstaller] Recipe asset '{asset.name}' is empty or invalid. Skipping registration.", asset);
+                    continue;
+                }
+
+                recipeCatalog.Register(recipe);
+                stepScheduler.RegisterRecipe(recipe);
+            }
         }
     }
 }

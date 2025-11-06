@@ -13,6 +13,8 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.SystemSteps
         private const string SystemStepGate = "gate.on";
         private const string SystemStepDamage = "damage.apply";
         private const string SystemStepFallback = "fallback";
+        private const string SystemStepPhaseLock = "phase.lock";
+        private const string SystemStepPhaseUnlock = "phase.unlock";
 
         private static readonly TimedHitJudgment[] DefaultSuccessJudgments =
         {
@@ -54,6 +56,16 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.SystemSteps
 
                 case SystemStepDamage:
                     HandleDamage(step, context);
+                    result = StepResult.Completed;
+                    return true;
+
+                case SystemStepPhaseLock:
+                    HandlePhaseLock(step, context, state, true);
+                    result = StepResult.Completed;
+                    return true;
+
+                case SystemStepPhaseUnlock:
+                    HandlePhaseLock(step, context, state, false);
                     result = StepResult.Completed;
                     return true;
 
@@ -188,6 +200,25 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.SystemSteps
 
             context.EventBus?.Publish(new AnimationFallbackRequestedEvent(context.Actor, timelineId, recipeId, reason));
             return StepResult.Abort(reason);
+        }
+
+        private void HandlePhaseLock(ActionStep step, StepSchedulerContext context, ExecutionState state, bool locked)
+        {
+            string reason = step.Parameters.TryGetString("reason", out var value) ? value : step.Id ?? "timeline";
+            if (locked)
+            {
+                if (state.RegisterLock(reason))
+                {
+                    context.EventBus?.Publish(new AnimationLockEvent(context.Actor, true, reason));
+                }
+            }
+            else
+            {
+                if (state.ReleaseLock(reason))
+                {
+                    context.EventBus?.Publish(new AnimationLockEvent(context.Actor, false, reason));
+                }
+            }
         }
 
         private static string BuildPayload(ActionStepParameters parameters, IEnumerable<string> excludedKeys)

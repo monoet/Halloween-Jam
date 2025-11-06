@@ -17,7 +17,7 @@ using BattleV2.Orchestration.Runtime;
 namespace BattleV2.AnimationSystem.Runtime
 {
     /// <summary>
-    /// Adapter defined in JRPG Animation System LOCKED (secciÃ³n 5).
+    /// Adapter defined in JRPG Animation System LOCKED (sección 5).
     /// Coordinates timeline playback (sequencer + wrapper + routers) without touching BattleManagerV2.
     /// </summary>
     public sealed class NewAnimOrchestratorAdapter : IAnimationOrchestrator, IDisposable
@@ -33,8 +33,8 @@ namespace BattleV2.AnimationSystem.Runtime
         private readonly ITimedHitService timedHitService;
         private readonly AnimatorRegistry registry;
         private readonly ActionRecipeCatalog recipeCatalog;
-        private readonly Dictionary<CombatantState, AnimationSequenceSession> activeSessions = new();
-        private readonly Dictionary<CombatantState, IAnimationWrapper> legacyAdapters = new();
+        private readonly Dictionary<CombatantState, IPlaybackSession> activeSessions = new Dictionary<CombatantState, IPlaybackSession>();
+        private readonly Dictionary<CombatantState, IAnimationWrapper> legacyAdapters = new Dictionary<CombatantState, IAnimationWrapper>();
 
         private bool disposed;
 
@@ -52,17 +52,28 @@ namespace BattleV2.AnimationSystem.Runtime
             ActionRecipeCatalog recipeCatalog,
             AnimatorRegistry registry)
         {
-            this.runtimeBuilder = runtimeBuilder ?? throw new ArgumentNullException(nameof(runtimeBuilder));
-            this.sequencerDriver = sequencerDriver ?? throw new ArgumentNullException(nameof(sequencerDriver));
-            this.timelineCatalog = timelineCatalog ?? throw new ArgumentNullException(nameof(timelineCatalog));
-            _ = lockManager ?? throw new ArgumentNullException(nameof(lockManager));
-            this.eventBus = eventBus ?? throw new ArgumentNullException(nameof(eventBus));
-            this.timedHitService = timedHitService ?? throw new ArgumentNullException(nameof(timedHitService));
-            this.wrapperResolver = wrapperResolver ?? throw new ArgumentNullException(nameof(wrapperResolver));
-            this.clipResolver = clipResolver ?? throw new ArgumentNullException(nameof(clipResolver));
-            this.routerBundle = routerBundle ?? throw new ArgumentNullException(nameof(routerBundle));
-            this.stepScheduler = stepScheduler ?? throw new ArgumentNullException(nameof(stepScheduler));
-            this.recipeCatalog = recipeCatalog ?? throw new ArgumentNullException(nameof(recipeCatalog));
+            if (runtimeBuilder == null) throw new ArgumentNullException(nameof(runtimeBuilder));
+            if (sequencerDriver == null) throw new ArgumentNullException(nameof(sequencerDriver));
+            if (timelineCatalog == null) throw new ArgumentNullException(nameof(timelineCatalog));
+            if (lockManager == null) throw new ArgumentNullException(nameof(lockManager));
+            if (eventBus == null) throw new ArgumentNullException(nameof(eventBus));
+            if (timedHitService == null) throw new ArgumentNullException(nameof(timedHitService));
+            if (wrapperResolver == null) throw new ArgumentNullException(nameof(wrapperResolver));
+            if (clipResolver == null) throw new ArgumentNullException(nameof(clipResolver));
+            if (routerBundle == null) throw new ArgumentNullException(nameof(routerBundle));
+            if (stepScheduler == null) throw new ArgumentNullException(nameof(stepScheduler));
+            if (recipeCatalog == null) throw new ArgumentNullException(nameof(recipeCatalog));
+
+            this.runtimeBuilder = runtimeBuilder;
+            this.sequencerDriver = sequencerDriver;
+            this.timelineCatalog = timelineCatalog;
+            this.eventBus = eventBus;
+            this.timedHitService = timedHitService;
+            this.wrapperResolver = wrapperResolver;
+            this.clipResolver = clipResolver;
+            this.routerBundle = routerBundle;
+            this.stepScheduler = stepScheduler;
+            this.recipeCatalog = recipeCatalog;
             this.registry = registry ?? AnimatorRegistry.Instance;
         }
 
@@ -73,6 +84,7 @@ namespace BattleV2.AnimationSystem.Runtime
                 throw new ObjectDisposedException(nameof(NewAnimOrchestratorAdapter));
             }
 
+            // AnimationRequest is likely a struct; it cannot be null. Validate required fields instead.
             if (request.Actor == null)
             {
                 BattleLogger.Warn("AnimAdapter", "AnimationRequest missing actor. Ignoring playback.");
@@ -92,15 +104,23 @@ namespace BattleV2.AnimationSystem.Runtime
                 return;
             }
 
-            var timeline = timelineCatalog.GetTimelineOrDefault(action.id);
-            if (timeline == null)
+            ActionRecipe recipe = null;
+            var actionId = action.id;
+            var hasRecipe = !string.IsNullOrWhiteSpace(actionId) &&
+                            ((recipeCatalog != null && recipeCatalog.TryGet(actionId, out recipe)) ||
+                             stepScheduler.TryGetRecipe(actionId, out recipe));
+
+            ActionTimeline timeline = null;
+            if (timelineCatalog != null && !string.IsNullOrWhiteSpace(actionId))
             {
-                BattleLogger.Warn("AnimAdapter", $"No timeline registered for action '{action.id}'.");
+                timeline = timelineCatalog.GetTimelineOrDefault(actionId);
+            }
+
+            if (!hasRecipe && timeline == null)
+            {
+                BattleLogger.Warn("AnimAdapter", $"No timeline or recipe registered for action '{actionId}'.");
                 return;
             }
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            Debug.Log($"[AnimAdapter] Timeline '{timeline.ActionId}' resolved for action '{action.id}'.");
-#endif
 
             IAnimationWrapper wrapper = null;
             if (registry != null)
@@ -130,6 +150,31 @@ namespace BattleV2.AnimationSystem.Runtime
                 return;
             }
 
+            var bindingResolver = wrapper as IAnimationBindingResolver;
+            if (hasRecipe && bindingResolver == null)
+            {
+                BattleLogger.Warn("AnimAdapter", $"Wrapper for actor '{request.Actor.name}' does not expose binding resolver. Falling back to legacy timeline.");
+                hasRecipe = false;
+            }
+
+            if (hasRecipe && recipe == null)
+            {
+                // Defensive: Try pull from scheduler registry.
+                stepScheduler.TryGetRecipe(actionId, out recipe);
+            }
+
+            if (hasRecipe && recipe == null)
+            {
+                BattleLogger.Warn("AnimAdapter", $"Recipe lookup failed for action '{actionId}'. Falling back to timeline.");
+                hasRecipe = false;
+            }
+
+            if (!hasRecipe && timeline == null)
+            {
+                BattleLogger.Warn("AnimAdapter", $"No timeline available for action '{actionId}'.");
+                return;
+            }
+
             if (activeSessions.TryGetValue(request.Actor, out var previousSession))
             {
                 try
@@ -152,18 +197,42 @@ namespace BattleV2.AnimationSystem.Runtime
                 }
             }
 
-            var sequencer = runtimeBuilder.Create(request, timeline);
-            var session = new AnimationSequenceSession(
-                request,
-                timeline,
-                sequencer,
-                wrapper,
-                clipResolver,
-                routerBundle,
-                stepScheduler,
-                recipeCatalog,
-                eventBus,
-                timedHitService);
+            IPlaybackSession session;
+            if (hasRecipe)
+            {
+                session = new RecipePlaybackSession(
+                    request,
+                    timeline,
+                    wrapper,
+                    bindingResolver,
+                    routerBundle,
+                    eventBus,
+                    timedHitService,
+                    stepScheduler,
+                    recipe);
+            }
+            else
+            {
+                var sequencer = runtimeBuilder.Create(request, timeline);
+                var timelineSession = new AnimationSequenceSession(
+                    request,
+                    timeline,
+                    sequencer,
+                    wrapper,
+                    clipResolver,
+                    routerBundle,
+                    stepScheduler,
+                    recipeCatalog,
+                    eventBus,
+                    timedHitService);
+                session = new TimelinePlaybackSession(timelineSession);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                if (timeline != null)
+                {
+                    Debug.Log($"[AnimAdapter] Timeline '{timeline.ActionId}' resolved for action '{actionId}'.");
+                }
+#endif
+            }
 
             activeSessions[request.Actor] = session;
             try
@@ -192,6 +261,191 @@ namespace BattleV2.AnimationSystem.Runtime
             routerBundle.Dispose();
             wrapperResolver.Dispose();
             legacyAdapters.Clear();
+        }
+
+        private interface IPlaybackSession : IDisposable
+        {
+            Task RunAsync(ActionSequencerDriver driver, CancellationToken cancellationToken);
+            Task CancelAsync();
+            bool IsDisposed { get; }
+        }
+
+        private sealed class TimelinePlaybackSession : IPlaybackSession
+        {
+            private readonly AnimationSequenceSession session;
+            private bool disposed;
+
+            public TimelinePlaybackSession(AnimationSequenceSession session)
+            {
+                if (session == null) throw new ArgumentNullException(nameof(session));
+                this.session = session;
+            }
+
+            public Task RunAsync(ActionSequencerDriver driver, CancellationToken cancellationToken)
+            {
+                if (disposed) throw new ObjectDisposedException(nameof(TimelinePlaybackSession));
+                return session.RunAsync(driver, cancellationToken);
+            }
+
+            public Task CancelAsync()
+            {
+                if (disposed) return Task.CompletedTask;
+                return session.CancelAsync();
+            }
+
+            public void Dispose()
+            {
+                if (disposed) return;
+                disposed = true;
+                session.Dispose();
+            }
+
+            public bool IsDisposed => disposed;
+        }
+
+        private sealed class RecipePlaybackSession : IPlaybackSession
+        {
+            private readonly AnimationRequest request;
+            private readonly ActionTimeline timeline;
+            private readonly IAnimationWrapper wrapper;
+            private readonly IAnimationBindingResolver bindingResolver;
+            private readonly AnimationRouterBundle routerBundle;
+            private readonly IAnimationEventBus eventBus;
+            private readonly ITimedHitService timedHitService;
+            private readonly StepScheduler scheduler;
+            private readonly ActionRecipe recipe;
+
+            private CancellationTokenSource linkedCts;
+            private Task executionTask;
+            private bool actorRegistered;
+            private bool disposed;
+
+            public RecipePlaybackSession(
+                AnimationRequest request,
+                ActionTimeline timeline,
+                IAnimationWrapper wrapper,
+                IAnimationBindingResolver bindingResolver,
+                AnimationRouterBundle routerBundle,
+                IAnimationEventBus eventBus,
+                ITimedHitService timedHitService,
+                StepScheduler scheduler,
+                ActionRecipe recipe)
+            {
+                // AnimationRequest is a struct; it won't be null.
+                if (wrapper == null) throw new ArgumentNullException(nameof(wrapper));
+                if (bindingResolver == null) throw new ArgumentNullException(nameof(bindingResolver));
+                if (routerBundle == null) throw new ArgumentNullException(nameof(routerBundle));
+                if (eventBus == null) throw new ArgumentNullException(nameof(eventBus));
+                if (timedHitService == null) throw new ArgumentNullException(nameof(timedHitService));
+                if (scheduler == null) throw new ArgumentNullException(nameof(scheduler));
+                if (recipe == null) throw new ArgumentNullException(nameof(recipe));
+
+                this.request = request;
+                this.timeline = timeline;
+                this.wrapper = wrapper;
+                this.bindingResolver = bindingResolver;
+                this.routerBundle = routerBundle;
+                this.eventBus = eventBus;
+                this.timedHitService = timedHitService;
+                this.scheduler = scheduler;
+                this.recipe = recipe;
+            }
+
+            public async Task RunAsync(ActionSequencerDriver driver, CancellationToken cancellationToken)
+            {
+                if (disposed) throw new ObjectDisposedException(nameof(RecipePlaybackSession));
+                if (linkedCts != null)
+                {
+                    throw new InvalidOperationException("Playback session already running.");
+                }
+
+                routerBundle.RegisterActor(request.Actor);
+                actorRegistered = true;
+
+                linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                var context = new StepSchedulerContext(request, timeline, wrapper, bindingResolver, routerBundle, eventBus, timedHitService);
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                Debug.Log($"[AnimAdapter] Executing recipe '{recipe.Id}' for action '{request.Selection.Action?.id ?? "(null)"}'.");
+#endif
+
+                try
+                {
+                    executionTask = scheduler.ExecuteAsync(recipe, context, linkedCts.Token);
+                    await executionTask.ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when ((linkedCts != null && linkedCts.IsCancellationRequested) || cancellationToken.IsCancellationRequested)
+                {
+                    // Expected on cancellation.
+                }
+                finally
+                {
+                    if (linkedCts != null)
+                    {
+                        linkedCts.Dispose();
+                        linkedCts = null;
+                    }
+                    executionTask = null;
+                    if (actorRegistered)
+                    {
+                        routerBundle.UnregisterActor(request.Actor);
+                        actorRegistered = false;
+                    }
+                }
+            }
+
+            public async Task CancelAsync()
+            {
+                if (disposed) return;
+
+                var cts = linkedCts;
+                if (cts == null)
+                {
+                    return;
+                }
+
+                if (!cts.IsCancellationRequested)
+                {
+                    cts.Cancel();
+                }
+
+                if (executionTask != null)
+                {
+                    try
+                    {
+                        await executionTask.ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // swallow expected cancellation
+                    }
+                    catch (Exception ex)
+                    {
+                        BattleLogger.Warn("AnimAdapter", $"Recipe playback cancelled with exception: {ex}");
+                    }
+                }
+            }
+
+            public void Dispose()
+            {
+                if (disposed) return;
+                disposed = true;
+
+                if (linkedCts != null)
+                {
+                    linkedCts.Dispose();
+                    linkedCts = null;
+                }
+                executionTask = null;
+
+                if (actorRegistered)
+                {
+                    routerBundle.UnregisterActor(request.Actor);
+                    actorRegistered = false;
+                }
+            }
+
+            public bool IsDisposed => disposed;
         }
     }
 }

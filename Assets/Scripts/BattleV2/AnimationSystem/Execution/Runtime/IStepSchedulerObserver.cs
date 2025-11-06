@@ -59,6 +59,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
         void OnRecipeCompleted(RecipeExecutionReport report, StepSchedulerContext context);
         void OnGroupStarted(ActionStepGroup group, StepSchedulerContext context);
         void OnGroupCompleted(StepGroupExecutionReport report, StepSchedulerContext context);
+        void OnBranchTaken(string sourceId, string targetId, StepSchedulerContext context);
         void OnStepStarted(ActionStep step, StepSchedulerContext context);
         void OnStepCompleted(StepExecutionReport report, StepSchedulerContext context);
     }

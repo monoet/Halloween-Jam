@@ -63,6 +63,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
     {
         private readonly Dictionary<string, WindowState> openWindows = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, TimedHitResultEvent> windowResults = new(StringComparer.OrdinalIgnoreCase);
+        private readonly HashSet<string> activeLocks = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, int> groupLookup = new(StringComparer.OrdinalIgnoreCase);
         private readonly List<IDisposable> subscriptions = new();
         private readonly StepSchedulerContext context;
@@ -147,9 +148,35 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
             return windowResults.Remove(id, out result);
         }
 
+        public bool RegisterLock(string reason)
+        {
+            if (string.IsNullOrWhiteSpace(reason))
+            {
+                reason = "timeline";
+            }
+
+            return activeLocks.Add(reason);
+        }
+
+        public bool ReleaseLock(string reason)
+        {
+            if (string.IsNullOrWhiteSpace(reason))
+            {
+                reason = "timeline";
+            }
+
+            return activeLocks.Remove(reason);
+        }
+
         public void ImmediateCleanup()
         {
             CleanupWindows();
+            CleanupLocks();
+
+            if (context.TimedHitService != null && context.Actor != null)
+            {
+                context.TimedHitService.Reset(context.Actor);
+            }
         }
 
         private void OnTimedHitResult(TimedHitResultEvent evt)
@@ -164,7 +191,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
 
         public void Dispose()
         {
-            CleanupWindows();
+            ImmediateCleanup();
 
             for (int i = 0; i < subscriptions.Count; i++)
             {
@@ -172,11 +199,6 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
             }
 
             subscriptions.Clear();
-
-            if (context.TimedHitService != null && context.Actor != null)
-            {
-                context.TimedHitService.Reset(context.Actor);
-            }
         }
 
         private void CleanupWindows()
@@ -190,6 +212,20 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
             }
 
             openWindows.Clear();
+            windowResults.Clear();
+        }
+
+        private void CleanupLocks()
+        {
+            if (context.EventBus != null)
+            {
+                foreach (var reason in activeLocks)
+                {
+                    context.EventBus.Publish(new AnimationLockEvent(context.Actor, false, reason));
+                }
+            }
+
+            activeLocks.Clear();
         }
 
         public sealed class WindowState

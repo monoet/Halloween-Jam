@@ -1,5 +1,11 @@
-# StepScheduler MVP Hand-off
+ï»¿# StepScheduler MVP Hand-off
 
+## 2025-11-05 - StepScheduler direct playback
+- NewAnimOrchestratorAdapter now prefers ActionRecipes; when a recipe exists for the actionId it runs a RecipePlaybackSession (no timeline needed).
+- Legacy timelines remain as fallback when no recipe is registered or the wrapper lacks IAnimationBindingResolver.
+- Session management handles both paths via a shared dictionary keyed by actor; cancel/dispose semantics remain unchanged.
+- Development logs show ""[AnimAdapter] Executing recipe ..."" whenever the scheduler path is active for quick verification.
+- Router registration happens around scheduler execution so VFX/SFX bindings continue to resolve.
 ## Context
 - Goal: deliver a lean runtime that can execute ActionRecipes for the pilot "BasicAttack_KS_Light" while we stand up the authoring surface.
 - Legacy AnimationSequenceSession now routes payloads that include recipes/steps through the StepScheduler, keeping classic clip playback untouched.
@@ -7,19 +13,19 @@
 
 ## Current Runtime State
 - Sequential execution: no change from the baseline; steps run in order with conflict policies.
-- Parallel execution (join = Any only): waits for the first Branch/Abort/Failure, cancels siblings, and honours group-level cancellation.
-- System steps supported: `window.open`, `window.close`, `gate.on`, `damage.apply`, `fallback` (emits `AnimationFallbackRequestedEvent`).
+- Parallel execution (join = Any / All): join=Any short-circuits on the first Branch/Abort/Failure and cancels siblings; join=All waits for every child, honours timeouts, and reports the aggregate (branch/fail/abort). Timeout always cancels children before returning `Abort("ParallelTimeout")`.
+- System steps supported: `window.open`, `window.close`, `gate.on`, `damage.apply`, `fallback` (emite `AnimationFallbackRequestedEvent`), `phase.lock`, `phase.unlock`.
 - System step handlers viven ahora en `SystemStepRunner`, fuera de `StepScheduler`.
 - `ActionRecipeCatalog` mantiene las recetas piloto (`BasicAttack_KS_*`, `UseItem`) generadas por `ActionRecipeBuilder`/`PilotActionRecipes` y las registra en el `StepScheduler` al iniciar.
-- Conflict defaults: evaluator enforces `WaitForCompletion` vs `SkipIfRunning` based on requested policy; MVP assumes animator/tween register those policies on the recipe side.
-- Observability: `IStepSchedulerObserver` now sees `OnStepStarted` and receives outcome `Branch`; scheduler logs Branch target and Abort reason, metrics observer counts branched/cancelled/skipped.
-- Cleanup: `ExecutionState.ImmediateCleanup()` closes open windows immediately when a group aborts before the final dispose.
-- Core split (en progreso): `ExecutionState`, `StepResult`, `StepGroupResult` and `ListPool` viven ahora en `Execution/Runtime/Core/StepSchedulerCoreTypes.cs` para reducir el tamaño del scheduler y facilitar pruebas.
+- Conflict defaults: el scheduler aplica `WaitForCompletion` por defecto a `animatorClip`/`tween`/`flipbook` y `SkipIfRunning` para `sfx`/`vfx` cuando la receta no especifica polÃ­tica.
+- Observabilidad: `IStepSchedulerObserver` now sees `OnStepStarted`, outcome `Branch`, y recibe callbacks `OnBranchTaken(sourceId, targetLabel)`; el metrics observer cuenta branched/cancelled/skipped y los logs siguen mostrando target y razon de abort.
+- Cleanup: `ExecutionState.ImmediateCleanup()` cierra ventanas, libera locks (`AnimationLockEvent` false) y resetea `TimedHitService` tan pronto como un grupo aborta (ademÃ¡s del dispose final).
+- Core split (en progreso): `ExecutionState`, `StepResult`, `StepGroupResult` and `ListPool` viven ahora en `Execution/Runtime/Core/StepSchedulerCoreTypes.cs` para reducir el tamaï¿½o del scheduler y facilitar pruebas.
 
-## Builder & Catálogo
+## Builder & Catï¿½logo
 - `ActionRecipeBuilder` ofrece un blueprint DTO (`ActionRecipeDefinition`, `GroupDefinition`, `StepDefinition`) y un adaptador simple `BuildFromTimeline(ActionTimeline)` para traducir eventos con formato inline a recetas.
-- `ActionRecipeCatalog` actúa como registro in-memory; expone `Register/RegisterRange/TryGet` y permite poblarse desde código o futuros assets serializados.
-- `PilotActionRecipes` encapsula las recetas base (ventana + gate, paths success/mediocre, uso de item). Cada rama cierra la ventana y dispara `damage.apply`/`fallback` según corresponda.
+- `ActionRecipeCatalog` actï¿½a como registro in-memory; expone `Register/RegisterRange/TryGet` y permite poblarse desde cï¿½digo o futuros assets serializados.
+- `PilotActionRecipes` encapsula las recetas base (ventana + gate, paths success/mediocre, uso de item). Cada rama cierra la ventana y dispara `damage.apply`/`fallback` segï¿½n corresponda.
 - `ActionRecipeCatalogDiagnostics.ValidatePilotRecipes` corre en editor/desarrollo para verificar que BasicAttack_Light contenga los grupos esperados y que las recetas piloto incluyan los ejecutores clave.
 
 ## Gaps / Next Steps
@@ -30,12 +36,12 @@
    - Recipe validator should flag unmatched window open/close, unsupported join policies, and required conflict defaults.
 3. **Authoring / Builder**
    - Integrar el builder con assets `ActionTimeline` (importer/editor) en lugar de blueprints hardcodeados.
-   - Serializar catálogo en assets/scriptable para authoring (el runtime ya soporta `RegisterRange`).
+   - Serializar catï¿½logo en assets/scriptable para authoring (el runtime ya soporta `RegisterRange`).
 4. **Gameplay integration**
    - Subscribe battle systems to `AnimationDamageRequestEvent` and `AnimationFallbackRequestedEvent`.
    - Define fallback policy (timeline vs recipe) in the orchestrator when the event fires.
 5. **Refactor / cleanup**
-   - Split StepScheduler into façade + helpers (e.g., `ParallelGroupRunner`, `SystemStepRunner`, `ExecutionState`).
+   - Split StepScheduler into faï¿½ade + helpers (e.g., `ParallelGroupRunner`, `SystemStepRunner`, `ExecutionState`).
    - Move event definitions to a shared location (e.g., `AnimationEventBus`) once fallback handling is wired.
 
 ## Definition of Done for the Pilot
@@ -49,4 +55,4 @@
 2. Extract builder layer for ActionTimeline assets and connect pilot recipes.
 3. Revisit StepScheduler structure to reduce file size once tests pass for the MVP path.
 - Conflict handling moved to ActiveExecutionRegistry helper (Core/Conflict).
-- Group execution split: SequentialGroupRunner y ParallelGroupRunner manejan la lógica de slots, reduciendo StepScheduler.
+- Group execution split: SequentialGroupRunner y ParallelGroupRunner manejan la lï¿½gica de slots, reduciendo StepScheduler.

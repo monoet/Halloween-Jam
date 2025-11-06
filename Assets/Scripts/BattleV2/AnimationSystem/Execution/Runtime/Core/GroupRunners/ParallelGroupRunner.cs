@@ -2,8 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using BattleV2.AnimationSystem.Execution.Runtime;
 using BattleV2.AnimationSystem.Execution.Runtime.Core;
+using BattleV2.Core;
 
 namespace BattleV2.AnimationSystem.Execution.Runtime.Core.GroupRunners
 {
@@ -43,44 +43,16 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Core.GroupRunners
                     return StepGroupResult.Completed();
                 }
 
-                var remaining = new List<Task<StepResult>>(tasks);
-                StepGroupResult aggregate = StepGroupResult.Completed();
+                var timeoutTask = group.HasTimeout
+                    ? Task.Delay(TimeSpan.FromSeconds(group.TimeoutSeconds), cancellationToken)
+                    : null;
 
-                while (remaining.Count > 0)
+                if (group.JoinPolicy == StepGroupJoinPolicy.Any)
                 {
-                    var finished = await Task.WhenAny(remaining).ConfigureAwait(false);
-                    remaining.Remove(finished);
-
-                    var result = await finished.ConfigureAwait(false);
-
-                    if (cancellationToken.IsCancellationRequested)
-                    {
-                        throw new OperationCanceledException(cancellationToken);
-                    }
-
-                    if (aggregate.Status != StepGroupResultStatus.Completed)
-                    {
-                        continue;
-                    }
-
-                    if (result.Status == StepRunStatus.Branch)
-                    {
-                        aggregate = StepGroupResult.Branch(result.BranchTargetId);
-                        linkedCts.Cancel();
-                    }
-                    else if (result.Status == StepRunStatus.Abort)
-                    {
-                        aggregate = StepGroupResult.Abort(result.AbortReason);
-                        linkedCts.Cancel();
-                    }
-                    else if (result.Status == StepRunStatus.Failed)
-                    {
-                        aggregate = StepGroupResult.Abort("StepFailed");
-                        linkedCts.Cancel();
-                    }
+                    return await ExecuteJoinAnyAsync(tasks, timeoutTask, linkedCts, state, cancellationToken).ConfigureAwait(false);
                 }
 
-                return aggregate;
+                return await ExecuteJoinAllAsync(tasks, timeoutTask, linkedCts, state, cancellationToken).ConfigureAwait(false);
             }
             finally
             {
@@ -102,6 +74,160 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Core.GroupRunners
                 }
 
                 ListPool<Task<StepResult>>.Return(tasks);
+            }
+        }
+
+        private async Task<StepGroupResult> ExecuteJoinAnyAsync(
+            List<Task<StepResult>> tasks,
+            Task timeoutTask,
+            CancellationTokenSource linkedCts,
+            ExecutionState state,
+            CancellationToken cancellationToken)
+        {
+            var pending = new List<Task<StepResult>>(tasks);
+
+            while (pending.Count > 0)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                Task completedTask;
+                if (timeoutTask != null)
+                {
+                    var waitArray = CreateWaitArray(pending, timeoutTask);
+                    completedTask = await Task.WhenAny(waitArray).ConfigureAwait(false);
+                }
+                else
+                {
+                    completedTask = await Task.WhenAny(pending).ConfigureAwait(false);
+                }
+
+                if (timeoutTask != null && ReferenceEquals(completedTask, timeoutTask))
+                {
+                    linkedCts.Cancel();
+                    await DrainPendingAsync(pending).ConfigureAwait(false);
+                    state.ImmediateCleanup();
+                    return StepGroupResult.Abort("ParallelTimeout");
+                }
+
+                var finished = (Task<StepResult>)completedTask;
+                pending.Remove(finished);
+
+                var result = await finished.ConfigureAwait(false);
+
+                if (result.Status == StepRunStatus.Branch && !string.IsNullOrWhiteSpace(result.BranchTargetId))
+                {
+                    linkedCts.Cancel();
+                    await DrainPendingAsync(pending).ConfigureAwait(false);
+                    return StepGroupResult.Branch(result.BranchTargetId);
+                }
+
+                if (result.Status == StepRunStatus.Abort)
+                {
+                    linkedCts.Cancel();
+                    await DrainPendingAsync(pending).ConfigureAwait(false);
+                    state.ImmediateCleanup();
+                    return StepGroupResult.Abort(result.AbortReason ?? "ParallelAbort");
+                }
+
+                if (result.Status == StepRunStatus.Failed)
+                {
+                    linkedCts.Cancel();
+                    await DrainPendingAsync(pending).ConfigureAwait(false);
+                    state.ImmediateCleanup();
+                    return StepGroupResult.Abort("StepFailed");
+                }
+            }
+
+            return StepGroupResult.Completed();
+        }
+
+        private async Task<StepGroupResult> ExecuteJoinAllAsync(
+            List<Task<StepResult>> tasks,
+            Task timeoutTask,
+            CancellationTokenSource linkedCts,
+            ExecutionState state,
+            CancellationToken cancellationToken)
+        {
+            var whenAll = Task.WhenAll(tasks);
+            Task completedTask = timeoutTask != null
+                ? await Task.WhenAny(whenAll, timeoutTask).ConfigureAwait(false)
+                : await Task.WhenAny(whenAll).ConfigureAwait(false);
+
+            if (timeoutTask != null && ReferenceEquals(completedTask, timeoutTask))
+            {
+                linkedCts.Cancel();
+                await DrainPendingAsync(tasks).ConfigureAwait(false);
+                state.ImmediateCleanup();
+                return StepGroupResult.Abort("ParallelTimeout");
+            }
+
+            var results = await whenAll.ConfigureAwait(false);
+
+            string branchTarget = null;
+            for (int i = 0; i < results.Length; i++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var result = results[i];
+                if (result.Status == StepRunStatus.Abort)
+                {
+                    state.ImmediateCleanup();
+                    return StepGroupResult.Abort(result.AbortReason ?? "ParallelAbort");
+                }
+
+                if (result.Status == StepRunStatus.Failed)
+                {
+                    state.ImmediateCleanup();
+                    return StepGroupResult.Abort("StepFailed");
+                }
+
+                if (result.Status == StepRunStatus.Branch)
+                {
+                    if (string.IsNullOrWhiteSpace(branchTarget))
+                    {
+                        branchTarget = result.BranchTargetId;
+                    }
+                    else if (!string.Equals(branchTarget, result.BranchTargetId, StringComparison.OrdinalIgnoreCase))
+                    {
+                        BattleLogger.Warn("StepScheduler/Parallel", $"Parallel group emitted conflicting branch targets '{branchTarget}' and '{result.BranchTargetId ?? "(null)"}'.");
+                    }
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(branchTarget))
+            {
+                return StepGroupResult.Branch(branchTarget);
+            }
+
+            return StepGroupResult.Completed();
+        }
+
+        private static Task[] CreateWaitArray(List<Task<StepResult>> pending, Task timeoutTask)
+        {
+            var waitArray = new Task[pending.Count + 1];
+            for (int i = 0; i < pending.Count; i++)
+            {
+                waitArray[i] = pending[i];
+            }
+
+            waitArray[waitArray.Length - 1] = timeoutTask;
+            return waitArray;
+        }
+
+        private static async Task DrainPendingAsync(List<Task<StepResult>> tasks)
+        {
+            if (tasks == null || tasks.Count == 0)
+            {
+                return;
+            }
+
+            try
+            {
+                await Task.WhenAll(tasks).ConfigureAwait(false);
+            }
+            catch
+            {
+                // Individual step failures are handled by the scheduler; nothing else to do here.
             }
         }
     }

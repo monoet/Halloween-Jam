@@ -217,18 +217,9 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
             ExecutionState state,
             CancellationToken cancellationToken)
         {
-            if (group.ExecutionMode == StepGroupExecutionMode.Sequential)
-            {
-                return sequentialRunner.ExecuteAsync(group, context, state, cancellationToken);
-            }
-
-            if (group.JoinPolicy != StepGroupJoinPolicy.Any)
-            {
-                BattleLogger.Warn(LogTag, $"Parallel group '{group.Id ?? "(no id)"}' uses join '{group.JoinPolicy}'. Only 'Any' is supported in MVP; falling back to sequential execution.");
-                return sequentialRunner.ExecuteAsync(group, context, state, cancellationToken);
-            }
-
-            return parallelRunner.ExecuteAsync(group, context, state, cancellationToken);
+            return group.ExecutionMode == StepGroupExecutionMode.Sequential
+                ? sequentialRunner.ExecuteAsync(group, context, state, cancellationToken)
+                : parallelRunner.ExecuteAsync(group, context, state, cancellationToken);
         }
 
         internal async Task<StepResult> ExecuteStepInternalAsync(
@@ -281,6 +272,9 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
 
             if (result.Status == StepRunStatus.Branch)
             {
+                var sourceId = step.Id ?? step.ExecutorId ?? "(no id)";
+                var targetId = result.BranchTargetId ?? string.Empty;
+                NotifyObservers(o => o.OnBranchTaken(sourceId, targetId, schedulerContext));
                 BattleLogger.Log(LogTag, $"Step '{step.Id ?? "(no id)"}' branched to '{result.BranchTargetId ?? "(null)"}'.");
             }
             else if (result.Status == StepRunStatus.Abort)
@@ -298,9 +292,11 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
             CancellationToken cancellationToken,
             bool swallowCancellation)
         {
-            if (!await activeExecutionRegistry.ResolveConflictAsync(executor.Id, step.ConflictPolicy, cancellationToken).ConfigureAwait(false))
+            var effectivePolicy = GetEffectiveConflictPolicy(step, executor);
+
+            if (!await activeExecutionRegistry.ResolveConflictAsync(executor.Id, effectivePolicy, cancellationToken).ConfigureAwait(false))
             {
-                BattleLogger.Log(LogTag, $"Step '{step.Id ?? "(no id)"}' skipped due to conflict policy '{step.ConflictPolicy}'.");
+                BattleLogger.Log(LogTag, $"Step '{step.Id ?? "(no id)"}' skipped due to conflict policy '{effectivePolicy}'.");
                 return StepResult.Skipped;
             }
 
@@ -333,6 +329,31 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
                 activeExecutionRegistry.Remove(executor.Id, executionTask);
             }
         }
+
+        private StepConflictPolicy GetEffectiveConflictPolicy(ActionStep step, IActionStepExecutor executor)
+        {
+            if (step.HasExplicitConflictPolicy || executor == null)
+            {
+                return step.ConflictPolicy;
+            }
+
+            string executorId = executor.Id ?? string.Empty;
+            if (string.Equals(executorId, "animatorclip", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(executorId, "tween", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(executorId, "flipbook", StringComparison.OrdinalIgnoreCase))
+            {
+                return StepConflictPolicy.WaitForCompletion;
+            }
+
+            if (string.Equals(executorId, "sfx", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(executorId, "vfx", StringComparison.OrdinalIgnoreCase))
+            {
+                return StepConflictPolicy.SkipIfRunning;
+            }
+
+            return step.ConflictPolicy;
+        }
+
         private static StepExecutionOutcome MapOutcome(StepRunStatus status)
         {
             return status switch

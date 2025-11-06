@@ -13,15 +13,15 @@ MonoBehaviour:
   m_Name: Ciro_AS
   m_EditorClassIdentifier: Assembly-CSharp::BattleV2.Orchestration.Runtime.CharacterAnimationSet
   clipBindings:
-  - Id: Ciro_idleCombat
+  - Id: Ciro/IdleCombat
     Clip: {fileID: 7400000, guid: f653fd65ddb82a44cbd8bbce989a9c0c, type: 2}
-  - Id: Ciro_LeftRun
+  - Id: Ciro/LeftRun
     Clip: {fileID: 7400000, guid: ce665e0d203d1544b9db3056c43c6bef, type: 2}
-  - Id: Ciro_Cast
+  - Id: Item_Throw
     Clip: {fileID: 7400000, guid: 4a4f8ebb60af8014f8ebf68c6b0ad4cd, type: 2}
-  - Id: Ciro_SlashAttack
+  - Id: KS_Light_Windup
     Clip: {fileID: 7400000, guid: 4e8a8f84cc5c167449fb75fb0daef5e4, type: 2}
-  - Id: Ciro_DamageTaken
+  - Id: Ciro/DamageTaken
     Clip: {fileID: 7400000, guid: 925dac5ad415b0b41864b98a8508f35e, type: 2}
   flipbookBindings: []
   tweenBindings: []
