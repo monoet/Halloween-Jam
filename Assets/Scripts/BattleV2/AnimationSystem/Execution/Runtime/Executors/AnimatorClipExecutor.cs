@@ -1,6 +1,6 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
-using BattleV2.Common;
 using BattleV2.Core;
 using BattleV2.Orchestration.Runtime;
 using UnityEngine;
@@ -15,7 +15,14 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Executors
         public const string ExecutorId = "animatorClip";
         private const string LogScope = "AnimStep/Animator";
 
+        private readonly IMainThreadInvoker mainThreadInvoker;
+
         public string Id => ExecutorId;
+
+        public AnimatorClipExecutor(IMainThreadInvoker mainThreadInvoker)
+        {
+            this.mainThreadInvoker = mainThreadInvoker ?? throw new ArgumentNullException(nameof(mainThreadInvoker));
+        }
 
         public bool CanExecute(ActionStep step)
         {
@@ -24,8 +31,6 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Executors
 
         public async Task ExecuteAsync(StepExecutionContext context)
         {
-            await UnityMainThread.SwitchAsync().ConfigureAwait(false);
-
             if (!context.Step.HasBinding)
             {
                 BattleLogger.Warn(LogScope, $"Step '{context.Step.Id ?? "(no id)"}' missing clip binding id.");
@@ -41,14 +46,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Executors
             var parameters = context.Step.Parameters;
             var playbackRequest = BuildPlaybackRequest(clip, parameters);
 
-            try
-            {
-                await context.Wrapper.PlayAsync(playbackRequest, context.CancellationToken).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-                // Propagate cancellation silently; scheduler handles token state.
-            }
+            await InvokeWrapperAsync(context.Wrapper, playbackRequest, context.CancellationToken);
         }
 
         private static bool TryResolveClip(StepExecutionContext context, string clipId, out AnimationClip clip)
@@ -93,6 +91,23 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Executors
             }
 
             return AnimationPlaybackRequest.ForAnimatorClip(clip, speed, normalizedStart, loop);
+        }
+
+        private async Task InvokeWrapperAsync(IAnimationWrapper wrapper, AnimationPlaybackRequest request, CancellationToken token)
+        {
+            if (wrapper == null)
+            {
+                return;
+            }
+
+            try
+            {
+                await mainThreadInvoker.RunAsync(() => wrapper.PlayAsync(request, token));
+            }
+            catch (OperationCanceledException)
+            {
+                // expected
+            }
         }
     }
 }

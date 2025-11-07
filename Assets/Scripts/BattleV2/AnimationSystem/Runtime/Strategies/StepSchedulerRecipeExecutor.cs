@@ -26,6 +26,7 @@ namespace BattleV2.AnimationSystem.Strategies
         private readonly AnimationRouterBundle routerBundle;
         private readonly IAnimationEventBus eventBus;
         private readonly ITimedHitService timedHitService;
+        private readonly IMainThreadInvoker mainThreadInvoker;
 
         public StepSchedulerRecipeExecutor(
             ActionRecipeCatalog catalog,
@@ -34,7 +35,8 @@ namespace BattleV2.AnimationSystem.Strategies
             AnimatorWrapperResolver wrapperResolver,
             AnimationRouterBundle routerBundle,
             IAnimationEventBus eventBus,
-            ITimedHitService timedHitService)
+            ITimedHitService timedHitService,
+            IMainThreadInvoker mainThreadInvoker)
         {
             this.catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
             this.scheduler = scheduler ?? throw new ArgumentNullException(nameof(scheduler));
@@ -43,6 +45,7 @@ namespace BattleV2.AnimationSystem.Strategies
             this.routerBundle = routerBundle ?? throw new ArgumentNullException(nameof(routerBundle));
             this.eventBus = eventBus ?? throw new ArgumentNullException(nameof(eventBus));
             this.timedHitService = timedHitService ?? throw new ArgumentNullException(nameof(timedHitService));
+            this.mainThreadInvoker = mainThreadInvoker ?? throw new ArgumentNullException(nameof(mainThreadInvoker));
         }
 
         public bool CanExecute(string recipeId, StrategyContext context)
@@ -92,7 +95,11 @@ namespace BattleV2.AnimationSystem.Strategies
             var selection = new BattleSelection(new BattleActionData { id = recipeId }, animationRecipeId: recipeId);
             var request = new AnimationRequest(actor, selection, participants, 1f, null, recipeId);
 
-            routerBundle.RegisterActor(actor);
+            await mainThreadInvoker.RunAsync(() =>
+            {
+                routerBundle.RegisterActor(actor);
+                return Task.CompletedTask;
+            });
             try
             {
                 var schedulerContext = new StepSchedulerContext(
@@ -109,7 +116,11 @@ namespace BattleV2.AnimationSystem.Strategies
             }
             finally
             {
-                routerBundle.UnregisterActor(actor);
+                await mainThreadInvoker.RunAsync(() =>
+                {
+                    routerBundle.UnregisterActor(actor);
+                    return Task.CompletedTask;
+                });
             }
         }
 

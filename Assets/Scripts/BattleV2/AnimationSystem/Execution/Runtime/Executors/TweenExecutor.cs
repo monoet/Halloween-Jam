@@ -1,6 +1,6 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
-using BattleV2.Common;
 using BattleV2.Core;
 using BattleV2.Orchestration.Runtime;
 using UnityEngine;
@@ -15,7 +15,14 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Executors
         public const string ExecutorId = "tween";
         private const string LogScope = "AnimStep/Tween";
 
+        private readonly IMainThreadInvoker mainThreadInvoker;
+
         public string Id => ExecutorId;
+
+        public TweenExecutor(IMainThreadInvoker mainThreadInvoker)
+        {
+            this.mainThreadInvoker = mainThreadInvoker ?? throw new ArgumentNullException(nameof(mainThreadInvoker));
+        }
 
         public bool CanExecute(ActionStep step)
         {
@@ -24,8 +31,6 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Executors
 
         public async Task ExecuteAsync(StepExecutionContext context)
         {
-            await UnityMainThread.SwitchAsync().ConfigureAwait(false);
-
             if (!context.Step.HasBinding)
             {
                 BattleLogger.Warn(LogScope, $"Step '{context.Step.Id ?? "(no id)"}' missing tween binding id.");
@@ -47,15 +52,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Executors
             tween = ApplyOverrides(tween, context.Step.Parameters);
 
             var request = AnimationPlaybackRequest.ForTransformTween(tween);
-
-            try
-            {
-                await context.Wrapper.PlayAsync(request, context.CancellationToken).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-                // Cancellation expected when the scheduler stops the step.
-            }
+            await InvokeWrapperAsync(context.Wrapper, request, context.CancellationToken);
         }
 
         private static bool TryResolveTween(StepExecutionContext context, string tweenId, out TransformTween tween)
@@ -115,6 +112,23 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Executors
             }
 
             return tween;
+        }
+
+        private async Task InvokeWrapperAsync(IAnimationWrapper wrapper, AnimationPlaybackRequest request, CancellationToken token)
+        {
+            if (wrapper == null)
+            {
+                return;
+            }
+
+            try
+            {
+                await mainThreadInvoker.RunAsync(() => wrapper.PlayAsync(request, token));
+            }
+            catch (OperationCanceledException)
+            {
+                // expected when scheduler cancels
+            }
         }
     }
 }

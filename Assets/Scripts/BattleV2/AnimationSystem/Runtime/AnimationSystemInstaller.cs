@@ -62,6 +62,7 @@ namespace BattleV2.AnimationSystem.Runtime
         private ActionRecipeCatalog recipeCatalog;
         private IReadOnlyDictionary<BattlePhase, IPhaseStrategy> phaseStrategyMap;
         private IOrchestratorSessionController sessionController;
+        private IMainThreadInvoker mainThreadInvoker;
         private readonly List<string> bindingProviderSummaries = new List<string>();
         private readonly List<string> bindingProviderIssues = new List<string>();
 
@@ -140,7 +141,8 @@ namespace BattleV2.AnimationSystem.Runtime
             var uiService = ResolveService<IAnimationUiService>(uiServiceSource, "UI");
 
             routerBundle = new AnimationRouterBundle(eventBus, vfxService, sfxService, cameraService, uiService);
-            stepScheduler = BuildStepScheduler();
+            mainThreadInvoker = MainThreadInvoker.Instance;
+            stepScheduler = BuildStepScheduler(mainThreadInvoker);
             recipeCatalog = BuildRecipeCatalog(stepScheduler);
             RegisterInspectorRecipes();
             phaseStrategyMap = BuildPhaseStrategyMap();
@@ -417,12 +419,13 @@ namespace BattleV2.AnimationSystem.Runtime
             actorBindings = list.ToArray();
         }
 
-        private StepScheduler BuildStepScheduler()
+        private StepScheduler BuildStepScheduler(IMainThreadInvoker mainThreadInvoker = null)
         {
             var scheduler = new StepScheduler();
-            scheduler.RegisterExecutor(new AnimatorClipExecutor());
+            var invoker = mainThreadInvoker ?? MainThreadInvoker.Instance;
+            scheduler.RegisterExecutor(new AnimatorClipExecutor(invoker));
             scheduler.RegisterExecutor(new FlipbookExecutor());
-            scheduler.RegisterExecutor(new TweenExecutor());
+            scheduler.RegisterExecutor(new TweenExecutor(invoker));
             scheduler.RegisterExecutor(new WaitExecutor());
             scheduler.RegisterExecutor(new SfxExecutor());
             scheduler.RegisterExecutor(new VfxExecutor());
@@ -468,7 +471,7 @@ namespace BattleV2.AnimationSystem.Runtime
         {
             if (bundle != null)
             {
-                yield return new RouterRecipeExecutor(bundle);
+                yield return new RouterRecipeExecutor(bundle, mainThreadInvoker ?? MainThreadInvoker.Instance);
             }
 
             if (recipeCatalog != null && stepScheduler != null)
@@ -480,7 +483,8 @@ namespace BattleV2.AnimationSystem.Runtime
                     wrapperResolver,
                     routerBundle,
                     eventBus,
-                    timedHitService);
+                    timedHitService,
+                    mainThreadInvoker ?? MainThreadInvoker.Instance);
             }
 
             yield return NoOpRecipeExecutor.Instance;

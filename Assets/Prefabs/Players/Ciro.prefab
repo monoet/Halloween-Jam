@@ -15,6 +15,7 @@ GameObject:
   - component: {fileID: 4547551006955442222}
   - component: {fileID: 3880240336937654642}
   - component: {fileID: 2403949855969705108}
+  - component: {fileID: 4281670992362887343}
   m_Layer: 0
   m_Name: Ciro
   m_TagString: Untagged
@@ -235,3 +236,20 @@ MonoBehaviour:
   onAnimationEvent:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &4281670992362887343
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2209887660875536834}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: db6889fdea445d443ad9c56de26ab892, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BattleV2.AnimationSystem.Runtime.Bindings.CharacterAnimationSetProvider
+  actor: {fileID: 4547551006955442222}
+  animator: {fileID: 3868530006061863476}
+  fallbackClip: {fileID: 7400000, guid: f653fd65ddb82a44cbd8bbce989a9c0c, type: 2}
+  sockets: []
+  animationSet: {fileID: 11400000, guid: ab87af0db41fc8642ad2869694052716, type: 2}

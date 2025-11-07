@@ -13,10 +13,12 @@ namespace BattleV2.AnimationSystem.Strategies
         private const string Prefix = "router:";
 
         private readonly AnimationRouterBundle routerBundle;
+        private readonly IMainThreadInvoker mainThreadInvoker;
 
-        public RouterRecipeExecutor(AnimationRouterBundle routerBundle)
+        public RouterRecipeExecutor(AnimationRouterBundle routerBundle, IMainThreadInvoker mainThreadInvoker)
         {
             this.routerBundle = routerBundle ?? throw new ArgumentNullException(nameof(routerBundle));
+            this.mainThreadInvoker = mainThreadInvoker ?? throw new ArgumentNullException(nameof(mainThreadInvoker));
         }
 
         public bool CanExecute(string recipeId, StrategyContext context)
@@ -25,11 +27,11 @@ namespace BattleV2.AnimationSystem.Strategies
                    recipeId.StartsWith(Prefix, StringComparison.OrdinalIgnoreCase);
         }
 
-        public Task ExecuteAsync(string recipeId, StrategyContext context, CancellationToken token = default)
+        public async Task ExecuteAsync(string recipeId, StrategyContext context, CancellationToken token = default)
         {
             if (!CanExecute(recipeId, context))
             {
-                return Task.CompletedTask;
+                return;
             }
 
             var remainder = recipeId.Substring(Prefix.Length);
@@ -37,7 +39,7 @@ namespace BattleV2.AnimationSystem.Strategies
             if (separatorIndex < 0)
             {
                 context?.LogWarn($"Router recipe '{recipeId}' is missing channel information.");
-                return Task.CompletedTask;
+                return;
             }
 
             var channel = remainder.Substring(0, separatorIndex).Trim();
@@ -47,16 +49,19 @@ namespace BattleV2.AnimationSystem.Strategies
             if (string.IsNullOrWhiteSpace(effectId))
             {
                 context?.LogWarn($"Router recipe '{recipeId}' does not contain a valid effect identifier.");
-                return Task.CompletedTask;
+                return;
             }
 
-            bool handled = Dispatch(channel, effectId, payload, context?.AnimationContext.PrimaryActor);
+            bool handled = true;
+            await mainThreadInvoker.RunAsync(() =>
+            {
+                handled = Dispatch(channel, effectId, payload, context?.AnimationContext.PrimaryActor);
+                return Task.CompletedTask;
+            });
             if (!handled)
             {
                 context?.LogWarn($"Router recipe '{recipeId}' was not handled (channel='{channel}', effect='{effectId}').");
             }
-
-            return Task.CompletedTask;
         }
 
         private bool Dispatch(string channel, string effectId, AnimationEventPayload payload, CombatantState actor)

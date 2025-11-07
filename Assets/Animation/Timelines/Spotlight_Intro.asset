@@ -27,7 +27,7 @@ MonoBehaviour:
       delaySeconds: 0
       parameters: []
     - stepId: 
-      executorId: tween
+      executorId: move
       bindingId: Ciro/run_up
       conflictPolicy: 0
       overrideConflictPolicy: 0

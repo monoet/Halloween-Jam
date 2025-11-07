@@ -17,6 +17,12 @@ MonoBehaviour:
     Clip: {fileID: 7400000, guid: f653fd65ddb82a44cbd8bbce989a9c0c, type: 2}
   - Id: Ciro/LeftRun
     Clip: {fileID: 7400000, guid: ce665e0d203d1544b9db3056c43c6bef, type: 2}
+  - Id: Ciro_TurnIntro
+    Clip: {fileID: 7400000, guid: 4e8a8f84cc5c167449fb75fb0daef5e4, type: 2}
+  - Id: Ciro_RunUp
+    Clip: {fileID: 7400000, guid: ce665e0d203d1544b9db3056c43c6bef, type: 2}
+  - Id: Ciro_Idle
+    Clip: {fileID: 7400000, guid: f653fd65ddb82a44cbd8bbce989a9c0c, type: 2}
   - Id: Item_Throw
     Clip: {fileID: 7400000, guid: 4a4f8ebb60af8014f8ebf68c6b0ad4cd, type: 2}
   - Id: Ciro/Windup

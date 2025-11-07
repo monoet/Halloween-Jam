@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using BattleV2.AnimationSystem;
 using BattleV2.AnimationSystem.Execution.Routers;
 using BattleV2.Core;
+using BattleV2.UI;
 using UnityEngine;
 
 namespace BattleV2.AnimationSystem.Runtime.Bindings
@@ -23,6 +24,10 @@ namespace BattleV2.AnimationSystem.Runtime.Bindings
         [SerializeField]
         [Tooltip("Acciones UI disponibles, configurables por id.")]
         private UiActionEntry[] actions = Array.Empty<UiActionEntry>();
+
+        [Header("Spotlight")]
+        [SerializeField] private TurnSpotlightController spotlightController;
+        [SerializeField] private bool autoLocateSpotlightController = true;
 
         private readonly Dictionary<string, AnimationUiAction> lookup = new(StringComparer.OrdinalIgnoreCase);
 
@@ -45,6 +50,11 @@ namespace BattleV2.AnimationSystem.Runtime.Bindings
                 return false;
             }
 
+            if (HandleBuiltIn(uiId, actor, payload))
+            {
+                return true;
+            }
+
             if (!lookup.TryGetValue(uiId, out var action) || action == null)
             {
                 Debug.LogWarning($"[AnimUiService] UI id '{uiId}' has no action assigned.", this);
@@ -65,6 +75,9 @@ namespace BattleV2.AnimationSystem.Runtime.Bindings
             {
                 kvp.Value?.Clear(actor);
             }
+
+            EnsureSpotlightController();
+            spotlightController?.Hide(actor);
         }
 
         private void RebuildLookup()
@@ -85,6 +98,38 @@ namespace BattleV2.AnimationSystem.Runtime.Bindings
 
                 lookup[entry.id] = entry.action;
             }
+        }
+
+        private bool HandleBuiltIn(string uiId, CombatantState actor, in AnimationEventPayload payload)
+        {
+            if (!string.Equals(uiId, "spotlight_in", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            EnsureSpotlightController();
+            if (spotlightController == null)
+            {
+                Debug.LogWarning("[AnimUiService] spotlight_in requested but no TurnSpotlightController assigned.", this);
+                return true;
+            }
+
+            spotlightController.Show(actor, payload);
+            return true;
+        }
+
+        private void EnsureSpotlightController()
+        {
+            if (spotlightController != null || !autoLocateSpotlightController)
+            {
+                return;
+            }
+
+#if UNITY_2022_1_OR_NEWER
+            spotlightController = FindAnyObjectByType<TurnSpotlightController>(FindObjectsInactive.Include);
+#else
+            spotlightController = FindObjectOfType<TurnSpotlightController>();
+#endif
         }
     }
 }

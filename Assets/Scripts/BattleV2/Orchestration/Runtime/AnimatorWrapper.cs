@@ -161,7 +161,7 @@ namespace BattleV2.Orchestration.Runtime
 
         public async Task PlayAsync(AnimationPlaybackRequest request, CancellationToken cancellationToken = default)
         {
-            await UnityMainThread.SwitchAsync().ConfigureAwait(false);
+            await UnityMainThread.SwitchAsync();
 
             if (!enabled)
             {
