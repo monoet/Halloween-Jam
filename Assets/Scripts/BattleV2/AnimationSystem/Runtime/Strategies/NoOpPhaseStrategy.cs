@@ -8,11 +8,11 @@ namespace BattleV2.AnimationSystem.Strategies
         {
         }
 
-        public void OnEnter(AnimationContext context)
+        public void OnEnter(StrategyContext context)
         {
         }
 
-        public void OnExit(AnimationContext context)
+        public void OnExit(StrategyContext context)
         {
         }
     }

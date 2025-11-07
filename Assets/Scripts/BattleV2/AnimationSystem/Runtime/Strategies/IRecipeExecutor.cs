@@ -5,7 +5,7 @@ namespace BattleV2.AnimationSystem.Strategies
 {
     public interface IRecipeExecutor
     {
-        bool CanExecute(string recipeId, AnimationContext context);
-        Task ExecuteAsync(string recipeId, AnimationContext context, CancellationToken token = default);
+        bool CanExecute(string recipeId, StrategyContext context);
+        Task ExecuteAsync(string recipeId, StrategyContext context, CancellationToken token = default);
     }
 }

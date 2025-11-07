@@ -113,7 +113,8 @@ namespace BattleV2.AnimationSystem.Runtime
                 recipeCatalog,
                 AnimatorRegistry.Instance,
                 BuildPhaseStrategyMap(),
-                BuildRecipeExecutors());
+                BuildRecipeExecutors(routerBundle),
+                new OrchestratorSessionController());
 
             if (sequencerDriver == null)
             {
@@ -321,8 +322,13 @@ namespace BattleV2.AnimationSystem.Runtime
             };
         }
 
-        private IEnumerable<IRecipeExecutor> BuildRecipeExecutors()
+        private IEnumerable<IRecipeExecutor> BuildRecipeExecutors(AnimationRouterBundle bundle)
         {
+            if (bundle != null)
+            {
+                yield return new RouterRecipeExecutor(bundle);
+            }
+
             yield return NoOpRecipeExecutor.Instance;
         }
 

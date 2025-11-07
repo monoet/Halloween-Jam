@@ -11,12 +11,12 @@ namespace BattleV2.AnimationSystem.Strategies
         {
         }
 
-        public bool CanExecute(string recipeId, AnimationContext context)
+        public bool CanExecute(string recipeId, StrategyContext context)
         {
             return false;
         }
 
-        public Task ExecuteAsync(string recipeId, AnimationContext context, CancellationToken token = default)
+        public Task ExecuteAsync(string recipeId, StrategyContext context, CancellationToken token = default)
         {
             return Task.CompletedTask;
         }

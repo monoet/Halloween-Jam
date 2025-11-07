@@ -72,5 +72,10 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Recipes
 
             return recipes.Remove(id);
         }
+
+        public bool TryResolveRecipe(string id, out ActionRecipe recipe)
+        {
+            return TryGet(id, out recipe);
+        }
     }
 }

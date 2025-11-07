@@ -23,6 +23,9 @@ namespace BattleV2.AnimationSystem.Runtime
     /// </summary>
     public sealed class NewAnimOrchestratorAdapter : IAnimationOrchestrator, IDisposable
     {
+        private const string PhaseLogScope = "AnimAdapter/Phase";
+        private const string RecipeLogScope = "AnimAdapter/Recipe";
+
         private readonly TimelineRuntimeBuilder runtimeBuilder;
         private readonly ActionSequencerDriver sequencerDriver;
         private readonly ActionTimelineCatalog timelineCatalog;
@@ -36,14 +39,11 @@ namespace BattleV2.AnimationSystem.Runtime
         private readonly ActionRecipeCatalog recipeCatalog;
         private readonly Dictionary<BattlePhase, IPhaseStrategy> phaseStrategies;
         private readonly List<IRecipeExecutor> recipeExecutors;
+        private readonly IOrchestratorSessionController sessionController;
         private readonly Dictionary<CombatantState, IPlaybackSession> activeSessions = new Dictionary<CombatantState, IPlaybackSession>();
         private readonly Dictionary<CombatantState, IAnimationWrapper> legacyAdapters = new Dictionary<CombatantState, IAnimationWrapper>();
-        private readonly Dictionary<string, BattlePhase> sessionPhases = new Dictionary<string, BattlePhase>(StringComparer.Ordinal);
-        private readonly Dictionary<AmbientHandle, AmbientRecord> ambientTracks = new Dictionary<AmbientHandle, AmbientRecord>();
-        private readonly Dictionary<string, HashSet<AmbientHandle>> sessionAmbientIndex = new Dictionary<string, HashSet<AmbientHandle>>(StringComparer.Ordinal);
 
         private bool disposed;
-        private BattlePhase currentPhase = BattlePhase.None;
 
         public NewAnimOrchestratorAdapter(
             TimelineRuntimeBuilder runtimeBuilder,
@@ -59,7 +59,8 @@ namespace BattleV2.AnimationSystem.Runtime
             ActionRecipeCatalog recipeCatalog,
             AnimatorRegistry registry,
             IReadOnlyDictionary<BattlePhase, IPhaseStrategy> phaseStrategies = null,
-            IEnumerable<IRecipeExecutor> recipeExecutors = null)
+            IEnumerable<IRecipeExecutor> recipeExecutors = null,
+            IOrchestratorSessionController sessionController = null)
         {
             if (runtimeBuilder == null) throw new ArgumentNullException(nameof(runtimeBuilder));
             if (sequencerDriver == null) throw new ArgumentNullException(nameof(sequencerDriver));
@@ -90,25 +91,21 @@ namespace BattleV2.AnimationSystem.Runtime
             this.recipeExecutors = recipeExecutors != null
                 ? new List<IRecipeExecutor>(recipeExecutors)
                 : new List<IRecipeExecutor>();
+            this.sessionController = sessionController ?? new OrchestratorSessionController();
         }
 
-        public BattlePhase CurrentPhase => currentPhase;
+        public BattlePhase CurrentPhase => sessionController.GetPhase(AnimationContext.Default);
 
         public BattlePhase GetCurrentPhase(AnimationContext context)
         {
             var normalized = NormalizeContext(context);
-            if (sessionPhases.TryGetValue(normalized.SessionId, out var phase))
-            {
-                return phase;
-            }
-
-            return currentPhase;
+            return sessionController.GetPhase(normalized);
         }
 
         public void EnterPhase(BattlePhase phase, AnimationContext context)
         {
             var normalized = NormalizeContext(context);
-            sessionPhases.TryGetValue(normalized.SessionId, out var previousPhase);
+            var previousPhase = sessionController.GetPhase(normalized);
 
             if (!phaseStrategies.TryGetValue(previousPhase, out var exitStrategy))
             {
@@ -120,14 +117,11 @@ namespace BattleV2.AnimationSystem.Runtime
                 enterStrategy = null;
             }
 
-            exitStrategy?.OnExit(normalized);
-            sessionPhases[normalized.SessionId] = phase;
-            enterStrategy?.OnEnter(normalized);
+            var strategyContext = new StrategyContext(PhaseLogScope, normalized);
 
-            if (normalized.SessionId == AnimationContext.Default.SessionId)
-            {
-                currentPhase = phase;
-            }
+            exitStrategy?.OnExit(strategyContext.WithPhase(previousPhase));
+            sessionController.SetPhase(phase, normalized);
+            enterStrategy?.OnEnter(strategyContext.WithPhase(phase));
         }
 
         public AmbientHandle StartAmbient(AmbientSpec spec, AnimationContext context)
@@ -139,17 +133,7 @@ namespace BattleV2.AnimationSystem.Runtime
             }
 
             var normalized = NormalizeContext(context);
-            var handle = AmbientHandle.Create();
-            ambientTracks[handle] = new AmbientRecord(spec, normalized);
-
-            if (!sessionAmbientIndex.TryGetValue(normalized.SessionId, out var handles))
-            {
-                handles = new HashSet<AmbientHandle>();
-                sessionAmbientIndex[normalized.SessionId] = handles;
-            }
-
-            handles.Add(handle);
-            return handle;
+            return sessionController.StartAmbient(spec, normalized);
         }
 
         public void StopAmbient(AmbientHandle handle, AnimationContext context)
@@ -159,20 +143,7 @@ namespace BattleV2.AnimationSystem.Runtime
                 return;
             }
 
-            if (!ambientTracks.TryGetValue(handle, out var record))
-            {
-                return;
-            }
-            ambientTracks.Remove(handle);
-
-            if (sessionAmbientIndex.TryGetValue(record.Context.SessionId, out var handles))
-            {
-                handles.Remove(handle);
-                if (handles.Count == 0)
-                {
-                    sessionAmbientIndex.Remove(record.Context.SessionId);
-                }
-            }
+            sessionController.StopAmbient(handle);
         }
 
         public Task PlayRecipeAsync(string recipeId, AnimationContext context)
@@ -183,6 +154,14 @@ namespace BattleV2.AnimationSystem.Runtime
             }
 
             var normalized = NormalizeContext(context);
+            if (!recipeCatalog.TryResolveRecipe(recipeId, out _))
+            {
+                BattleLogger.Warn("AnimAdapter", $"Recipe '{recipeId}' not registered (context='{normalized.SessionId}').");
+                return Task.CompletedTask;
+            }
+
+            var strategyContext = new StrategyContext(RecipeLogScope, normalized).WithRecipe(recipeId);
+
             for (int i = 0; i < recipeExecutors.Count; i++)
             {
                 var executor = recipeExecutors[i];
@@ -191,12 +170,12 @@ namespace BattleV2.AnimationSystem.Runtime
                     continue;
                 }
 
-                if (!executor.CanExecute(recipeId, normalized))
+                if (!executor.CanExecute(recipeId, strategyContext))
                 {
                     continue;
                 }
 
-                return executor.ExecuteAsync(recipeId, normalized);
+                return executor.ExecuteAsync(recipeId, strategyContext);
             }
 
             BattleLogger.Warn("AnimAdapter", $"No recipe executor registered for '{recipeId}' (context='{normalized.SessionId}').");
@@ -430,17 +409,6 @@ namespace BattleV2.AnimationSystem.Runtime
             return context;
         }
 
-        private readonly struct AmbientRecord
-        {
-            public AmbientRecord(AmbientSpec spec, AnimationContext context)
-            {
-                Spec = spec ?? AmbientSpec.DefaultLoop();
-                Context = context;
-            }
-
-            public AmbientSpec Spec { get; }
-            public AnimationContext Context { get; }
-        }
 
         private interface IPlaybackSession : IDisposable
         {
