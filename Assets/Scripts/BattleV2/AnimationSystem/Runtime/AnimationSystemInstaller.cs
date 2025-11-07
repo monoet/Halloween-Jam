@@ -21,7 +21,7 @@ namespace BattleV2.AnimationSystem.Runtime
     /// Scene-level composition root for the JRPG animation system.
     /// Instantiates core services and exposes an orchestrator implementation.
     /// </summary>
-    public sealed class AnimationSystemInstaller : MonoBehaviour
+    public sealed class AnimationSystemInstaller : MonoBehaviour, IOrchestratorDiagnosticsProvider
     {
         public static AnimationSystemInstaller Current { get; private set; }
 
@@ -58,6 +58,8 @@ namespace BattleV2.AnimationSystem.Runtime
         private StepScheduler stepScheduler;
         private StepSchedulerMetricsObserver schedulerMetrics;
         private ActionRecipeCatalog recipeCatalog;
+        private IReadOnlyDictionary<BattlePhase, IPhaseStrategy> phaseStrategyMap;
+        private IOrchestratorSessionController sessionController;
 
         public IAnimationEventBus EventBus => eventBus;
         public ICombatClock Clock => combatClock;
@@ -68,6 +70,37 @@ namespace BattleV2.AnimationSystem.Runtime
         public StepScheduler StepScheduler => stepScheduler;
         public StepSchedulerMetricsObserver SchedulerMetrics => schedulerMetrics;
         public ActionRecipeCatalog RecipeCatalog => recipeCatalog;
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        public OrchestratorDiagnosticsSnapshot GetDiagnostics()
+        {
+            var routerInfo = routerBundle != null ? routerBundle.GetDiagnostics() : RouterDiagnosticsInfo.Empty;
+            IReadOnlyDictionary<string, BattlePhase> sessionPhases = sessionController != null
+                ? sessionController.SnapshotPhases()
+                : new Dictionary<string, BattlePhase>();
+
+            IReadOnlyCollection<string> strategySummaries;
+            if (phaseStrategyMap != null)
+            {
+                var list = new List<string>(phaseStrategyMap.Count);
+                foreach (var pair in phaseStrategyMap)
+                {
+                    var strategyName = pair.Value != null ? pair.Value.GetType().Name : "(null)";
+                    list.Add($"{pair.Key}: {strategyName}");
+                }
+
+                strategySummaries = list;
+            }
+            else
+            {
+                strategySummaries = System.Array.Empty<string>();
+            }
+
+            return new OrchestratorDiagnosticsSnapshot(routerInfo, sessionPhases, strategySummaries);
+        }
+#else
+        public OrchestratorDiagnosticsSnapshot GetDiagnostics() => default;
+#endif
 
         private void Awake()
         {
@@ -99,6 +132,8 @@ namespace BattleV2.AnimationSystem.Runtime
             stepScheduler = BuildStepScheduler();
             recipeCatalog = BuildRecipeCatalog(stepScheduler);
             RegisterInspectorRecipes();
+            phaseStrategyMap = BuildPhaseStrategyMap();
+            sessionController = new OrchestratorSessionController();
             orchestrator = new NewAnimOrchestratorAdapter(
                 runtimeBuilder,
                 sequencerDriver,
@@ -112,9 +147,9 @@ namespace BattleV2.AnimationSystem.Runtime
                 stepScheduler,
                 recipeCatalog,
                 AnimatorRegistry.Instance,
-                BuildPhaseStrategyMap(),
+                phaseStrategyMap,
                 BuildRecipeExecutors(routerBundle),
-                new OrchestratorSessionController());
+                sessionController);
 
             if (sequencerDriver == null)
             {

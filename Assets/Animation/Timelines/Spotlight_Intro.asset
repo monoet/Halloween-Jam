@@ -12,13 +12,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0a42e3a4e9dd89240ad33cca07a701f6, type: 3}
   m_Name: Spotlight_Intro
   m_EditorClassIdentifier: Assembly-CSharp::HalloweenJam.Combat.Animations.StepScheduler.StepRecipeAsset
-  recipeId: spotlight_intro
+  recipeId: turn_intro
   groups:
   - groupId: run_up
     executionMode: 1
     joinPolicy: 0
     timeoutSeconds: 0
     steps:
+    - stepId: 
+      executorId: animatorClip
+      bindingId: Ciro/LeftRun
+      conflictPolicy: 0
+      overrideConflictPolicy: 0
+      delaySeconds: 0
+      parameters: []
     - stepId: 
       executorId: tween
       bindingId: Ciro/run_up

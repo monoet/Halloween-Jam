@@ -68,6 +68,21 @@ namespace BattleV2.AnimationSystem.Runtime.Internal
             uiRouter?.Dispose();
         }
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        public RouterDiagnosticsInfo GetDiagnostics()
+        {
+            return new RouterDiagnosticsInfo(
+                vfxService is not NullVfxService,
+                sfxService is not NullSfxService,
+                cameraService is not NullCameraService,
+                uiService is not NullUiService,
+                vfxService?.GetType().Name,
+                sfxService?.GetType().Name,
+                cameraService?.GetType().Name,
+                uiService?.GetType().Name);
+        }
+#endif
+
         public IAnimationVfxService VfxService => vfxService;
         public IAnimationSfxService SfxService => sfxService;
         public IAnimationCameraService CameraService => cameraService;

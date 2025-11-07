@@ -38,6 +38,8 @@ namespace BattleV2.Orchestration
         [Header("Animation System")]
         [SerializeField] private AnimationSystemInstaller animationSystemInstaller;
         [SerializeField] private bool useAnimationSystemInstaller = false;
+        [Obsolete("Replaced by TurnPhaseStrategy")]
+        [HideInInspector]
         [SerializeField] private string playerTurnIntroRecipeId = "spotlight_intro";
 
         [Header("Timing")]

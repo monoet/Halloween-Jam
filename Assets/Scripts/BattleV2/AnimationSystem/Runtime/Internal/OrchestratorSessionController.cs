@@ -10,6 +10,9 @@ namespace BattleV2.AnimationSystem.Runtime.Internal
         void SetPhase(BattlePhase phase, AnimationContext context);
         AmbientHandle StartAmbient(AmbientSpec spec, AnimationContext context);
         void StopAmbient(AmbientHandle handle);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        IReadOnlyDictionary<string, BattlePhase> SnapshotPhases();
+#endif
     }
 
     internal sealed class OrchestratorSessionController : IOrchestratorSessionController
@@ -73,6 +76,13 @@ namespace BattleV2.AnimationSystem.Runtime.Internal
                 }
             }
         }
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        public IReadOnlyDictionary<string, BattlePhase> SnapshotPhases()
+        {
+            return new Dictionary<string, BattlePhase>(sessionPhases);
+        }
+#endif
 
         private static string NormalizeSessionId(string sessionId)
         {
