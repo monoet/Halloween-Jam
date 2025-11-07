@@ -176,6 +176,17 @@ namespace BattleV2.Orchestration.Services
                 }
 
                 var enrichedSelection = selection.WithTargets(resolution.TargetSet);
+                var primaryTarget = resolution.Targets != null && resolution.Targets.Count > 0
+                    ? resolution.Targets[0]
+                    : null;
+                if (primaryTarget != null)
+                {
+                    var targetTransform = primaryTarget.transform;
+                    if (targetTransform != null)
+                    {
+                        enrichedSelection = enrichedSelection.WithTargetTransform(targetTransform);
+                    }
+                }
                 if (enrichedSelection.TimedHitProfile != null)
                 {
                     enrichedSelection = enrichedSelection.WithTimedHitHandle(new TimedHitExecutionHandle(enrichedSelection.TimedHitResult));

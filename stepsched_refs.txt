@@ -1,0 +1,77 @@
+Assets\Scripts\02_Systems\03_Combat\Combat\Animations\StepScheduler\StepRecipeAsset.cs:7:namespace HalloweenJam.Combat.Animations.StepScheduler
+Assets\Scripts\BattleV2\AnimationSystem\Editor\AnimationRecipeValidator.cs:141:            var stepScheduler = installer.StepScheduler;
+Assets\Scripts\BattleV2\AnimationSystem\Editor\AnimationRecipeValidator.cs:145:                issues.Add("StepScheduler instance not initialised on installer.");
+Assets\Scripts\BattleV2\AnimationSystem\Runtime\AnimationSystemInstaller.cs:14:using HalloweenJam.Combat.Animations.StepScheduler;
+Assets\Scripts\BattleV2\AnimationSystem\Runtime\AnimationSystemInstaller.cs:57:        private StepScheduler stepScheduler;
+Assets\Scripts\BattleV2\AnimationSystem\Runtime\AnimationSystemInstaller.cs:58:        private StepSchedulerMetricsObserver schedulerMetrics;
+Assets\Scripts\BattleV2\AnimationSystem\Runtime\AnimationSystemInstaller.cs:67:        public StepScheduler StepScheduler => stepScheduler;
+Assets\Scripts\BattleV2\AnimationSystem\Runtime\AnimationSystemInstaller.cs:68:        public StepSchedulerMetricsObserver SchedulerMetrics => schedulerMetrics;
+Assets\Scripts\BattleV2\AnimationSystem\Runtime\AnimationSystemInstaller.cs:98:            stepScheduler = BuildStepScheduler();
+Assets\Scripts\BattleV2\AnimationSystem\Runtime\AnimationSystemInstaller.cs:274:        private StepScheduler BuildStepScheduler()
+Assets\Scripts\BattleV2\AnimationSystem\Runtime\AnimationSystemInstaller.cs:276:            var scheduler = new StepScheduler();
+Assets\Scripts\BattleV2\AnimationSystem\Runtime\AnimationSystemInstaller.cs:284:            schedulerMetrics = new StepSchedulerMetricsObserver();
+Assets\Scripts\BattleV2\AnimationSystem\Runtime\AnimationSystemInstaller.cs:289:        private ActionRecipeCatalog BuildRecipeCatalog(StepScheduler scheduler)
+Assets\Scripts\BattleV2\AnimationSystem\Runtime\NewAnimOrchestratorAdapter.cs:31:        private readonly StepScheduler stepScheduler;
+Assets\Scripts\BattleV2\AnimationSystem\Runtime\NewAnimOrchestratorAdapter.cs:51:            StepScheduler stepScheduler,
+Assets\Scripts\BattleV2\AnimationSystem\Runtime\NewAnimOrchestratorAdapter.cs:323:            private readonly StepScheduler scheduler;
+Assets\Scripts\BattleV2\AnimationSystem\Runtime\NewAnimOrchestratorAdapter.cs:339:                StepScheduler scheduler,
+Assets\Scripts\BattleV2\AnimationSystem\Runtime\NewAnimOrchestratorAdapter.cs:374:                var context = new StepSchedulerContext(request, timeline, wrapper, bindingResolver, routerBundle, eventBus, timedHitService, request.TimedHitRunner);
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\Core\StepSchedulerCoreTypes.cs:69:        private readonly StepSchedulerContext context;
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\Core\StepSchedulerCoreTypes.cs:73:        public ExecutionState(ActionRecipe recipe, StepSchedulerContext context, string logTag)
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\Core\StepSchedulerCoreTypes.cs:77:            this.logTag = logTag ?? nameof(StepScheduler);
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\Core\Conflict\ActiveExecutionRegistry.cs:17:            this.logTag = string.IsNullOrWhiteSpace(logTag) ? "StepScheduler" : logTag;
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\Core\GroupRunners\ParallelGroupRunner.cs:12:        private readonly StepScheduler scheduler;
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\Core\GroupRunners\ParallelGroupRunner.cs:14:        public ParallelGroupRunner(StepScheduler scheduler)
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\Core\GroupRunners\ParallelGroupRunner.cs:21:            StepSchedulerContext context,
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\Core\GroupRunners\ParallelGroupRunner.cs:192:                        BattleLogger.Warn("StepScheduler/Parallel", $"Parallel group emitted conflicting branch targets '{branchTarget}' and '{result.BranchTargetId ?? "(null)"}'.");
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\Core\GroupRunners\SequentialGroupRunner.cs:10:        private readonly StepScheduler scheduler;
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\Core\GroupRunners\SequentialGroupRunner.cs:12:        public SequentialGroupRunner(StepScheduler scheduler)
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\Core\GroupRunners\SequentialGroupRunner.cs:19:            StepSchedulerContext context,
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\StepContracts.cs:247:    public readonly struct StepSchedulerContext
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\StepContracts.cs:249:        public StepSchedulerContext(
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\StepContracts.cs:286:        private readonly StepSchedulerContext schedulerContext;
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\StepContracts.cs:289:            StepSchedulerContext schedulerContext,
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\IStepSchedulerObserver.cs:56:    public interface IStepSchedulerObserver
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\IStepSchedulerObserver.cs:58:        void OnRecipeStarted(ActionRecipe recipe, StepSchedulerContext context);
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\IStepSchedulerObserver.cs:59:        void OnRecipeCompleted(RecipeExecutionReport report, StepSchedulerContext context);
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\IStepSchedulerObserver.cs:60:        void OnGroupStarted(ActionStepGroup group, StepSchedulerContext context);
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\IStepSchedulerObserver.cs:61:        void OnGroupCompleted(StepGroupExecutionReport report, StepSchedulerContext context);
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\IStepSchedulerObserver.cs:62:        void OnBranchTaken(string sourceId, string targetId, StepSchedulerContext context);
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\IStepSchedulerObserver.cs:63:        void OnStepStarted(ActionStep step, StepSchedulerContext context);
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\IStepSchedulerObserver.cs:64:        void OnStepCompleted(StepExecutionReport report, StepSchedulerContext context);
+Assets\Scripts\BattleV2\AnimationSystem\Runtime\Internal\AnimationSequenceSession.cs:25:        private readonly StepScheduler stepScheduler;
+Assets\Scripts\BattleV2\AnimationSystem\Runtime\Internal\AnimationSequenceSession.cs:49:            StepScheduler stepScheduler,
+Assets\Scripts\BattleV2\AnimationSystem\Runtime\Internal\AnimationSequenceSession.cs:297:            var context = new StepSchedulerContext(request, timeline, wrapper, bindingResolver, routerBundle, eventBus, timedHitService, request.TimedHitRunner);
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\StepScheduler.cs:18:    public sealed class StepScheduler
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\StepScheduler.cs:20:        private const string LogTag = "StepScheduler";
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\StepScheduler.cs:24:        private readonly List<IStepSchedulerObserver> observers = new List<IStepSchedulerObserver>();
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\StepScheduler.cs:31:        public StepScheduler()
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\StepScheduler.cs:113:        public void RegisterObserver(IStepSchedulerObserver observer)
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\StepScheduler.cs:129:        public void UnregisterObserver(IStepSchedulerObserver observer)
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\StepScheduler.cs:142:        public async Task ExecuteAsync(ActionRecipe recipe, StepSchedulerContext context, CancellationToken cancellationToken = default)
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\StepScheduler.cs:216:            StepSchedulerContext context,
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\StepScheduler.cs:227:            StepSchedulerContext schedulerContext,
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\StepScheduler.cs:291:            StepSchedulerContext schedulerContext,
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\StepScheduler.cs:409:        private void NotifyObservers(Action<IStepSchedulerObserver> notify)
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\StepScheduler.cs:416:            IStepSchedulerObserver[] snapshot;
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\Telemetry\StepSchedulerMetricsObserver.cs:7:    public sealed class StepSchedulerMetricsObserver : IStepSchedulerObserver
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\Telemetry\StepSchedulerMetricsObserver.cs:21:        public void OnRecipeStarted(ActionRecipe recipe, StepSchedulerContext context)
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\Telemetry\StepSchedulerMetricsObserver.cs:26:        public void OnRecipeCompleted(RecipeExecutionReport report, StepSchedulerContext context)
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\Telemetry\StepSchedulerMetricsObserver.cs:45:        public void OnGroupStarted(ActionStepGroup group, StepSchedulerContext context)
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\Telemetry\StepSchedulerMetricsObserver.cs:50:        public void OnGroupCompleted(StepGroupExecutionReport report, StepSchedulerContext context)
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\Telemetry\StepSchedulerMetricsObserver.cs:55:        public void OnBranchTaken(string sourceId, string targetId, StepSchedulerContext context)
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\Telemetry\StepSchedulerMetricsObserver.cs:60:        public void OnStepStarted(ActionStep step, StepSchedulerContext context)
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\Telemetry\StepSchedulerMetricsObserver.cs:65:        public void OnStepCompleted(StepExecutionReport report, StepSchedulerContext context)
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\Telemetry\StepSchedulerMetricsObserver.cs:85:        public StepSchedulerMetricsSnapshot CreateSnapshot()
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\Telemetry\StepSchedulerMetricsObserver.cs:87:            return new StepSchedulerMetricsSnapshot(totalStepsExecuted, totalStepsSkipped, totalStepsCancelled, totalStepsBranched, recipeMetrics);
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\Telemetry\StepSchedulerMetricsObserver.cs:124:    public readonly struct StepSchedulerMetricsSnapshot
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\Telemetry\StepSchedulerMetricsObserver.cs:126:        public StepSchedulerMetricsSnapshot(
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\SystemSteps\SystemStepRunner.cs:29:            this.logTag = string.IsNullOrWhiteSpace(logTag) ? "StepScheduler" : logTag;
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\SystemSteps\SystemStepRunner.cs:32:        internal bool TryHandle(ActionStep step, StepSchedulerContext context, ExecutionState state, out StepResult result)
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\SystemSteps\SystemStepRunner.cs:81:        private void HandleWindowOpen(ActionStep step, StepSchedulerContext context, ExecutionState state)
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\SystemSteps\SystemStepRunner.cs:101:        private void HandleWindowClose(ActionStep step, StepSchedulerContext context, ExecutionState state)
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\SystemSteps\SystemStepRunner.cs:126:        private StepResult HandleGate(ActionStep step, StepSchedulerContext context, ExecutionState state)
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\SystemSteps\SystemStepRunner.cs:171:        private void HandleDamage(ActionStep step, StepSchedulerContext context)
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\SystemSteps\SystemStepRunner.cs:189:        private StepResult HandleFallback(ActionStep step, StepSchedulerContext context)
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\SystemSteps\SystemStepRunner.cs:205:        private void HandlePhaseLock(ActionStep step, StepSchedulerContext context, ExecutionState state, bool locked)
+Assets\Scripts\BattleV2\AnimationSystem\Execution\Runtime\Recipes\ActionRecipeCatalog.cs:8:    /// or serialized data sources before delegating execution to the <see cref="StepScheduler"/>.

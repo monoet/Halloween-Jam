@@ -24,4 +24,14 @@ MonoBehaviour:
   - Id: Ciro/DamageTaken
     Clip: {fileID: 7400000, guid: 925dac5ad415b0b41864b98a8508f35e, type: 2}
   flipbookBindings: []
-  tweenBindings: []
+  tweenBindings:
+  - Id: Ciro/run_up
+    Tween:
+      Duration: 0
+      Easing:
+        serializedVersion: 2
+        m_Curve: []
+        m_PreInfinity: 0
+        m_PostInfinity: 0
+        m_RotationOrder: 0
+    TweenProvider: {fileID: 11400000, guid: bfbdc6e3ee01a4340aada19fa6a2bdeb, type: 2}

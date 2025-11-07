@@ -3334,6 +3334,7 @@ MonoBehaviour:
   toleranceProfileAsset: {fileID: 11400000, guid: 2be5edb6cd772f64cbe5e63ebd7fda56, type: 2}
   stepRecipeAssets:
   - {fileID: 11400000, guid: 9d96cc054202bd4479e318c183fdb140, type: 2}
+  - {fileID: 0}
 --- !u!114 &1144566324
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5661,6 +5662,7 @@ MonoBehaviour:
   hudManager: {fileID: 2028473516}
   animationSystemInstaller: {fileID: 1144566323}
   useAnimationSystemInstaller: 1
+  playerTurnIntroRecipeId: spotlight_intro
   timingConfig: {fileID: 11400000, guid: 6ce2fd39e4ebacd469ba3c7e7cdb8b70, type: 2}
   player: {fileID: 0}
   playerRuntime: {fileID: 0}

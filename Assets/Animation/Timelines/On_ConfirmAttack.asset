@@ -10,19 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0a42e3a4e9dd89240ad33cca07a701f6, type: 3}
-  m_Name: New Step Recipe Asset
+  m_Name: On_ConfirmAttack
   m_EditorClassIdentifier: Assembly-CSharp::HalloweenJam.Combat.Animations.StepScheduler.StepRecipeAsset
-  recipeId: basic_attack
-  groups:
-  - groupId: 
-    executionMode: 0
-    joinPolicy: 0
-    timeoutSeconds: 0
-    steps:
-    - stepId: 
-      executorId: animatorClip
-      bindingId: Ciro/Windup
-      conflictPolicy: 0
-      overrideConflictPolicy: 0
-      delaySeconds: 0
-      parameters: []
+  recipeId: 
+  groups: []

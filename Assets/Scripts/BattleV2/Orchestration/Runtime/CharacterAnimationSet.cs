@@ -24,6 +24,7 @@ namespace BattleV2.Orchestration.Runtime
         [NonSerialized] private Dictionary<string, AnimationClip> clipLookup;
         [NonSerialized] private Dictionary<string, FlipbookBinding> flipbookLookup;
         [NonSerialized] private Dictionary<string, TransformTween> tweenLookup;
+        [NonSerialized] private Dictionary<string, TransformTweenProvider> tweenProviderLookup;
         [NonSerialized] private bool cacheDirty = true;
 
         public IReadOnlyList<AnimationClipBinding> ClipBindings => clipBindings ?? System.Array.Empty<AnimationClipBinding>();
@@ -94,7 +95,7 @@ namespace BattleV2.Orchestration.Runtime
 
         private void EnsureCachesBuilt()
         {
-            if (!cacheDirty && clipLookup != null && flipbookLookup != null && tweenLookup != null)
+            if (!cacheDirty && clipLookup != null && flipbookLookup != null && tweenLookup != null && tweenProviderLookup != null)
             {
                 return;
             }
@@ -102,6 +103,7 @@ namespace BattleV2.Orchestration.Runtime
             clipLookup = BuildClipLookup(clipBindings);
             flipbookLookup = BuildFlipbookLookup(flipbookBindings);
             tweenLookup = BuildTweenLookup(tweenBindings);
+            tweenProviderLookup = BuildTweenProviderLookup(tweenBindings);
             cacheDirty = false;
         }
 
@@ -149,6 +151,24 @@ namespace BattleV2.Orchestration.Runtime
             return dictionary;
         }
 
+        public bool TryGetTweenProvider(string id, out TransformTweenProvider provider)
+        {
+            provider = null;
+            if (string.IsNullOrWhiteSpace(id))
+            {
+                return false;
+            }
+
+            EnsureCachesBuilt();
+            if (tweenProviderLookup != null && tweenProviderLookup.TryGetValue(id, out var value))
+            {
+                provider = value;
+                return provider != null;
+            }
+
+            return false;
+        }
+
         private static Dictionary<string, TransformTween> BuildTweenLookup(TransformTweenBinding[] bindings)
         {
             var dictionary = new Dictionary<string, TransformTween>(StringComparer.OrdinalIgnoreCase);
@@ -160,12 +180,37 @@ namespace BattleV2.Orchestration.Runtime
             for (int i = 0; i < bindings.Length; i++)
             {
                 var binding = bindings[i];
-                if (string.IsNullOrWhiteSpace(binding.Id) || !binding.Tween.IsValid)
+                if (string.IsNullOrWhiteSpace(binding.Id))
                 {
                     continue;
                 }
 
-                dictionary[binding.Id] = binding.Tween;
+                if (binding.Tween.IsValid)
+                {
+                    dictionary[binding.Id] = binding.Tween;
+                }
+            }
+
+            return dictionary;
+        }
+
+        private static Dictionary<string, TransformTweenProvider> BuildTweenProviderLookup(TransformTweenBinding[] bindings)
+        {
+            var dictionary = new Dictionary<string, TransformTweenProvider>(StringComparer.OrdinalIgnoreCase);
+            if (bindings == null)
+            {
+                return dictionary;
+            }
+
+            for (int i = 0; i < bindings.Length; i++)
+            {
+                var binding = bindings[i];
+                if (string.IsNullOrWhiteSpace(binding.Id) || binding.TweenProvider == null)
+                {
+                    continue;
+                }
+
+                dictionary[binding.Id] = binding.TweenProvider;
             }
 
             return dictionary;
@@ -186,5 +231,6 @@ namespace BattleV2.Orchestration.Runtime
     {
         public string Id;
         public TransformTween Tween;
+        public TransformTweenProvider TweenProvider;
     }
 }

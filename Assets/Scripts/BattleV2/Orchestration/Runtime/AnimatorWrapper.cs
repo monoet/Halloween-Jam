@@ -5,6 +5,7 @@ using BattleV2.AnimationSystem.Execution.Routers;
 using BattleV2.AnimationSystem.Execution.Runtime;
 using BattleV2.AnimationSystem.Runtime;
 using BattleV2.Core;
+using BattleV2.Common;
 using UnityEngine;
 using UnityEngine.Animations;
 using UnityEngine.Events;
@@ -160,6 +161,8 @@ namespace BattleV2.Orchestration.Runtime
 
         public async Task PlayAsync(AnimationPlaybackRequest request, CancellationToken cancellationToken = default)
         {
+            await UnityMainThread.SwitchAsync().ConfigureAwait(false);
+
             if (!enabled)
             {
                 return;
@@ -410,9 +413,11 @@ namespace BattleV2.Orchestration.Runtime
         {
             if (animationSet == null)
             {
+                Debug.LogWarning($"[AnimatorWrapper] {name} missing CharacterAnimationSet reference.");
                 return;
             }
 
+            Debug.Log($"[AnimatorWrapper] {name} using animation set '{animationSet.name}'.");
             animationSet.WarmUpCache();
 
             var installer = AnimationSystemInstaller.Current;

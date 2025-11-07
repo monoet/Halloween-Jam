@@ -101,7 +101,10 @@ namespace BattleV2.AnimationSystem.Runtime
                 : action?.id;
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-            Debug.Log($"[AnimAdapter] PlayAsync request for action '{actionId ?? "(null)"}' (actor={request.Actor.name})");
+            var actorLabel = request.Actor != null ? request.Actor.GetInstanceID().ToString() : "(null)";
+            Debug.Log($"[AnimAdapter] PlayAsync request for action '{actionId ?? "(null)"}' (actorId={actorLabel})");
+#else
+            var actorLabel = request.Actor != null ? request.Actor.GetInstanceID().ToString() : "(null)";
 #endif
 
             if (string.IsNullOrWhiteSpace(actionId))
@@ -151,14 +154,14 @@ namespace BattleV2.AnimationSystem.Runtime
 
             if (wrapper == null)
             {
-                BattleLogger.Warn("AnimAdapter", $"No AnimatorWrapper binding configured for actor '{request.Actor.name}'.");
+                BattleLogger.Warn("AnimAdapter", $"No AnimatorWrapper binding configured for actorId '{actorLabel}'.");
                 return;
             }
 
             var bindingResolver = wrapper as IAnimationBindingResolver;
             if (hasRecipe && bindingResolver == null)
             {
-                BattleLogger.Warn("AnimAdapter", $"Wrapper for actor '{request.Actor.name}' does not expose binding resolver. Falling back to legacy timeline.");
+                BattleLogger.Warn("AnimAdapter", $"Wrapper for actorId '{actorLabel}' does not expose binding resolver. Falling back to legacy timeline.");
                 hasRecipe = false;
             }
 

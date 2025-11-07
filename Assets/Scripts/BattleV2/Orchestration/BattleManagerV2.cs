@@ -16,6 +16,7 @@ using BattleV2.Providers;
 using BattleV2.Targeting;
 using BattleV2.UI;
 using HalloweenJam.Combat;
+using BattleV2.Orchestration.Runtime;
 
 namespace BattleV2.Orchestration
 {
@@ -617,6 +618,14 @@ namespace BattleV2.Orchestration
             RefreshCombatContext();
 
             var enrichedSelection = selection.WithTargets(resolution.TargetSet);
+            if (playerResolution.PrimaryEnemy != null)
+            {
+                var targetTransform = playerResolution.PrimaryEnemy.transform;
+                if (targetTransform != null)
+                {
+                    enrichedSelection = enrichedSelection.WithTargetTransform(targetTransform);
+                }
+            }
             if (enrichedSelection.TimedHitProfile != null)
             {
                 enrichedSelection = enrichedSelection.WithTimedHitHandle(new TimedHitExecutionHandle(enrichedSelection.TimedHitResult));
@@ -724,7 +733,6 @@ namespace BattleV2.Orchestration
             if (IsAlly(actor))
             {
                 state?.Set(BattleState.AwaitingAction);
-                await PlayTurnIntroAsync(actor);
                 RequestPlayerAction();
             }
             else
@@ -765,37 +773,6 @@ namespace BattleV2.Orchestration
                     total += combatant.FinalStats.Speed;
                     count++;
                 }
-            }
-        }
-
-        private async Task PlayTurnIntroAsync(CombatantState actor)
-        {
-            if (animOrchestrator == null || string.IsNullOrWhiteSpace(playerTurnIntroRecipeId) || actor == null)
-            {
-                return;
-            }
-
-            var introSelection = new BattleSelection(
-                action: null,
-                animationRecipeId: playerTurnIntroRecipeId);
-
-            try
-            {
-                await animOrchestrator.PlayAsync(new ActionPlaybackRequest(
-                    actor,
-                    introSelection,
-                    Array.Empty<CombatantState>(),
-                    CalculateAverageSpeed(),
-                    TimedHitRunner,
-                    playerTurnIntroRecipeId)).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-                // Turn was cancelled; nothing else to do.
-            }
-            catch (Exception ex)
-            {
-                Debug.LogWarning($"[BattleManagerV2] Turn intro recipe '{playerTurnIntroRecipeId}' failed: {ex}", this);
             }
         }
 
@@ -973,6 +950,7 @@ namespace BattleV2.Orchestration
         }
     }
 }
+
 
 
 

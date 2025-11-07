@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using BattleV2.Common;
 using BattleV2.Core;
 using BattleV2.Orchestration.Runtime;
 using UnityEngine;
@@ -23,6 +24,8 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Executors
 
         public async Task ExecuteAsync(StepExecutionContext context)
         {
+            await UnityMainThread.SwitchAsync().ConfigureAwait(false);
+
             if (!context.Step.HasBinding)
             {
                 BattleLogger.Warn(LogScope, $"Step '{context.Step.Id ?? "(no id)"}' missing tween binding id.");
@@ -31,7 +34,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Executors
 
             if (!TryResolveTween(context, context.Step.BindingId, out var tween))
             {
-                BattleLogger.Warn(LogScope, $"Tween '{context.Step.BindingId}' not found for actor '{context.Actor?.name ?? "(null)"}'.");
+                BattleLogger.Warn(LogScope, $"Tween '{context.Step.BindingId}' not found in bindings or wrapper.");
                 return;
             }
 
