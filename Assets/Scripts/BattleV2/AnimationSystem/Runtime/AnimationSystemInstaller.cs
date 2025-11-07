@@ -11,6 +11,7 @@ using BattleV2.AnimationSystem.Runtime.Internal;
 using BattleV2.AnimationSystem.Timelines;
 using BattleV2.Core;
 using BattleV2.Orchestration.Runtime;
+using BattleV2.AnimationSystem.Strategies;
 using HalloweenJam.Combat.Animations.StepScheduler;
 using UnityEngine;
 
@@ -110,7 +111,9 @@ namespace BattleV2.AnimationSystem.Runtime
                 routerBundle,
                 stepScheduler,
                 recipeCatalog,
-                AnimatorRegistry.Instance);
+                AnimatorRegistry.Instance,
+                BuildPhaseStrategyMap(),
+                BuildRecipeExecutors());
 
             if (sequencerDriver == null)
             {
@@ -303,6 +306,24 @@ namespace BattleV2.AnimationSystem.Runtime
 #endif
 
             return catalogInstance;
+        }
+
+        private IReadOnlyDictionary<BattlePhase, IPhaseStrategy> BuildPhaseStrategyMap()
+        {
+            return new Dictionary<BattlePhase, IPhaseStrategy>
+            {
+                { BattlePhase.None, NoOpPhaseStrategy.Instance },
+                { BattlePhase.Intro, NoOpPhaseStrategy.Instance },
+                { BattlePhase.Loop, NoOpPhaseStrategy.Instance },
+                { BattlePhase.Turn, NoOpPhaseStrategy.Instance },
+                { BattlePhase.Outro, NoOpPhaseStrategy.Instance },
+                { BattlePhase.Cinematic, NoOpPhaseStrategy.Instance }
+            };
+        }
+
+        private IEnumerable<IRecipeExecutor> BuildRecipeExecutors()
+        {
+            yield return NoOpRecipeExecutor.Instance;
         }
 
         private void RegisterInspectorRecipes()

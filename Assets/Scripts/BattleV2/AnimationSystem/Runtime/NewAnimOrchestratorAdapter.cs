@@ -13,6 +13,7 @@ using BattleV2.AnimationSystem.Timelines;
 using BattleV2.Core;
 using UnityEngine;
 using BattleV2.Orchestration.Runtime;
+using BattleV2.AnimationSystem.Strategies;
 
 namespace BattleV2.AnimationSystem.Runtime
 {
@@ -33,6 +34,8 @@ namespace BattleV2.AnimationSystem.Runtime
         private readonly ITimedHitService timedHitService;
         private readonly AnimatorRegistry registry;
         private readonly ActionRecipeCatalog recipeCatalog;
+        private readonly Dictionary<BattlePhase, IPhaseStrategy> phaseStrategies;
+        private readonly List<IRecipeExecutor> recipeExecutors;
         private readonly Dictionary<CombatantState, IPlaybackSession> activeSessions = new Dictionary<CombatantState, IPlaybackSession>();
         private readonly Dictionary<CombatantState, IAnimationWrapper> legacyAdapters = new Dictionary<CombatantState, IAnimationWrapper>();
         private readonly Dictionary<string, BattlePhase> sessionPhases = new Dictionary<string, BattlePhase>(StringComparer.Ordinal);
@@ -54,7 +57,9 @@ namespace BattleV2.AnimationSystem.Runtime
             AnimationRouterBundle routerBundle,
             StepScheduler stepScheduler,
             ActionRecipeCatalog recipeCatalog,
-            AnimatorRegistry registry)
+            AnimatorRegistry registry,
+            IReadOnlyDictionary<BattlePhase, IPhaseStrategy> phaseStrategies = null,
+            IEnumerable<IRecipeExecutor> recipeExecutors = null)
         {
             if (runtimeBuilder == null) throw new ArgumentNullException(nameof(runtimeBuilder));
             if (sequencerDriver == null) throw new ArgumentNullException(nameof(sequencerDriver));
@@ -79,6 +84,12 @@ namespace BattleV2.AnimationSystem.Runtime
             this.stepScheduler = stepScheduler;
             this.recipeCatalog = recipeCatalog;
             this.registry = registry ?? AnimatorRegistry.Instance;
+            this.phaseStrategies = phaseStrategies != null
+                ? new Dictionary<BattlePhase, IPhaseStrategy>(phaseStrategies)
+                : new Dictionary<BattlePhase, IPhaseStrategy>();
+            this.recipeExecutors = recipeExecutors != null
+                ? new List<IRecipeExecutor>(recipeExecutors)
+                : new List<IRecipeExecutor>();
         }
 
         public BattlePhase CurrentPhase => currentPhase;
@@ -97,7 +108,22 @@ namespace BattleV2.AnimationSystem.Runtime
         public void EnterPhase(BattlePhase phase, AnimationContext context)
         {
             var normalized = NormalizeContext(context);
+            sessionPhases.TryGetValue(normalized.SessionId, out var previousPhase);
+
+            if (!phaseStrategies.TryGetValue(previousPhase, out var exitStrategy))
+            {
+                exitStrategy = null;
+            }
+
+            if (!phaseStrategies.TryGetValue(phase, out var enterStrategy))
+            {
+                enterStrategy = null;
+            }
+
+            exitStrategy?.OnExit(normalized);
             sessionPhases[normalized.SessionId] = phase;
+            enterStrategy?.OnEnter(normalized);
+
             if (normalized.SessionId == AnimationContext.Default.SessionId)
             {
                 currentPhase = phase;
@@ -157,7 +183,23 @@ namespace BattleV2.AnimationSystem.Runtime
             }
 
             var normalized = NormalizeContext(context);
-            BattleLogger.Warn("AnimAdapter", $"PlayRecipeAsync('{recipeId}') invoked without implementation for context '{normalized.SessionId}'.");
+            for (int i = 0; i < recipeExecutors.Count; i++)
+            {
+                var executor = recipeExecutors[i];
+                if (executor == null)
+                {
+                    continue;
+                }
+
+                if (!executor.CanExecute(recipeId, normalized))
+                {
+                    continue;
+                }
+
+                return executor.ExecuteAsync(recipeId, normalized);
+            }
+
+            BattleLogger.Warn("AnimAdapter", $"No recipe executor registered for '{recipeId}' (context='{normalized.SessionId}').");
             return Task.CompletedTask;
         }
 
