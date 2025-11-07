@@ -55,3 +55,14 @@ public sealed class RunnerUpToSpotlightProvider : TransformTweenProvider
 ```
 
 Assign the provider asset to the `RunUpSpotlight` tween binding inside the `CharacterAnimationSet`. No other serializer changes are required.
+
+## Stage-3 Contracts (Phase 1)
+
+To keep the StepScheduler focused on orchestration while still benefiting from mature tween engines, Stage-3 introduces two contracts:
+
+| Interface | Purpose |
+| --- | --- |
+| `ITweenBindingResolver` | Given a recipe binding id and the `StepExecutionContext`, resolves the final `TransformTween` (provider output or literal data) and the target transform. |
+| `ITweenBridge` | Executes that tween on the target transform, returning a `Task` that completes when the tween finishes or cancels via the scheduler token. |
+
+`TweenExecutor` depends on both: it asks the resolver for the tween payload/target, builds a `TweenExecutionRequest`, and hands it to the bridge. The scheduler still drives order, cancellation and telemetry, while bridges can reuse DOTween/LeanTween (or any in-house engine) without duplicating easing/pooling logic in the core runtime.
