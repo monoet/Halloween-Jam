@@ -12,27 +12,30 @@ namespace BattleV2.AnimationSystem.Strategies
             string logScope,
             AnimationContext animationContext,
             BattlePhase phase = BattlePhase.None,
-            string recipeId = null)
+            string recipeId = null,
+            IAnimationOrchestrator orchestrator = null)
         {
             LogScope = string.IsNullOrWhiteSpace(logScope) ? "AnimStrategy" : logScope;
             AnimationContext = animationContext;
             Phase = phase;
             RecipeId = recipeId;
+            Orchestrator = orchestrator;
         }
 
         public string LogScope { get; }
         public AnimationContext AnimationContext { get; }
         public BattlePhase Phase { get; }
         public string RecipeId { get; }
+        internal IAnimationOrchestrator Orchestrator { get; }
 
         public StrategyContext WithPhase(BattlePhase phase)
         {
-            return new StrategyContext(LogScope, AnimationContext, phase, RecipeId);
+            return new StrategyContext(LogScope, AnimationContext, phase, RecipeId, Orchestrator);
         }
 
         public StrategyContext WithRecipe(string recipeId)
         {
-            return new StrategyContext(LogScope, AnimationContext, Phase, recipeId);
+            return new StrategyContext(LogScope, AnimationContext, Phase, recipeId, Orchestrator);
         }
 
         public void LogInfo(string message)

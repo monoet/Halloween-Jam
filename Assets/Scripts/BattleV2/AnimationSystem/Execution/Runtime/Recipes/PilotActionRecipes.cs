@@ -10,6 +10,9 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Recipes
         public const string BasicAttackSuccessId = "BasicAttack_KS_Success";
         public const string BasicAttackMediocreId = "BasicAttack_Mediocre";
         public const string UseItemId = "UseItem";
+        public const string TurnIntroId = "turn_intro";
+        public const string RunUpId = "run_up";
+        public const string IdleId = "idle";
 
         private const string KsWindowId = "ks-light-window";
         private const string KsWindowTag = "KS_Light";
@@ -25,6 +28,9 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Recipes
             yield return BuildBasicAttackSuccess(builder);
             yield return BuildBasicAttackMediocre(builder);
             yield return BuildUseItem(builder);
+            yield return BuildTurnIntro(builder);
+            yield return BuildRunUp(builder);
+            yield return BuildIdle(builder);
         }
 
         private static ActionRecipe BuildBasicAttackLight(ActionRecipeBuilder builder)
@@ -88,6 +94,33 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Recipes
                 .AddStep(SfxStep("sfx_item_throw", ("volume", "0.9")))
                 .AddStep(VfxStep("vfx_item_trail", ("socket", "Hand"), ("lifetime", "0.6")));
 
+            definition.AddGroup(mainGroup);
+            return builder.Build(definition);
+        }
+
+        private static ActionRecipe BuildTurnIntro(ActionRecipeBuilder builder)
+        {
+            var definition = new ActionRecipeBuilder.ActionRecipeDefinition(TurnIntroId);
+            var mainGroup = new ActionRecipeBuilder.GroupDefinition($"{TurnIntroId}/Main")
+                .AddStep(AnimatorStep("Ciro_TurnIntro", ("loop", "false")));
+            definition.AddGroup(mainGroup);
+            return builder.Build(definition);
+        }
+
+        private static ActionRecipe BuildRunUp(ActionRecipeBuilder builder)
+        {
+            var definition = new ActionRecipeBuilder.ActionRecipeDefinition(RunUpId);
+            var mainGroup = new ActionRecipeBuilder.GroupDefinition($"{RunUpId}/Main")
+                .AddStep(AnimatorStep("Ciro_RunUp", ("loop", "false")));
+            definition.AddGroup(mainGroup);
+            return builder.Build(definition);
+        }
+
+        private static ActionRecipe BuildIdle(ActionRecipeBuilder builder)
+        {
+            var definition = new ActionRecipeBuilder.ActionRecipeDefinition(IdleId);
+            var mainGroup = new ActionRecipeBuilder.GroupDefinition($"{IdleId}/Main")
+                .AddStep(AnimatorStep("Ciro_Idle", ("loop", "true")));
             definition.AddGroup(mainGroup);
             return builder.Build(definition);
         }

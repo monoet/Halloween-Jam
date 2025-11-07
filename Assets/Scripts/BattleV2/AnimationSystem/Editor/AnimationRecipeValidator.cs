@@ -157,7 +157,10 @@ namespace BattleV2.AnimationSystem.Editor
                 PilotActionRecipes.BasicAttackLightId,
                 PilotActionRecipes.BasicAttackSuccessId,
                 PilotActionRecipes.BasicAttackMediocreId,
-                PilotActionRecipes.UseItemId
+                PilotActionRecipes.UseItemId,
+                PilotActionRecipes.TurnIntroId,
+                PilotActionRecipes.RunUpId,
+                PilotActionRecipes.IdleId
             };
 
             for (int i = 0; i < requiredIds.Length; i++)

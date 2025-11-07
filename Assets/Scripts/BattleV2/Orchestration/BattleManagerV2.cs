@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using UnityEngine;
 using BattleV2.Actions;
 
+using BattleV2.AnimationSystem;
 using BattleV2.AnimationSystem.Runtime;
 using BattleV2.Charge;
 using BattleV2.Core;
@@ -732,6 +733,7 @@ namespace BattleV2.Orchestration
 
             if (IsAlly(actor))
             {
+                TriggerTurnPhase(actor);
                 state?.Set(BattleState.AwaitingAction);
                 RequestPlayerAction();
             }
@@ -816,6 +818,28 @@ namespace BattleV2.Orchestration
             }
 
             DispatchToInputProvider(actionContext, HandlePlayerSelection, ExecuteFallback);
+        }
+
+        private void TriggerTurnPhase(CombatantState actor)
+        {
+            if (actor == null)
+            {
+                return;
+            }
+
+            var orchestrator = animationSystemInstaller?.Orchestrator;
+            if (orchestrator == null)
+            {
+                return;
+            }
+
+            string sessionId = !string.IsNullOrWhiteSpace(actor.name)
+                ? actor.name
+                : $"turn_{actor.GetInstanceID()}";
+
+            var participants = IsAlly(actor) ? AlliesList : EnemiesList;
+            var context = new AnimationContext(sessionId, actor, participants);
+            orchestrator.EnterPhase(BattlePhase.Turn, context);
         }
 
         private EnemyTurnContext BuildEnemyTurnContext(CombatantState attacker)

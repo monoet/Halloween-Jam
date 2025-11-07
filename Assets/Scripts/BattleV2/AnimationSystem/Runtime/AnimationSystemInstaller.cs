@@ -316,7 +316,7 @@ namespace BattleV2.AnimationSystem.Runtime
                 { BattlePhase.None, NoOpPhaseStrategy.Instance },
                 { BattlePhase.Intro, NoOpPhaseStrategy.Instance },
                 { BattlePhase.Loop, NoOpPhaseStrategy.Instance },
-                { BattlePhase.Turn, NoOpPhaseStrategy.Instance },
+                { BattlePhase.Turn, new TurnPhaseStrategy() },
                 { BattlePhase.Outro, NoOpPhaseStrategy.Instance },
                 { BattlePhase.Cinematic, NoOpPhaseStrategy.Instance }
             };

@@ -117,7 +117,7 @@ namespace BattleV2.AnimationSystem.Runtime
                 enterStrategy = null;
             }
 
-            var strategyContext = new StrategyContext(PhaseLogScope, normalized);
+            var strategyContext = new StrategyContext(PhaseLogScope, normalized, orchestrator: this);
 
             exitStrategy?.OnExit(strategyContext.WithPhase(previousPhase));
             sessionController.SetPhase(phase, normalized);
@@ -154,13 +154,16 @@ namespace BattleV2.AnimationSystem.Runtime
             }
 
             var normalized = NormalizeContext(context);
-            if (!recipeCatalog.TryResolveRecipe(recipeId, out _))
+            var isRouter = !string.IsNullOrWhiteSpace(recipeId) &&
+                recipeId.StartsWith("router:", StringComparison.OrdinalIgnoreCase);
+
+            if (!isRouter && !recipeCatalog.TryResolveRecipe(recipeId, out _))
             {
                 BattleLogger.Warn("AnimAdapter", $"Recipe '{recipeId}' not registered (context='{normalized.SessionId}').");
                 return Task.CompletedTask;
             }
 
-            var strategyContext = new StrategyContext(RecipeLogScope, normalized).WithRecipe(recipeId);
+            var strategyContext = new StrategyContext(RecipeLogScope, normalized, orchestrator: this).WithRecipe(recipeId);
 
             for (int i = 0; i < recipeExecutors.Count; i++)
             {
