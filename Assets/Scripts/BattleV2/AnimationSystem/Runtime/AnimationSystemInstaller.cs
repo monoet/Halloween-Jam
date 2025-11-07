@@ -39,6 +39,8 @@ namespace BattleV2.AnimationSystem.Runtime
         [SerializeField] private UnityEngine.Object sfxServiceSource;
         [SerializeField] private UnityEngine.Object cameraServiceSource;
         [SerializeField] private UnityEngine.Object uiServiceSource;
+        [Header("Binding Sources")]
+        [SerializeField] private bool autoScanBindings = true;
         [Header("Timed Hit Settings")]
         [SerializeField] private TimedHitToleranceProfileAsset toleranceProfileAsset;
         [Header("Step Scheduler Recipes")]
@@ -60,6 +62,8 @@ namespace BattleV2.AnimationSystem.Runtime
         private ActionRecipeCatalog recipeCatalog;
         private IReadOnlyDictionary<BattlePhase, IPhaseStrategy> phaseStrategyMap;
         private IOrchestratorSessionController sessionController;
+        private readonly List<string> bindingProviderSummaries = new List<string>();
+        private readonly List<string> bindingProviderIssues = new List<string>();
 
         public IAnimationEventBus EventBus => eventBus;
         public ICombatClock Clock => combatClock;
@@ -96,7 +100,14 @@ namespace BattleV2.AnimationSystem.Runtime
                 strategySummaries = System.Array.Empty<string>();
             }
 
-            return new OrchestratorDiagnosticsSnapshot(routerInfo, sessionPhases, strategySummaries);
+            var providersSnapshot = bindingProviderSummaries.Count > 0
+                ? bindingProviderSummaries.ToArray()
+                : System.Array.Empty<string>();
+            var issuesSnapshot = bindingProviderIssues.Count > 0
+                ? bindingProviderIssues.ToArray()
+                : System.Array.Empty<string>();
+
+            return new OrchestratorDiagnosticsSnapshot(routerInfo, sessionPhases, strategySummaries, providersSnapshot, issuesSnapshot);
         }
 #else
         public OrchestratorDiagnosticsSnapshot GetDiagnostics() => default;
@@ -211,6 +222,11 @@ namespace BattleV2.AnimationSystem.Runtime
                 actorBindings = resolved.ToArray();
             }
 
+            if (autoScanBindings)
+            {
+                AppendProviderBindings(resolved);
+            }
+
             return resolved.ToArray();
         }
 
@@ -246,9 +262,100 @@ namespace BattleV2.AnimationSystem.Runtime
                     continue;
                 }
 
-                bindings.Add(new AnimationActorBinding(actor, animator, defaultFallbackClip));
-                knownActors.Add(actor);
+            bindings.Add(new AnimationActorBinding(actor, animator, defaultFallbackClip));
+            knownActors.Add(actor);
+        }
+        }
+
+        private void AppendProviderBindings(List<AnimationActorBinding> bindings)
+        {
+            if (bindings == null)
+            {
+                return;
             }
+
+            bindingProviderSummaries.Clear();
+            bindingProviderIssues.Clear();
+
+            var providerActors = new HashSet<CombatantState>();
+#if UNITY_2022_1_OR_NEWER
+            var behaviours = FindObjectsByType<MonoBehaviour>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+#else
+            var behaviours = Resources.FindObjectsOfTypeAll<MonoBehaviour>();
+#endif
+
+            int providerCount = 0;
+            int bindingCount = 0;
+
+            for (int i = 0; i < behaviours.Length; i++)
+            {
+                var behaviour = behaviours[i];
+                if (behaviour == null || !behaviour.gameObject.scene.IsValid())
+                {
+                    continue;
+                }
+
+                if (behaviour is not IAnimationBindingProvider provider)
+                {
+                    continue;
+                }
+
+                providerCount++;
+                int providerBindings = 0;
+                IEnumerable<AnimationActorBinding> entries = null;
+
+                try
+                {
+                    entries = provider.GetBindings();
+                }
+                catch (Exception ex)
+                {
+                    bindingProviderIssues.Add($"{behaviour.name}: exception during GetBindings ({ex.GetType().Name})");
+                    continue;
+                }
+
+                if (entries == null)
+                {
+                    bindingProviderIssues.Add($"{behaviour.name}: returned null bindings");
+                    continue;
+                }
+
+                foreach (var entry in entries)
+                {
+                    if (entry == null || !entry.IsValid)
+                    {
+                        bindingProviderIssues.Add($"{behaviour.name}: reported invalid binding");
+                        continue;
+                    }
+
+                    UpsertBinding(bindings, entry);
+                    providerActors.Add(entry.Actor);
+                    providerBindings++;
+                    bindingCount++;
+                }
+
+                bindingProviderSummaries.Add($"{behaviour.name}: {providerBindings} binding(s)");
+            }
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            BattleLogger.Info("AnimInstaller", $"Auto-scan providers={providerCount}, bindings={bindingCount}");
+#else
+            _ = providerActors;
+#endif
+        }
+
+        private static void UpsertBinding(List<AnimationActorBinding> bindings, AnimationActorBinding entry)
+        {
+            for (int i = 0; i < bindings.Count; i++)
+            {
+                if (bindings[i]?.Actor == entry.Actor)
+                {
+                    bindings[i] = entry;
+                    return;
+                }
+            }
+
+            bindings.Add(entry);
         }
 
         public void RegisterActor(
