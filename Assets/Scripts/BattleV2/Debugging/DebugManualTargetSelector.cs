@@ -43,7 +43,7 @@ namespace BattleV2.Debugging
         {
             if (hudManager == null)
             {
-                hudManager = FindObjectOfType<HUDManager>();
+                hudManager = FindFirstObjectByType<HUDManager>();
             }
         }
 

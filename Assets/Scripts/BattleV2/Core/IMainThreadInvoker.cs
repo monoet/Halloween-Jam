@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace BattleV2.Core
@@ -7,5 +8,6 @@ namespace BattleV2.Core
     {
         Task RunAsync(Func<Task> action);
         void Run(Action action);
+        Task NextFrameAsync(CancellationToken token = default);
     }
 }

@@ -48,7 +48,39 @@ namespace BattleV2.UI
             }
 
             // TODO: route WASD / stick navigation to the currently focused menu.
+            HandleNavigationInput();
+        }
+
+        private void HandleNavigationInput()
+        {
+            Vector2Int direction = Vector2Int.zero;
+
+            if (Input.GetKeyDown(upKey))
+            {
+                direction.y += 1;
+            }
+
+            if (Input.GetKeyDown(downKey))
+            {
+                direction.y -= 1;
+            }
+
+            if (Input.GetKeyDown(rightKey))
+            {
+                direction.x += 1;
+            }
+
+            if (Input.GetKeyDown(leftKey))
+            {
+                direction.x -= 1;
+            }
+
+            if (direction == Vector2Int.zero)
+            {
+                return;
+            }
+
+            menuManager.SendMessage("OnNavigate", direction, SendMessageOptions.DontRequireReceiver);
         }
     }
 }
-

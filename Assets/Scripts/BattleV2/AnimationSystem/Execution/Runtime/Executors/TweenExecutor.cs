@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using BattleV2.AnimationSystem.Execution.Runtime.Tweens;
 using BattleV2.Core;
 using BattleV2.Orchestration.Runtime;
 using UnityEngine;
@@ -15,13 +16,15 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Executors
         public const string ExecutorId = "tween";
         private const string LogScope = "AnimStep/Tween";
 
-        private readonly IMainThreadInvoker mainThreadInvoker;
+        private readonly ITweenBindingResolver bindingResolver;
+        private readonly ITweenBridge tweenBridge;
 
         public string Id => ExecutorId;
 
-        public TweenExecutor(IMainThreadInvoker mainThreadInvoker)
+        public TweenExecutor(ITweenBindingResolver bindingResolver, ITweenBridge tweenBridge)
         {
-            this.mainThreadInvoker = mainThreadInvoker ?? throw new ArgumentNullException(nameof(mainThreadInvoker));
+            this.bindingResolver = bindingResolver ?? throw new ArgumentNullException(nameof(bindingResolver));
+            this.tweenBridge = tweenBridge ?? throw new ArgumentNullException(nameof(tweenBridge));
         }
 
         public bool CanExecute(ActionStep step)
@@ -37,38 +40,27 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Executors
                 return;
             }
 
-            if (!TryResolveTween(context, context.Step.BindingId, out var tween))
+            if (!bindingResolver.TryResolve(context.Step.BindingId, context, out var resolved))
             {
-                BattleLogger.Warn(LogScope, $"Tween '{context.Step.BindingId}' not found in bindings or wrapper.");
+                BattleLogger.Warn(LogScope, $"Tween '{context.Step.BindingId}' not found for actor '{context.Actor?.name ?? "(null)"}'.");
                 return;
             }
 
+            var tween = ApplyOverrides(resolved.Tween, context.Step.Parameters);
             if (!tween.IsValid)
             {
                 BattleLogger.Warn(LogScope, $"Tween '{context.Step.BindingId}' is not valid (missing targets or duration).");
                 return;
             }
 
-            tween = ApplyOverrides(tween, context.Step.Parameters);
+            var request = new TweenExecutionRequest(resolved.TargetTransform, tween);
+            BattleLogger.Log(LogScope,
+                $"REQUEST '{context.Step.BindingId}' actor={context.Actor?.name ?? "(null)"} target={resolved.TargetTransform?.name ?? "(null)"} dur={tween.Duration} pos={tween.TargetLocalPosition}");
 
-            var request = AnimationPlaybackRequest.ForTransformTween(tween);
-            await InvokeWrapperAsync(context.Wrapper, request, context.CancellationToken);
-        }
+            await tweenBridge.PlayAsync(request, context.CancellationToken);
 
-        private static bool TryResolveTween(StepExecutionContext context, string tweenId, out TransformTween tween)
-        {
-            tween = TransformTween.None;
-            if (string.IsNullOrWhiteSpace(tweenId))
-            {
-                return false;
-            }
-
-            if (context.Bindings != null && context.Bindings.TryGetTween(tweenId, out tween))
-            {
-                return true;
-            }
-
-            return context.Wrapper != null && context.Wrapper.TryGetTween(tweenId, out tween);
+            BattleLogger.Log(LogScope,
+                $"EXECUTED '{context.Step.BindingId}' actor={context.Actor?.name ?? "(null)"} target={resolved.TargetTransform?.name ?? "(null)"} dur={tween.Duration} pos={tween.TargetLocalPosition}");
         }
 
         private static TransformTween ApplyOverrides(TransformTween tween, ActionStepParameters parameters)
@@ -114,21 +106,5 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Executors
             return tween;
         }
 
-        private async Task InvokeWrapperAsync(IAnimationWrapper wrapper, AnimationPlaybackRequest request, CancellationToken token)
-        {
-            if (wrapper == null)
-            {
-                return;
-            }
-
-            try
-            {
-                await mainThreadInvoker.RunAsync(() => wrapper.PlayAsync(request, token));
-            }
-            catch (OperationCanceledException)
-            {
-                // expected when scheduler cancels
-            }
-        }
     }
 }

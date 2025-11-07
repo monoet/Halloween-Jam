@@ -68,7 +68,7 @@ namespace BattleV2.AnimationSystem.Execution
             graph = PlayableGraph.Create(graphName);
             graph.SetTimeUpdateMode(DirectorUpdateMode.GameTime);
 
-            mixer = AnimationMixerPlayable.Create(graph, 2, true);
+            mixer = AnimationMixerPlayable.Create(graph, 2);
             output = AnimationPlayableOutput.Create(graph, $"{graphName}_Output", binding.Animator);
             output.SetSourcePlayable(mixer);
 

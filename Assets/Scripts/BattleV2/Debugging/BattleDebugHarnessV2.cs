@@ -52,7 +52,6 @@ namespace BattleV2.Debugging
         private Action<BattleSelection> pendingOnSelected;
         private Action pendingOnCancel;
         private readonly List<ActionEntry> pendingActions = new();
-        private ActionEntry? selectedEntry;
         private int desiredCpCharge;
 
         private enum TimedSequenceMode
@@ -129,7 +128,7 @@ namespace BattleV2.Debugging
 
             Instance = this;
             suppressWindow = startHidden;
-            manager ??= FindObjectOfType<BattleManagerV2>();
+            manager ??= FindFirstObjectByType<BattleManagerV2>();
 
             if (manager == null)
             {
@@ -238,7 +237,6 @@ namespace BattleV2.Debugging
             pendingContext = context;
             pendingOnSelected = onSelected;
             pendingOnCancel = onCancel;
-            selectedEntry = null;
             desiredCpCharge = 0;
             pendingActions.Clear();
 
@@ -1230,7 +1228,6 @@ namespace BattleV2.Debugging
             pendingOnSelected = null;
             pendingOnCancel = null;
             pendingActions.Clear();
-            selectedEntry = null;
             desiredCpCharge = 0;
         }
 

@@ -1,5 +1,7 @@
 using System;
+using System.Collections;
 using System.Collections.Concurrent;
+using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
 
@@ -28,7 +30,7 @@ namespace BattleV2.Core
                 return instance;
             }
 
-            instance = FindObjectOfType<MainThreadInvoker>();
+            instance = FindFirstObjectByType<MainThreadInvoker>();
             if (instance != null)
             {
                 DontDestroyOnLoad(instance.gameObject);
@@ -107,6 +109,31 @@ namespace BattleV2.Core
                 action();
                 return Task.CompletedTask;
             });
+        }
+
+        public Task NextFrameAsync(CancellationToken token = default)
+        {
+            if (token.IsCancellationRequested)
+            {
+                return Task.FromCanceled(token);
+            }
+
+            var tcs = new TaskCompletionSource<bool>();
+            StartCoroutine(NextFrameRoutine(tcs, token));
+            return tcs.Task;
+        }
+
+        private IEnumerator NextFrameRoutine(TaskCompletionSource<bool> tcs, CancellationToken token)
+        {
+            yield return null;
+            if (token.IsCancellationRequested)
+            {
+                tcs.TrySetCanceled(token);
+            }
+            else
+            {
+                tcs.TrySetResult(true);
+            }
         }
     }
 }

@@ -20,14 +20,7 @@ MonoBehaviour:
     timeoutSeconds: 0
     steps:
     - stepId: 
-      executorId: animatorClip
-      bindingId: Ciro/LeftRun
-      conflictPolicy: 0
-      overrideConflictPolicy: 0
-      delaySeconds: 0
-      parameters: []
-    - stepId: 
-      executorId: move
+      executorId: tween
       bindingId: Ciro/run_up
       conflictPolicy: 0
       overrideConflictPolicy: 0

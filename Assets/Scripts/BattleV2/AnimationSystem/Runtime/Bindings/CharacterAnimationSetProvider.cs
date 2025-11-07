@@ -14,6 +14,8 @@ namespace BattleV2.AnimationSystem.Runtime.Bindings
         [SerializeField] private Transform[] sockets;
         [SerializeField] private CharacterAnimationSet animationSet;
 
+        public CharacterAnimationSet AnimationSet => animationSet;
+
         public IEnumerable<AnimationActorBinding> GetBindings()
         {
             var resolvedActor = ResolveActor();

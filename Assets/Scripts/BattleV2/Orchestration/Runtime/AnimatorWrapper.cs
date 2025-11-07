@@ -139,6 +139,10 @@ namespace BattleV2.Orchestration.Runtime
             }
         }
 
+        public Transform AnimatedRoot => animatedRoot != null
+            ? animatedRoot
+            : animator != null ? animator.transform : transform;
+
         public CombatantId CombatantId
         {
             get

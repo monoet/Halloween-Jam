@@ -33,7 +33,7 @@ MonoBehaviour:
   tweenBindings:
   - Id: Ciro/run_up
     Tween:
-      Duration: 0
+      Duration: 1
       Easing:
         serializedVersion: 2
         m_Curve: []

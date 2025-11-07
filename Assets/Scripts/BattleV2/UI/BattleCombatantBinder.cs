@@ -22,7 +22,7 @@ namespace BattleV2.UI
         {
             if (manager == null)
             {
-                manager = FindObjectOfType<BattleManagerV2>();
+                manager = FindFirstObjectByType<BattleManagerV2>();
             }
 
             if (manager != null)

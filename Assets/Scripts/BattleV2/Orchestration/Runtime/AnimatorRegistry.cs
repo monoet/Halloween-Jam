@@ -8,7 +8,6 @@ using BattleV2.AnimationSystem.Runtime;
 using BattleV2.Core;
 using UnityEngine;
 using LegacyAnimatorWrapper = BattleV2.AnimationSystem.Execution.AnimatorWrapper;
-using System.Threading.Tasks;
 
 namespace BattleV2.Orchestration.Runtime
 {
