@@ -338,7 +338,7 @@ namespace BattleV2.AnimationSystem.Runtime
             }
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-            BattleLogger.Info("AnimInstaller", $"Auto-scan providers={providerCount}, bindings={bindingCount}");
+            StrategyLoggerBridge.Info("AnimInstaller", $"Auto-scan providers={providerCount}, bindings={bindingCount}");
 #else
             _ = providerActors;
 #endif
@@ -469,6 +469,18 @@ namespace BattleV2.AnimationSystem.Runtime
             if (bundle != null)
             {
                 yield return new RouterRecipeExecutor(bundle);
+            }
+
+            if (recipeCatalog != null && stepScheduler != null)
+            {
+                yield return new StepSchedulerRecipeExecutor(
+                    recipeCatalog,
+                    stepScheduler,
+                    AnimatorRegistry.Instance,
+                    wrapperResolver,
+                    routerBundle,
+                    eventBus,
+                    timedHitService);
             }
 
             yield return NoOpRecipeExecutor.Instance;
