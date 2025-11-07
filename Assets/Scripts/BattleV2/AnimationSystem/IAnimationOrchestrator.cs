@@ -14,6 +14,12 @@ namespace BattleV2.AnimationSystem
     /// </summary>
     public interface IAnimationOrchestrator
     {
+        BattlePhase CurrentPhase { get; }
+        BattlePhase GetCurrentPhase(AnimationContext context);
+        void EnterPhase(BattlePhase phase, AnimationContext context);
+        AmbientHandle StartAmbient(AmbientSpec spec, AnimationContext context);
+        void StopAmbient(AmbientHandle handle, AnimationContext context);
+        Task PlayRecipeAsync(string recipeId, AnimationContext context);
         Task PlayAsync(AnimationRequest request, CancellationToken cancellationToken = default);
     }
 

@@ -35,8 +35,12 @@ namespace BattleV2.AnimationSystem.Runtime
         private readonly ActionRecipeCatalog recipeCatalog;
         private readonly Dictionary<CombatantState, IPlaybackSession> activeSessions = new Dictionary<CombatantState, IPlaybackSession>();
         private readonly Dictionary<CombatantState, IAnimationWrapper> legacyAdapters = new Dictionary<CombatantState, IAnimationWrapper>();
+        private readonly Dictionary<string, BattlePhase> sessionPhases = new Dictionary<string, BattlePhase>(StringComparer.Ordinal);
+        private readonly Dictionary<AmbientHandle, AmbientRecord> ambientTracks = new Dictionary<AmbientHandle, AmbientRecord>();
+        private readonly Dictionary<string, HashSet<AmbientHandle>> sessionAmbientIndex = new Dictionary<string, HashSet<AmbientHandle>>(StringComparer.Ordinal);
 
         private bool disposed;
+        private BattlePhase currentPhase = BattlePhase.None;
 
         public NewAnimOrchestratorAdapter(
             TimelineRuntimeBuilder runtimeBuilder,
@@ -75,6 +79,109 @@ namespace BattleV2.AnimationSystem.Runtime
             this.stepScheduler = stepScheduler;
             this.recipeCatalog = recipeCatalog;
             this.registry = registry ?? AnimatorRegistry.Instance;
+        }
+
+        public BattlePhase CurrentPhase => currentPhase;
+
+        public BattlePhase GetCurrentPhase(AnimationContext context)
+        {
+            var normalized = NormalizeContext(context);
+            if (sessionPhases.TryGetValue(normalized.SessionId, out var phase))
+            {
+                return phase;
+            }
+
+            return currentPhase;
+        }
+
+        public void EnterPhase(BattlePhase phase, AnimationContext context)
+        {
+            var normalized = NormalizeContext(context);
+            sessionPhases[normalized.SessionId] = phase;
+            if (normalized.SessionId == AnimationContext.Default.SessionId)
+            {
+                currentPhase = phase;
+            }
+        }
+
+        public AmbientHandle StartAmbient(AmbientSpec spec, AnimationContext context)
+        {
+            if (spec == null)
+            {
+                BattleLogger.Warn("AnimAdapter", "StartAmbient called with null spec.");
+                return AmbientHandle.Invalid;
+            }
+
+            var normalized = NormalizeContext(context);
+            var handle = AmbientHandle.Create();
+            ambientTracks[handle] = new AmbientRecord(spec, normalized);
+
+            if (!sessionAmbientIndex.TryGetValue(normalized.SessionId, out var handles))
+            {
+                handles = new HashSet<AmbientHandle>();
+                sessionAmbientIndex[normalized.SessionId] = handles;
+            }
+
+            handles.Add(handle);
+            return handle;
+        }
+
+        public void StopAmbient(AmbientHandle handle, AnimationContext context)
+        {
+            if (!handle.IsValid)
+            {
+                return;
+            }
+
+            if (!ambientTracks.TryGetValue(handle, out var record))
+            {
+                return;
+            }
+            ambientTracks.Remove(handle);
+
+            if (sessionAmbientIndex.TryGetValue(record.Context.SessionId, out var handles))
+            {
+                handles.Remove(handle);
+                if (handles.Count == 0)
+                {
+                    sessionAmbientIndex.Remove(record.Context.SessionId);
+                }
+            }
+        }
+
+        public Task PlayRecipeAsync(string recipeId, AnimationContext context)
+        {
+            if (string.IsNullOrWhiteSpace(recipeId))
+            {
+                return Task.CompletedTask;
+            }
+
+            var normalized = NormalizeContext(context);
+            BattleLogger.Warn("AnimAdapter", $"PlayRecipeAsync('{recipeId}') invoked without implementation for context '{normalized.SessionId}'.");
+            return Task.CompletedTask;
+        }
+
+        [Obsolete("Use EnterPhase + StartAmbient instead of PlayIntroAsync.")]
+        public Task PlayIntroAsync()
+        {
+            EnterPhase(BattlePhase.Intro, AnimationContext.Default);
+            _ = StartAmbient(AmbientSpec.IntroDefault(), AnimationContext.Default);
+            return Task.CompletedTask;
+        }
+
+        [Obsolete("Use EnterPhase + StartAmbient instead of PlayLoopAmbientAsync.")]
+        public Task PlayLoopAmbientAsync()
+        {
+            EnterPhase(BattlePhase.Loop, AnimationContext.Default);
+            _ = StartAmbient(AmbientSpec.DefaultLoop(), AnimationContext.Default);
+            return Task.CompletedTask;
+        }
+
+        [Obsolete("Use EnterPhase + PlayRecipeAsync instead of PlayCinematicAsync.")]
+        public Task PlayCinematicAsync(string recipeId)
+        {
+            EnterPhase(BattlePhase.Cinematic, AnimationContext.Default);
+            return PlayRecipeAsync(recipeId, AnimationContext.Default);
         }
 
         public async Task PlayAsync(AnimationRequest request, CancellationToken cancellationToken = default)
@@ -269,6 +376,28 @@ namespace BattleV2.AnimationSystem.Runtime
             routerBundle.Dispose();
             wrapperResolver.Dispose();
             legacyAdapters.Clear();
+        }
+
+        private static AnimationContext NormalizeContext(AnimationContext context)
+        {
+            if (string.IsNullOrWhiteSpace(context.SessionId))
+            {
+                return AnimationContext.Default;
+            }
+
+            return context;
+        }
+
+        private readonly struct AmbientRecord
+        {
+            public AmbientRecord(AmbientSpec spec, AnimationContext context)
+            {
+                Spec = spec ?? AmbientSpec.DefaultLoop();
+                Context = context;
+            }
+
+            public AmbientSpec Spec { get; }
+            public AnimationContext Context { get; }
         }
 
         private interface IPlaybackSession : IDisposable
