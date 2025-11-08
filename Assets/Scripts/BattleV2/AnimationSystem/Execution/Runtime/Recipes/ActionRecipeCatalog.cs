@@ -75,7 +75,13 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Recipes
 
         public bool TryResolveRecipe(string id, out ActionRecipe recipe)
         {
-            return TryGet(id, out recipe);
+            if (string.IsNullOrEmpty(id) || !recipes.TryGetValue(id, out recipe))
+            {
+                recipe = null;
+                return false;
+            }
+
+            return true;
         }
     }
 }

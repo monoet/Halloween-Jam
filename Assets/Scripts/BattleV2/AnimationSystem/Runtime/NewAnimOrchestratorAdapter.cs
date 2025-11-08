@@ -159,7 +159,7 @@ namespace BattleV2.AnimationSystem.Runtime
 
             if (!isRouter && !recipeCatalog.TryResolveRecipe(recipeId, out _))
             {
-                BattleLogger.Warn("AnimAdapter", $"Recipe '{recipeId}' not registered (context='{normalized.SessionId}').");
+                BattleLogger.Warn("AnimOrchestrator", $"Skipped recipe {recipeId} (not found in catalog).");
                 return Task.CompletedTask;
             }
 

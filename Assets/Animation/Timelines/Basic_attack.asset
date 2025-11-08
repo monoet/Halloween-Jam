@@ -10,21 +10,26 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0a42e3a4e9dd89240ad33cca07a701f6, type: 3}
-  m_Name: Spotlight_Intro
+  m_Name: Basic_attack
   m_EditorClassIdentifier: Assembly-CSharp::HalloweenJam.Combat.Animations.StepScheduler.StepRecipeAsset
-  recipeId: idle
+  recipeId: basic_attack
   groups:
-  - groupId: battle_idle
-    executionMode: 0
+  - groupId: 
+    executionMode: 1
     joinPolicy: 0
     timeoutSeconds: 0
     steps:
     - stepId: 
       executorId: animatorClip
-      bindingId: Ciro/IdleCombat
+      bindingId: Ciro/Windup
       conflictPolicy: 0
       overrideConflictPolicy: 0
       delaySeconds: 0
-      parameters:
-      - key: loop
-        value: true
+      parameters: []
+    - stepId: 
+      executorId: timed_hit
+      bindingId: 
+      conflictPolicy: 0
+      overrideConflictPolicy: 0
+      delaySeconds: 0
+      parameters: []

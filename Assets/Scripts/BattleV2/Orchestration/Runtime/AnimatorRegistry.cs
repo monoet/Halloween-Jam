@@ -234,6 +234,11 @@ namespace BattleV2.Orchestration.Runtime
                 legacyWrapper.Stop();
             }
 
+            public void ResetToFallback(float fadeDuration = 0.1f)
+            {
+                legacyWrapper.ResetToFallback(fadeDuration);
+            }
+
             public void OnAnimationEvent(AnimationEventPayload payload)
             {
                 // Legacy wrapper does not handle animation events. No-op.

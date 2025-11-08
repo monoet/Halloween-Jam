@@ -254,7 +254,8 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
             AnimationRouterBundle routerBundle,
             IAnimationEventBus eventBus,
             ITimedHitService timedHitService,
-            ITimedHitRunner timedHitRunner)
+            ITimedHitRunner timedHitRunner,
+            bool skipResetToFallback = false)
         {
             Request = request;
             Timeline = timeline;
@@ -264,6 +265,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
             EventBus = eventBus;
             TimedHitService = timedHitService;
             TimedHitRunner = timedHitRunner;
+            SkipResetToFallback = skipResetToFallback;
         }
 
         public AnimationRequest Request { get; }
@@ -274,6 +276,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
         public IAnimationEventBus EventBus { get; }
         public ITimedHitService TimedHitService { get; }
         public ITimedHitRunner TimedHitRunner { get; }
+        public bool SkipResetToFallback { get; }
 
         public CombatantState Actor => Request.Actor;
     }
@@ -304,6 +307,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
         public CombatantState Actor => schedulerContext.Actor;
         public ITimedHitService TimedHitService => schedulerContext.TimedHitService;
         public ITimedHitRunner TimedHitRunner => schedulerContext.TimedHitRunner;
+        public bool SkipResetToFallback => schedulerContext.SkipResetToFallback;
         public CancellationToken CancellationToken { get; }
     }
 }

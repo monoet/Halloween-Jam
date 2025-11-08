@@ -146,69 +146,79 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
                 return;
             }
 
-            NotifyObservers(o => o.OnRecipeStarted(recipe, context));
-
-            using var state = new ExecutionState(recipe, context, LogTag);
-            state.Initialize();
-
-            var recipeWatch = Stopwatch.StartNew();
-            bool recipeCancelled = false;
-            int groupIndex = 0;
-
-            while (groupIndex < recipe.Groups.Count)
+            try
             {
-                cancellationToken.ThrowIfCancellationRequested();
+                NotifyObservers(o => o.OnRecipeStarted(recipe, context));
 
-                var group = recipe.Groups[groupIndex];
-                NotifyObservers(o => o.OnGroupStarted(group, context));
-                var groupWatch = Stopwatch.StartNew();
-                StepGroupResult groupResult = StepGroupResult.Completed();
+                using var state = new ExecutionState(recipe, context, LogTag);
+                state.Initialize();
 
-                try
-                {
-                    groupResult = await ExecuteGroupAsync(group, context, state, cancellationToken).ConfigureAwait(false);
-                }
-                catch (OperationCanceledException)
-                {
-                    recipeCancelled = true;
-                    groupResult = StepGroupResult.Abort("Cancelled");
-                    throw;
-                }
-                finally
-                {
-                    groupWatch.Stop();
-                    NotifyObservers(o => o.OnGroupCompleted(new StepGroupExecutionReport(group, groupWatch.Elapsed, groupResult.Status == StepGroupResultStatus.Abort), context));
-                }
+                var recipeWatch = Stopwatch.StartNew();
+                bool recipeCancelled = false;
+                int groupIndex = 0;
 
-                if (groupResult.Status == StepGroupResultStatus.Branch)
+                while (groupIndex < recipe.Groups.Count)
                 {
-                    if (!state.TryGetGroupIndex(groupResult.BranchTargetId, out var target))
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    var group = recipe.Groups[groupIndex];
+                    NotifyObservers(o => o.OnGroupStarted(group, context));
+                    var groupWatch = Stopwatch.StartNew();
+                    StepGroupResult groupResult = StepGroupResult.Completed();
+
+                    try
                     {
-                        BattleLogger.Warn(LogTag, $"Branch target '{groupResult.BranchTargetId ?? "(null)"}' not found. Ending recipe '{recipe.Id}'.");
+                        groupResult = await ExecuteGroupAsync(group, context, state, cancellationToken).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        recipeCancelled = true;
+                        groupResult = StepGroupResult.Abort("Cancelled");
+                        throw;
+                    }
+                    finally
+                    {
+                        groupWatch.Stop();
+                        NotifyObservers(o => o.OnGroupCompleted(new StepGroupExecutionReport(group, groupWatch.Elapsed, groupResult.Status == StepGroupResultStatus.Abort), context));
+                    }
+
+                    if (groupResult.Status == StepGroupResultStatus.Branch)
+                    {
+                        if (!state.TryGetGroupIndex(groupResult.BranchTargetId, out var target))
+                        {
+                            BattleLogger.Warn(LogTag, $"Branch target '{groupResult.BranchTargetId ?? "(null)"}' not found. Ending recipe '{recipe.Id}'.");
+                            break;
+                        }
+
+                        groupIndex = target;
+                        continue;
+                    }
+
+                    if (groupResult.Status == StepGroupResultStatus.Abort)
+                    {
+                        recipeCancelled = true;
+                        if (!string.IsNullOrWhiteSpace(groupResult.AbortReason))
+                        {
+                            state.RequestAbort(groupResult.AbortReason);
+                        }
+
+                        state.ImmediateCleanup();
                         break;
                     }
 
-                    groupIndex = target;
-                    continue;
+                    groupIndex++;
                 }
 
-                if (groupResult.Status == StepGroupResultStatus.Abort)
-                {
-                    recipeCancelled = true;
-                    if (!string.IsNullOrWhiteSpace(groupResult.AbortReason))
-                    {
-                        state.RequestAbort(groupResult.AbortReason);
-                    }
-
-                    state.ImmediateCleanup();
-                    break;
-                }
-
-                groupIndex++;
+                recipeWatch.Stop();
+                NotifyObservers(o => o.OnRecipeCompleted(new RecipeExecutionReport(recipe, recipeWatch.Elapsed, recipeCancelled || state.AbortRequested), context));
             }
-
-            recipeWatch.Stop();
-            NotifyObservers(o => o.OnRecipeCompleted(new RecipeExecutionReport(recipe, recipeWatch.Elapsed, recipeCancelled || state.AbortRequested), context));
+            finally
+            {
+                if (!context.SkipResetToFallback)
+                {
+                    context.Wrapper?.ResetToFallback();
+                }
+            }
         }
 
         private Task<StepGroupResult> ExecuteGroupAsync(

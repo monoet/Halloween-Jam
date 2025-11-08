@@ -222,6 +222,13 @@ namespace BattleV2.Orchestration.Runtime
             onAnimationEvent?.Invoke(payload);
         }
 
+        public void ResetToFallback(float fadeDuration = 0.1f)
+        {
+            // Legacy Mono wrapper does not track a dedicated fallback clip, so stopping playback
+            // returns the rig to its authored bind pose / sprite state.
+            Stop();
+        }
+
         private void CancelPlayback()
         {
             if (playbackCts == null)

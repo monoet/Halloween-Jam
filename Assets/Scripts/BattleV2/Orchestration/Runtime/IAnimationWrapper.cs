@@ -18,6 +18,7 @@ namespace BattleV2.Orchestration.Runtime
         Task PlayAsync(AnimationPlaybackRequest request, CancellationToken cancellationToken = default);
         void Stop();
         void OnAnimationEvent(AnimationEventPayload payload);
+        void ResetToFallback(float fadeDuration = 0.1f);
     }
 
     /// <summary>

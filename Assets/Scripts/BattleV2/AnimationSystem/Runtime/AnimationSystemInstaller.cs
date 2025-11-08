@@ -44,6 +44,10 @@ namespace BattleV2.AnimationSystem.Runtime
         [SerializeField] private bool autoScanBindings = true;
         [Header("Timed Hit Settings")]
         [SerializeField] private TimedHitToleranceProfileAsset toleranceProfileAsset;
+
+        [Header("Recipe Defaults")]
+        [Tooltip("Register the built-in PilotActionRecipes (turn_intro, run_up, etc.) for legacy scenes.")]
+        [SerializeField] private bool includePilotRecipes = true;
         [Header("Step Scheduler Recipes")]
         [SerializeField] private StepRecipeAsset[] stepRecipeAssets = Array.Empty<StepRecipeAsset>();
 
@@ -449,17 +453,21 @@ namespace BattleV2.AnimationSystem.Runtime
         {
             var builder = new ActionRecipeBuilder();
             var catalogInstance = new ActionRecipeCatalog();
-            var recipes = new List<ActionRecipe>(PilotActionRecipes.Build(builder));
-            catalogInstance.RegisterRange(recipes);
 
-            for (int i = 0; i < recipes.Count; i++)
+            if (includePilotRecipes)
             {
-                scheduler.RegisterRecipe(recipes[i]);
-            }
+                var recipes = new List<ActionRecipe>(PilotActionRecipes.Build(builder));
+                catalogInstance.RegisterRange(recipes);
+
+                for (int i = 0; i < recipes.Count; i++)
+                {
+                    scheduler.RegisterRecipe(recipes[i]);
+                }
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-            ActionRecipeCatalogDiagnostics.ValidatePilotRecipes(catalogInstance);
+                ActionRecipeCatalogDiagnostics.ValidatePilotRecipes(catalogInstance);
 #endif
+            }
 
             return catalogInstance;
         }
