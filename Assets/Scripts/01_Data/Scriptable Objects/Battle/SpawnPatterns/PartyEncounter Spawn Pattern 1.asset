@@ -16,7 +16,7 @@ MonoBehaviour:
   layouts:
   - size: 1
     offsets:
-    - {x: 5.09, y: -2.22, z: 0}
+    - {x: 7.04, y: -2.22, z: 0}
   - size: 2
     offsets:
     - {x: 5.09, y: -1.187042, z: -0.14}

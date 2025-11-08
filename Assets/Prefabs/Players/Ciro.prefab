@@ -16,6 +16,7 @@ GameObject:
   - component: {fileID: 3880240336937654642}
   - component: {fileID: 2403949855969705108}
   - component: {fileID: 4281670992362887343}
+  - component: {fileID: 5693036501611744944}
   m_Layer: 0
   m_Name: Ciro
   m_TagString: Untagged
@@ -253,3 +254,21 @@ MonoBehaviour:
   fallbackClip: {fileID: 7400000, guid: f653fd65ddb82a44cbd8bbce989a9c0c, type: 2}
   sockets: []
   animationSet: {fileID: 11400000, guid: ab87af0db41fc8642ad2869694052716, type: 2}
+--- !u!114 &5693036501611744944
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2209887660875536834}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: aa839c0a414a6ae48971b54e87419c8e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BattleV2.AnimationSystem.Execution.Runtime.Observers.RecipeTweenObserver
+  recipeId: basic_attack
+  tweenTarget: {fileID: 5914491807628125836}
+  frameRate: 12
+  forward: 0.17
+  brake: 0.135
+  recoil: -1

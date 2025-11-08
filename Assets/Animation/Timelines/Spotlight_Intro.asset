@@ -21,10 +21,10 @@ MonoBehaviour:
     steps:
     - stepId: 
       executorId: animatorClip
-      bindingId: Ciro/IdleCombat
+      bindingId: Ciro/LeftRun
       conflictPolicy: 0
       overrideConflictPolicy: 0
       delaySeconds: 0
       parameters:
       - key: loop
-        value: true
+        value: false
