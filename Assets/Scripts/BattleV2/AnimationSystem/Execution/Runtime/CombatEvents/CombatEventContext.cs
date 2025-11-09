@@ -36,6 +36,15 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
         public TargetsView Targets { get; private set; }
         public IReadOnlyList<string> Tags => tagBuffer;
 
+        public static CombatEventContext CreateStub()
+        {
+            var context = Acquire();
+            var actor = new ActorView(0, CombatantAlignment.Ally, null, null, null);
+            var action = new ActionView("debug_action", "attack/basic", "sword", "neutral", "debug_recipe");
+            context.Populate(actor, action, Array.Empty<CombatantRef>(), false, Array.Empty<string>());
+            return context;
+        }
+
         internal static CombatEventContext Acquire()
         {
             lock (PoolGate)

@@ -120,6 +120,23 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
             ResolveListeners();
         }
 
+        public void DispatchTestSequence(CombatEventContext templateContext)
+        {
+            var context = templateContext ?? CombatEventContext.CreateStub();
+
+            try
+            {
+                DispatchTestFlag(CombatEventFlags.Windup, context);
+                DispatchTestFlag(CombatEventFlags.Runup, context);
+                DispatchTestFlag(CombatEventFlags.Impact, context);
+                DispatchTestFlag(CombatEventFlags.Runback, context);
+            }
+            finally
+            {
+                context?.Release();
+            }
+        }
+
         public void OnCombatEventRaised(string flagId, CombatEventContext context)
         {
             if (!isActiveAndEnabled || context == null)
@@ -408,6 +425,20 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
 
             public CombatEventScope Scope { get; }
             public CombatEventDirection Direction { get; }
+        }
+
+        private void DispatchTestFlag(string flagId, CombatEventContext template)
+        {
+            var clone = CombatEventContext.Acquire();
+            clone.Populate(template.Actor, template.Action, template.Targets.All, template.Targets.PerTarget, template.Tags);
+            try
+            {
+                OnCombatEventRaised(flagId, clone);
+            }
+            finally
+            {
+                clone.Release();
+            }
         }
 
         [Serializable]
