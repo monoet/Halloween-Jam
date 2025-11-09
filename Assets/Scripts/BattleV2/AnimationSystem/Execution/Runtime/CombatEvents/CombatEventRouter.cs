@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using BattleV2.AnimationSystem.Runtime;
 using BattleV2.Core;
+using BattleV2.AnimationSystem.Execution.Runtime.Utilities;
 using UnityEngine;
 
 namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
@@ -13,9 +14,12 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
     public sealed class CombatEventRouter : MonoBehaviour, ICombatEventListener
     {
         private const string LogTag = "CombatEventRouter";
+        [SerializeField, Range(0.1f, 2f)]
+        private float warningInterval = 0.5f;
 
         [Header("Registration")]
-        [SerializeField] private bool autoRegisterOnEnable = true;
+        [SerializeField, Tooltip("If disabled, call ForceTryRegister() or Register() manually once the dispatcher exists.")]
+        private bool autoRegisterOnEnable = true;
         [SerializeField] private bool logMissingAssets = true;
 
         [Header("Listeners")]
@@ -46,9 +50,11 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
         [SerializeField] private int missingTween;
         [SerializeField] private int sfxCacheHit;
         [SerializeField] private int sfxCacheMiss;
+        [SerializeField] private List<CounterSnapshot> inspectorSnapshots = new List<CounterSnapshot>();
 
         private readonly Dictionary<string, TweenPreset> tweenLookup = new Dictionary<string, TweenPreset>(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, SfxPreset> sfxLookup = new Dictionary<string, SfxPreset>(StringComparer.OrdinalIgnoreCase);
+        private WarningRateLimiter warningLimiter;
         private CombatEventDispatcher dispatcher;
         private bool isRegistered;
 
@@ -59,14 +65,17 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
         {
             RebuildLookups();
             ResolveListeners();
+            EnsureWarningLimiter();
         }
 
         private void OnEnable()
         {
-            if (autoRegisterOnEnable)
+            if (!autoRegisterOnEnable)
             {
-                Register();
+                return;
             }
+
+            TryRegister();
         }
 
         public void EnsureTweenPreset(string triggerId, TweenPreset preset)
@@ -105,13 +114,17 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
         {
             if (autoRegisterOnEnable && !isRegistered)
             {
-                Register();
+                TryRegister();
             }
         }
 
         private void OnDisable()
         {
-            Unregister();
+            if (dispatcher != null && isRegistered)
+            {
+                dispatcher.UnregisterListener(this);
+                isRegistered = false;
+            }
         }
 
         private void OnValidate()
@@ -181,10 +194,6 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
             dispatcher = AnimationSystemInstaller.Current?.CombatEvents;
             if (dispatcher == null)
             {
-                if (autoRegisterOnEnable)
-                {
-                    Debug.LogWarning($"[{LogTag}] CombatEventDispatcher not available. Router will remain disabled until installer is ready.", this);
-                }
                 return;
             }
 
@@ -203,6 +212,67 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
             isRegistered = false;
         }
 
+        private void TryRegister()
+        {
+            dispatcher ??= AnimationSystemInstaller.Current?.CombatEvents;
+            if (dispatcher == null)
+            {
+                EnsureWarningLimiter();
+                warningLimiter?.TryWarn("dispatcher_missing", "CombatEventDispatcher not available. Router will remain disabled until installer is ready.", this);
+                return;
+            }
+
+            if (isRegistered)
+            {
+                return;
+            }
+
+            dispatcher.RegisterListener(this);
+            isRegistered = true;
+        }
+
+        private void EnsureWarningLimiter()
+        {
+            if (warningLimiter == null)
+            {
+                warningLimiter = new WarningRateLimiter(LogTag, warningInterval);
+            }
+        }
+
+        [ContextMenu("Snapshot Counters")]
+        public void SnapshotCounters()
+        {
+            inspectorSnapshots.Add(new CounterSnapshot
+            {
+                timestamp = Time.realtimeSinceStartup,
+                eventsRaised = eventsRaised,
+                tweenCacheHit = tweenCacheHit,
+                tweenCacheMiss = tweenCacheMiss,
+                missingTween = missingTween,
+                sfxCacheHit = sfxCacheHit,
+                sfxCacheMiss = sfxCacheMiss
+            });
+
+            const int MaxSnapshots = 50;
+            if (inspectorSnapshots.Count > MaxSnapshots)
+            {
+                inspectorSnapshots.RemoveAt(0);
+            }
+        }
+
+        [ContextMenu("Snapshot + Reset")]
+        private void SnapshotAndReset()
+        {
+            SnapshotCounters();
+            ResetCounters();
+        }
+
+        [ContextMenu("Try Register (Manual)")]
+        private void ForceTryRegister()
+        {
+            TryRegister();
+        }
+
         [ContextMenu("Reset Counters")]
         public void ResetCounters()
         {
@@ -212,6 +282,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
             missingTween = 0;
             sfxCacheHit = 0;
             sfxCacheMiss = 0;
+            inspectorSnapshots.Clear();
         }
 
         private void ResolveListeners()
@@ -242,10 +313,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
             tweenCacheMiss++;
             missingTween++;
 
-            if (logMissingAssets)
-            {
-                BattleLogger.Warn(LogTag, $"Missing tween preset for flag '{flagId}'.");
-            }
+            warningLimiter?.TryWarn($"tween_missing_{flagId}", $"Missing tween preset for trigger '{flagId}'.", logMissingAssets ? this : null);
         }
 
         private void RouteSfx(string flagId, CombatEventContext context, in EventMeta meta)
@@ -269,11 +337,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
 
             sfxCacheMiss++;
 
-            if (logMissingAssets)
-            {
-                var actionId = context.Action.ActionId ?? "(action)";
-                BattleLogger.Warn(LogTag, $"Missing SFX preset for action '{actionId}' (key='{BuildPrimarySfxKey(context)}').");
-            }
+            warningLimiter?.TryWarn($"sfx_missing_{BuildPrimarySfxKey(context)}", $"Missing SFX preset (flag '{flagId}')", logMissingAssets ? this : null);
         }
 
         private bool MatchesFilter(CombatEventFilter filter, in EventMeta meta, CombatEventContext context)
@@ -445,6 +509,18 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
 
             public CombatEventScope Scope { get; }
             public CombatEventDirection Direction { get; }
+        }
+
+        [System.Serializable]
+        private sealed class CounterSnapshot
+        {
+            public float timestamp;
+            public int eventsRaised;
+            public int tweenCacheHit;
+            public int tweenCacheMiss;
+            public int missingTween;
+            public int sfxCacheHit;
+            public int sfxCacheMiss;
         }
 
         private void DispatchTestFlag(string flagId, CombatEventContext template)
