@@ -215,7 +215,7 @@ feat(qa): add EventReplayRunner with 4-beat sequence (broadcast + per-target stu
 
 feat(router): add warning rate-limit and inspector counters snapshot
 
-test(qa): add replay scene and smoke tests
+test(qa): add replay scene and smoke tests (`Assets/Scenes/QA/CombatEventReplay.unity` con `CombatEventReplaySceneBootstrap`)
 
 tag: v0.2.0-mvp-presets
 

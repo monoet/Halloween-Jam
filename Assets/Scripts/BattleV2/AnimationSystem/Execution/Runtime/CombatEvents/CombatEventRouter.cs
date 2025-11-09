@@ -291,6 +291,21 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
             sfxListener.ResolveRuntime(this);
         }
 
+        public void ConfigureListeners(MonoBehaviour tweenComponent, MonoBehaviour sfxComponent)
+        {
+            if (tweenComponent != null)
+            {
+                tweenListener.listener = tweenComponent;
+            }
+
+            if (sfxComponent != null)
+            {
+                sfxListener.listener = sfxComponent;
+            }
+
+            ResolveListeners();
+        }
+
         private void RouteTween(string flagId, CombatEventContext context, in EventMeta meta)
         {
             if (!tweenListener.CanHandle)

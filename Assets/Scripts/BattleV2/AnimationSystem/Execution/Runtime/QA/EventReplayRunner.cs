@@ -23,6 +23,12 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
         private Coroutine playbackRoutine;
         private readonly List<CombatEventContext.CombatantRef> targetScratch = new List<CombatEventContext.CombatantRef>(4);
 
+        public CombatEventRouter Router
+        {
+            get => router;
+            set => router = value;
+        }
+
         private void Start()
         {
             if (autoPlayOnStart)
