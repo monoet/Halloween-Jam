@@ -18,6 +18,19 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
             }
 
 #if FMOD_PRESENT
+            if (string.Equals(flagId, CombatEventFlags.ActionCancel, System.StringComparison.OrdinalIgnoreCase))
+            {
+                // Future: stop sustained instances when we support looping events.
+                return;
+            }
+#else
+            if (string.Equals(flagId, CombatEventFlags.ActionCancel, System.StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+#endif
+
+#if FMOD_PRESENT
             var instance = FMODUnity.RuntimeManager.CreateInstance(preset.eventPath);
             if (!instance.isValid())
             {
