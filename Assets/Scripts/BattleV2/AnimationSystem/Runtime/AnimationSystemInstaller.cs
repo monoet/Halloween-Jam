@@ -5,6 +5,7 @@ using BattleV2.AnimationSystem.Execution;
 using BattleV2.AnimationSystem.Execution.Runtime;
 using BattleV2.AnimationSystem.Execution.Runtime.Executors;
 using BattleV2.AnimationSystem.Execution.Runtime.Recipes;
+using BattleV2.AnimationSystem.Execution.Runtime.CombatEvents;
 using BattleV2.AnimationSystem.Execution.Runtime.Telemetry;
 using BattleV2.AnimationSystem.Execution.Routers;
 using BattleV2.AnimationSystem.Execution.Runtime.Tweens;
@@ -64,6 +65,7 @@ namespace BattleV2.AnimationSystem.Runtime
         private NewAnimOrchestratorAdapter orchestrator;
         private StepScheduler stepScheduler;
         private StepSchedulerMetricsObserver schedulerMetrics;
+        private CombatEventDispatcher combatEventDispatcher;
         private ActionRecipeCatalog recipeCatalog;
         private IReadOnlyDictionary<BattlePhase, IPhaseStrategy> phaseStrategyMap;
         private IOrchestratorSessionController sessionController;
@@ -82,6 +84,7 @@ namespace BattleV2.AnimationSystem.Runtime
         public StepScheduler StepScheduler => stepScheduler;
         public StepSchedulerMetricsObserver SchedulerMetrics => schedulerMetrics;
         public ActionRecipeCatalog RecipeCatalog => recipeCatalog;
+        public CombatEventDispatcher CombatEvents => combatEventDispatcher;
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
         public OrchestratorDiagnosticsSnapshot GetDiagnostics()
@@ -152,6 +155,8 @@ namespace BattleV2.AnimationSystem.Runtime
             tweenBindingResolver = new DefaultTweenBindingResolver();
             tweenBridge = new DefaultTweenBridge(mainThreadInvoker);
             stepScheduler = BuildStepScheduler(mainThreadInvoker, tweenBindingResolver, tweenBridge);
+            combatEventDispatcher = new CombatEventDispatcher(mainThreadInvoker);
+            stepScheduler.RegisterObserver(combatEventDispatcher);
             recipeCatalog = BuildRecipeCatalog(stepScheduler);
             RegisterInspectorRecipes();
             phaseStrategyMap = BuildPhaseStrategyMap();
@@ -186,6 +191,11 @@ namespace BattleV2.AnimationSystem.Runtime
 
         private void OnDestroy()
         {
+            if (stepScheduler != null && combatEventDispatcher != null)
+            {
+                stepScheduler.UnregisterObserver(combatEventDispatcher);
+            }
+
             timedHitService?.Dispose();
             routerBundle?.Dispose();
             wrapperResolver?.Dispose();
