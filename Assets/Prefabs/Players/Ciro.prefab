@@ -266,9 +266,21 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: aa839c0a414a6ae48971b54e87419c8e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BattleV2.AnimationSystem.Execution.Runtime.Observers.RecipeTweenObserver
-  recipeId: basic_attack
   tweenTarget: {fileID: 5914491807628125836}
+  tweens:
+  - enabled: 1
+    recipeId: run_up
+    useLocalSpace: 1
+    absolutePosition: {x: 2, y: -3, z: 0}
+    duration: 0.3
+    ease: 9
+  - enabled: 1
+    recipeId: basic_attack
+    useLocalSpace: 1
+    absolutePosition: {x: 0, y: 0, z: 0}
+    duration: 0.3
+    ease: 9
   frameRate: 12
-  forward: 0.17
-  brake: 0.135
-  recoil: -1
+  forward: 0.1
+  minorBack: 0.135
+  recoil: -1.5

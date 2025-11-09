@@ -168,7 +168,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
 
                     try
                     {
-                        groupResult = await ExecuteGroupAsync(group, context, state, cancellationToken).ConfigureAwait(false);
+                        groupResult = await ExecuteGroupAsync(group, context, state, cancellationToken);
                     }
                     catch (OperationCanceledException)
                     {
@@ -257,7 +257,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
                 }
                 else
                 {
-                    result = await ExecuteExecutorStepAsync(executor, step, schedulerContext, cancellationToken, swallowCancellation).ConfigureAwait(false);
+                    result = await ExecuteExecutorStepAsync(executor, step, schedulerContext, cancellationToken, swallowCancellation);
                 }
             }
             catch (OperationCanceledException)
@@ -304,7 +304,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
         {
             var effectivePolicy = GetEffectiveConflictPolicy(step, executor);
 
-            if (!await activeExecutionRegistry.ResolveConflictAsync(executor.Id, effectivePolicy, cancellationToken).ConfigureAwait(false))
+            if (!await activeExecutionRegistry.ResolveConflictAsync(executor.Id, effectivePolicy, cancellationToken))
             {
                 BattleLogger.Log(LogTag, $"Step '{step.Id ?? "(no id)"}' skipped due to conflict policy '{effectivePolicy}'.");
                 return StepResult.Skipped;
@@ -317,7 +317,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
 
             try
             {
-                await executionTask.ConfigureAwait(false);
+                await executionTask;
                 return StepResult.Completed;
             }
             catch (OperationCanceledException)
@@ -405,10 +405,10 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
                 if (context.Step.HasDelay)
                 {
                     var delay = TimeSpan.FromSeconds(context.Step.DelaySeconds);
-                    await Task.Delay(delay, context.CancellationToken).ConfigureAwait(false);
+                    await Task.Delay(delay, context.CancellationToken);
                 }
 
-                await executor.ExecuteAsync(context).ConfigureAwait(false);
+                await executor.ExecuteAsync(context);
             }
             finally
             {

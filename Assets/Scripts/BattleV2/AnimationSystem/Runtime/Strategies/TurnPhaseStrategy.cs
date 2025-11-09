@@ -1,6 +1,6 @@
-using System;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using BattleV2.AnimationSystem.Execution.Runtime.Recipes;
+using BattleV2.Core;
 
 namespace BattleV2.AnimationSystem.Strategies
 {
@@ -8,17 +8,23 @@ namespace BattleV2.AnimationSystem.Strategies
     {
         public void OnEnter(StrategyContext context)
         {
-            _ = RunSequenceAsync(context);
+            var invoker = MainThreadInvoker.Instance;
+            if (invoker != null)
+            {
+                _ = invoker.RunAsync(() => RunSequenceAsync(context));
+            }
+            else
+            {
+                _ = RunSequenceAsync(context);
+            }
         }
 
-        private async System.Threading.Tasks.Task RunSequenceAsync(StrategyContext context)
+        private async Task RunSequenceAsync(StrategyContext context)
         {
             if (context == null)
             {
                 return;
             }
-
-            context.LogInfo("▶ Enter TurnPhase");
 
             var orchestrator = context.Orchestrator;
             if (orchestrator == null)
@@ -31,12 +37,12 @@ namespace BattleV2.AnimationSystem.Strategies
 
             try
             {
-                await orchestrator.PlayRecipeAsync("router:ui:spotlight_in", animationContext);
-                await orchestrator.PlayRecipeAsync(PilotActionRecipes.TurnIntroId, animationContext);
-                await orchestrator.PlayRecipeAsync(PilotActionRecipes.RunUpId, animationContext);
-                await orchestrator.PlayRecipeAsync(PilotActionRecipes.IdleId, animationContext);
+                await orchestrator.PlayRecipeAsync("router:ui:spotlight_in", animationContext).ConfigureAwait(true);
+                await orchestrator.PlayRecipeAsync(PilotActionRecipes.TurnIntroId, animationContext).ConfigureAwait(true);
+                await orchestrator.PlayRecipeAsync(PilotActionRecipes.RunUpId, animationContext).ConfigureAwait(true);
+                await orchestrator.PlayRecipeAsync(PilotActionRecipes.IdleId, animationContext).ConfigureAwait(true);
             }
-            catch (Exception ex)
+            catch (System.Exception ex)
             {
                 context.LogError($"TurnPhase sequence failed: {ex.Message}");
             }
@@ -44,7 +50,7 @@ namespace BattleV2.AnimationSystem.Strategies
 
         public void OnExit(StrategyContext context)
         {
-            context?.LogInfo("⏹ Exit TurnPhase");
+            context?.LogInfo("Exit TurnPhase");
         }
     }
 }
