@@ -126,14 +126,34 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
 
             try
             {
-                DispatchTestFlag(CombatEventFlags.Windup, context);
-                DispatchTestFlag(CombatEventFlags.Runup, context);
-                DispatchTestFlag(CombatEventFlags.Impact, context);
-                DispatchTestFlag(CombatEventFlags.Runback, context);
+                DispatchTestEvent(CombatEventFlags.Windup, context);
+                DispatchTestEvent(CombatEventFlags.Runup, context);
+                DispatchTestEvent(CombatEventFlags.Impact, context);
+                DispatchTestEvent(CombatEventFlags.Runback, context);
             }
             finally
             {
                 context?.Release();
+            }
+        }
+
+        public void DispatchTestEvent(string flagId, CombatEventContext templateContext)
+        {
+            if (string.IsNullOrWhiteSpace(flagId) || templateContext == null)
+            {
+                return;
+            }
+
+            var clone = CombatEventContext.Acquire();
+            clone.Populate(templateContext.Actor, templateContext.Action, templateContext.Targets.All, templateContext.Targets.PerTarget, templateContext.Tags);
+
+            try
+            {
+                OnCombatEventRaised(flagId, clone);
+            }
+            finally
+            {
+                clone.Release();
             }
         }
 
