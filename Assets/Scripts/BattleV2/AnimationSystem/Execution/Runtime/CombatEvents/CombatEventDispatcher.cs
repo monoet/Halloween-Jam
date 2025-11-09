@@ -5,6 +5,7 @@ using BattleV2.Core;
 using BattleV2.Orchestration.Runtime;
 using BattleV2.Providers;
 using UnityEngine;
+using RuntimeAnimatorWrapper = BattleV2.Orchestration.Runtime.AnimatorWrapper;
 
 namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
 {
@@ -146,7 +147,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
             }
 
             var root = actor.transform;
-            var anchor = (schedulerContext.Wrapper as AnimatorWrapper)?.AnimatedRoot;
+            var anchor = (schedulerContext.Wrapper as RuntimeAnimatorWrapper)?.AnimatedRoot;
             if (anchor == null)
             {
                 anchor = root;
