@@ -6,6 +6,7 @@ using BattleV2.AnimationSystem;
 using BattleV2.AnimationSystem.Execution;
 using BattleV2.AnimationSystem.Execution.Routers;
 using BattleV2.AnimationSystem.Execution.Runtime;
+using BattleV2.AnimationSystem.Execution.Runtime.CombatEvents;
 using BattleV2.AnimationSystem.Execution.Runtime.Recipes;
 using BattleV2.AnimationSystem.Timelines;
 using BattleV2.Core;
@@ -36,6 +37,8 @@ namespace BattleV2.AnimationSystem.Runtime.Internal
         private Task wrapperPlaybackTask;
         private CancellationTokenSource schedulerCts;
         private Task schedulerTask;
+        private StepSchedulerContext cachedSchedulerContext;
+        private bool hasSchedulerContext;
 
         public bool IsDisposed => disposed;
 
@@ -215,6 +218,7 @@ namespace BattleV2.AnimationSystem.Runtime.Internal
                 return;
             }
 
+            TryEmitActionCancelIfNeeded();
             sequencer.Cancel();
             CancelWrapperPlayback();
             CancelScheduler();
@@ -285,16 +289,12 @@ namespace BattleV2.AnimationSystem.Runtime.Internal
             CancelScheduler();
 
             schedulerCts = CancellationTokenSource.CreateLinkedTokenSource(sessionCancellationToken);
-            var bindingResolver = wrapper as IAnimationBindingResolver;
-            if (bindingResolver == null)
+            if (!TryGetSchedulerContext(out var context))
             {
-                BattleLogger.Warn("AnimAdapter", $"Wrapper for actor '{request.Actor?.name ?? "(null)"}' does not implement binding resolver.");
                 schedulerCts.Dispose();
                 schedulerCts = null;
                 return false;
             }
-
-            var context = new StepSchedulerContext(request, timeline, wrapper, bindingResolver, routerBundle, eventBus, timedHitService, request.TimedHitRunner);
             var localCts = schedulerCts;
             schedulerTask = stepScheduler.ExecuteAsync(recipe, context, localCts.Token);
             schedulerTask.ContinueWith(t =>
@@ -353,6 +353,47 @@ namespace BattleV2.AnimationSystem.Runtime.Internal
             var inlineId = !string.IsNullOrWhiteSpace(recipeId) ? recipeId : timeline.ActionId ?? "(inline)";
             recipe = new ActionRecipe(inlineId, new[] { group });
             return true;
+        }
+
+        private bool TryGetSchedulerContext(out StepSchedulerContext context)
+        {
+            if (hasSchedulerContext)
+            {
+                context = cachedSchedulerContext;
+                return true;
+            }
+
+            var bindingResolver = wrapper as IAnimationBindingResolver;
+            if (bindingResolver == null)
+            {
+                BattleLogger.Warn("AnimAdapter", $"Wrapper for actor '{request.Actor?.name ?? "(null)"}' does not implement binding resolver.");
+                context = default;
+                return false;
+            }
+
+            context = new StepSchedulerContext(request, timeline, wrapper, bindingResolver, routerBundle, eventBus, timedHitService, request.TimedHitRunner);
+            cachedSchedulerContext = context;
+            hasSchedulerContext = true;
+            return true;
+        }
+
+        private void TryEmitActionCancelIfNeeded()
+        {
+            if (completion.Task.IsCompleted || schedulerTask != null)
+            {
+                return;
+            }
+
+            var dispatcher = global::BattleV2.AnimationSystem.Runtime.AnimationSystemInstaller.Current?.CombatEvents;
+            if (dispatcher == null)
+            {
+                return;
+            }
+
+            if (TryGetSchedulerContext(out var context))
+            {
+                dispatcher.EmitActionCancel(context);
+            }
         }
     }
 }

@@ -121,6 +121,17 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
         {
         }
 
+        public void EmitActionCancel(StepSchedulerContext schedulerContext)
+        {
+            var contexts = BuildContexts(CombatEventFlags.ActionCancel, schedulerContext, perTargetOverride: false);
+            if (contexts == null || contexts.Count == 0)
+            {
+                return;
+            }
+
+            Dispatch(CombatEventFlags.ActionCancel, contexts);
+        }
+
         private void EmitFlag(string flagId, StepSchedulerContext schedulerContext, bool perTargetOverride)
         {
             if (string.IsNullOrWhiteSpace(flagId) || Volatile.Read(ref listenerCount) == 0)
