@@ -52,6 +52,9 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
         private CombatEventDispatcher dispatcher;
         private bool isRegistered;
 
+        public int TweenPresetCount => tweenLookup.Count;
+        public int SfxPresetCount => sfxLookup.Count;
+
         private void Awake()
         {
             RebuildLookups();
@@ -64,6 +67,38 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
             {
                 Register();
             }
+        }
+
+        public void EnsureTweenPreset(string triggerId, TweenPreset preset)
+        {
+            if (string.IsNullOrWhiteSpace(triggerId) || preset == null)
+            {
+                return;
+            }
+
+            if (tweenLookup.ContainsKey(triggerId))
+            {
+                return;
+            }
+
+            tweenPresets.Add(new TweenTriggerEntry(triggerId, preset));
+            RebuildLookups();
+        }
+
+        public void EnsureSfxPreset(string key, SfxPreset preset)
+        {
+            if (string.IsNullOrWhiteSpace(key) || preset == null)
+            {
+                return;
+            }
+
+            if (sfxLookup.ContainsKey(key))
+            {
+                return;
+            }
+
+            sfxPresets.Add(new SfxPresetEntry(key, preset));
+            RebuildLookups();
         }
 
         private void Start()
@@ -446,6 +481,16 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
         {
             public string triggerId = CombatEventFlags.Runup;
             public TweenPreset preset;
+
+            public TweenTriggerEntry()
+            {
+            }
+
+            public TweenTriggerEntry(string triggerId, TweenPreset preset)
+            {
+                this.triggerId = triggerId;
+                this.preset = preset;
+            }
         }
 
         [Serializable]
@@ -453,6 +498,16 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
         {
             public string key = "default";
             public SfxPreset preset = new SfxPreset();
+
+            public SfxPresetEntry()
+            {
+            }
+
+            public SfxPresetEntry(string key, SfxPreset preset)
+            {
+                this.key = key;
+                this.preset = preset;
+            }
         }
     }
 }
