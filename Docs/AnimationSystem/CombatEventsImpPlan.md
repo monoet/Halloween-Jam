@@ -237,6 +237,8 @@ feat(presentation): target-loop handling in listeners (if needed for visuals)
 
 docs(core): document deterministic target order
 
+Estado parcial (11/09): el dispatcher ya puede emitir un contexto por target cuando `selection.Targets` resuelve más de uno. Falta propagar `stagger_step` desde scheduler para cronometrar los raises y listeners todavía trabajan en bloque (no hay target-loop dedicado). Se añadirá cuando se active la pasada.
+
 tag: v0.4.0-aoe-stagger
 
 Opcional 5 — SO opt-in + Telemetry (2–3 commits)

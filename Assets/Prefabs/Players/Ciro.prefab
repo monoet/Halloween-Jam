@@ -17,6 +17,7 @@ GameObject:
   - component: {fileID: 2403949855969705108}
   - component: {fileID: 4281670992362887343}
   - component: {fileID: 5693036501611744944}
+  - component: {fileID: 1402340508692770422}
   m_Layer: 0
   m_Name: Ciro
   m_TagString: Untagged
@@ -284,3 +285,19 @@ MonoBehaviour:
   forward: 0.1
   minorBack: 0.135
   recoil: -1.5
+--- !u!114 &1402340508692770422
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2209887660875536834}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 70dbcfbe70008ad428d59fca8bb71135, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BattleV2.QA.QAActorRig
+  casterRoot: {fileID: 0}
+  casterAnchor: {fileID: 0}
+  casterId: 10
+  alignment: 1

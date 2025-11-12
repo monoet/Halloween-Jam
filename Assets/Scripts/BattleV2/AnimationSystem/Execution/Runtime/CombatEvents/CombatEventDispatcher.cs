@@ -16,7 +16,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
     {
         private const string LogTag = "CombatEvents";
 
-        private const bool EnablePerTargetEmission = false; // TODO: enable when AoE per-target sequencing is required.
+        private const bool EnablePerTargetEmission = true; // TODO: promote to config flag once staggered AoE beats land.
 
         private static readonly string[] GroupFlags =
         {
@@ -123,6 +123,11 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
 
         public void EmitActionCancel(StepSchedulerContext schedulerContext)
         {
+            if (Volatile.Read(ref listenerCount) == 0)
+            {
+                return;
+            }
+
             var contexts = BuildContexts(CombatEventFlags.ActionCancel, schedulerContext, perTargetOverride: false);
             if (contexts == null || contexts.Count == 0)
             {
@@ -199,6 +204,8 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
 
             bool requestPerTarget = (perTargetOverride || ShouldEmitPerTarget(selection, targets)) && refs.Count > 1;
             bool perTarget = EnablePerTargetEmission && requestPerTarget;
+            // NOTE: Minimal AoE support dispatches contexts per target but does not yet handle stagger_step delays.
+            // TODO: incorporate timing offsets from selection.Action.stagger_step once scheduler exposes it.
             var tags = ResolveTags(flagId);
 
             var contexts = new List<CombatEventContext>(perTarget ? refs.Count : 1);

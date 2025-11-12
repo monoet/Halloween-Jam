@@ -107,18 +107,46 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
 
         private Tween CreateRunBackTween(Transform target, CombatEventContext context, TweenPreset preset)
         {
-            var anchor = context.Actor.Anchor != null ? context.Actor.Anchor : context.Actor.Root;
-            if (anchor == null)
+            var destination = ResolveRunbackDestination(context);
+            if (destination == null)
             {
                 if (logWarnings)
                 {
-                    Debug.LogWarning("[DOTweenListener] RunBackToAnchor requested but actor anchor is missing.", this);
+                    Debug.LogWarning("[DOTweenListener] RunBackToAnchor: missing anchor and root. Skipping movement.", this);
                 }
-                return null;
+
+                return target.DOMove(target.position, Mathf.Max(0f, preset.duration))
+                    .SetEase(preset.ease);
             }
 
-            return target.DOMove(anchor.position, Mathf.Max(0f, preset.duration))
+            return target.DOMove(destination.position, Mathf.Max(0f, preset.duration))
                 .SetEase(preset.ease);
+        }
+
+        private Transform ResolveRunbackDestination(CombatEventContext context)
+        {
+            var anchor = context.Actor.Anchor;
+            if (IsValidDestination(anchor))
+            {
+                return anchor;
+            }
+
+            var root = context.Actor.Root;
+            if (IsValidDestination(root))
+            {
+                if (logWarnings && anchor != null)
+                {
+                    Debug.LogWarning("[DOTweenListener] RunBackToAnchor: anchor inactive/destroyed, using root fallback.", this);
+                }
+                return root;
+            }
+
+            return null;
+        }
+
+        private static bool IsValidDestination(Transform t)
+        {
+            return t != null && t.gameObject != null && t.gameObject.activeInHierarchy;
         }
 
         private Tween CreateFrameSequence(Transform target, TweenPreset preset)

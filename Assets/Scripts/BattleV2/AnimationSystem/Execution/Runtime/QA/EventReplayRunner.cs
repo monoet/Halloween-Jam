@@ -140,7 +140,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
             public int targetCount = 1;
         }
 
-        private readonly struct ScopedContext : System.IDisposable
+        private sealed class ScopedContext : System.IDisposable
         {
             public CombatEventContext Context { get; }
 
