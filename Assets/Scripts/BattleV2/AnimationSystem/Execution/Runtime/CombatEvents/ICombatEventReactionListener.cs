@@ -9,4 +9,9 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
     {
         void PlaySfx(string flagId, CombatEventContext context, SfxPreset preset, string resolvedKey);
     }
+
+    public interface ICombatEventReactionListener
+    {
+        void PlayReaction(string flagId, CombatEventContext context, CombatEventContext.CombatantRef target, int targetIndex);
+    }
 }

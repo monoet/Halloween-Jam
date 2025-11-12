@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 using BattleV2.Core;
 using BattleV2.Orchestration.Runtime;
 using BattleV2.Providers;
@@ -150,6 +151,14 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
                 return;
             }
 
+            bool perTarget = contexts[0]?.Targets.PerTarget ?? false;
+            float staggerStep = contexts[0]?.Action.StaggerStepSeconds ?? 0f;
+            if (perTarget && contexts.Count > 1 && staggerStep > 0f)
+            {
+                DispatchWithStagger(flagId, contexts, staggerStep);
+                return;
+            }
+
             Dispatch(flagId, contexts);
         }
 
@@ -182,7 +191,8 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
                 ResolveFamily(selection, schedulerContext),
                 ResolveWeapon(selection),
                 ResolveElement(selection),
-                ResolveRecipeId(selection, schedulerContext));
+                ResolveRecipeId(selection, schedulerContext),
+                ResolveStaggerStep(selection));
 
             var targets = request.Targets ?? Array.Empty<CombatantState>();
             var refs = new List<CombatEventContext.CombatantRef>(targets.Count);
@@ -280,6 +290,16 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
             return null;
         }
 
+        private static float ResolveStaggerStep(BattleSelection selection)
+        {
+            if (selection.Action != null)
+            {
+                return Mathf.Max(0f, selection.Action.combatEventStaggerStep);
+            }
+
+            return 0f;
+        }
+
         private static bool ShouldEmitPerTarget(string flagId, StepSchedulerContext context)
         {
             if (!string.Equals(flagId, CombatEventFlags.Impact, StringComparison.OrdinalIgnoreCase))
@@ -373,6 +393,64 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
             {
                 Invoke();
             }
+        }
+
+        private void DispatchWithStagger(string flagId, List<CombatEventContext> contexts, float staggerStepSeconds)
+        {
+            if (contexts == null || contexts.Count == 0)
+            {
+                return;
+            }
+
+            if (mainThreadInvoker == null || staggerStepSeconds <= 0f || contexts.Count <= 1)
+            {
+                Dispatch(flagId, contexts);
+                return;
+            }
+
+            var stagedContexts = new CombatEventContext[contexts.Count];
+            contexts.CopyTo(stagedContexts, 0);
+            contexts.Clear();
+
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    for (int i = 0; i < stagedContexts.Length; i++)
+                    {
+                        var context = stagedContexts[i];
+                        stagedContexts[i] = null;
+                        if (context == null)
+                        {
+                            continue;
+                        }
+
+                        var singleDispatch = new List<CombatEventContext>(1) { context };
+                        Dispatch(flagId, singleDispatch);
+
+                        if (i < stagedContexts.Length - 1)
+                        {
+                            try
+                            {
+                                await Task.Delay(TimeSpan.FromSeconds(staggerStepSeconds)).ConfigureAwait(false);
+                            }
+                            catch (TaskCanceledException)
+                            {
+                                break;
+                            }
+                            catch (Exception ex)
+                            {
+                                BattleLogger.Warn(LogTag, $"Stagger dispatch interrupted: {ex.Message}");
+                                break;
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    BattleLogger.Warn(LogTag, $"Stagger dispatch failed for '{flagId}': {ex}");
+                }
+            });
         }
 
         private void DispatchInternal(string flagId, List<CombatEventContext> contexts)

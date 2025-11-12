@@ -33,6 +33,11 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
             filter = CombatEventFilter.DefaultImpact
         };
 
+        [SerializeField] private ReactionListenerBinding reactionListener = new ReactionListenerBinding
+        {
+            filter = CombatEventFilter.DefaultImpact
+        };
+
         [Header("Tween Presets")]
         [SerializeField] private List<TweenTriggerEntry> tweenPresets = new List<TweenTriggerEntry>();
 
@@ -182,6 +187,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
 
             RouteTween(flagId, context, meta);
             RouteSfx(flagId, context, meta);
+            RouteReactions(flagId, context, meta);
         }
 
         public void Register()
@@ -289,9 +295,10 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
         {
             tweenListener.ResolveRuntime(this);
             sfxListener.ResolveRuntime(this);
+            reactionListener.ResolveRuntime(this);
         }
 
-        public void ConfigureListeners(MonoBehaviour tweenComponent, MonoBehaviour sfxComponent)
+        public void ConfigureListeners(MonoBehaviour tweenComponent, MonoBehaviour sfxComponent, MonoBehaviour reactionComponent = null)
         {
             if (tweenComponent != null)
             {
@@ -301,6 +308,11 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
             if (sfxComponent != null)
             {
                 sfxListener.listener = sfxComponent;
+            }
+
+            if (reactionComponent != null)
+            {
+                reactionListener.listener = reactionComponent;
             }
 
             ResolveListeners();
@@ -353,6 +365,47 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
             sfxCacheMiss++;
 
             warningLimiter?.TryWarn($"sfx_missing_{BuildPrimarySfxKey(context)}", $"Missing SFX preset (flag '{flagId}')", logMissingAssets ? this : null);
+        }
+
+        private void RouteReactions(string flagId, CombatEventContext context, in EventMeta meta)
+        {
+            if (!reactionListener.CanHandle)
+            {
+                return;
+            }
+
+            if (reactionListener.RequirePerTarget && !context.Targets.PerTarget)
+            {
+                return;
+            }
+
+            if (!MatchesFilter(reactionListener.Filter, meta, context))
+            {
+                return;
+            }
+
+            var targets = context.Targets.All;
+            if (targets == null || targets.Count == 0)
+            {
+                return;
+            }
+
+            if (context.Targets.PerTarget)
+            {
+                reactionListener.Invoke(flagId, context, targets[0], 0);
+                return;
+            }
+
+            for (int i = 0; i < targets.Count; i++)
+            {
+                var target = targets[i];
+                if (!target.IsValid)
+                {
+                    continue;
+                }
+
+                reactionListener.Invoke(flagId, context, target, i);
+            }
         }
 
         private bool MatchesFilter(CombatEventFilter filter, in EventMeta meta, CombatEventContext context)
@@ -615,6 +668,42 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
             public void Invoke(string flagId, CombatEventContext context, SfxPreset preset, string resolvedKey)
             {
                 runtime?.PlaySfx(flagId, context, preset, resolvedKey);
+            }
+        }
+
+        [Serializable]
+        private sealed class ReactionListenerBinding
+        {
+            public bool enabled;
+            public MonoBehaviour listener;
+            public CombatEventFilter filter = CombatEventFilter.DefaultImpact;
+            [Tooltip("If true, only invoke when dispatcher already emitted per-target contexts.")]
+            public bool requirePerTarget;
+
+            [NonSerialized] private ICombatEventReactionListener runtime;
+
+            public bool CanHandle => enabled && runtime != null;
+            public CombatEventFilter Filter => filter;
+            public bool RequirePerTarget => requirePerTarget;
+
+            public void ResolveRuntime(Component owner)
+            {
+                runtime = null;
+                if (!enabled || listener == null)
+                {
+                    return;
+                }
+
+                runtime = listener as ICombatEventReactionListener;
+                if (runtime == null)
+                {
+                    Debug.LogWarning($"[{LogTag}] Assigned reaction listener '{listener.name}' does not implement ICombatEventReactionListener.", owner);
+                }
+            }
+
+            public void Invoke(string flagId, CombatEventContext context, CombatEventContext.CombatantRef target, int targetIndex)
+            {
+                runtime?.PlayReaction(flagId, context, target, targetIndex);
             }
         }
 

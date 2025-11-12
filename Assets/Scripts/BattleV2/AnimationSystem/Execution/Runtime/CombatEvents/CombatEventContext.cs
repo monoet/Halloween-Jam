@@ -40,7 +40,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
         {
             var context = Acquire();
             var actor = new ActorView(0, CombatantAlignment.Ally, null, null, null);
-            var action = new ActionView("debug_action", "attack/basic", "sword", "neutral", "debug_recipe");
+            var action = new ActionView("debug_action", "attack/basic", "sword", "neutral", "debug_recipe", 0f);
             context.Populate(actor, action, Array.Empty<CombatantRef>(), false, Array.Empty<string>());
             return context;
         }
@@ -140,13 +140,15 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
                 string family,
                 string weaponKind,
                 string element,
-                string recipeId)
+                string recipeId,
+                float staggerStepSeconds)
             {
                 ActionId = string.IsNullOrWhiteSpace(actionId) ? "(unknown)" : actionId;
                 Family = string.IsNullOrWhiteSpace(family) ? ActionId : family;
                 WeaponKind = string.IsNullOrWhiteSpace(weaponKind) ? "none" : weaponKind;
                 Element = string.IsNullOrWhiteSpace(element) ? "neutral" : element;
                 RecipeId = recipeId;
+                StaggerStepSeconds = Mathf.Max(0f, staggerStepSeconds);
             }
 
             public string ActionId { get; }
@@ -154,6 +156,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
             public string WeaponKind { get; }
             public string Element { get; }
             public string RecipeId { get; }
+            public float StaggerStepSeconds { get; }
         }
 
         public readonly struct TargetsView

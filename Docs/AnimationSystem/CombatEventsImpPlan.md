@@ -237,7 +237,17 @@ feat(presentation): target-loop handling in listeners (if needed for visuals)
 
 docs(core): document deterministic target order
 
-Estado parcial (11/09): el dispatcher ya puede emitir un contexto por target cuando `selection.Targets` resuelve más de uno. Falta propagar `stagger_step` desde scheduler para cronometrar los raises y listeners todavía trabajan en bloque (no hay target-loop dedicado). Se añadirá cuando se active la pasada.
+Estado parcial (11/10):
+- `BattleActionData.combatEventStaggerStep` hidrata `ActionView.stagger_step_seconds`. Valor = 0 mantiene broadcast inmediato.
+- CombatEventDispatcher secuencia los raises per-target respetando `stagger_step` (usa colas async + MainThreadInvoker). Cuando el delay es 0, conserva el burst original.
+- CombatEventRouter expone un `ReactionListener` binding que itera `ctx.Targets.All` cuando un listener necesita loop propio (impact VFX, hit-react, etc.).
+- Pendiente: derivar `stagger_step` desde timelines/recipes (no solo Scriptable Action), documentar orden determinista de targets y construir listeners de referencia que consuman el binding nuevo.
+
+Deterministic target order (WIP notes):
+- Scheduler entrega `request.Targets` ya resuelto siguiendo el orden del TargetingService (primero selección manual, luego AI heuristics). Dispatcher copia ese arreglo en `CombatEventContext.Targets.All` sin reordenar.
+- Cuando `EnablePerTargetEmission` está activo, la misma lista se usa para clonar contexts per-target; el índice del bucle determina el delay acumulado (`stagger_step * index`).
+- Reaction listeners (nuevo binding) reciben los targets en ese mismo orden cuando `ctx.Targets.PerTarget == false`, por lo que cualquier loop de impactos/FX queda alineado con el orden definido por gameplay.
+- TODO: si el TargetingService cambia a colecciones no deterministas, fijar un `IComparer` explícito (por instanceId o distancia) y documentarlo aquí antes de v0.4.0.
 
 tag: v0.4.0-aoe-stagger
 
