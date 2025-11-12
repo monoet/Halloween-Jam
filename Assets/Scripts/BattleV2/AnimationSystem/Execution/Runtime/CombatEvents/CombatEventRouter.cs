@@ -4,6 +4,7 @@ using BattleV2.AnimationSystem.Runtime;
 using BattleV2.Core;
 using BattleV2.AnimationSystem.Execution.Runtime.Utilities;
 using UnityEngine;
+using BattleV2.AnimationSystem.Execution.Runtime.Setup;
 
 namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
 {
@@ -46,6 +47,10 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
         {
             new SfxPresetEntry { key = "default" }
         };
+
+        [Header("Cue Sets (Optional SO data)")]
+        [SerializeField] private TweenCueSet tweenCueSet;
+        [SerializeField] private SoundCueSet soundCueSet;
 
         [Header("Telemetry")]
         [SerializeField, Tooltip("Total combat events observed by the router.")]
@@ -318,6 +323,13 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
             ResolveListeners();
         }
 
+        public void ConfigureCueSets(TweenCueSet tweenSet, SoundCueSet soundSet)
+        {
+            tweenCueSet = tweenSet;
+            soundCueSet = soundSet;
+            RebuildLookups();
+        }
+
         private void RouteTween(string flagId, CombatEventContext context, in EventMeta meta)
         {
             if (!tweenListener.CanHandle)
@@ -543,6 +555,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
         private void RebuildLookups()
         {
             tweenLookup.Clear();
+            ApplyTweenCueSet();
             for (int i = 0; i < tweenPresets.Count; i++)
             {
                 var entry = tweenPresets[i];
@@ -555,6 +568,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
             }
 
             sfxLookup.Clear();
+            ApplySoundCueSet();
             for (int i = 0; i < sfxPresets.Count; i++)
             {
                 var entry = sfxPresets[i];
@@ -738,7 +752,41 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
             {
                 this.key = key;
                 this.preset = preset;
+                }
             }
         }
-    }
+
+        private void ApplyTweenCueSet()
+        {
+            if (tweenCueSet == null)
+            {
+                return;
+            }
+
+            try
+            {
+                tweenCueSet.PopulateLookup(tweenLookup);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[{LogTag}] Failed to hydrate TweenCueSet '{tweenCueSet.name}': {ex.Message}", this);
+            }
+        }
+
+        private void ApplySoundCueSet()
+        {
+            if (soundCueSet == null)
+            {
+                return;
+            }
+
+            try
+            {
+                soundCueSet.PopulateLookup(sfxLookup);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[{LogTag}] Failed to hydrate SoundCueSet '{soundCueSet.name}': {ex.Message}", this);
+            }
+        }
 }
