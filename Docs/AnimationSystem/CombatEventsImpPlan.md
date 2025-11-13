@@ -262,3 +262,5 @@ docs(data): usage notes and migration path
 tag: v0.5.0-so-optin
 
 Estado parcial (11/10): TweenCueSet/SoundCueSet ScriptableObjects viven en `Assets/Scripts/.../Setup` y el router ya hidrata sus diccionarios antes de aplicar overrides embebidos. Falta exponer un inspector helper (dropdown) y documentar el flujo para equipos de contenido, pero el runtime soporta cargar presets 100% desde assets.
+
+Estado parcial telemetry (11/10): `router.stats` vive en el DevConsole interno (toggle con backtick). El comando imprime counters + top 5 misses y dispara `CombatEventRouter.SnapshotGenerated`. El snapshot opcional también se emite cada vez que se usa `SnapshotCounters()` en inspector.

@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::HalloweenJam.Combat.Animations.StepScheduler.StepRecipeAsset
   recipeId: run_up
   groups:
-  - groupId: 
+  - groupId: attack/runup
     executionMode: 0
     joinPolicy: 0
     timeoutSeconds: 0

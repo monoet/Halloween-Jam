@@ -35,7 +35,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
 
         private void SeedTweenPresets()
         {
-            router.EnsureTweenPreset(CombatEventFlags.Windup, BuildWindupPreset());
+            router.EnsureTweenPreset(CombatEventFlags.Windup, BuildWindupPreset_Custom());
             router.EnsureTweenPreset(CombatEventFlags.Runup, BuildRunupPreset());
             router.EnsureTweenPreset(CombatEventFlags.Runback, BuildRunbackPreset());
         }
@@ -47,11 +47,22 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
             router.EnsureSfxPreset("default", BuildSfxPreset("event:/Battle/Impact_Generic", 1f, 0f));
         }
 
-        private static TweenPreset BuildWindupPreset()
+        private static TweenPreset BuildWindupPreset_Custom()
         {
             return new TweenPreset
             {
-                mode = TweenPresetMode.FrameSequence
+                mode = TweenPresetMode.FrameSequence,
+                frameSequence = new FrameSequencePreset
+                {
+                    frameRate = 60f,
+                    forward = 0.10f,
+                    minorBack = 0.135f,
+                    recoil = -0.177f,
+                    holdFrames = 4,
+                    returnFrames = 0,
+                    easeForward = Ease.OutCubic,
+                    easeReturn = Ease.Linear
+                }
             };
         }
 

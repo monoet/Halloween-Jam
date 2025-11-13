@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using DG.Tweening;
+using UnityEngine;
 
 namespace BattleV2.AnimationSystem.Execution.Runtime.Tweens
 {
@@ -54,15 +55,19 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Tweens
             }
 
             Tween previous = null;
+            bool replacingOld = false;
             lock (Gate)
             {
                 if (killOnStart && ActiveTweens.TryGetValue(actorId, out previous))
                 {
                     ActiveTweens.Remove(actorId);
+                    replacingOld = true;
                 }
 
                 ActiveTweens[actorId] = tween;
             }
+
+            UnityEngine.Debug.Log($"[TweenGate] Starting tween for actor={actorId}, replacingOld={replacingOld}");
 
             previous?.Kill();
 
@@ -71,6 +76,8 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Tweens
 
         internal static void KillInternal(int actorId, bool complete)
         {
+            UnityEngine.Debug.Log($"[TweenGate] KILL active tween for actor={actorId}");
+
             Tween tween;
             lock (Gate)
             {

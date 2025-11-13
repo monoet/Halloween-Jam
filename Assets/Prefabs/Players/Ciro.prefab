@@ -1,5 +1,204 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
+--- !u!1 &40789212424820795
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 7619660320230445407}
+  - component: {fileID: 5738199159160687220}
+  m_Layer: 0
+  m_Name: RouterPresetSeeder
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &7619660320230445407
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 40789212424820795}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 6459296558698155604}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &5738199159160687220
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 40789212424820795}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b40d0874ba91c5a4ca300edf4118b79f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BattleV2.AnimationSystem.Execution.Runtime.CombatEvents.CombatEventRouterPresetSeeder
+  router: {fileID: 809820966944405414}
+  seedTweensIfEmpty: 1
+  seedSfxIfEmpty: 1
+--- !u!1 &1335667490320115702
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 6459296558698155604}
+  - component: {fileID: 809820966944405414}
+  - component: {fileID: 252215778452151072}
+  - component: {fileID: 7692948483526120026}
+  m_Layer: 0
+  m_Name: CombatEventRouter
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &6459296558698155604
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1335667490320115702}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0.890803, y: -2.7771456, z: 0}
+  m_LocalScale: {x: 0.3030303, y: 0.3030303, z: 0.3030303}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 7619660320230445407}
+  m_Father: {fileID: 5914491807628125836}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &809820966944405414
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1335667490320115702}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 85eccd9e506715c4c8a0ed85a72d757f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BattleV2.AnimationSystem.Execution.Runtime.CombatEvents.CombatEventRouter
+  warningInterval: 0.5
+  autoRegisterOnEnable: 1
+  logMissingAssets: 1
+  tweenListener:
+    enabled: 1
+    listener: {fileID: 252215778452151072}
+    filter:
+      role: 0
+      direction: 1
+      scope: 0
+  sfxListener:
+    enabled: 1
+    listener: {fileID: 7692948483526120026}
+    filter:
+      role: 0
+      direction: 2
+      scope: 1
+  reactionListener:
+    enabled: 0
+    listener: {fileID: 0}
+    filter:
+      role: 0
+      direction: 2
+      scope: 1
+    requirePerTarget: 0
+  tweenPresets:
+  - triggerId: 'attack/windup '
+    preset:
+      description: 
+      mode: 0
+      offset: {x: 0, y: 0, z: 0}
+      absolutePosition: {x: 0, y: 0, z: 0}
+      duration: 0
+      ease: 0
+      additive: 0
+      frameSequence:
+        frameRate: 0
+        forward: 0
+        minorBack: 0
+        recoil: 0
+        holdFrames: 0
+        returnFrames: 0
+        easeForward: 0
+        easeReturn: 0
+  - triggerId: attack/runup
+    preset:
+      description: 
+      mode: 0
+      offset: {x: 0, y: 0, z: 0}
+      absolutePosition: {x: 0, y: 0, z: 0}
+      duration: 0
+      ease: 0
+      additive: 0
+      frameSequence:
+        frameRate: 0
+        forward: 0
+        minorBack: 0
+        recoil: 0
+        holdFrames: 0
+        returnFrames: 0
+        easeForward: 0
+        easeReturn: 0
+  sfxPresets:
+  - key: default
+    preset:
+      eventPath: event:/Battle/Impact_Generic
+      volume: 1
+      pitchVariance: 0
+  tweenCueSet: {fileID: 0}
+  soundCueSet: {fileID: 0}
+  eventsRaised: 0
+  tweenCacheHit: 0
+  tweenCacheMiss: 0
+  missingTween: 0
+  sfxCacheHit: 0
+  sfxCacheMiss: 0
+  inspectorSnapshots: []
+  notifySnapshotOnCommand: 1
+--- !u!114 &252215778452151072
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1335667490320115702}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c9b14c33387da06479c2d66e97e0d86c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BattleV2.AnimationSystem.Execution.Runtime.CombatEvents.DOTweenListener
+  logWarnings: 1
+  overrideTarget: {fileID: 5914491807628125836}
+--- !u!114 &7692948483526120026
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1335667490320115702}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4ec376e6888ff2b4a820d1439ff094ee, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BattleV2.AnimationSystem.Execution.Runtime.CombatEvents.FMODListener
+  logWhenUnavailable: 1
 --- !u!1 &2209887660875536834
 GameObject:
   m_ObjectHideFlags: 0
@@ -17,7 +216,6 @@ GameObject:
   - component: {fileID: 2403949855969705108}
   - component: {fileID: 4281670992362887343}
   - component: {fileID: 5693036501611744944}
-  - component: {fileID: 1402340508692770422}
   m_Layer: 0
   m_Name: Ciro
   m_TagString: Untagged
@@ -37,7 +235,8 @@ Transform:
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 3.3, y: 3.3, z: 3.3}
   m_ConstrainProportionsScale: 1
-  m_Children: []
+  m_Children:
+  - {fileID: 6459296558698155604}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!212 &3604114383740727844
@@ -262,7 +461,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2209887660875536834}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: aa839c0a414a6ae48971b54e87419c8e, type: 3}
   m_Name: 
@@ -285,19 +484,3 @@ MonoBehaviour:
   forward: 0.1
   minorBack: 0.135
   recoil: -1.5
---- !u!114 &1402340508692770422
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2209887660875536834}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 70dbcfbe70008ad428d59fca8bb71135, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BattleV2.QA.QAActorRig
-  casterRoot: {fileID: 0}
-  casterAnchor: {fileID: 0}
-  casterId: 10
-  alignment: 1

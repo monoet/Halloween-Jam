@@ -9,6 +9,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
     {
         [Header("Options")]
         [SerializeField] private bool logWarnings = true;
+        [SerializeField] private Transform overrideTarget;
 
         public void PlayTween(string flagId, CombatEventContext context, TweenPreset preset)
         {
@@ -31,7 +32,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
                 return;
             }
 
-            var target = ResolveTargetTransform(context);
+            var target = ResolveTargetTransform(context, overrideTarget);
             if (target == null)
             {
                 if (logWarnings)
@@ -41,18 +42,27 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
                 return;
             }
 
+            Debug.Log($"[DOTweenListener] Using target={(overrideTarget != null ? overrideTarget.name : target.name)} presetMode={preset.mode}", this);
+
             Tween tween = CreateTween(flagId, target, context, preset);
             if (tween == null)
             {
                 return;
             }
 
+            Debug.Log($"[DOTweenListener] Tween created: {tween}", this);
+
             tween.SetTarget(target);
             handle.Start(tween);
         }
 
-        private static Transform ResolveTargetTransform(CombatEventContext context)
+        private static Transform ResolveTargetTransform(CombatEventContext context, Transform forcedTarget)
         {
+            if (forcedTarget != null)
+            {
+                return forcedTarget;
+            }
+
             return context.Actor.Root != null
                 ? context.Actor.Root
                 : context.Actor.Combatant != null ? context.Actor.Combatant.transform : null;
@@ -170,7 +180,10 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
             timeline.AppendCallback(() =>
                 target.localPosition = new Vector3(startPos.x + seq.recoil, startPos.y, startPos.z));
             timeline.AppendInterval(FrameTime(seq.holdFrames));
-            timeline.Append(target.DOLocalMoveX(startPos.x, FrameTime(seq.returnFrames)).SetEase(seq.easeReturn));
+            if (seq.returnFrames > 0)
+            {
+                timeline.Append(target.DOLocalMoveX(startPos.x, FrameTime(seq.returnFrames)).SetEase(seq.easeReturn));
+            }
 
             return timeline;
         }

@@ -1,10 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text;
 using BattleV2.AnimationSystem.Runtime;
-using BattleV2.Core;
-using BattleV2.AnimationSystem.Execution.Runtime.Utilities;
-using UnityEngine;
 using BattleV2.AnimationSystem.Execution.Runtime.Setup;
+using BattleV2.AnimationSystem.Execution.Runtime.Utilities;
+using BattleV2.Core;
+using BattleV2.Debugging;
+using UnityEngine;
 
 namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
 {
@@ -61,25 +64,36 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
         [SerializeField] private int sfxCacheHit;
         [SerializeField] private int sfxCacheMiss;
         [SerializeField] private List<CounterSnapshot> inspectorSnapshots = new List<CounterSnapshot>();
+        [SerializeField, Tooltip("Invoke SnapshotGenerated when router.stats command runs.")]
+        private bool notifySnapshotOnCommand = true;
 
         private readonly Dictionary<string, TweenPreset> tweenLookup = new Dictionary<string, TweenPreset>(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, SfxPreset> sfxLookup = new Dictionary<string, SfxPreset>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, int> missingTweenByTrigger = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, int> missingSfxByKey = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         private WarningRateLimiter warningLimiter;
         private CombatEventDispatcher dispatcher;
         private bool isRegistered;
+        private static bool devConsoleCommandRegistered;
+        private static CombatEventRouter activeInstance;
 
         public int TweenPresetCount => tweenLookup.Count;
         public int SfxPresetCount => sfxLookup.Count;
+        public event Action<CombatEventRouterSnapshot> SnapshotGenerated;
 
         private void Awake()
         {
             RebuildLookups();
             ResolveListeners();
             EnsureWarningLimiter();
+            EnsureDevConsoleCommandRegistered();
         }
 
         private void OnEnable()
         {
+            Debug.Log($"[CombatEventRouter] Enabled on '{name}'.", this);
+            activeInstance = this;
+
             if (!autoRegisterOnEnable)
             {
                 return;
@@ -135,6 +149,11 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
                 dispatcher.UnregisterListener(this);
                 isRegistered = false;
             }
+
+            if (activeInstance == this)
+            {
+                activeInstance = null;
+            }
         }
 
         private void OnValidate()
@@ -186,6 +205,8 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
             {
                 return;
             }
+
+            Debug.Log($"[CombatEventRouter] Dispatching '{flagId}' for actor {context.Actor.Combatant?.name ?? context.Actor.Id.ToString()}.", this);
 
             eventsRaised++;
             var meta = ResolveEventMeta(flagId);
@@ -253,15 +274,16 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
         [ContextMenu("Snapshot Counters")]
         public void SnapshotCounters()
         {
+            var snapshot = CaptureSnapshot(true);
             inspectorSnapshots.Add(new CounterSnapshot
             {
                 timestamp = Time.realtimeSinceStartup,
-                eventsRaised = eventsRaised,
-                tweenCacheHit = tweenCacheHit,
-                tweenCacheMiss = tweenCacheMiss,
-                missingTween = missingTween,
-                sfxCacheHit = sfxCacheHit,
-                sfxCacheMiss = sfxCacheMiss
+                eventsRaised = snapshot.eventsRaised,
+                tweenCacheHit = snapshot.tweenCacheHit,
+                tweenCacheMiss = snapshot.tweenCacheMiss,
+                missingTween = snapshot.missingTween,
+                sfxCacheHit = snapshot.sfxCacheHit,
+                sfxCacheMiss = snapshot.sfxCacheMiss
             });
 
             const int MaxSnapshots = 50;
@@ -294,6 +316,30 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
             sfxCacheHit = 0;
             sfxCacheMiss = 0;
             inspectorSnapshots.Clear();
+            missingTweenByTrigger.Clear();
+            missingSfxByKey.Clear();
+        }
+
+        public CombatEventRouterSnapshot CaptureSnapshot(bool notifyListeners = false)
+        {
+            var snapshot = new CombatEventRouterSnapshot
+            {
+                eventsRaised = eventsRaised,
+                tweenCacheHit = tweenCacheHit,
+                tweenCacheMiss = tweenCacheMiss,
+                missingTween = missingTween,
+                sfxCacheHit = sfxCacheHit,
+                sfxCacheMiss = sfxCacheMiss,
+                topMissingTween = BuildTopEntries(missingTweenByTrigger),
+                topMissingSfx = BuildTopEntries(missingSfxByKey)
+            };
+
+            if (notifyListeners)
+            {
+                SnapshotGenerated?.Invoke(snapshot);
+            }
+
+            return snapshot;
         }
 
         private void ResolveListeners()
@@ -352,6 +398,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
             tweenCacheMiss++;
             missingTween++;
 
+            IncrementMissingTween(flagId);
             warningLimiter?.TryWarn($"tween_missing_{flagId}", $"Missing tween preset for trigger '{flagId}'.", logMissingAssets ? this : null);
         }
 
@@ -376,6 +423,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
 
             sfxCacheMiss++;
 
+            IncrementMissingSfx(BuildPrimarySfxKey(context));
             warningLimiter?.TryWarn($"sfx_missing_{BuildPrimarySfxKey(context)}", $"Missing SFX preset (flag '{flagId}')", logMissingAssets ? this : null);
         }
 
@@ -605,6 +653,26 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
             public int sfxCacheMiss;
         }
 
+        [Serializable]
+        public struct CombatEventRouterSnapshot
+        {
+            public int eventsRaised;
+            public int tweenCacheHit;
+            public int tweenCacheMiss;
+            public int missingTween;
+            public int sfxCacheHit;
+            public int sfxCacheMiss;
+            public List<StatEntry> topMissingTween;
+            public List<StatEntry> topMissingSfx;
+        }
+
+        [Serializable]
+        public struct StatEntry
+        {
+            public string key;
+            public int count;
+        }
+
         private void DispatchTestFlag(string flagId, CombatEventContext template)
         {
             var clone = CombatEventContext.Acquire();
@@ -752,7 +820,6 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
             {
                 this.key = key;
                 this.preset = preset;
-                }
             }
         }
 
@@ -789,4 +856,94 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
                 Debug.LogWarning($"[{LogTag}] Failed to hydrate SoundCueSet '{soundCueSet.name}': {ex.Message}", this);
             }
         }
+
+        private void IncrementMissingTween(string triggerId)
+        {
+            if (string.IsNullOrWhiteSpace(triggerId))
+            {
+                return;
+            }
+
+            missingTweenByTrigger.TryGetValue(triggerId, out var count);
+            missingTweenByTrigger[triggerId] = count + 1;
+        }
+
+        private void IncrementMissingSfx(string key)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                return;
+            }
+
+            missingSfxByKey.TryGetValue(key, out var count);
+            missingSfxByKey[key] = count + 1;
+        }
+
+        private List<StatEntry> BuildTopEntries(Dictionary<string, int> source, int maxEntries = 5)
+        {
+            if (source == null || source.Count == 0)
+            {
+                return new List<StatEntry>(0);
+            }
+
+            return source
+                .OrderByDescending(kvp => kvp.Value)
+                .ThenBy(kvp => kvp.Key, StringComparer.OrdinalIgnoreCase)
+                .Take(maxEntries)
+                .Select(kvp => new StatEntry { key = kvp.Key, count = kvp.Value })
+                .ToList();
+        }
+
+        private static void EnsureDevConsoleCommandRegistered()
+        {
+            if (devConsoleCommandRegistered)
+            {
+                return;
+            }
+
+            DevConsole.RegisterCommand("router.stats", "Print CombatEventRouter counters", HandleStatsCommand);
+            devConsoleCommandRegistered = true;
+        }
+
+        private static void HandleStatsCommand(string[] args)
+        {
+            var router = activeInstance ?? FindObjectOfType<CombatEventRouter>();
+            if (router == null)
+            {
+                DevConsole.Log("router.stats: CombatEventRouter not found.");
+                return;
+            }
+
+            var snapshot = router.CaptureSnapshot(router.notifySnapshotOnCommand);
+            DevConsole.Log(router.FormatSnapshot(snapshot));
+        }
+
+        private string FormatSnapshot(CombatEventRouterSnapshot snapshot)
+        {
+            var builder = new StringBuilder();
+            builder.AppendLine($"eventsRaised: {snapshot.eventsRaised}");
+            builder.AppendLine($"tweenCacheHit: {snapshot.tweenCacheHit} | tweenCacheMiss: {snapshot.tweenCacheMiss} | missingTween: {snapshot.missingTween}");
+            builder.AppendLine($"sfxCacheHit: {snapshot.sfxCacheHit} | sfxCacheMiss: {snapshot.sfxCacheMiss}");
+            builder.AppendLine("Top missing tweens:");
+            AppendEntries(snapshot.topMissingTween, builder);
+            builder.AppendLine("Top missing sfx:");
+            AppendEntries(snapshot.topMissingSfx, builder);
+            return builder.ToString();
+        }
+
+        private static void AppendEntries(List<StatEntry> entries, StringBuilder builder)
+        {
+            if (entries == null || entries.Count == 0)
+            {
+                builder.AppendLine("  (none)");
+                return;
+            }
+
+            for (int i = 0; i < entries.Count; i++)
+            {
+                var entry = entries[i];
+                builder.AppendLine($"  {entry.key} x{entry.count}");
+            }
+        }
+    }
 }
