@@ -349,7 +349,10 @@ namespace BattleV2.AnimationSystem.Runtime
             IPlaybackSession session;
             if (hasRecipe)
             {
-                var useLifecycle = ShouldUseLifecycle(recipe);
+                var actor = request.Actor;
+                var actor = request.Actor;
+                var isEnemy = actor != null && actor.IsEnemy;
+                var useLifecycle = actor != null && actor.IsPlayer && ShouldUseLifecycle(recipe);
                 session = new RecipePlaybackSession(
                     request,
                     timeline,
@@ -361,7 +364,8 @@ namespace BattleV2.AnimationSystem.Runtime
                     stepScheduler,
                     recipe,
                     useLifecycle,
-                    pacingSettings);
+                    pacingSettings,
+                    isEnemy);
             }
             else
             {
@@ -413,11 +417,6 @@ namespace BattleV2.AnimationSystem.Runtime
             routerBundle.Dispose();
             wrapperResolver.Dispose();
             legacyAdapters.Clear();
-        }
-
-        private static bool IsEnemyActor(CombatantState actor)
-        {
-            return actor != null && actor.IsEnemy;
         }
 
         private static AnimationContext NormalizeContext(AnimationContext context)
@@ -512,7 +511,8 @@ namespace BattleV2.AnimationSystem.Runtime
                 StepScheduler scheduler,
                 ActionRecipe recipe,
                 bool useLifecycle,
-                BattlePacingSettings pacingSettings)
+                BattlePacingSettings pacingSettings,
+                bool isEnemyActor)
             {
                 // AnimationRequest is a struct; it won't be null.
                 if (wrapper == null) throw new ArgumentNullException(nameof(wrapper));
@@ -533,8 +533,8 @@ namespace BattleV2.AnimationSystem.Runtime
                 this.scheduler = scheduler;
                 this.recipe = recipe;
                 this.pacingSettings = pacingSettings;
-                isEnemyActor = IsEnemyActor(request.Actor);
-                this.useLifecycle = useLifecycle && !isEnemyActor;
+                this.isEnemyActor = isEnemyActor;
+                this.useLifecycle = useLifecycle;
             }
 
             public async Task RunAsync(ActionSequencerDriver driver, CancellationToken cancellationToken)
