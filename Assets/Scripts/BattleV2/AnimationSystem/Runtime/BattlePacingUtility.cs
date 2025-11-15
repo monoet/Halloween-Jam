@@ -42,10 +42,10 @@ namespace BattleV2.AnimationSystem.Runtime
             if (actor != null)
             {
                 Debug.Log($"TTDebug03 [WAIT-IDLE] actor={actor.name} phase={phase} time={Timestamp}");
-                await StepSchedulerIdleUtility.WaitUntilActorIdleAsync(actor, token).ConfigureAwait(false);
+                await StepSchedulerIdleUtility.WaitUntilActorIdleAsync(actor, token);
             }
 
-            await DelayInternalAsync(seconds, phase, actor, token).ConfigureAwait(false);
+            await DelayInternalAsync(seconds, phase, actor, token);
         }
 
         public static Task DelayGlobalAsync(string sourceLabel, CombatantState actor, CancellationToken token = default)
@@ -75,7 +75,7 @@ namespace BattleV2.AnimationSystem.Runtime
 
             try
             {
-                await Task.Delay(TimeSpan.FromSeconds(clamped), token).ConfigureAwait(false);
+                await Task.Delay(TimeSpan.FromSeconds(clamped), token);
             }
             catch (OperationCanceledException)
             {

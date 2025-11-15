@@ -565,7 +565,7 @@ namespace BattleV2.AnimationSystem.Runtime
                 {
                     if (useLifecycle)
                     {
-                        await BattlePacingUtility.DelayTrackedAsync(pacingSettings != null ? pacingSettings.playerPreDelay : 0f, "PlayerPreDelay", request.Actor, linkedCts.Token).ConfigureAwait(false);
+                        await BattlePacingUtility.DelayTrackedAsync(pacingSettings != null ? pacingSettings.playerPreDelay : 0f, "PlayerPreDelay", request.Actor, linkedCts.Token);
                         executionTask = scheduler.ExecuteLifecycleAsync(recipe, context, linkedCts.Token);
                     }
                     else
@@ -573,16 +573,16 @@ namespace BattleV2.AnimationSystem.Runtime
                         executionTask = scheduler.ExecuteAsync(recipe, context, linkedCts.Token);
                     }
 
-                    await executionTask.ConfigureAwait(false);
-                    await StepSchedulerIdleUtility.WaitUntilActorIdleAsync(request.Actor, linkedCts.Token).ConfigureAwait(false);
+                    await executionTask;
+                    await StepSchedulerIdleUtility.WaitUntilActorIdleAsync(request.Actor, linkedCts.Token);
 
                     if (useLifecycle)
                     {
-                        await BattlePacingUtility.DelayTrackedAsync(pacingSettings != null ? pacingSettings.playerPostDelay : 0f, "PlayerPostDelay", request.Actor, linkedCts.Token).ConfigureAwait(false);
+                        await BattlePacingUtility.DelayTrackedAsync(pacingSettings != null ? pacingSettings.playerPostDelay : 0f, "PlayerPostDelay", request.Actor, linkedCts.Token);
                     }
                     else if (isEnemyActor)
                     {
-                        await BattlePacingUtility.DelayTrackedAsync(pacingSettings != null ? pacingSettings.enemyTurnGap : 0f, "EnemyTurnGap", request.Actor, linkedCts.Token).ConfigureAwait(false);
+                        await BattlePacingUtility.DelayTrackedAsync(pacingSettings != null ? pacingSettings.enemyTurnGap : 0f, "EnemyTurnGap", request.Actor, linkedCts.Token);
                     }
                 }
                 catch (OperationCanceledException) when ((linkedCts != null && linkedCts.IsCancellationRequested) || cancellationToken.IsCancellationRequested)
@@ -624,7 +624,7 @@ namespace BattleV2.AnimationSystem.Runtime
                 {
                     try
                     {
-                        await executionTask.ConfigureAwait(false);
+                        await executionTask;
                     }
                     catch (OperationCanceledException)
                     {

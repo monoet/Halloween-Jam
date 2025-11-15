@@ -251,7 +251,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
                     cancellationToken,
                     inlineRecipe: null,
                     recipeId: preId,
-                    skipResetToFallback: true).ConfigureAwait(false);
+                    skipResetToFallback: true);
             }
 
             fallbackReset |= await ExecuteLifecyclePhaseAsync(
@@ -260,7 +260,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
                 cancellationToken,
                 inlineRecipe: recipe,
                 recipeId: recipe?.Id,
-                skipResetToFallback: true).ConfigureAwait(false);
+                skipResetToFallback: true);
 
             if (!ShouldSkip(postId))
             {
@@ -270,7 +270,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
                     cancellationToken,
                     inlineRecipe: null,
                     recipeId: postId,
-                    skipResetToFallback: false).ConfigureAwait(false);
+                    skipResetToFallback: false);
             }
 
             if (!fallbackReset && !context.SkipResetToFallback)
@@ -308,7 +308,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
                 {
                     var finalSkipReset = skipResetToFallback || context.SkipResetToFallback;
                     var phaseContext = context.WithSkipReset(finalSkipReset);
-                    await ExecuteAsync(phaseRecipe, phaseContext, cancellationToken).ConfigureAwait(false);
+                    await ExecuteAsync(phaseRecipe, phaseContext, cancellationToken);
                     resetTriggered = !finalSkipReset;
                 }
             }
