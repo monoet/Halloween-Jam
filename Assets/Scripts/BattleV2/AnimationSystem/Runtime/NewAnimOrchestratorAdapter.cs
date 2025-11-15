@@ -346,11 +346,17 @@ namespace BattleV2.AnimationSystem.Runtime
                 }
             }
 
+            var actor = request.Actor;
+
+            if (hasRecipe && actor != null && actor.IsEnemy && AuxiliaryRecipeIds.Contains(recipe.Id))
+            {
+                BattleLogger.Warn("AnimAdapter", $"Enemy actor '{actor.name}' attempted to play auxiliary recipe '{recipe.Id}'. Skipping execution.");
+                return;
+            }
+
             IPlaybackSession session;
             if (hasRecipe)
             {
-                var actor = request.Actor;
-                var actor = request.Actor;
                 var isEnemy = actor != null && actor.IsEnemy;
                 var useLifecycle = actor != null && actor.IsPlayer && ShouldUseLifecycle(recipe);
                 session = new RecipePlaybackSession(
