@@ -27,6 +27,9 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
         private readonly SequentialGroupRunner sequentialRunner;
         private readonly ParallelGroupRunner parallelRunner;
         private readonly ActiveExecutionRegistry activeExecutionRegistry;
+        private ActionLifecycleConfig lifecycleConfig = ActionLifecycleConfig.Default;
+
+        public event Action<ActionLifecycleEventArgs> LifecycleEvent;
 
         public StepScheduler()
         {
@@ -34,6 +37,13 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
             sequentialRunner = new SequentialGroupRunner(this);
             parallelRunner = new ParallelGroupRunner(this);
             activeExecutionRegistry = new ActiveExecutionRegistry(LogTag);
+        }
+
+        public ActionLifecycleConfig LifecycleConfig => lifecycleConfig;
+
+        public void ConfigureLifecycle(ActionLifecycleConfig config)
+        {
+            lifecycleConfig = config ?? ActionLifecycleConfig.Default;
         }
 
         public void RegisterExecutor(IActionStepExecutor executor)
@@ -219,6 +229,101 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
                     context.Wrapper?.ResetToFallback();
                 }
             }
+        }
+
+        public async Task ExecuteLifecycleAsync(ActionRecipe recipe, StepSchedulerContext context, CancellationToken cancellationToken = default)
+        {
+            var config = lifecycleConfig ?? ActionLifecycleConfig.Default;
+            bool fallbackReset = false;
+            var actionId = recipe?.Id;
+            var preId = config?.RunUpRecipeId;
+            var postId = config?.RunBackRecipeId;
+
+            bool ShouldSkip(string lifecycleId) =>
+                string.IsNullOrWhiteSpace(lifecycleId) ||
+                (actionId != null && string.Equals(actionId, lifecycleId, StringComparison.OrdinalIgnoreCase));
+
+            if (!ShouldSkip(preId))
+            {
+                fallbackReset |= await ExecuteLifecyclePhaseAsync(
+                    ActionLifecyclePhase.PreAction,
+                    context,
+                    cancellationToken,
+                    inlineRecipe: null,
+                    recipeId: preId,
+                    skipResetToFallback: true).ConfigureAwait(false);
+            }
+
+            fallbackReset |= await ExecuteLifecyclePhaseAsync(
+                ActionLifecyclePhase.Action,
+                context,
+                cancellationToken,
+                inlineRecipe: recipe,
+                recipeId: recipe?.Id,
+                skipResetToFallback: true).ConfigureAwait(false);
+
+            if (!ShouldSkip(postId))
+            {
+                fallbackReset |= await ExecuteLifecyclePhaseAsync(
+                    ActionLifecyclePhase.PostAction,
+                    context,
+                    cancellationToken,
+                    inlineRecipe: null,
+                    recipeId: postId,
+                    skipResetToFallback: false).ConfigureAwait(false);
+            }
+
+            if (!fallbackReset && !context.SkipResetToFallback)
+            {
+                context.Wrapper?.ResetToFallback();
+            }
+        }
+
+        private async Task<bool> ExecuteLifecyclePhaseAsync(
+            ActionLifecyclePhase phase,
+            StepSchedulerContext context,
+            CancellationToken cancellationToken,
+            ActionRecipe inlineRecipe,
+            string recipeId,
+            bool skipResetToFallback)
+        {
+            var phaseRecipe = inlineRecipe;
+            if (phaseRecipe == null && !string.IsNullOrWhiteSpace(recipeId))
+            {
+                TryGetRecipe(recipeId, out phaseRecipe);
+            }
+
+            var beginArgs = new ActionLifecycleEventArgs(
+                ActionLifecycleEvents.GetEventId(phase, ActionLifecycleEventType.Begin),
+                phase,
+                ActionLifecycleEventType.Begin,
+                phaseRecipe,
+                context);
+            NotifyLifecycleListeners(beginArgs);
+
+            bool resetTriggered = false;
+            try
+            {
+                if (phaseRecipe != null && !phaseRecipe.IsEmpty)
+                {
+                    var finalSkipReset = skipResetToFallback || context.SkipResetToFallback;
+                    var phaseContext = context.WithSkipReset(finalSkipReset);
+                    await ExecuteAsync(phaseRecipe, phaseContext, cancellationToken).ConfigureAwait(false);
+                    resetTriggered = !finalSkipReset;
+                }
+            }
+            finally
+            {
+                var endArgs = new ActionLifecycleEventArgs(
+                    ActionLifecycleEvents.GetEventId(phase, ActionLifecycleEventType.End),
+                    phase,
+                    ActionLifecycleEventType.End,
+                    phaseRecipe,
+                    context);
+                NotifyLifecycleListeners(endArgs);
+            }
+
+            return resetTriggered;
         }
 
         private Task<StepGroupResult> ExecuteGroupAsync(
@@ -443,6 +548,30 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
                 catch (Exception ex)
                 {
                     BattleLogger.Warn(LogTag, $"Observer '{snapshot[i].GetType().Name}' threw during notification: {ex.Message}");
+                }
+            }
+        }
+
+        private void NotifyLifecycleListeners(ActionLifecycleEventArgs args)
+        {
+            var handler = LifecycleEvent;
+            if (handler == null)
+            {
+                return;
+            }
+
+            var listeners = handler.GetInvocationList();
+            for (int i = 0; i < listeners.Length; i++)
+            {
+                var listener = (Action<ActionLifecycleEventArgs>)listeners[i];
+                try
+                {
+                    listener(args);
+                }
+                catch (Exception ex)
+                {
+                    var listenerName = listener.Target?.GetType().Name ?? "(unknown)";
+                    BattleLogger.Warn(LogTag, $"Lifecycle observer '{listenerName}' threw: {ex.Message}");
                 }
             }
         }

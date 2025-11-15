@@ -42,6 +42,14 @@ namespace BattleV2.AnimationSystem.Runtime
         private readonly IOrchestratorSessionController sessionController;
         private readonly Dictionary<CombatantState, IPlaybackSession> activeSessions = new Dictionary<CombatantState, IPlaybackSession>();
         private readonly Dictionary<CombatantState, IAnimationWrapper> legacyAdapters = new Dictionary<CombatantState, IAnimationWrapper>();
+        private readonly BattlePacingSettings pacingSettings;
+        private static readonly HashSet<string> AuxiliaryRecipeIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            PilotActionRecipes.RunUpId,
+            PilotActionRecipes.RunBackId,
+            PilotActionRecipes.IdleId,
+            PilotActionRecipes.TurnIntroId
+        };
 
         private bool disposed;
 
@@ -60,7 +68,8 @@ namespace BattleV2.AnimationSystem.Runtime
             AnimatorRegistry registry,
             IReadOnlyDictionary<BattlePhase, IPhaseStrategy> phaseStrategies = null,
             IEnumerable<IRecipeExecutor> recipeExecutors = null,
-            IOrchestratorSessionController sessionController = null)
+            IOrchestratorSessionController sessionController = null,
+            BattlePacingSettings pacingSettings = null)
         {
             if (runtimeBuilder == null) throw new ArgumentNullException(nameof(runtimeBuilder));
             if (sequencerDriver == null) throw new ArgumentNullException(nameof(sequencerDriver));
@@ -92,6 +101,7 @@ namespace BattleV2.AnimationSystem.Runtime
                 ? new List<IRecipeExecutor>(recipeExecutors)
                 : new List<IRecipeExecutor>();
             this.sessionController = sessionController ?? new OrchestratorSessionController();
+            this.pacingSettings = pacingSettings;
         }
 
         public BattlePhase CurrentPhase => sessionController.GetPhase(AnimationContext.Default);
@@ -339,6 +349,7 @@ namespace BattleV2.AnimationSystem.Runtime
             IPlaybackSession session;
             if (hasRecipe)
             {
+                var useLifecycle = ShouldUseLifecycle(recipe);
                 session = new RecipePlaybackSession(
                     request,
                     timeline,
@@ -348,7 +359,9 @@ namespace BattleV2.AnimationSystem.Runtime
                     eventBus,
                     timedHitService,
                     stepScheduler,
-                    recipe);
+                    recipe,
+                    useLifecycle,
+                    pacingSettings);
             }
             else
             {
@@ -402,6 +415,11 @@ namespace BattleV2.AnimationSystem.Runtime
             legacyAdapters.Clear();
         }
 
+        private static bool IsEnemyActor(CombatantState actor)
+        {
+            return actor != null && actor.IsEnemy;
+        }
+
         private static AnimationContext NormalizeContext(AnimationContext context)
         {
             if (string.IsNullOrWhiteSpace(context.SessionId))
@@ -453,6 +471,16 @@ namespace BattleV2.AnimationSystem.Runtime
             public bool IsDisposed => disposed;
         }
 
+        private bool ShouldUseLifecycle(ActionRecipe recipe)
+        {
+            if (recipe == null || string.IsNullOrWhiteSpace(recipe.Id))
+            {
+                return false;
+            }
+
+            return !AuxiliaryRecipeIds.Contains(recipe.Id);
+        }
+
         private sealed class RecipePlaybackSession : IPlaybackSession
         {
             private readonly AnimationRequest request;
@@ -464,6 +492,9 @@ namespace BattleV2.AnimationSystem.Runtime
             private readonly ITimedHitService timedHitService;
             private readonly StepScheduler scheduler;
             private readonly ActionRecipe recipe;
+            private readonly BattlePacingSettings pacingSettings;
+            private readonly bool useLifecycle;
+            private readonly bool isEnemyActor;
 
             private CancellationTokenSource linkedCts;
             private Task executionTask;
@@ -479,7 +510,9 @@ namespace BattleV2.AnimationSystem.Runtime
                 IAnimationEventBus eventBus,
                 ITimedHitService timedHitService,
                 StepScheduler scheduler,
-                ActionRecipe recipe)
+                ActionRecipe recipe,
+                bool useLifecycle,
+                BattlePacingSettings pacingSettings)
             {
                 // AnimationRequest is a struct; it won't be null.
                 if (wrapper == null) throw new ArgumentNullException(nameof(wrapper));
@@ -499,6 +532,9 @@ namespace BattleV2.AnimationSystem.Runtime
                 this.timedHitService = timedHitService;
                 this.scheduler = scheduler;
                 this.recipe = recipe;
+                this.pacingSettings = pacingSettings;
+                isEnemyActor = IsEnemyActor(request.Actor);
+                this.useLifecycle = useLifecycle && !isEnemyActor;
             }
 
             public async Task RunAsync(ActionSequencerDriver driver, CancellationToken cancellationToken)
@@ -521,8 +557,27 @@ namespace BattleV2.AnimationSystem.Runtime
 
                 try
                 {
-                    executionTask = scheduler.ExecuteAsync(recipe, context, linkedCts.Token);
+                    if (useLifecycle)
+                    {
+                        await BattlePacingUtility.DelayAsync(pacingSettings != null ? pacingSettings.playerPreDelay : 0f, "PlayerPreDelay", request.Actor, linkedCts.Token).ConfigureAwait(false);
+                        executionTask = scheduler.ExecuteLifecycleAsync(recipe, context, linkedCts.Token);
+                    }
+                    else
+                    {
+                        executionTask = scheduler.ExecuteAsync(recipe, context, linkedCts.Token);
+                    }
+
                     await executionTask.ConfigureAwait(false);
+                    await StepSchedulerIdleUtility.WaitUntilActorIdleAsync(request.Actor, linkedCts.Token).ConfigureAwait(false);
+
+                    if (useLifecycle)
+                    {
+                        await BattlePacingUtility.DelayAsync(pacingSettings != null ? pacingSettings.playerPostDelay : 0f, "PlayerPostDelay", request.Actor, linkedCts.Token).ConfigureAwait(false);
+                    }
+                    else if (isEnemyActor)
+                    {
+                        await BattlePacingUtility.DelayAsync(pacingSettings != null ? pacingSettings.enemyTurnGap : 0f, "EnemyTurnGap", request.Actor, linkedCts.Token).ConfigureAwait(false);
+                    }
                 }
                 catch (OperationCanceledException) when ((linkedCts != null && linkedCts.IsCancellationRequested) || cancellationToken.IsCancellationRequested)
                 {

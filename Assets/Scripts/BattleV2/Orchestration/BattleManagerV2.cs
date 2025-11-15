@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
 using BattleV2.Actions;
@@ -662,6 +663,9 @@ namespace BattleV2.Orchestration
                 OnFallback = ExecuteFallback,
                 SetState = state != null ? new Action<BattleState>(s => state.Set(s)) : null
             });
+
+            await StepSchedulerIdleUtility.WaitUntilActorIdleAsync(currentPlayer, CancellationToken.None);
+            await BattlePacingUtility.DelayGlobalAsync("PlayerTurn");
         }
 
         private void ExecuteFallback()

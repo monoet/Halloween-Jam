@@ -16,6 +16,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
     public sealed class CombatEventDispatcher : IStepSchedulerObserver
     {
         private const string LogTag = "CombatEvents";
+        private const string DebugScope = "CombatEvents/Tween";
 
         private const bool EnablePerTargetEmission = true; // TODO: promote to config flag once staggered AoE beats land.
 
@@ -150,6 +151,13 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
             {
                 return;
             }
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            var actorName = schedulerContext.Request.Actor != null
+                ? schedulerContext.Request.Actor.name
+                : "(null)";
+            Debug.Log($"[{DebugScope}] Emitting '{flagId}' for actor '{actorName}' contexts={contexts.Count}");
+#endif
 
             bool perTarget = contexts[0]?.Targets.PerTarget ?? false;
             float staggerStep = contexts[0]?.Action.StaggerStepSeconds ?? 0f;

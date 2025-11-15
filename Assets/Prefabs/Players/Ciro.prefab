@@ -75,7 +75,7 @@ Transform:
   m_GameObject: {fileID: 1335667490320115702}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0.890803, y: -2.7771456, z: 0}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 0.3030303, y: 0.3030303, z: 0.3030303}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -120,7 +120,7 @@ MonoBehaviour:
       scope: 1
     requirePerTarget: 0
   tweenPresets:
-  - triggerId: 'attack/windup '
+  - triggerId: attack/windup
     preset:
       description: 
       mode: 0
@@ -179,7 +179,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1335667490320115702}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c9b14c33387da06479c2d66e97e0d86c, type: 3}
   m_Name: 
@@ -461,7 +461,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2209887660875536834}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: aa839c0a414a6ae48971b54e87419c8e, type: 3}
   m_Name: 
@@ -476,6 +476,12 @@ MonoBehaviour:
     ease: 9
   - enabled: 1
     recipeId: basic_attack
+    useLocalSpace: 1
+    absolutePosition: {x: 0, y: 0, z: 0}
+    duration: 0.3
+    ease: 9
+  - enabled: 1
+    recipeId: run_back
     useLocalSpace: 1
     absolutePosition: {x: 0, y: 0, z: 0}
     duration: 0.3

@@ -22,12 +22,12 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
                 return;
             }
 
-            if (seedTweensIfEmpty && router.TweenPresetCount == 0)
+            if (seedTweensIfEmpty)
             {
                 SeedTweenPresets();
             }
 
-            if (seedSfxIfEmpty && router.SfxPresetCount == 0)
+            if (seedSfxIfEmpty)
             {
                 SeedSfxPresets();
             }
@@ -35,9 +35,24 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
 
         private void SeedTweenPresets()
         {
-            router.EnsureTweenPreset(CombatEventFlags.Windup, BuildWindupPreset_Custom());
-            router.EnsureTweenPreset(CombatEventFlags.Runup, BuildRunupPreset());
-            router.EnsureTweenPreset(CombatEventFlags.Runback, BuildRunbackPreset());
+            RegisterTweenPreset(CombatEventFlags.Windup, BuildWindupPreset());
+            RegisterTweenPreset("attack/windup", BuildWindupPreset());
+
+            RegisterTweenPreset(CombatEventFlags.Runup, BuildRunupPreset_Relative());
+            RegisterTweenPreset("attack/runup", BuildRunupPreset_Relative());
+
+            RegisterTweenPreset(CombatEventFlags.Runback, BuildRunbackPreset());
+            RegisterTweenPreset("attack/runback", BuildRunbackPreset());
+        }
+
+        private void RegisterTweenPreset(string triggerId, TweenPreset preset)
+        {
+            if (string.IsNullOrWhiteSpace(triggerId) || preset == null)
+            {
+                return;
+            }
+
+            router.EnsureTweenPreset(triggerId, preset);
         }
 
         private void SeedSfxPresets()
@@ -47,7 +62,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
             router.EnsureSfxPreset("default", BuildSfxPreset("event:/Battle/Impact_Generic", 1f, 0f));
         }
 
-        private static TweenPreset BuildWindupPreset_Custom()
+        private static TweenPreset BuildWindupPreset()
         {
             return new TweenPreset
             {
@@ -66,7 +81,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
             };
         }
 
-        private static TweenPreset BuildRunupPreset()
+        private static TweenPreset BuildRunupPreset_Relative()
         {
             return new TweenPreset
             {

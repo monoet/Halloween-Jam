@@ -3,45 +3,33 @@ using DG.Tweening;
 using UnityEngine;
 using BattleV2.AnimationSystem.Execution.Runtime;
 using BattleV2.AnimationSystem.Runtime;
+using BattleV2.Core;
 
 namespace BattleV2.AnimationSystem.Execution.Runtime.Observers
 {
-    /// <summary>
-    /// Ejecuta tweens DOTween independientes cuando determinados recipes (basic_attack, run_up, etc.)
-    /// son lanzados por el StepScheduler. 
-    /// 'basic_attack' usa una animación frameada para reproducir el wind-up con precisión.
-    /// </summary>
     public sealed class RecipeTweenObserver : MonoBehaviour, IStepSchedulerObserver
     {
         [System.Serializable]
         private sealed class RecipeTweenDefinition
         {
-            [Tooltip("Habilita o deshabilita el tween sin borrar la entrada.")]
             public bool enabled = true;
-
-            [Tooltip("ID exacto del recipe que dispara este tween.")]
             public string recipeId = "run_up";
-
-            [Tooltip("Usar espacio local (true) o world (false).")]
             public bool useLocalSpace = true;
-
-            [Tooltip("Posición absoluta (si aplica).")]
             public Vector3 absolutePosition = Vector3.zero;
-
-            [Tooltip("Duración total (solo para tweens simples).")]
             public float duration = 0.25f;
-
-            [Tooltip("Curva de easing usada por DOTween.")]
             public Ease ease = Ease.OutSine;
+            public bool returnToInitialPosition = false;
         }
 
-        [Header("Tween Target")]
+        [Header("Owner")]
+        [SerializeField] private CombatantState owner;
+
+        [Header("Tween Target")] 
         [SerializeField] private Transform tweenTarget;
 
-        [Header("Recipe Tweens")]
+        [Header("Recipe Tweens")] 
         [SerializeField] private List<RecipeTweenDefinition> tweens = new()
         {
-            // Run-Up → desplazamiento absoluto
             new RecipeTweenDefinition
             {
                 enabled = true,
@@ -51,7 +39,6 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Observers
                 duration = 0.30f,
                 ease = Ease.OutCubic
             },
-            // Basic Attack → wind-up frameado
             new RecipeTweenDefinition
             {
                 enabled = true,
@@ -59,29 +46,74 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Observers
                 useLocalSpace = true,
                 duration = 0.30f,
                 ease = Ease.OutCubic
+            },
+            new RecipeTweenDefinition
+            {
+                enabled = true,
+                recipeId = "run_back",
+                useLocalSpace = true,
+                absolutePosition = Vector3.zero,
+                duration = 0.90f,
+                ease = Ease.InOutSine,
+                returnToInitialPosition = true
             }
         };
 
-        [Header("Wind-Up Settings (solo basic_attack)")]
-        [SerializeField, Tooltip("Fotogramas por segundo usados para el cálculo de tiempos.")]
-        private float frameRate = 60f;
-
-        [SerializeField, Tooltip("Avance inicial del wind-up (frame 0–6).")]
-        private float forward = 0.10f;
-
-        [SerializeField, Tooltip("Pequeño retroceso en el frame 6→7.")]
-        private float minorBack = 0.135f;
-
-        [SerializeField, Tooltip("Retroceso brusco del golpe (frame 7→8).")]
-        private float recoil = -0.177f;
+        [Header("Wind-Up Settings (solo basic_attack)")] 
+        [SerializeField] private float frameRate = 60f;
+        [SerializeField] private float forward = 0.10f;
+        [SerializeField] private float minorBack = 0.135f;
+        [SerializeField] private float recoil = -0.177f;
 
         private StepScheduler scheduler;
         private Tween activeTween;
         private readonly Dictionary<string, RecipeTweenDefinition> lookup = new();
+        // Suprime run_up mientras run_back está activo
+        private bool suppressRunUp = false;
 
-        private void Awake() => RebuildLookup();
+        private Vector3 initialLocalPos;
+        private bool hasInitialPos;
+
+        private static string TS()
+        {
+            float t = Time.realtimeSinceStartup;
+            int minutes = (int)(t / 60f);
+            float seconds = t % 60f;
+            return $"{minutes:00}:{seconds:00.000}";
+        }
+
+        private void Awake()
+        {
+            if (owner == null)
+            {
+                owner = GetComponentInParent<CombatantState>();
+                if (owner == null)
+                {
+                    Debug.LogWarning("[RecipeTweenObserver] No CombatantState found in parents. Disabling observer.", this);
+                    enabled = false;
+                    return;
+                }
+            }
+
+            if (tweenTarget != null && owner != null && !tweenTarget.IsChildOf(owner.transform))
+            {
+                Debug.LogError("[RecipeTweenObserver] tweenTarget does not belong to the owner actor. Please fix prefab bindings.", this);
+            }
+
+            RebuildLookup();
+        }
+
+        private void Start()
+        {
+            if (tweenTarget != null)
+            {
+                initialLocalPos = tweenTarget.localPosition;
+                hasInitialPos = true;
+            }
+        }
+
         private void OnEnable() { RebuildLookup(); Register(); }
-        private void OnDisable() { Unregister(); KillTween(forceComplete: true); }
+        private void OnDisable() { Unregister(); KillTween(true); }
 
         private void Register()
         {
@@ -90,7 +122,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Observers
 
             if (scheduler == null)
             {
-                Debug.LogWarning("[RecipeTweenObserver] StepScheduler no disponible. Observer deshabilitado.", this);
+                Debug.LogWarning("[RecipeTweenObserver] StepScheduler no disponible.", this);
                 enabled = false;
                 return;
             }
@@ -105,55 +137,65 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Observers
 
         public void OnRecipeStarted(ActionRecipe recipe, StepSchedulerContext context)
         {
-            if (recipe == null || tweenTarget == null)
+            if (recipe != null)
+                Debug.Log($"[RecipeTweenObserver] RecipeStarted → {recipe.Id}", this);
+
+            if (recipe == null || tweenTarget == null || !MatchesOwner(context))
                 return;
+
+            if (activeTween != null && activeTween.IsActive() && activeTween.IsPlaying())
+            {
+                Debug.LogWarning($"TTDebug01 [OVERLAP] [{TS()}] actor={owner?.name} newRecipe={recipe.Id} previousTweenActive", this);
+            }
+
+            // Bloquea RUN_UP si estamos ejecutando RUN_BACK
+            if (suppressRunUp && recipe.Id == "run_up")
+            {
+                Debug.Log("[RecipeTweenObserver] RUN_UP suprimido (run_back activo)", this);
+                return;
+            }
 
             if (!lookup.TryGetValue(recipe.Id, out var def) || def == null || !def.enabled)
                 return;
 
             KillTween(false);
 
-            // --- Wind-Up por frames ---
             if (recipe.Id == "basic_attack")
             {
                 PlayWindup();
                 return;
             }
 
-            // --- Run-Up u otros simples ---
-            Vector3 targetPos = def.absolutePosition;
+            if (recipe.Id == "run_back")
+            {
+                suppressRunUp = true;
+            }
+
+            Vector3 targetPos = def.returnToInitialPosition && hasInitialPos
+                ? initialLocalPos
+                : def.absolutePosition;
             activeTween = def.useLocalSpace
                 ? tweenTarget.DOLocalMove(targetPos, def.duration).SetEase(def.ease)
                 : tweenTarget.DOMove(targetPos, def.duration).SetEase(def.ease);
+            Debug.Log($"TTDebug01 [START] [{TS()}] actor={owner?.name} recipe={recipe.Id}", this);
         }
 
-private void PlayWindup()
-{
-    Sequence seq = DOTween.Sequence();
-    Vector3 startPos = tweenTarget.localPosition;
+        private void PlayWindup()
+        {
+            Sequence seq = DOTween.Sequence();
+            Vector3 startPos = tweenTarget.localPosition;
+            float f(int frames) => frames / frameRate;
 
-    float f(int frames) => frames / frameRate;
+            Debug.Log($"TTDebug01 [WINDUP] [{TS()}] actor={owner?.name}", this);
+            seq.Append(tweenTarget.DOLocalMoveX(startPos.x + forward, f(6)).SetEase(Ease.OutCubic));
+            seq.AppendCallback(() => tweenTarget.localPosition = new Vector3(startPos.x + minorBack, startPos.y, startPos.z));
+            seq.AppendInterval(f(1));
+            seq.AppendCallback(() => tweenTarget.localPosition = new Vector3(startPos.x + recoil, startPos.y, startPos.z));
+            seq.AppendInterval(f(4));
 
-    // Frame 0 → 6 : avanza con ease out
-    seq.Append(tweenTarget.DOLocalMoveX(startPos.x + forward, f(6))
-        .SetEase(Ease.OutCubic));
-
-    // Frame 6 → 7 : salto inmediato a +0.135
-    seq.AppendCallback(() =>
-        tweenTarget.localPosition = new Vector3(startPos.x + minorBack, startPos.y, startPos.z));
-
-    // Frame 7 → 8 : golpe brusco a -0.177
-    seq.AppendInterval(f(1));
-    seq.AppendCallback(() =>
-        tweenTarget.localPosition = new Vector3(startPos.x + recoil, startPos.y, startPos.z));
-
-    // Mantener hasta frame 11 (ahora se queda aquí)
-    seq.AppendInterval(f(4));
-
-    activeTween = seq;
-    seq.Play();
-}
-
+            activeTween = seq;
+            seq.Play();
+        }
 
         private void KillTween(bool forceComplete)
         {
@@ -167,7 +209,6 @@ private void PlayWindup()
         {
             lookup.Clear();
             if (tweens == null) return;
-
             foreach (var def in tweens)
             {
                 if (def == null || string.IsNullOrWhiteSpace(def.recipeId)) continue;
@@ -175,13 +216,38 @@ private void PlayWindup()
             }
         }
 
-        #region IStepSchedulerObserver (no-op)
-        public void OnRecipeCompleted(RecipeExecutionReport report, StepSchedulerContext context) { }
+        public void OnRecipeCompleted(RecipeExecutionReport report, StepSchedulerContext context)
+        {
+            if (report.Recipe != null && report.Recipe.Id == "run_back" && MatchesOwner(context))
+            {
+                Debug.Log($"TTDebug01 [COMPLETE] [{TS()}] actor={owner?.name} recipe={report.Recipe.Id}", this);
+                suppressRunUp = false;
+                if (hasInitialPos && tweenTarget != null)
+                {
+                    tweenTarget.localPosition = initialLocalPos;
+                }
+            }
+        }
         public void OnGroupStarted(ActionStepGroup group, StepSchedulerContext context) { }
         public void OnGroupCompleted(StepGroupExecutionReport report, StepSchedulerContext context) { }
         public void OnBranchTaken(string sourceId, string targetId, StepSchedulerContext context) { }
         public void OnStepStarted(ActionStep step, StepSchedulerContext context) { }
         public void OnStepCompleted(StepExecutionReport report, StepSchedulerContext context) { }
-        #endregion
+
+        private bool MatchesOwner(StepSchedulerContext context)
+        {
+            if (owner == null || context.Actor == null)
+            {
+                return false;
+            }
+
+            if (!ReferenceEquals(context.Actor, owner))
+            {
+                Debug.Log($"TTDebug01 [IGNORE] [{TS()}] observerOwner={owner?.name} incomingActor={context.Actor?.name}", this);
+                return false;
+            }
+
+            return true;
+        }
     }
 }

@@ -2,6 +2,12 @@ using UnityEngine;
 using BattleV2.Debugging;
 using UnityEngine.Events;
 
+public enum CombatantFaction
+{
+    Player = 0,
+    Enemy = 1
+}
+
 /// <summary>
 /// Estado de combate por entidad (HP runtime, banderas de vida).
 /// Mantiene separado el runtime del combate de CharacterRuntime.
@@ -12,6 +18,9 @@ public class CombatantState : MonoBehaviour
     [SerializeField] private CharacterRuntime characterRuntime;
     [SerializeField] private bool autoInitializeFromRuntime = true;
     [SerializeField] private bool preserveFractionOnRuntimeUpdate = true;
+
+    [Header("Faction")]
+    [SerializeField] private CombatantFaction faction = CombatantFaction.Player;
 
     [Header("HP Runtime")]
     [SerializeField] private int maxHP;
@@ -52,6 +61,8 @@ public class CombatantState : MonoBehaviour
     public bool Initialized => initialized;
     public CharacterRuntime CharacterRuntime => characterRuntime;
     public FinalStats FinalStats => characterRuntime != null ? characterRuntime.Final : default;
+    public bool IsPlayer => faction == CombatantFaction.Player;
+    public bool IsEnemy => faction == CombatantFaction.Enemy;
     public string DisplayName => string.IsNullOrWhiteSpace(displayName) ? name : displayName;
     public Sprite Portrait => characterRuntime?.Core.portrait ?? characterRuntime?.Archetype?.portrait;
 

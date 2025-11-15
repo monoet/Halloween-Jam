@@ -3331,12 +3331,14 @@ MonoBehaviour:
   sfxServiceSource: {fileID: 11400000, guid: 20090a1018d7c7c428861b7cd92e7169, type: 2}
   cameraServiceSource: {fileID: 11400000, guid: 498d77ca35e7bf24a9f774d2626c4f73, type: 2}
   uiServiceSource: {fileID: 11400000, guid: 3a5f9f304036093478571e1b26f49f51, type: 2}
+  pacingSettings: {fileID: 11400000, guid: 7b10e08c4f0564048b855efb36e4bc62, type: 2}
   autoScanBindings: 1
   toleranceProfileAsset: {fileID: 11400000, guid: 2be5edb6cd772f64cbe5e63ebd7fda56, type: 2}
   includePilotRecipes: 0
   stepRecipeAssets:
   - {fileID: 11400000, guid: 9d96cc054202bd4479e318c183fdb140, type: 2}
   - {fileID: 11400000, guid: 73dafe6e06c05a44291574e4b3642922, type: 2}
+  - {fileID: 11400000, guid: 1a48e671e62619a4f942d0bdeb9d0be9, type: 2}
 --- !u!114 &1144566324
 MonoBehaviour:
   m_ObjectHideFlags: 0

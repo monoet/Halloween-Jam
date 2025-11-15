@@ -76,6 +76,8 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
         private bool isRegistered;
         private static bool devConsoleCommandRegistered;
         private static CombatEventRouter activeInstance;
+        private static readonly char[] TriggerSeparators = { '/', ':', '-' };
+        private readonly Dictionary<int, HashSet<string>> flagDebounce = new Dictionary<int, HashSet<string>>();
 
         public int TweenPresetCount => tweenLookup.Count;
         public int SfxPresetCount => sfxLookup.Count;
@@ -202,6 +204,11 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
         public void OnCombatEventRaised(string flagId, CombatEventContext context)
         {
             if (!isActiveAndEnabled || context == null)
+            {
+                return;
+            }
+
+            if (TryDebounce(flagId, context))
             {
                 return;
             }
@@ -536,7 +543,37 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
 
         private bool TryGetTweenPreset(string flagId, out TweenPreset preset)
         {
-            return tweenLookup.TryGetValue(flagId ?? string.Empty, out preset);
+            var key = flagId ?? string.Empty;
+            if (tweenLookup.TryGetValue(key, out preset))
+            {
+                return true;
+            }
+
+            var fallbackKey = ExtractShortTrigger(key);
+            if (!string.Equals(fallbackKey, key, StringComparison.OrdinalIgnoreCase) &&
+                tweenLookup.TryGetValue(fallbackKey, out preset))
+            {
+                return true;
+            }
+
+            preset = null;
+            return false;
+        }
+
+        private static string ExtractShortTrigger(string key)
+        {
+            if (string.IsNullOrEmpty(key))
+            {
+                return key;
+            }
+
+            int separatorIndex = key.LastIndexOfAny(TriggerSeparators);
+            if (separatorIndex >= 0 && separatorIndex < key.Length - 1)
+            {
+                return key.Substring(separatorIndex + 1);
+            }
+
+            return key;
         }
 
         private bool TryResolveSfxPreset(CombatEventContext context, out SfxPreset preset, out string resolvedKey)
@@ -943,6 +980,57 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
             {
                 var entry = entries[i];
                 builder.AppendLine($"  {entry.key} x{entry.count}");
+            }
+        }
+
+        private bool TryDebounce(string flagId, CombatEventContext context)
+        {
+            int actorKey = ResolveActorKey(context);
+            if (actorKey == 0)
+            {
+                return false;
+            }
+
+            if (!flagDebounce.TryGetValue(actorKey, out var set))
+            {
+                set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                flagDebounce[actorKey] = set;
+            }
+
+            if (set.Contains(flagId))
+            {
+                return true;
+            }
+
+            set.Add(flagId);
+            return false;
+        }
+
+        private static int ResolveActorKey(CombatEventContext context)
+        {
+            if (context.Actor.Combatant != null)
+            {
+                return context.Actor.Combatant.GetInstanceID();
+            }
+
+            if (context.Actor.Root != null)
+            {
+                return context.Actor.Root.GetInstanceID();
+            }
+
+            return context.Actor.Id;
+        }
+
+        private void LateUpdate()
+        {
+            if (flagDebounce.Count == 0)
+            {
+                return;
+            }
+
+            foreach (var kvp in flagDebounce)
+            {
+                kvp.Value?.Clear();
             }
         }
     }

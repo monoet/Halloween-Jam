@@ -12,6 +12,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Recipes
         public const string UseItemId = "UseItem";
         public const string TurnIntroId = "turn_intro";
         public const string RunUpId = "run_up";
+        public const string RunBackId = "run_back";
         public const string IdleId = "idle";
 
         private const string KsWindowId = "ks-light-window";
@@ -30,6 +31,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Recipes
             yield return BuildUseItem(builder);
             yield return BuildTurnIntro(builder);
             yield return BuildRunUp(builder);
+            yield return BuildRunBack(builder);
             yield return BuildIdle(builder);
         }
 
@@ -112,6 +114,15 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Recipes
             var definition = new ActionRecipeBuilder.ActionRecipeDefinition(RunUpId);
             var mainGroup = new ActionRecipeBuilder.GroupDefinition($"{RunUpId}/Main")
                 .AddStep(AnimatorStep("Ciro_RunUp", ("loop", "false")));
+            definition.AddGroup(mainGroup);
+            return builder.Build(definition);
+        }
+
+        private static ActionRecipe BuildRunBack(ActionRecipeBuilder builder)
+        {
+            var definition = new ActionRecipeBuilder.ActionRecipeDefinition(RunBackId);
+            var mainGroup = new ActionRecipeBuilder.GroupDefinition($"{RunBackId}/Main")
+                .AddStep(WaitStep("0.3"));
             definition.AddGroup(mainGroup);
             return builder.Build(definition);
         }

@@ -206,11 +206,11 @@ MonoBehaviour:
     Level: 5
     CurrentEXP: 0
     MaxEXP: 0
-    BaseSTR: 0
-    BaseRES: 0
-    BaseAGI: 0
-    BaseLCK: 0
-    BaseVIT: 0
+    BaseSTR: 68.16326
+    BaseRES: 62.173264
+    BaseAGI: 63.93326
+    BaseLCK: 64.65326
+    BaseVIT: 69.16326
     BonusSTR: 0
     BonusRES: 0
     BonusAGI: 0
@@ -314,9 +314,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 53bf100e9cae8d24a87191891014ebd1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CombatantState
-  characterRuntime: {fileID: 0}
+  characterRuntime: {fileID: 4598177304680609122}
   autoInitializeFromRuntime: 1
   preserveFractionOnRuntimeUpdate: 1
+  faction: 1
   maxHP: 15
   currentHP: 0
   maxSP: 10

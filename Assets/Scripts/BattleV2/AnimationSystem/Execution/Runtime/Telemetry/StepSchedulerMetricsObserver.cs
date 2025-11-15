@@ -7,6 +7,8 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Telemetry
     public sealed class StepSchedulerMetricsObserver : IStepSchedulerObserver
     {
         private readonly Dictionary<string, RecipeMetrics> recipeMetrics = new Dictionary<string, RecipeMetrics>(StringComparer.OrdinalIgnoreCase);
+        private static readonly Dictionary<int, int> ActiveStepCounts = new Dictionary<int, int>();
+        private static readonly object ActiveStepGate = new object();
         private int totalStepsExecuted;
         private int totalStepsSkipped;
         private int totalStepsCancelled;
@@ -17,6 +19,20 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Telemetry
         public int TotalStepsSkipped => totalStepsSkipped;
         public int TotalStepsCancelled => totalStepsCancelled;
         public int TotalStepsBranched => totalStepsBranched;
+
+        public static bool HasActiveSteps(CombatantState actor)
+        {
+            if (actor == null)
+            {
+                return false;
+            }
+
+            var id = actor.GetInstanceID();
+            lock (ActiveStepGate)
+            {
+                return ActiveStepCounts.TryGetValue(id, out var count) && count > 0;
+            }
+        }
 
         public void OnRecipeStarted(ActionRecipe recipe, StepSchedulerContext context)
         {
@@ -59,11 +75,12 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Telemetry
 
         public void OnStepStarted(ActionStep step, StepSchedulerContext context)
         {
-            // Metrics do not currently track step start events.
+            IncrementActiveSteps(context.Actor);
         }
 
         public void OnStepCompleted(StepExecutionReport report, StepSchedulerContext context)
         {
+            DecrementActiveSteps(context.Actor);
             switch (report.Outcome)
             {
                 case StepExecutionOutcome.Completed:
@@ -85,6 +102,54 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Telemetry
         public StepSchedulerMetricsSnapshot CreateSnapshot()
         {
             return new StepSchedulerMetricsSnapshot(totalStepsExecuted, totalStepsSkipped, totalStepsCancelled, totalStepsBranched, recipeMetrics);
+        }
+
+        private static void IncrementActiveSteps(CombatantState actor)
+        {
+            if (actor == null)
+            {
+                return;
+            }
+
+            var id = actor.GetInstanceID();
+            lock (ActiveStepGate)
+            {
+                if (ActiveStepCounts.TryGetValue(id, out var count))
+                {
+                    ActiveStepCounts[id] = count + 1;
+                }
+                else
+                {
+                    ActiveStepCounts[id] = 1;
+                }
+            }
+        }
+
+        private static void DecrementActiveSteps(CombatantState actor)
+        {
+            if (actor == null)
+            {
+                return;
+            }
+
+            var id = actor.GetInstanceID();
+            lock (ActiveStepGate)
+            {
+                if (!ActiveStepCounts.TryGetValue(id, out var count))
+                {
+                    return;
+                }
+
+                count--;
+                if (count <= 0)
+                {
+                    ActiveStepCounts.Remove(id);
+                }
+                else
+                {
+                    ActiveStepCounts[id] = count;
+                }
+            }
         }
     }
 

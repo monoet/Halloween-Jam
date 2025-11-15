@@ -17,6 +17,7 @@ GameObject:
   - component: {fileID: 7435201213487041278}
   - component: {fileID: 4480268491100758734}
   - component: {fileID: -5324924551612036084}
+  - component: {fileID: 1984135070510732156}
   m_Layer: 0
   m_Name: RabbidActual
   m_TagString: Untagged
@@ -228,6 +229,7 @@ MonoBehaviour:
   characterRuntime: {fileID: 3902140429990400388}
   autoInitializeFromRuntime: 1
   preserveFractionOnRuntimeUpdate: 1
+  faction: 1
   maxHP: 15
   currentHP: 0
   maxSP: 10
@@ -268,7 +270,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8448065db93cd6d4dbfd313e44a7a6ee, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BattleV2.Anim.BattleAnimationController
-  profile: {fileID: 11400000, guid: ef5308e0b6beea24bbc1312786e83756, type: 2}
+  profile: {fileID: 0}
   root: {fileID: 8331349225098597336}
   directionMultiplier: 1
   spriteFlashRenderer: {fileID: 0}
@@ -297,6 +299,46 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
+--- !u!114 &1984135070510732156
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 452103125886275884}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: aa839c0a414a6ae48971b54e87419c8e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BattleV2.AnimationSystem.Execution.Runtime.Observers.RecipeTweenObserver
+  owner: {fileID: 0}
+  tweenTarget: {fileID: 8331349225098597336}
+  tweens:
+  - enabled: 1
+    recipeId: run_up
+    useLocalSpace: 1
+    absolutePosition: {x: 2, y: -3, z: 0}
+    duration: 0.3
+    ease: 9
+    returnToInitialPosition: 0
+  - enabled: 1
+    recipeId: basic_attack
+    useLocalSpace: 1
+    absolutePosition: {x: 0, y: 0, z: 0}
+    duration: 0.3
+    ease: 9
+    returnToInitialPosition: 0
+  - enabled: 1
+    recipeId: run_back
+    useLocalSpace: 1
+    absolutePosition: {x: 0, y: 0, z: 0}
+    duration: 0.9
+    ease: 4
+    returnToInitialPosition: 1
+  frameRate: 60
+  forward: 0.1
+  minorBack: 0.135
+  recoil: -0.177
 --- !u!1 &1764982086385956112
 GameObject:
   m_ObjectHideFlags: 0

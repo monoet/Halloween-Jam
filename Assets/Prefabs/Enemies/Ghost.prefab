@@ -111,16 +111,16 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CharacterRuntime
   archetype: {fileID: 11400000, guid: ffd0e5235f68e1b4ea5abc009097ab51, type: 2}
   core:
-    characterName: Ghost
-    portrait: {fileID: 976067355, guid: 00c4927576a8720448d8734e68c10bc8, type: 3}
+    characterName: Rabbid
+    portrait: {fileID: -1316247377, guid: 00c4927576a8720448d8734e68c10bc8, type: 3}
     Level: 1
     CurrentEXP: 0
     MaxEXP: 0
-    BaseSTR: 0
-    BaseRES: 0
-    BaseAGI: 0
-    BaseLCK: 0
-    BaseVIT: 0
+    BaseSTR: 10
+    BaseRES: 12
+    BaseAGI: 8
+    BaseLCK: 10
+    BaseVIT: 9
     BonusSTR: 0
     BonusRES: 0
     BonusAGI: 0
@@ -224,9 +224,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 53bf100e9cae8d24a87191891014ebd1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CombatantState
-  characterRuntime: {fileID: 0}
+  characterRuntime: {fileID: 5874592180391499531}
   autoInitializeFromRuntime: 1
   preserveFractionOnRuntimeUpdate: 1
+  faction: 1
   maxHP: 15
   currentHP: 0
   maxSP: 10

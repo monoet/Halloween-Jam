@@ -279,6 +279,20 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
         public bool SkipResetToFallback { get; }
 
         public CombatantState Actor => Request.Actor;
+
+        public StepSchedulerContext WithSkipReset(bool skipResetToFallback)
+        {
+            return new StepSchedulerContext(
+                Request,
+                Timeline,
+                Wrapper,
+                BindingResolver,
+                RouterBundle,
+                EventBus,
+                TimedHitService,
+                TimedHitRunner,
+                skipResetToFallback);
+        }
     }
 
     /// <summary>

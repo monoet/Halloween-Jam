@@ -41,6 +41,8 @@ namespace BattleV2.AnimationSystem.Runtime
         [SerializeField] private UnityEngine.Object sfxServiceSource;
         [SerializeField] private UnityEngine.Object cameraServiceSource;
         [SerializeField] private UnityEngine.Object uiServiceSource;
+        [Header("Pacing")]
+        [SerializeField] private BattlePacingSettings pacingSettings;
         [Header("Binding Sources")]
         [SerializeField] private bool autoScanBindings = true;
         [Header("Timed Hit Settings")]
@@ -64,6 +66,7 @@ namespace BattleV2.AnimationSystem.Runtime
         private AnimationRouterBundle routerBundle;
         private NewAnimOrchestratorAdapter orchestrator;
         private StepScheduler stepScheduler;
+        private StepSchedulerHooks schedulerHooks;
         private StepSchedulerMetricsObserver schedulerMetrics;
         private CombatEventDispatcher combatEventDispatcher;
         private ActionRecipeCatalog recipeCatalog;
@@ -82,9 +85,12 @@ namespace BattleV2.AnimationSystem.Runtime
         public IAnimationOrchestrator Orchestrator => orchestrator;
         public AnimationClipResolver ClipResolver => clipResolver;
         public StepScheduler StepScheduler => stepScheduler;
+        public StepSchedulerHooks SchedulerHooks => schedulerHooks;
         public StepSchedulerMetricsObserver SchedulerMetrics => schedulerMetrics;
         public ActionRecipeCatalog RecipeCatalog => recipeCatalog;
         public CombatEventDispatcher CombatEvents => combatEventDispatcher;
+        public BattlePacingSettings PacingSettings => pacingSettings;
+        public static BattlePacingSettings ActivePacing { get; private set; }
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
         public OrchestratorDiagnosticsSnapshot GetDiagnostics()
@@ -132,6 +138,7 @@ namespace BattleV2.AnimationSystem.Runtime
             }
 
             Current = this;
+            ActivePacing = pacingSettings;
 
             combatClock ??= new CombatClock();
             eventBus = new AnimationEventBus();
@@ -155,6 +162,7 @@ namespace BattleV2.AnimationSystem.Runtime
             tweenBindingResolver = new DefaultTweenBindingResolver();
             tweenBridge = new DefaultTweenBridge(mainThreadInvoker);
             stepScheduler = BuildStepScheduler(mainThreadInvoker, tweenBindingResolver, tweenBridge);
+            schedulerHooks = new StepSchedulerHooks(stepScheduler);
             combatEventDispatcher = new CombatEventDispatcher(mainThreadInvoker);
             stepScheduler.RegisterObserver(combatEventDispatcher);
             recipeCatalog = BuildRecipeCatalog(stepScheduler);
@@ -176,7 +184,8 @@ namespace BattleV2.AnimationSystem.Runtime
                 AnimatorRegistry.Instance,
                 phaseStrategyMap,
                 BuildRecipeExecutors(routerBundle),
-                sessionController);
+                sessionController,
+                pacingSettings);
 
             if (sequencerDriver == null)
             {
@@ -196,6 +205,8 @@ namespace BattleV2.AnimationSystem.Runtime
                 stepScheduler.UnregisterObserver(combatEventDispatcher);
             }
 
+            schedulerHooks?.Dispose();
+
             timedHitService?.Dispose();
             routerBundle?.Dispose();
             wrapperResolver?.Dispose();
@@ -203,6 +214,10 @@ namespace BattleV2.AnimationSystem.Runtime
             if (Current == this)
             {
                 Current = null;
+            }
+            if (ActivePacing == pacingSettings)
+            {
+                ActivePacing = null;
             }
         }
 
@@ -444,16 +459,16 @@ namespace BattleV2.AnimationSystem.Runtime
             ITweenBridge tweenBridge)
         {
             var scheduler = new StepScheduler();
-            var invoker = mainThreadInvoker ?? MainThreadInvoker.Instance;
-            scheduler.RegisterExecutor(new AnimatorClipExecutor(invoker));
+            scheduler.ConfigureLifecycle(new ActionLifecycleConfig());
+            scheduler.RegisterExecutor(new AnimatorClipExecutor());
             scheduler.RegisterExecutor(new FlipbookExecutor());
-            scheduler.RegisterExecutor(new TweenExecutor(
-                tweenResolver ?? new DefaultTweenBindingResolver(),
-                tweenBridge ?? new DefaultTweenBridge(invoker)));
+            scheduler.RegisterExecutor(new TweenExecutor());
             scheduler.RegisterExecutor(new WaitExecutor());
+            scheduler.RegisterExecutor(new WaitSecondsExecutor());
+            scheduler.RegisterExecutor(new TimedHitStepExecutor());
+            scheduler.RegisterExecutor(new FlagExecutor());
             scheduler.RegisterExecutor(new SfxExecutor());
             scheduler.RegisterExecutor(new VfxExecutor());
-            scheduler.RegisterExecutor(new TimedHitStepExecutor());
             schedulerMetrics = new StepSchedulerMetricsObserver();
             scheduler.RegisterObserver(schedulerMetrics);
             return scheduler;
@@ -543,5 +558,44 @@ namespace BattleV2.AnimationSystem.Runtime
                 stepScheduler.RegisterRecipe(recipe);
             }
         }
+#if UNITY_EDITOR
+        [ContextMenu("[Debug] Dump Actor Bindings")]
+        private void Debug_DumpActorBindings()
+        {
+            if (actorBindings == null || actorBindings.Length == 0)
+            {
+                Debug.Log("[AnimationSystemInstaller] actorBindings is null or empty.", this);
+                return;
+            }
+
+            for (int i = 0; i < actorBindings.Length; i++)
+            {
+                var entry = actorBindings[i];
+                if (entry == null)
+                {
+                    continue;
+                }
+
+                var actorName = entry.Actor != null ? entry.Actor.name : "(null)";
+                var animatorTransform = entry.Animator != null ? entry.Animator.transform : null;
+                var animatorId = animatorTransform != null ? animatorTransform.GetInstanceID() : -1;
+                Debug.Log($"[ActorBinding] actor={actorName} animator={entry.Animator?.name ?? "(null)"} transformID={animatorId}", animatorTransform);
+
+                if (entry.Sockets != null)
+                {
+                    for (int s = 0; s < entry.Sockets.Length; s++)
+                    {
+                        var socket = entry.Sockets[s];
+                        if (socket == null)
+                        {
+                            continue;
+                        }
+
+                        Debug.Log($"[ActorBinding] actor={actorName} socket[{s}]={socket.name} id={socket.GetInstanceID()}", socket);
+                    }
+                }
+            }
+        }
+#endif
     }
 }

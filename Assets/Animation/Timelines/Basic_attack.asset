@@ -16,7 +16,7 @@ MonoBehaviour:
   groups:
   - groupId: attack/windup
     executionMode: 1
-    joinPolicy: 0
+    joinPolicy: 1
     timeoutSeconds: 0
     steps:
     - stepId: 
@@ -24,7 +24,7 @@ MonoBehaviour:
       bindingId: Ciro/Windup
       conflictPolicy: 0
       overrideConflictPolicy: 0
-      delaySeconds: 0
+      delaySeconds: 1
       parameters: []
     - stepId: 
       executorId: timed_hit
@@ -32,4 +32,25 @@ MonoBehaviour:
       conflictPolicy: 0
       overrideConflictPolicy: 0
       delaySeconds: 0
+      parameters: []
+    - stepId: windup_wait
+      executorId: wait_seconds
+      bindingId: 
+      conflictPolicy: 0
+      overrideConflictPolicy: 0
+      delaySeconds: 0
+      parameters:
+      - key: duration
+        value: 0.2
+  - groupId: basic_attack_end
+    executionMode: 0
+    joinPolicy: 0
+    timeoutSeconds: 0
+    steps:
+    - stepId: end_wait
+      executorId: wait_seconds
+      bindingId: 
+      conflictPolicy: 0
+      overrideConflictPolicy: 0
+      delaySeconds: 2
       parameters: []
