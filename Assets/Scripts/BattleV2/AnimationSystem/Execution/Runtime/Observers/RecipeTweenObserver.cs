@@ -95,6 +95,11 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Observers
                 }
             }
 
+            if (tweenTarget == null && owner != null)
+            {
+                tweenTarget = owner.transform;
+            }
+
             if (tweenTarget != null && owner != null && !tweenTarget.IsChildOf(owner.transform))
             {
                 Debug.LogError("[RecipeTweenObserver] tweenTarget does not belong to the owner actor. Please fix prefab bindings.", this);
