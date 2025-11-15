@@ -241,6 +241,12 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Observers
                 {
                     tweenTarget.localPosition = initialLocalPos;
                 }
+
+                if (tweenTarget != null)
+                {
+                    initialLocalPos = tweenTarget.localPosition;
+                    hasInitialPos = true;
+                }
             }
         }
         public void OnGroupStarted(ActionStepGroup group, StepSchedulerContext context) { }
