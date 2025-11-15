@@ -559,7 +559,7 @@ namespace BattleV2.AnimationSystem.Runtime
                 {
                     if (useLifecycle)
                     {
-                        await BattlePacingUtility.DelayAsync(pacingSettings != null ? pacingSettings.playerPreDelay : 0f, "PlayerPreDelay", request.Actor, linkedCts.Token).ConfigureAwait(false);
+                        await BattlePacingUtility.DelayTrackedAsync(pacingSettings != null ? pacingSettings.playerPreDelay : 0f, "PlayerPreDelay", request.Actor, linkedCts.Token).ConfigureAwait(false);
                         executionTask = scheduler.ExecuteLifecycleAsync(recipe, context, linkedCts.Token);
                     }
                     else
@@ -572,11 +572,11 @@ namespace BattleV2.AnimationSystem.Runtime
 
                     if (useLifecycle)
                     {
-                        await BattlePacingUtility.DelayAsync(pacingSettings != null ? pacingSettings.playerPostDelay : 0f, "PlayerPostDelay", request.Actor, linkedCts.Token).ConfigureAwait(false);
+                        await BattlePacingUtility.DelayTrackedAsync(pacingSettings != null ? pacingSettings.playerPostDelay : 0f, "PlayerPostDelay", request.Actor, linkedCts.Token).ConfigureAwait(false);
                     }
                     else if (isEnemyActor)
                     {
-                        await BattlePacingUtility.DelayAsync(pacingSettings != null ? pacingSettings.enemyTurnGap : 0f, "EnemyTurnGap", request.Actor, linkedCts.Token).ConfigureAwait(false);
+                        await BattlePacingUtility.DelayTrackedAsync(pacingSettings != null ? pacingSettings.enemyTurnGap : 0f, "EnemyTurnGap", request.Actor, linkedCts.Token).ConfigureAwait(false);
                     }
                 }
                 catch (OperationCanceledException) when ((linkedCts != null && linkedCts.IsCancellationRequested) || cancellationToken.IsCancellationRequested)

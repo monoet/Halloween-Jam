@@ -664,8 +664,7 @@ namespace BattleV2.Orchestration
                 SetState = state != null ? new Action<BattleState>(s => state.Set(s)) : null
             });
 
-            await StepSchedulerIdleUtility.WaitUntilActorIdleAsync(currentPlayer, CancellationToken.None);
-            await BattlePacingUtility.DelayGlobalAsync("PlayerTurn");
+            await BattlePacingUtility.DelayGlobalAsync("PlayerTurn", currentPlayer, CancellationToken.None);
         }
 
         private void ExecuteFallback()

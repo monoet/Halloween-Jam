@@ -37,12 +37,25 @@ namespace BattleV2.AnimationSystem.Runtime
             }
         }
 
-        public static Task DelayAsync(float seconds, string phase, CombatantState actor, CancellationToken token)
+        public static async Task DelayTrackedAsync(float seconds, string phase, CombatantState actor, CancellationToken token)
         {
-            return DelayTrackedAsync(seconds, phase, actor, token);
+            if (actor != null)
+            {
+                Debug.Log($"TTDebug03 [WAIT-IDLE] actor={actor.name} phase={phase} time={Timestamp}");
+                await StepSchedulerIdleUtility.WaitUntilActorIdleAsync(actor, token).ConfigureAwait(false);
+            }
+
+            await DelayInternalAsync(seconds, phase, actor, token).ConfigureAwait(false);
         }
 
-        public static async Task DelayTrackedAsync(float seconds, string phase, CombatantState actor, CancellationToken token)
+        public static Task DelayGlobalAsync(string sourceLabel, CombatantState actor, CancellationToken token = default)
+        {
+            var settings = Settings;
+            var seconds = settings != null ? settings.globalTurnGap : 0f;
+            return DelayTrackedAsync(seconds, $"{sourceLabel}_GlobalGap", actor, token);
+        }
+
+        private static async Task DelayInternalAsync(float seconds, string phase, CombatantState actor, CancellationToken token)
         {
             var clamped = Mathf.Max(0f, seconds);
             if (clamped <= 0f)
@@ -58,12 +71,11 @@ namespace BattleV2.AnimationSystem.Runtime
                 }
             }
 
-            Debug.Log($"TTDebug03 [DELAY_TRACK] phase={phase} actor={actor?.name ?? "(null)"} seconds={clamped:F3} time={Timestamp}");
+            Debug.Log($"TTDebug02 [DELAY] phase={phase} actor={actor?.name ?? "(null)"} seconds={clamped:F3} time={Timestamp}");
 
-            var delayMs = (int)(clamped * 1000f);
             try
             {
-                await Task.Delay(TimeSpan.FromMilliseconds(delayMs), token).ConfigureAwait(false);
+                await Task.Delay(TimeSpan.FromSeconds(clamped), token).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -79,13 +91,6 @@ namespace BattleV2.AnimationSystem.Runtime
                     }
                 }
             }
-        }
-
-        public static Task DelayGlobalAsync(string sourceLabel, CancellationToken token = default)
-        {
-            var settings = Settings;
-            var seconds = settings != null ? settings.globalTurnGap : 0f;
-            return DelayAsync(seconds, $"{sourceLabel}_GlobalGap", null, token);
         }
     }
 }

@@ -174,8 +174,7 @@ namespace BattleV2.Orchestration.Services
                 {
                     context.AdvanceTurn(attacker);
                     context.StateController?.Set(BattleState.AwaitingAction);
-                    await StepSchedulerIdleUtility.WaitUntilActorIdleAsync(attacker, CancellationToken.None);
-                    await BattlePacingUtility.DelayGlobalAsync("EnemyTurn");
+                    await BattlePacingUtility.DelayGlobalAsync("EnemyTurn", attacker, CancellationToken.None);
                     return;
                 }
 
@@ -215,8 +214,7 @@ namespace BattleV2.Orchestration.Services
                 {
                     context.AdvanceTurn(attacker);
                     context.StateController?.Set(BattleState.AwaitingAction);
-                    await StepSchedulerIdleUtility.WaitUntilActorIdleAsync(attacker, CancellationToken.None);
-                    await BattlePacingUtility.DelayGlobalAsync("EnemyTurn");
+                    await BattlePacingUtility.DelayGlobalAsync("EnemyTurn", attacker, CancellationToken.None);
                     return;
                 }
 
@@ -248,22 +246,19 @@ namespace BattleV2.Orchestration.Services
 
                 if (battleEnded)
                 {
-                    await StepSchedulerIdleUtility.WaitUntilActorIdleAsync(attacker, CancellationToken.None);
-                    await BattlePacingUtility.DelayGlobalAsync("EnemyTurn");
+                    await BattlePacingUtility.DelayGlobalAsync("EnemyTurn", attacker, CancellationToken.None);
                     return;
                 }
 
-                await StepSchedulerIdleUtility.WaitUntilActorIdleAsync(attacker, CancellationToken.None);
                 context.StateController?.Set(BattleState.AwaitingAction);
-                await BattlePacingUtility.DelayGlobalAsync("EnemyTurn");
+                await BattlePacingUtility.DelayGlobalAsync("EnemyTurn", attacker, CancellationToken.None);
             }
             catch (Exception ex)
             {
                 Debug.LogError($"[EnemyTurnCoordinator] Enemy action error: {ex}");
                 context.AdvanceTurn(attacker);
                 context.StateController?.Set(BattleState.AwaitingAction);
-                await StepSchedulerIdleUtility.WaitUntilActorIdleAsync(attacker, CancellationToken.None);
-                await BattlePacingUtility.DelayGlobalAsync("EnemyTurn");
+                await BattlePacingUtility.DelayGlobalAsync("EnemyTurn", attacker, CancellationToken.None);
             }
         }
 
