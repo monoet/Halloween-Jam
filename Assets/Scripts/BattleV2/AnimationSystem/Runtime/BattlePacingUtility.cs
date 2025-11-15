@@ -37,9 +37,9 @@ namespace BattleV2.AnimationSystem.Runtime
             }
         }
 
-        public static async Task DelayTrackedAsync(float seconds, string phase, CombatantState actor, CancellationToken token)
+        public static async Task DelayTrackedAsync(float seconds, string phase, CombatantState actor, CancellationToken token, bool waitForIdle = true)
         {
-            if (actor != null)
+            if (waitForIdle && actor != null)
             {
                 Debug.Log($"TTDebug03 [WAIT-IDLE] actor={actor.name} phase={phase} time={Timestamp}");
                 await StepSchedulerIdleUtility.WaitUntilActorIdleAsync(actor, token);

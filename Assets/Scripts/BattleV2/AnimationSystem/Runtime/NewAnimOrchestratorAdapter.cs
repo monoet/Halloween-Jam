@@ -565,7 +565,7 @@ namespace BattleV2.AnimationSystem.Runtime
                 {
                     if (useLifecycle)
                     {
-                        await BattlePacingUtility.DelayTrackedAsync(pacingSettings != null ? pacingSettings.playerPreDelay : 0f, "PlayerPreDelay", request.Actor, linkedCts.Token);
+                        await BattlePacingUtility.DelayTrackedAsync(pacingSettings != null ? pacingSettings.playerPreDelay : 0f, "PlayerPreDelay", request.Actor, linkedCts.Token, waitForIdle: false);
                         executionTask = scheduler.ExecuteLifecycleAsync(recipe, context, linkedCts.Token);
                     }
                     else

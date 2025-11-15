@@ -145,6 +145,16 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Observers
             if (recipe != null)
                 Debug.Log($"[RecipeTweenObserver] RecipeStarted → {recipe.Id}", this);
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (recipe != null && recipe.Id == "run_up")
+            {
+                var selection = context.Request.Selection;
+                var actionId = selection.Action?.id ?? "(null)";
+                var recipeOverride = selection.AnimationRecipeId ?? "(null)";
+                Debug.Log($"TTDebug04 [RUN_UP_TRIGGER] actor={context.Actor?.name ?? "(null)"} action={actionId} animRecipe={recipeOverride}", this);
+            }
+#endif
+
             if (recipe == null || tweenTarget == null || !MatchesOwner(context))
                 return;
 

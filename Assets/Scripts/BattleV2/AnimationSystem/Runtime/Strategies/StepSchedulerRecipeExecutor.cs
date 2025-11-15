@@ -8,6 +8,7 @@ using BattleV2.AnimationSystem.Execution.Runtime;
 using BattleV2.AnimationSystem.Execution.Runtime.Recipes;
 using BattleV2.AnimationSystem.Runtime;
 using BattleV2.AnimationSystem.Runtime.Internal;
+using UnityEngine;
 using BattleV2.Core;
 using BattleV2.Orchestration.Runtime;
 using BattleV2.Providers;
@@ -112,6 +113,7 @@ namespace BattleV2.AnimationSystem.Strategies
                     timedHitService,
                     request.TimedHitRunner);
 
+                LogSchedulerExecution(actor, recipe.Id, context);
                 await scheduler.ExecuteAsync(recipe, schedulerContext, token).ConfigureAwait(false);
             }
             finally
@@ -144,5 +146,21 @@ namespace BattleV2.AnimationSystem.Strategies
 
             return false;
         }
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        private static void LogSchedulerExecution(CombatantState actor, string recipeId, StrategyContext strategyContext)
+        {
+            string sessionId = "(session-null)";
+            if (strategyContext != null)
+            {
+                var animContext = strategyContext.AnimationContext;
+                sessionId = !string.IsNullOrWhiteSpace(animContext.SessionId) ? animContext.SessionId : "(session-null)";
+            }
+
+            Debug.Log($"TTDebug05 [SCHED_EXEC] actor={actor?.name ?? "(null)"} recipe={recipeId ?? "(null)"} session={sessionId}");
+        }
+#else
+        private static void LogSchedulerExecution(CombatantState actor, string recipeId, StrategyContext strategyContext) { }
+#endif
     }
 }
