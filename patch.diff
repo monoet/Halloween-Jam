@@ -1,0 +1,86 @@
+*** Begin Patch
+*** Update File: Assets/Scripts/BattleV2/AnimationSystem/Execution/Runtime/StepScheduler.cs
+@@
+-using BattleV2.AnimationSystem.Execution.Runtime.SystemSteps;
+-using BattleV2.Core;
++using BattleV2.AnimationSystem.Execution.Runtime.SystemSteps;
++using BattleV2.Core;
++using UnityEngine;
+@@
+-            try
+-            {
+-                NotifyObservers(o => o.OnRecipeStarted(recipe, context));
++            try
++            {
++                SanityCheckAndNormalizePose(context.Actor, recipe.Id ?? "(null)", true);
++                NotifyObservers(o => o.OnRecipeStarted(recipe, context));
+@@
+-                recipeWatch.Stop();
+-                NotifyObservers(o => o.OnRecipeCompleted(new RecipeExecutionReport(recipe, recipeWatch.Elapsed, recipeCancelled || state.AbortRequested), context));
++                recipeWatch.Stop();
++                NotifyObservers(o => o.OnRecipeCompleted(new RecipeExecutionReport(recipe, recipeWatch.Elapsed, recipeCancelled || state.AbortRequested), context));
++                SanityCheckAndNormalizePose(context.Actor, recipe.Id ?? "(null)", false);
+@@
+             var beginArgs = new ActionLifecycleEventArgs(
+                 ActionLifecycleEvents.GetEventId(phase, ActionLifecycleEventType.Begin),
+                 phase,
+                 ActionLifecycleEventType.Begin,
+                 phaseRecipe,
+                 context);
+             NotifyLifecycleListeners(beginArgs);
++            SanityCheckAndNormalizePose(context.Actor, phase.ToString(), true);
+@@
+             finally
+             {
+                 var endArgs = new ActionLifecycleEventArgs(
+                     ActionLifecycleEvents.GetEventId(phase, ActionLifecycleEventType.End),
+                     phase,
+                     ActionLifecycleEventType.End,
+                     phaseRecipe,
+                     context);
+                 NotifyLifecycleListeners(endArgs);
++                SanityCheckAndNormalizePose(context.Actor, phase.ToString(), false);
+             }
+@@
+         private void NotifyLifecycleListeners(ActionLifecycleEventArgs args)
+         {
+             var handler = LifecycleEvent;
+             if (handler == null)
+             {
+                 return;
+             }
+@@
+         }
++
++        private static void SanityCheckAndNormalizePose(CombatantState actor, string phaseLabel, bool isPre)
++        {
++            if (actor == null)
++            {
++                return;
++            }
++
++            var t = actor.transform;
++            if (t == null)
++            {
++                return;
++            }
++
++#if UNITY_EDITOR || DEVELOPMENT_BUILD
++            var tag = isPre ? "TTDebug07" : "TTDebug08";
++            Debug.Log($"{tag} [POSE] actor={actor.name} local={t.localPosition} world={t.position} parent={t.parent?.name ?? "(null)"} phase={phaseLabel}");
++#endif
++
++            bool localNaN = float.IsNaN(t.localPosition.x) || float.IsNaN(t.localPosition.y) || float.IsNaN(t.localPosition.z);
++            bool worldNaN = float.IsNaN(t.position.x) || float.IsNaN(t.position.y) || float.IsNaN(t.position.z);
++
++            if (localNaN || worldNaN)
++            {
++                var beforeLocal = t.localPosition;
++                var beforeWorld = t.position;
++                t.localPosition = Vector3.zero;
++#if UNITY_EDITOR || DEVELOPMENT_BUILD
++                Debug.Log($"TTDebug09 [POSE/CORRUPTED_FIXED] actor={actor.name} phase={phaseLabel} beforeLocal={beforeLocal} afterLocal={t.localPosition} beforeWorld={beforeWorld} afterWorld={t.position} parent={t.parent?.name ?? "(null)"}");
++#endif
++            }
++        }
+*** End Patch

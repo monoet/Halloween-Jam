@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using BattleV2.Debugging;
 using UnityEngine.Events;
@@ -43,6 +44,10 @@ public class CombatantState : MonoBehaviour
     [Header("Debug Options")]
     [SerializeField] private bool enableDebugLogs;
 
+    [Header("Action Loadout")]
+    [Tooltip("Action ids allowed for this combatant. Empty = inherit from catalog.")]
+    [SerializeField] private List<string> allowedActionIds = new List<string>();
+
     private bool initialized;
     private UnityAction runtimeStatsListener;
     private string displayName;
@@ -65,6 +70,7 @@ public class CombatantState : MonoBehaviour
     public bool IsEnemy => faction == CombatantFaction.Enemy;
     public string DisplayName => string.IsNullOrWhiteSpace(displayName) ? name : displayName;
     public Sprite Portrait => characterRuntime?.Core.portrait ?? characterRuntime?.Archetype?.portrait;
+    public IReadOnlyList<string> AllowedActionIds => allowedActionIds;
 
     private void Awake()
     {

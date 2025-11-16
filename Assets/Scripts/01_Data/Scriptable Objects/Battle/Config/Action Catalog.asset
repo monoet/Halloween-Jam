@@ -18,20 +18,24 @@ MonoBehaviour:
     costSP: 0
     costCP: 0
     actionImpl: {fileID: 11400000, guid: 4745de80e7fe7514d89cc7cb730891eb, type: 2}
-  - id: basic_attack
-    displayName: basic_attack
+    combatEventStaggerStep: 0
+  - id: basic_attack_enemy
+    displayName: Enemy Attack
     costSP: 0
     costCP: 0
-    actionImpl: {fileID: 11400000, guid: 4745de80e7fe7514d89cc7cb730891eb, type: 2}
+    actionImpl: {fileID: 11400000, guid: f0f651f828acbb44ea549ce8531934d2, type: 2}
+    combatEventStaggerStep: 0
   magic:
   - id: magic_bolt
     displayName: Magic Bolt
     costSP: 3
     costCP: 0
     actionImpl: {fileID: 11400000, guid: 45b5c0ac06cae82449ed9e6dd1e74156, type: 2}
+    combatEventStaggerStep: 0
   items:
   - id: item_use
     displayName: MinorHealthpot
     costSP: 0
     costCP: 0
     actionImpl: {fileID: 11400000, guid: 3c5fb851f85748e449f0542693efc519, type: 2}
+    combatEventStaggerStep: 0

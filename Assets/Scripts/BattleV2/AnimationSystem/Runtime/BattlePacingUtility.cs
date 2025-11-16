@@ -41,7 +41,9 @@ namespace BattleV2.AnimationSystem.Runtime
         {
             if (waitForIdle && actor != null)
             {
+#if false
                 Debug.Log($"TTDebug03 [WAIT-IDLE] actor={actor.name} phase={phase} time={Timestamp}");
+#endif
                 await StepSchedulerIdleUtility.WaitUntilActorIdleAsync(actor, token);
             }
 
@@ -71,7 +73,9 @@ namespace BattleV2.AnimationSystem.Runtime
                 }
             }
 
+#if false
             Debug.Log($"TTDebug02 [DELAY] phase={phase} actor={actor?.name ?? "(null)"} seconds={clamped:F3} time={Timestamp}");
+#endif
 
             try
             {

@@ -9,6 +9,7 @@ using BattleV2.AnimationSystem.Execution.Runtime.Core.Conflict;
 using BattleV2.AnimationSystem.Execution.Runtime.Core.GroupRunners;
 using BattleV2.AnimationSystem.Execution.Runtime.SystemSteps;
 using BattleV2.Core;
+using UnityEngine;
 
 namespace BattleV2.AnimationSystem.Execution.Runtime
 {
@@ -158,6 +159,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
 
             try
             {
+                LogPoseSnapshot(context.Actor, recipe.Id ?? "(null)", true);
                 NotifyObservers(o => o.OnRecipeStarted(recipe, context));
 
                 using var state = new ExecutionState(recipe, context, LogTag);
@@ -221,6 +223,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
 
                 recipeWatch.Stop();
                 NotifyObservers(o => o.OnRecipeCompleted(new RecipeExecutionReport(recipe, recipeWatch.Elapsed, recipeCancelled || state.AbortRequested), context));
+                LogPoseSnapshot(context.Actor, recipe.Id ?? "(null)", false);
             }
             finally
             {
@@ -300,6 +303,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
                 phaseRecipe,
                 context);
             NotifyLifecycleListeners(beginArgs);
+            LogPoseSnapshot(context.Actor, phase.ToString(), true);
 
             bool resetTriggered = false;
             try
@@ -321,6 +325,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
                     phaseRecipe,
                     context);
                 NotifyLifecycleListeners(endArgs);
+                LogPoseSnapshot(context.Actor, phase.ToString(), false);
             }
 
             return resetTriggered;
@@ -574,6 +579,24 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
                     BattleLogger.Warn(LogTag, $"Lifecycle observer '{listenerName}' threw: {ex.Message}");
                 }
             }
+        }
+
+        private static void LogPoseSnapshot(CombatantState actor, string phaseLabel, bool isPre)
+        {
+            if (actor == null)
+            {
+                return;
+            }
+
+            var t = actor.transform;
+            if (t == null)
+            {
+                return;
+            }
+
+            var timestamp = TimeSpan.FromSeconds(Time.realtimeSinceStartup).ToString(@"mm\:ss\.fff");
+            var tag = isPre ? "TTDebug07" : "TTDebug08";
+            UnityEngine.Debug.Log($"{tag} [POSE] time={timestamp} actor={actor.name} local={t.localPosition} world={t.position} parent={t.parent?.name ?? "(null)"} phase={phaseLabel}");
         }
 
     }

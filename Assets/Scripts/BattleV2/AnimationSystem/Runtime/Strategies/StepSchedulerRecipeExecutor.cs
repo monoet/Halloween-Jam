@@ -157,7 +157,9 @@ namespace BattleV2.AnimationSystem.Strategies
                 sessionId = !string.IsNullOrWhiteSpace(animContext.SessionId) ? animContext.SessionId : "(session-null)";
             }
 
+#if false
             Debug.Log($"TTDebug05 [SCHED_EXEC] actor={actor?.name ?? "(null)"} recipe={recipeId ?? "(null)"} session={sessionId}");
+#endif
         }
 #else
         private static void LogSchedulerExecution(CombatantState actor, string recipeId, StrategyContext strategyContext) { }

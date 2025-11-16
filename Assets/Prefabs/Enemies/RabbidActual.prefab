@@ -241,6 +241,8 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   enableDebugLogs: 1
+  allowedActionIds:
+  - basic_attack_enemy
 --- !u!114 &7435201213487041278
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -255,7 +257,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::HalloweenJam.Combat.RuntimeCombatEntity
   characterRuntime: {fileID: 3902140429990400388}
   combatantState: {fileID: 3334198569571169196}
-  availableActions: []
+  availableActions:
+  - {fileID: 0}
   attackStrategy: {fileID: 11400000, guid: 04c831de83be67c41b3e574193b3742b, type: 2}
   initializeOnAwake: 1
 --- !u!114 &4480268491100758734
@@ -313,6 +316,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BattleV2.AnimationSystem.Execution.Runtime.Observers.RecipeTweenObserver
   owner: {fileID: 0}
   tweenTarget: {fileID: 8331349225098597336}
+  logTweenTargets: 1
   tweens:
   - enabled: 1
     recipeId: run_up

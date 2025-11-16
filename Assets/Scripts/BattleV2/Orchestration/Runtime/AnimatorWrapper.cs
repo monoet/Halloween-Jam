@@ -224,9 +224,11 @@ namespace BattleV2.Orchestration.Runtime
 
         public void ResetToFallback(float fadeDuration = 0.1f)
         {
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
+#if false
             Debug.Log($"TTDebug06 [RESET_TO_FALLBACK] actor={owner?.name ?? "(null)"} position={transform.position} fade={fadeDuration}", this);
 #endif
+            var tweenObserver = GetComponentInChildren<BattleV2.AnimationSystem.Execution.Runtime.Observers.RecipeTweenObserver>(true);
+            tweenObserver?.ResetToHomeImmediate();
             // Legacy Mono wrapper does not track a dedicated fallback clip, so stopping playback
             // returns the rig to its authored bind pose / sprite state.
             Stop();

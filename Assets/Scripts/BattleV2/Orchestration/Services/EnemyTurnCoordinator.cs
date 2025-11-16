@@ -121,6 +121,31 @@ namespace BattleV2.Orchestration.Services
                 return;
             }
 
+            var allowedIds = attacker.AllowedActionIds;
+            if (allowedIds != null && allowedIds.Count > 0)
+            {
+                var allowedLookup = new HashSet<string>(allowedIds, System.StringComparer.OrdinalIgnoreCase);
+                var filtered = new List<BattleActionData>(available.Count);
+                for (int i = 0; i < available.Count; i++)
+                {
+                    var candidate = available[i];
+                    if (candidate == null)
+                    {
+                        continue;
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(candidate.id) && allowedLookup.Contains(candidate.id))
+                    {
+                        filtered.Add(candidate);
+                    }
+                }
+
+                if (filtered.Count > 0)
+                {
+                    available = filtered;
+                }
+            }
+
             BattleActionData actionData = null;
             IAction implementation = null;
             for (int i = 0; i < available.Count; i++)

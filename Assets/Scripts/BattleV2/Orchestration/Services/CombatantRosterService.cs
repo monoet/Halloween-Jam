@@ -600,7 +600,8 @@ namespace BattleV2.Orchestration.Services
             }
 
             Transform parent = parentTransform != null ? parentTransform : config.OwnerTransform;
-            GameObject instance = Object.Instantiate(entry.Prefab, worldPosition, worldRotation, parent);
+            GameObject instance;
+            instance = Object.Instantiate(entry.Prefab, worldPosition, worldRotation, parent);
             instanceCollector?.Add(instance);
 
             var combatant = instance.GetComponentInChildren<CombatantState>();
@@ -611,6 +612,9 @@ namespace BattleV2.Orchestration.Services
                 Object.Destroy(instance);
                 return null;
             }
+
+            var tweenObserver = combatant.GetComponentInChildren<BattleV2.AnimationSystem.Execution.Runtime.Observers.RecipeTweenObserver>(true);
+            tweenObserver?.CaptureHomePosition(force: true);
 
             AnimationSystemInstaller.Current?.RegisterActor(combatant);
 
