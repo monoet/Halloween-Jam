@@ -15,14 +15,20 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Observers
 
         [Header("Tween Target (MotionRoot)")]
         [SerializeField] private Transform tweenTarget;
-        [Header("Anchors")]
-        [SerializeField] private Transform globalSpotlight;
+[Header("Anchors")]
+[SerializeField] private Transform globalSpotlight;
+[SerializeField] private Transform motionAnchor;
 
         [Header("Debug")]
         [SerializeField] private bool logTweenTargets = true;
 
         [Header("Recipe Tweens (Strategy Assets)")]
         [SerializeField] private List<CombatTweenStrategy> tweenStrategies = new();
+        [Header("Override Durations (Testing)")]
+        [SerializeField] private bool overrideRunUpDuration = false;
+        [SerializeField] private float runUpDuration = 0.30f;
+        [SerializeField] private bool overrideRunBackDuration = false;
+        [SerializeField] private float runBackDuration = 0.90f;
 
         [Header("Wind-Up Settings (solo basic_attack)")]
         [SerializeField] private float frameRate = 60f;
@@ -34,8 +40,11 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Observers
         private Tween activeTween;
         private readonly Dictionary<string, CombatTweenStrategy> lookup = new();
         private readonly List<CombatTweenStrategy> runtimeFallbackStrategies = new();
-        // Suprime run_up mientras run_back está activo
-        private bool suppressRunUp = false;
+// Suprime run_up mientras run_back está activo
+private bool suppressRunUp = false;
+private Animator cachedAnimator;
+private bool? originalRootMotion;
+private bool anchorMarkedThisTurn;
 
         // Home snapshot
         private Vector3 homeLocalPos;
@@ -95,7 +104,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Observers
         }
 
         private void OnEnable() { RebuildLookup(); Register(); }
-        private void OnDisable() { Unregister(); KillTween(true); }
+        private void OnDisable() { Unregister(); KillTween(true); RestoreRootMotion(); anchorMarkedThisTurn = false; }
 
         private void Register()
         {
@@ -165,25 +174,23 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Observers
             if (recipe.Id == "run_back")
             {
                 suppressRunUp = true;
+                SetRootMotion(false);
+                float duration = overrideRunBackDuration ? runBackDuration : def.duration;
+                Vector3 startLocal = (anchorMarkedThisTurn && motionAnchor != null)
+                    ? motionAnchor.localPosition
+                    : tweenTarget.localPosition;
+                tweenTarget.localPosition = startLocal;
+                anchorMarkedThisTurn = false;
 
-                Vector3 startLocal = tweenTarget.localPosition;
-                Vector3 targetLocal = homeLocalPos;
-                float dist = Vector3.Distance(startLocal, targetLocal);
-                float duration = def.duration;
-
-                Debug.Log($"TTDebug-RUNBACK-START >>> actor={owner.name} startLocal={startLocal} targetLocal={targetLocal} dist={dist:F4} duration={duration:F3} hasActiveTween={(activeTween != null && activeTween.IsActive())}", this);
-
-                DOTween.To(() => 0f, _ => { }, 0f, 0.01f).OnComplete(() =>
-                {
-                    bool complete = activeTween != null && activeTween.IsComplete();
-                    Vector3 afterPos = tweenTarget.localPosition;
-                    float finalDist = Vector3.Distance(afterPos, targetLocal);
-
-                    Debug.Log($"TTDebug-RUNBACK-AFTERFRAME >>> complete={complete} afterPos={afterPos} finalDist={finalDist:F4}", this);
-                });
+                // Tween run_back siempre local, ease dramático
+                activeTween = tweenTarget
+                    .DOLocalMove(homeLocalPos, duration)
+                    .SetEase(Ease.OutExpo);
+                return;
             }
 
-            bool useLocal = def.useLocalSpace;
+            // For motion we always tween in local space to avoid world/local drift
+            bool useLocal = true;
             Vector3 targetPos = def.returnToInitialPosition && homeCaptured
                 ? homeLocalPos
                 : def.target;
@@ -216,15 +223,15 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Observers
 
             LogTweenTarget(def, targetPos);
 
-            if (recipe.Id == "run_back")
+            if (recipe.Id == "run_up")
             {
-                StartCoroutine(DelayedRunBack(targetPos, def.duration, def.ease));
-                return;
+                SetRootMotion(false);
             }
 
-            activeTween = useLocal
-                ? tweenTarget.DOLocalMove(targetPos, def.duration).SetEase(def.ease)
-                : tweenTarget.DOMove(targetPos, def.duration).SetEase(def.ease);
+            float durationOverride = recipe.Id == "run_up" && overrideRunUpDuration
+                ? runUpDuration
+                : def.duration;
+            activeTween = tweenTarget.DOLocalMove(targetPos, durationOverride).SetEase(def.ease);
         }
 
         private void PlayWindup()
@@ -244,19 +251,6 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Observers
 
             activeTween = seq;
             seq.Play();
-        }
-
-        private IEnumerator DelayedRunBack(Vector3 targetPos, float duration, Ease ease)
-        {
-            yield return null; // wait 1 frame
-
-            var startLocal = tweenTarget != null ? tweenTarget.localPosition : Vector3.zero;
-            if (logTweenTargets)
-            {
-                Debug.Log($"[DelayedRunBack] actor={owner?.name ?? "(null)"} startLocal={startLocal} targetLocal={targetPos} duration={duration}", this);
-            }
-
-            activeTween = tweenTarget.DOLocalMove(targetPos, duration).SetEase(ease);
         }
 
         private void KillTween(bool forceComplete)
@@ -320,7 +314,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Observers
             {
                 runtimeFallbackStrategies.Add(CreateRuntimeStrategy("run_up", true, new Vector3(2f, -3f, 0f), 0.30f, Ease.OutCubic, false));
                 runtimeFallbackStrategies.Add(CreateRuntimeStrategy("basic_attack", true, Vector3.zero, 0.30f, Ease.OutCubic, false));
-                runtimeFallbackStrategies.Add(CreateRuntimeStrategy("run_back", true, Vector3.zero, 0.90f, Ease.InOutSine, true));
+                runtimeFallbackStrategies.Add(CreateRuntimeStrategy("run_back", true, Vector3.zero, 0.90f, Ease.OutExpo, true));
             }
 
             return runtimeFallbackStrategies;
@@ -341,7 +335,20 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Observers
 
         public void OnRecipeCompleted(RecipeExecutionReport report, StepSchedulerContext context)
         {
-            if (report.Recipe != null && report.Recipe.Id == "run_back" && MatchesOwner(context) && homeCaptured)
+            if (report.Recipe == null || !MatchesOwner(context))
+            {
+                return;
+            }
+
+            var recipeId = report.Recipe.Id;
+
+            if (recipeId == "basic_attack_windup" && motionAnchor != null && MatchesOwner(context))
+            {
+                motionAnchor.localPosition = tweenTarget.localPosition;
+                anchorMarkedThisTurn = true;
+            }
+
+            if (recipeId == "run_back" && homeCaptured)
             {
 #if false
                 Debug.Log($"TTDebug01 [COMPLETE] [{TS()}] actor={owner?.name} recipe={report.Recipe.Id}", this);
@@ -355,7 +362,13 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Observers
                 }
 
                 suppressRunUp = false;
+                RestoreRootMotion();
                 return;
+            }
+
+            if (recipeId == "run_back" || recipeId == "run_up")
+            {
+                RestoreRootMotion();
             }
         }
         public void OnGroupStarted(ActionStepGroup group, StepSchedulerContext context) { }
@@ -407,6 +420,44 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Observers
             tweenTarget.localPosition = homeLocalPos;
             tweenTarget.localRotation = homeLocalRot;
             tweenTarget.localScale = homeLocalScale;
+        }
+
+        private Animator GetAnimator()
+        {
+            if (cachedAnimator != null)
+            {
+                return cachedAnimator;
+            }
+
+            if (owner != null)
+            {
+                cachedAnimator = owner.GetComponentInChildren<Animator>(true);
+            }
+
+            return cachedAnimator;
+        }
+
+        private void SetRootMotion(bool enabled)
+        {
+            var animator = GetAnimator();
+            if (animator == null)
+            {
+                return;
+            }
+
+            originalRootMotion ??= animator.applyRootMotion;
+            animator.applyRootMotion = enabled;
+        }
+
+        private void RestoreRootMotion()
+        {
+            var animator = GetAnimator();
+            if (animator == null || !originalRootMotion.HasValue)
+            {
+                return;
+            }
+
+            animator.applyRootMotion = originalRootMotion.Value;
         }
     }
 }

@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: BattlePacingSettings
   m_EditorClassIdentifier: Assembly-CSharp::BattleV2.AnimationSystem.Runtime.BattlePacingSettings
   globalTurnGap: 0.25
-  playerPreDelay: 0.25
-  playerPostDelay: 0.25
-  enemyTurnGap: 0.25
+  playerPreDelay: 0.125
+  playerPostDelay: 0.125
+  enemyTurnGap: 0.125
   debugLabel: Default

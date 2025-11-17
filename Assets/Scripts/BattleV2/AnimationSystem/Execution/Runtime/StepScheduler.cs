@@ -157,6 +157,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
                 return;
             }
 
+            var skipByMotion = ShouldSkipReset(recipe);
             try
             {
                 LogPoseSnapshot(context.Actor, recipe.Id ?? "(null)", true);
@@ -227,10 +228,16 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
             }
             finally
             {
-                if (!context.SkipResetToFallback)
+                if (!(context.SkipResetToFallback || skipByMotion))
                 {
                     context.Wrapper?.ResetToFallback();
                 }
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                else
+                {
+                    UnityEngine.Debug.Log($"TTDebug11 [POSE/FALLBACK_SKIPPED] actor={context.Actor?.name ?? "(null)"} recipe={recipe?.Id ?? "(null)"} reason={(skipByMotion ? "motionRecipe" : "contextSkip")}");
+                }
+#endif
             }
         }
 
@@ -278,6 +285,9 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
 
             if (!fallbackReset && !context.SkipResetToFallback)
             {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                UnityEngine.Debug.Log($"TTDebug14 [POSE/FALLBACK_RESET] actor={context.Actor?.name ?? "(null)"} recipe={recipe?.Id ?? "(null)"} reason=lifecycle-end");
+#endif
                 context.Wrapper?.ResetToFallback();
             }
         }
@@ -306,14 +316,16 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
             LogPoseSnapshot(context.Actor, phase.ToString(), true);
 
             bool resetTriggered = false;
+            bool skippedReset = false;
             try
             {
                 if (phaseRecipe != null && !phaseRecipe.IsEmpty)
                 {
-                    var finalSkipReset = skipResetToFallback || context.SkipResetToFallback;
+                    var finalSkipReset = skipResetToFallback || context.SkipResetToFallback || ShouldSkipReset(phaseRecipe);
                     var phaseContext = context.WithSkipReset(finalSkipReset);
                     await ExecuteAsync(phaseRecipe, phaseContext, cancellationToken);
                     resetTriggered = !finalSkipReset;
+                    skippedReset = finalSkipReset;
                 }
             }
             finally
@@ -328,7 +340,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
                 LogPoseSnapshot(context.Actor, phase.ToString(), false);
             }
 
-            return resetTriggered;
+            return resetTriggered || skippedReset;
         }
 
         private Task<StepGroupResult> ExecuteGroupAsync(
@@ -579,6 +591,23 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
                     BattleLogger.Warn(LogTag, $"Lifecycle observer '{listenerName}' threw: {ex.Message}");
                 }
             }
+        }
+
+        private static bool ShouldSkipReset(ActionRecipe recipe)
+        {
+            if (recipe == null)
+            {
+                return false;
+            }
+
+            var id = recipe.Id;
+            if (string.IsNullOrWhiteSpace(id))
+            {
+                return false;
+            }
+
+            return string.Equals(id, "run_up", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(id, "run_back", StringComparison.OrdinalIgnoreCase);
         }
 
         private static void LogPoseSnapshot(CombatantState actor, string phaseLabel, bool isPre)
