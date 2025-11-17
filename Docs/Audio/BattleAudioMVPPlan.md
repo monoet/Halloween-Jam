@@ -9,7 +9,7 @@ Track the implementation of the combat audio MVP and the groundwork for future e
 ## Deliverables Checklist
 - [x] Constants: `BattleAudioFlags` (all current flags), `WeaponFamily`, `ElementId`.
 - [x] Context: `CombatEventContext` (+ optional `MarkDetonationPayload`), 2D-only MVP for now.
-- [ ] Data: `BattleAudioDatabase` (SO) with SfxEntry & MusicConfig; dictionary built in `OnEnable`.
+- [x] Data: `BattleAudioDatabase` (SO) with SfxEntry & MusicConfig; dictionary built in `OnEnable`.
 - [ ] Controller: `BattleAudioController` (`ICombatEventListener`, `ITurnPhaseListener`) with cooldowns, 2D fallback, FMOD params, music snapshots.
 - [ ] Router wiring: CombatEventRouter -> BattleAudioController; TurnPhase -> music.
 - [ ] Validation: editor warnings for missing SfxEntry per flag (once) and missing ActorMotionAnchor.
