@@ -11,7 +11,7 @@ Track the implementation of the combat audio MVP and the groundwork for future e
 - [x] Context: `CombatEventContext` (+ optional `MarkDetonationPayload`), 2D-only MVP for now.
 - [x] Data: `BattleAudioDatabase` (SO) with SfxEntry & MusicConfig; dictionary built in `OnEnable`.
 - [x] Controller: `BattleAudioController` (`ICombatEventListener`, `ITurnPhaseListener`) with cooldowns, 2D fallback, FMOD params, music snapshots.
-- [ ] Router wiring: CombatEventRouter -> BattleAudioController; TurnPhase -> music.
+- [x] Router wiring: CombatEventRouter -> BattleAudioController (auto-register to dispatcher). TurnPhase music wiring pending if/when phase events exist.
 - [ ] Validation: editor warnings for missing SfxEntry per flag (once) and missing ActorMotionAnchor.
 - [ ] Asset: create `BattleAudioDatabase.asset` with MVP entries: windup, impact, runback, mark/apply, mark/detonate, ui/turn_change, music snapshots.
 

@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using BattleV2.AnimationSystem.Execution.Runtime.CombatEvents;
+using BattleV2.AnimationSystem.Runtime;
 using UnityEngine;
 
 namespace BattleV2.Audio
@@ -14,12 +16,18 @@ namespace BattleV2.Audio
         [Header("Database")]
         [SerializeField] private BattleAudioDatabase database;
 
+        [Header("Registration")]
+        [SerializeField, Tooltip("If enabled, registers to CombatEventDispatcher on enable.")]
+        private bool autoRegisterOnEnable = true;
+
         [Header("Logging")]
         [SerializeField] private bool logWhenFmodUnavailable = true;
         [SerializeField] private bool logMissingEntryOnce = true;
 
         private readonly Dictionary<string, float> cooldowns = new Dictionary<string, float>(StringComparer.Ordinal);
         private readonly HashSet<string> missingLogged = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private CombatEventDispatcher dispatcher;
+        private bool isRegistered;
 
         private void Awake()
         {
@@ -29,6 +37,23 @@ namespace BattleV2.Audio
             }
         }
 
+        private void OnEnable()
+        {
+            if (autoRegisterOnEnable)
+            {
+                TryRegister();
+            }
+        }
+
+        private void OnDisable()
+        {
+            Unregister();
+        }
+
+        /// <summary>
+        /// Receives audio-only context. IMPORTANT: Do NOT use CombatEventContext from AnimationSystem.
+        /// This explicitly depends on BattleV2.Audio.CombatEventContext.
+        /// </summary>
         public void OnCombatEventRaised(string flagId, CombatEventContext context)
         {
             if (database == null || string.IsNullOrWhiteSpace(flagId))
@@ -83,6 +108,9 @@ namespace BattleV2.Audio
         }
 #endif
 
+        // TODO(MVP+): Hook combat start/end to MusicConfig snapshots
+        // (turn phase routing will live here)
+
         private void MaybeLogMissing(string flagId)
         {
             if (!logMissingEntryOnce)
@@ -95,6 +123,36 @@ namespace BattleV2.Audio
             {
                 Debug.LogWarning($"[BattleAudio] Missing SFX entry for flag '{flagId}'. (Logged once)", this);
             }
+        }
+
+        // Attempt registration with dispatcher now that installer might be ready
+        private void TryRegister()
+        {
+            if (isRegistered)
+            {
+                return;
+            }
+
+            dispatcher ??= AnimationSystemInstaller.Current?.CombatEvents;
+            if (dispatcher == null)
+            {
+                Debug.LogWarning("[BattleAudio] CombatEventDispatcher not available; will retry on next enable.", this);
+                return;
+            }
+
+            dispatcher.RegisterListener(this);
+            isRegistered = true;
+        }
+
+        private void Unregister()
+        {
+            if (!isRegistered)
+            {
+                return;
+            }
+
+            dispatcher?.UnregisterListener(this);
+            isRegistered = false;
         }
     }
 }
