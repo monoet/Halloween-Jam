@@ -79,7 +79,8 @@ namespace BattleV2.Actions
                     snapshot.BaseDamagePerHit,
                     minimumDamage,
                     snapshot.TierMultiplier,
-                    snapshot.TotalPhases);
+                    snapshot.TotalPhases,
+                    allowPartialOnMiss: true);
                 return true;
             }
 

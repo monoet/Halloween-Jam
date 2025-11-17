@@ -12,6 +12,22 @@ Guardrails Tags drive persistence; runback must tween (no teleport); filters man
 Future SO Upgrade Path Optional ScriptableObjects (TweenCueSet, SoundCueSet) hydrate router dictionaries in Awake when assigned, otherwise fallback to hardcoded MVP data.
 Risk Mitigation Filters prevent enemy attacks animating player, TweenGate removes jitter, fallback SFX & counters expose gaps, enforced runback prevents teleport resets.
 
+## Locomotion/Tween Fix Log (Nov 2025)
+- Eliminado teleport/drift: run_up / run_back tweenean en espacio local vía `RecipeTweenObserver`.
+- run_back arranca desde `motionAnchor` (snapshot en `OnRecipeCompleted` de `basic_attack_windup`) o posición actual; tween a `homeLocalPos` con `Ease.OutExpo`.
+- Overrides expuestos para QA: `overrideRunUpDuration/runUpDuration`, `overrideRunBackDuration/runBackDuration`.
+- Root motion off durante run_up/run_back; StepScheduler salta ResetToFallback en motion recipes.
+- Nuevo componente `MotionAnchor` (marker) para asignar en prefab.
+
+### Próximos pasos (orden sugerido)
+1. Sonido (FMOD/SFX simple).
+2. Conectar .anim al observer (anim + tween).
+3. Jump-to-enemy (run_up dinámico con anchor enemigo).
+4. Hit reactions / knockback corto.
+5. AOE attacks.
+6. Multi-party dynamics.
+7. VFX (cuando locomoción esté estable).
+
 {
   "version": "2.0.1-architecture",
   "title": "Arquitectura Conceptual — Combat Event Listeners (MVP+) — Clarifications",
