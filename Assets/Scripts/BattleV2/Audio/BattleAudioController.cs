@@ -40,14 +40,17 @@ namespace BattleV2.Audio
 
         private void OnEnable()
         {
-            if (autoRegisterOnEnable)
-            {
-                TryRegister();
-            }
-
 #if UNITY_EDITOR
             ValidateAnchorsInScene();
 #endif
+        }
+
+        private void Start()
+        {
+            if (!isRegistered && autoRegisterOnEnable)
+            {
+                TryRegister();
+            }
         }
 
         private void OnDisable() { Unregister(); }
