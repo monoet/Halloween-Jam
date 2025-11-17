@@ -18,11 +18,7 @@ namespace BattleV2.Audio
         private void OnEnable()
         {
             BuildIndex();
-        }
-
-        private void Awake()
-        {
-            BuildIndex();
+            ValidateRequiredFlags();
         }
 
         private void BuildIndex()
@@ -42,6 +38,12 @@ namespace BattleV2.Audio
                     continue;
                 }
 
+                if (string.IsNullOrWhiteSpace(entry.EventPath))
+                {
+                    Debug.LogWarning($"[BattleAudioDatabase] Entry '{entry.FlagId}' missing EventPath.", this);
+                    continue;
+                }
+
                 // Last entry wins if duplicates exist; keep simple for MVP.
                 sfxByFlagId[entry.FlagId] = entry;
             }
@@ -49,6 +51,12 @@ namespace BattleV2.Audio
 
         public bool TryGetSfx(string flagId, out SfxEntry entry)
         {
+            entry = default;
+            if (string.IsNullOrWhiteSpace(flagId))
+            {
+                return false;
+            }
+
             if (sfxByFlagId == null)
             {
                 BuildIndex();
@@ -56,6 +64,53 @@ namespace BattleV2.Audio
 
             return sfxByFlagId != null && sfxByFlagId.TryGetValue(flagId, out entry);
         }
+
+#if UNITY_EDITOR
+        private void OnValidate()
+        {
+            ValidateRequiredFlags();
+        }
+
+        private void ValidateRequiredFlags()
+        {
+            // Validate presence of known flags (MVP list). Log once per missing flag.
+            string[] required =
+            {
+                BattleAudioFlags.AttackWindup,
+                BattleAudioFlags.AttackImpact,
+                BattleAudioFlags.AttackRunback,
+                BattleAudioFlags.MarkApply,
+                BattleAudioFlags.MarkDetonate,
+                BattleAudioFlags.UiTurnChange
+            };
+
+            if (sfxEntries == null)
+            {
+                return;
+            }
+
+            var existing = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            for (int i = 0; i < sfxEntries.Count; i++)
+            {
+                var id = sfxEntries[i].FlagId;
+                if (!string.IsNullOrWhiteSpace(id))
+                {
+                    existing.Add(id);
+                }
+            }
+
+            for (int i = 0; i < required.Length; i++)
+            {
+                string flag = required[i];
+                if (existing.Contains(flag))
+                {
+                    continue;
+                }
+
+                Debug.LogWarning($"[BattleAudioDatabase] Missing SfxEntry for required flag '{flag}'.", this);
+            }
+        }
+#endif
     }
 
     [Serializable]
