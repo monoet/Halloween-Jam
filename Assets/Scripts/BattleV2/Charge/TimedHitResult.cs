@@ -43,7 +43,7 @@ namespace BattleV2.Charge
             bool phaseDamageApplied = false,
             int totalDamageApplied = 0)
             : this(
-                TimedHitJudgment.Miss,
+                InferJudgment(hitsSucceeded, totalHits),
                 hitsSucceeded,
                 totalHits,
                 damageMultiplier,
@@ -86,6 +86,21 @@ namespace BattleV2.Charge
                 SuccessStreak,
                 applied,
                 totalDamage);
+        }
+
+        public static TimedHitJudgment InferJudgment(int hitsSucceeded, int totalHits)
+        {
+            if (hitsSucceeded <= 0)
+            {
+                return TimedHitJudgment.Miss;
+            }
+
+            if (totalHits > 0 && hitsSucceeded >= totalHits)
+            {
+                return TimedHitJudgment.Perfect;
+            }
+
+            return TimedHitJudgment.Good;
         }
     }
 }

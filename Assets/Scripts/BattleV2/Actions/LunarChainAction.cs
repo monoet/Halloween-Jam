@@ -164,7 +164,7 @@ namespace BattleV2.Actions
                 var raw = timedResult.Value;
                 BattleLogger.Log(
                     "KS1",
-                    $"LunarChain timed-hit -> hits {raw.HitsSucceeded}/{raw.TotalHits}, mult {raw.DamageMultiplier:F2}, externalDamage={raw.TotalDamageApplied}, phasesResolved={raw.PhaseDamageApplied}");
+                    $"LunarChain timed-hit -> hits {raw.HitsSucceeded}/{raw.TotalHits}, judgment={raw.Judgment}, mult {raw.DamageMultiplier:F2}, externalDamage={raw.TotalDamageApplied}, phasesResolved={raw.PhaseDamageApplied}");
                 totalHits = raw.TotalHits > 0 ? raw.TotalHits : totalHits;
                 hitsSucceeded = Mathf.Clamp(raw.HitsSucceeded, 0, totalHits);
                 perHitMultiplier = raw.DamageMultiplier > 0f ? raw.DamageMultiplier : perHitMultiplier;
