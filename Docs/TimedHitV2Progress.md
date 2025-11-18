@@ -20,11 +20,16 @@
 
 ## Phase 4 - BasicTimedHitRunner (single window opt-in)
 - [x] Step 1: Introduce BasicTimedHitRunner + profile
-- [ ] Step 2: Hook basic_attack via opt-in flag
-- [ ] Step 3: Ensure HUD compatibility
+- [x] Step 2: Hook basic_attack via opt-in flag
+- [x] Step 3: Ensure HUD compatibility
+- Notes:
+  - Added TimedHitPhaseEvent + TimedHitHooksBridge so HUD/anim/audio can subscribe to Basic runner without special cases.
 - Notes:
   - Added BasicTimedHitProfile + runner kind plumbing through selections/requests.
   - SimpleAttackAction now opts into Basic runner and scales damage via timed results.
+  - basic_attack selections set `RunnerKind=Basic`, so BasicTimedHitRunner is invoked only when actions opt in.
+  - TimedHitHudBridge now listens to TimedHitPhaseEvent/ResultEvent for both KS1 and Basic; no direct runner bindings remain.
+  - Normalized KS1/Basic phase indices + HUD to consume TimedHitPhaseEvent/TimedHitResultEvent exclusively.
 
 ## Phase 5 - Cleanup and convergence
 - [ ] Step 1: Consolidate on v2 runners (KS1)

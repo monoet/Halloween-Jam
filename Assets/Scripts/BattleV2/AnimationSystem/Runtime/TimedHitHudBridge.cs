@@ -15,7 +15,6 @@ namespace BattleV2.AnimationSystem.Runtime
     {
         [SerializeField] private AnimationSystemInstaller installer;
         [SerializeField] private BattleManagerV2 manager;
-        [SerializeField] private Ks1MultiWindowTimedHitRunner ks1Runner;
 
         [Header("Final Result")]
         [SerializeField] private TMP_Text feedbackLabel;
@@ -36,16 +35,14 @@ namespace BattleV2.AnimationSystem.Runtime
         [SerializeField] private bool enablePhaseDebugLogs;
 
         private IDisposable resultSubscription;
+        private IDisposable phaseSubscription;
         private float resultTimer;
         private float phaseTimer;
-        private bool runnerSubscribed;
-        private bool ks1SequenceActive;
 
         private void Awake()
         {
             installer ??= AnimationSystemInstaller.Current;
             manager ??= TryFindManager();
-            ks1Runner ??= GetComponent<Ks1MultiWindowTimedHitRunner>();
         }
 
         private void OnEnable()
@@ -59,7 +56,8 @@ namespace BattleV2.AnimationSystem.Runtime
         {
             resultSubscription?.Dispose();
             resultSubscription = null;
-            DetachRunner();
+            phaseSubscription?.Dispose();
+            phaseSubscription = null;
 
             ClearFinalLabel();
             ClearPhaseLabel();
@@ -69,18 +67,14 @@ namespace BattleV2.AnimationSystem.Runtime
         {
             resultSubscription?.Dispose();
             resultSubscription = null;
-            DetachRunner();
+            phaseSubscription?.Dispose();
+            phaseSubscription = null;
         }
 
         private void Update()
         {
             TickFinalTimer();
             TickPhaseTimer();
-
-            if (!runnerSubscribed || ks1Runner == null || !ks1Runner.isActiveAndEnabled)
-            {
-                TryAttachRunner();
-            }
         }
 
         private void Subscribe()
@@ -91,48 +85,7 @@ namespace BattleV2.AnimationSystem.Runtime
             }
 
             resultSubscription = installer.EventBus.Subscribe<TimedHitResultEvent>(HandleTimedHitResult);
-            TryAttachRunner();
-        }
-
-        private void TryAttachRunner()
-        {
-            if (runnerSubscribed && ks1Runner != null && ks1Runner.isActiveAndEnabled)
-            {
-                return;
-            }
-
-            DetachRunner();
-
-            ks1Runner ??= GetComponent<Ks1MultiWindowTimedHitRunner>();
-            if (ks1Runner == null)
-            {
-                manager ??= TryFindManager();
-                if (manager?.TimedHitRunner is Ks1MultiWindowTimedHitRunner managerRunner)
-                {
-                    ks1Runner = managerRunner;
-                }
-            }
-
-            if (ks1Runner != null && ks1Runner.isActiveAndEnabled)
-            {
-                ks1Runner.OnSequenceStarted += HandleSequenceStarted;
-                ks1Runner.OnSequenceCompleted += HandleSequenceCompleted;
-                ks1Runner.PhaseResolved += HandlePhaseOutcome;
-                runnerSubscribed = true;
-            }
-        }
-
-        private void DetachRunner()
-        {
-            if (ks1Runner != null && runnerSubscribed)
-            {
-                ks1Runner.OnSequenceStarted -= HandleSequenceStarted;
-                ks1Runner.OnSequenceCompleted -= HandleSequenceCompleted;
-                ks1Runner.PhaseResolved -= HandlePhaseOutcome;
-            }
-
-            runnerSubscribed = false;
-            ks1SequenceActive = false;
+            phaseSubscription = installer.EventBus.Subscribe<TimedHitPhaseEvent>(HandlePhaseEvent);
         }
 
         private static BattleManagerV2 TryFindManager()
@@ -144,9 +97,20 @@ namespace BattleV2.AnimationSystem.Runtime
 #endif
         }
 
+        private bool IsPlayerActor(CombatantState actor)
+        {
+            if (actor == null)
+            {
+                return false;
+            }
+
+            manager ??= TryFindManager();
+            return manager != null && actor == manager.PrimaryPlayer;
+        }
+
         private void HandleTimedHitResult(TimedHitResultEvent evt)
         {
-            if (feedbackLabel == null || !ShouldDisplayServiceResult(evt))
+            if (feedbackLabel == null || !IsPlayerActor(evt.Actor) || !ShouldDisplayServiceResult(evt))
             {
                 return;
             }
@@ -161,74 +125,44 @@ namespace BattleV2.AnimationSystem.Runtime
 
         private bool ShouldDisplayServiceResult(TimedHitResultEvent evt)
         {
-            if (ks1SequenceActive)
+            int total = evt.WindowCount > 0 ? evt.WindowCount : 1;
+            int index = evt.WindowIndex;
+            if (index <= 0)
             {
-                return false;
+                index = total;
             }
 
-            if (evt.WindowCount > 0)
-            {
-                int normalizedIndex = Math.Max(0, evt.WindowIndex);
-                return normalizedIndex + 1 >= evt.WindowCount;
-            }
-
-            return true;
+            return index >= total;
         }
 
-        private void HandleSequenceStarted()
+        private void HandlePhaseEvent(TimedHitPhaseEvent evt)
         {
-            ks1SequenceActive = true;
-            ClearFinalLabel();
-            ClearPhaseLabel();
-        }
-
-        private void HandleSequenceCompleted(TimedHitResult result)
-        {
-            ks1SequenceActive = false;
-            ClearPhaseLabel();
-
-            if (enableResultDebugLogs)
-            {
-                Debug.Log($"[TimedHitHUD] KS1 final -> {result.Judgment} ({result.HitsSucceeded}/{Mathf.Max(1, result.TotalHits)} hits)", this);
-            }
-
-            DisplayFinalFeedback(
-                $"{result.Judgment} ({Mathf.Clamp(result.HitsSucceeded, 0, result.TotalHits)}/{Mathf.Max(1, result.TotalHits)} hits)",
-                result.Judgment);
-        }
-
-        private void HandlePhaseOutcome(Ks1PhaseOutcome outcome)
-        {
-            if (phaseFeedbackLabel == null)
+            if (phaseFeedbackLabel == null || !IsPlayerActor(evt.Actor))
             {
                 return;
             }
 
-            if (enablePhaseDebugLogs)
+            if (evt.PhaseIndex <= 1 && (evt.Cancelled || evt.IsFinal || evt.TotalPhases <= 1))
             {
-                Debug.Log($"[KS1 HUD] Phase {outcome.PhaseIndex + 1}/{outcome.TotalPhases}: {outcome.Judgment}", this);
+                ClearFinalLabel();
             }
 
-            var phaseHits = $"{outcome.Result.HitsSucceeded}/{outcome.Result.TotalHits}";
+            if (enablePhaseDebugLogs)
+            {
+                Debug.Log($"[TimedHitHUD] Phase {evt.PhaseIndex}/{evt.TotalPhases}: {evt.Judgment} (cancelled={evt.Cancelled}, final={evt.IsFinal})", this);
+            }
+
             phaseFeedbackLabel.gameObject.SetActive(true);
-            phaseFeedbackLabel.text = $"Phase {outcome.PhaseIndex + 1}/{outcome.TotalPhases}: {outcome.Judgment} ({phaseHits})";
-            phaseFeedbackLabel.color = ResolveColor(outcome.Judgment);
+            int total = Mathf.Max(1, evt.TotalPhases);
+            int index = Mathf.Clamp(evt.PhaseIndex, 1, total);
+            phaseFeedbackLabel.text = $"Phase {index}/{total}: {evt.Judgment}";
+            phaseFeedbackLabel.color = ResolveColor(evt.Judgment);
 
             phaseTimer = phaseHoldSeconds > 0f ? phaseHoldSeconds : 0f;
 
-            if (outcome.ChainCancelled || outcome.ChainCompleted)
+            if (evt.Cancelled || evt.IsFinal)
             {
-                phaseTimer = terminalPhaseHoldSeconds > 0f
-                    ? terminalPhaseHoldSeconds
-                    : 0f;
-                if (phaseTimer <= 0f)
-                {
-                    ClearPhaseLabel();
-                }
-            }
-            else if (outcome.TotalPhases <= 1)
-            {
-                phaseTimer = Mathf.Min(phaseTimer, terminalPhaseHoldSeconds);
+                phaseTimer = terminalPhaseHoldSeconds > 0f ? terminalPhaseHoldSeconds : 0f;
                 if (phaseTimer <= 0f)
                 {
                     ClearPhaseLabel();

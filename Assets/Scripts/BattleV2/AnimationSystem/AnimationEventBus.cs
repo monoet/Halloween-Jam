@@ -297,5 +297,34 @@ namespace BattleV2.AnimationSystem
         public double WindowClosedAt { get; }
     }
 
+    public readonly struct TimedHitPhaseEvent
+    {
+        public TimedHitPhaseEvent(
+            CombatantState actor,
+            TimedHitJudgment judgment,
+            float accuracyNormalized,
+            int phaseIndex,
+            int totalPhases,
+            bool cancelled,
+            bool isFinal)
+        {
+            Actor = actor;
+            Judgment = judgment;
+            AccuracyNormalized = accuracyNormalized;
+            PhaseIndex = phaseIndex;
+            TotalPhases = totalPhases;
+            Cancelled = cancelled;
+            IsFinal = isFinal;
+        }
+
+        public CombatantState Actor { get; }
+        public TimedHitJudgment Judgment { get; }
+        public float AccuracyNormalized { get; }
+        public int PhaseIndex { get; }
+        public int TotalPhases { get; }
+        public bool Cancelled { get; }
+        public bool IsFinal { get; }
+    }
+
     #endregion
 }

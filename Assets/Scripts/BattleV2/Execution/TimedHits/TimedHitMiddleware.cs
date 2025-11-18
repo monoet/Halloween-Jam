@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using BattleV2.Actions;
 using BattleV2.Charge;
+using BattleV2.Core;
 using BattleV2.Execution;
 using BattleV2.Orchestration;
 
@@ -95,16 +96,10 @@ namespace BattleV2.Execution.TimedHits
                 return;
             }
 
-            bool isPlayerAction = manager != null && context.Attacker != null && manager.Player == context.Attacker;
             bool wantsBasicRunner = runnerKind == TimedHitRunnerKind.Basic;
             ITimedHitRunner runner = manager != null
                 ? manager.ResolveTimedHitRunner(selection)
                 : InstantTimedHitRunner.Shared;
-
-            if (wantsBasicRunner && manager != null && manager.ResolveBasicTimedHitRunner() == null)
-            {
-                BattleLogger.Warn("TimedHitMiddleware", $"Basic runner requested for '{selection.Action?.id}' but no BasicTimedHitRunner is available. Falling back to default runner.");
-            }
 
             runner ??= InstantTimedHitRunner.Shared;
 

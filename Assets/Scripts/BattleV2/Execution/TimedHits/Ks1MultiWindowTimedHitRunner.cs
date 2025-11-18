@@ -165,9 +165,12 @@ namespace BattleV2.Execution.TimedHits
                     expectedPhases = Mathf.Max(expectedPhases, evt.WindowCount);
                 }
 
+                int currentPhaseIndex = evt.WindowIndex > 0 ? evt.WindowIndex : processedPhases;
+                int totalPhases = evt.WindowCount > 0 ? evt.WindowCount : expectedPhases;
+
                 OnPhaseStarted?.Invoke(new TimedHitPhaseInfo(
-                    evt.WindowIndex > 0 ? evt.WindowIndex : processedPhases,
-                    evt.WindowCount > 0 ? evt.WindowCount : expectedPhases,
+                    currentPhaseIndex,
+                    totalPhases,
                     0f,
                     1f));
 
@@ -191,24 +194,26 @@ namespace BattleV2.Execution.TimedHits
                 }
 
                 float phaseMultiplier = ResolvePhaseMultiplier(tier, judgment);
+                var accuracy = ResolveAccuracy(judgment);
                 var phaseResult = new TimedHitPhaseResult(
-                    processedPhases,
+                    currentPhaseIndex,
                     success,
                     phaseMultiplier,
-                    ResolveAccuracy(judgment),
+                    accuracy,
                     request.Attacker);
                 OnPhaseResolved?.Invoke(phaseResult);
 
                 EmitPhaseOutcome(
-                    phaseIndex: processedPhases - 1,
-                    totalPhases: expectedPhases,
+                    phaseIndex: currentPhaseIndex,
+                    totalPhases: totalPhases,
                     judgment,
                     chainCancelled,
-                    chainCompleted: success && processedPhases >= expectedPhases,
+                    chainCompleted: success && processedPhases >= totalPhases,
                     phaseHitsSucceeded: success ? 1 : 0,
-                    overallTotalHits: expectedPhases,
+                    overallTotalHits: totalPhases,
                     phaseMultiplier,
-                    isFinal: false,
+                    accuracy,
+                    success && processedPhases >= totalPhases,
                     actor: request.Attacker);
 
                 if (chainCancelled)
@@ -218,7 +223,7 @@ namespace BattleV2.Execution.TimedHits
             }
 
             int missCount = Mathf.Max(0, expectedPhases - (perfectCount + goodCount));
-            var finalResult = BuildResult(tier, perfectCount, goodCount, missCount, processedPhases - 1, expectedPhases);
+            var finalResult = BuildResult(tier, perfectCount, goodCount, missCount, processedPhases, expectedPhases);
             CompleteSequence(finalResult);
         }
 
@@ -257,7 +262,7 @@ namespace BattleV2.Execution.TimedHits
                 0,
                 0,
                 0f,
-                phaseIndex: 0,
+                phaseIndex: 1,
                 totalPhases: 1,
                 isFinal: true,
                 cancelled: cancelled,
@@ -346,21 +351,35 @@ namespace BattleV2.Execution.TimedHits
             int phaseHitsSucceeded,
             int overallTotalHits,
             float phaseMultiplier,
-            bool isFinal,
+            float accuracy,
+            bool requestedFinal,
             CombatantState actor)
         {
+            int displayIndex = Mathf.Max(1, phaseIndex);
+            int displayTotal = Mathf.Max(1, totalPhases);
+            bool isFinalPhase = requestedFinal || chainCancelled || displayIndex >= displayTotal;
+
             var phaseResult = new TimedHitResult(
                 judgment,
                 phaseHitsSucceeded,
                 overallTotalHits,
                 phaseMultiplier,
-                phaseIndex,
-                totalPhases,
-                isFinal);
+                displayIndex,
+                displayTotal,
+                isFinalPhase);
+
+            PublishPhaseEvent(
+                actor,
+                judgment,
+                accuracy,
+                displayIndex,
+                displayTotal,
+                chainCancelled,
+                isFinalPhase);
 
             PhaseResolved?.Invoke(new Ks1PhaseOutcome(
-                phaseIndex,
-                totalPhases,
+                displayIndex - 1,
+                displayTotal,
                 judgment,
                 chainCancelled,
                 chainCompleted,
@@ -380,14 +399,16 @@ namespace BattleV2.Execution.TimedHits
             int hitsSucceeded = Mathf.Max(0, perfectCount + goodCount);
             int refund = Mathf.Clamp(hitsSucceeded, 0, tier.RefundMax);
             float multiplier = CalculateCombinedMultiplier(tier, perfectCount, goodCount);
+            int finalPhase = Mathf.Max(1, finalPhaseIndex);
+            int displayTotal = Mathf.Max(1, totalPhases);
 
             return new TimedHitResult(
                 TimedHitResult.InferJudgment(hitsSucceeded, totalHits),
                 hitsSucceeded,
                 totalHits,
                 multiplier,
-                Math.Max(0, finalPhaseIndex),
-                Math.Max(1, totalPhases),
+                finalPhase,
+                displayTotal,
                 true,
                 refund,
                 cancelled: false,
@@ -409,7 +430,7 @@ namespace BattleV2.Execution.TimedHits
             return judgment switch
             {
                 TimedHitJudgment.Perfect => 1f,
-                TimedHitJudgment.Good => 0.65f,
+                TimedHitJudgment.Good => 0.75f,
                 _ => 0f
             };
         }
@@ -432,6 +453,31 @@ namespace BattleV2.Execution.TimedHits
             float totalContribution = perfectCount * perfectMultiplier + goodCount * successMultiplier;
             float averageContribution = totalContribution / successCount;
             return averageContribution * tierMultiplier;
+        }
+
+        private void PublishPhaseEvent(
+            CombatantState actor,
+            TimedHitJudgment judgment,
+            float accuracy,
+            int phaseIndex,
+            int totalPhases,
+            bool chainCancelled,
+            bool isFinal)
+        {
+            var bus = installer?.EventBus;
+            if (bus == null || actor == null)
+            {
+                return;
+            }
+
+            bus.Publish(new TimedHitPhaseEvent(
+                actor,
+                judgment,
+                accuracy,
+                Mathf.Max(1, phaseIndex),
+                Mathf.Max(1, totalPhases),
+                chainCancelled,
+                isFinal));
         }
     }
 }

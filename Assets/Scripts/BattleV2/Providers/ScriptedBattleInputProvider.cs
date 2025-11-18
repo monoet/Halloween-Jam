@@ -33,8 +33,8 @@ namespace BattleV2.Providers
             {
                 BattleLogger.Warn("ScriptedProvider", "Playlist empty; falling back to first available action.");
                 var fallback = context.AvailableActions[0];
-                ResolveProfiles(context, fallback, out var chargeProfile, out var timedProfile, out var basicProfile, out var runnerKind);
-                onSelected?.Invoke(new BattleSelection(fallback, 0, chargeProfile, timedProfile, basicTimedHitProfile: basicProfile, runnerKind: runnerKind));
+                ResolveProfiles(context, fallback, out var chargeProfile, out var timedProfile, out var basicFallbackProfile, out var fallbackRunnerKind);
+                onSelected?.Invoke(new BattleSelection(fallback, 0, chargeProfile, timedProfile, basicTimedHitProfile: basicFallbackProfile, runnerKind: fallbackRunnerKind));
                 return;
             }
 
@@ -45,10 +45,10 @@ namespace BattleV2.Providers
                 action = context.AvailableActions[0];
             }
 
-            ResolveProfiles(context, action, out var selectedChargeProfile, out var selectedTimedProfile, out var basicProfile, out var runnerKind);
+            ResolveProfiles(context, action, out var selectedChargeProfile, out var selectedTimedProfile, out var basicSelectedProfile, out var selectedRunnerKind);
 
             BattleLogger.Log("ScriptedProvider", $"Auto-selecting {action.id} (step {cursor}).");
-            onSelected?.Invoke(new BattleSelection(action, 0, selectedChargeProfile, selectedTimedProfile, basicTimedHitProfile: basicProfile, runnerKind: runnerKind));
+            onSelected?.Invoke(new BattleSelection(action, 0, selectedChargeProfile, selectedTimedProfile, basicTimedHitProfile: basicSelectedProfile, runnerKind: selectedRunnerKind));
         }
 
         private BattleActionData GetNextAction(IReadOnlyList<BattleActionData> available)

@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using BattleV2.AnimationSystem;
+using BattleV2.AnimationSystem.Runtime;
 using BattleV2.Charge;
 using UnityEngine;
 
@@ -149,12 +150,19 @@ namespace BattleV2.Execution.TimedHits
                 multiplier,
                 accuracy,
                 activeRequest.Attacker));
-            PublishEvent(judgment, elapsedMs, consumedInput, resolutionTimestamp);
+            PublishPhaseEvent(judgment, accuracy, phaseIndex, isFinal: true, cancelled: false, totalPhases: 1);
+            PublishResultEvent(judgment, elapsedMs, consumedInput, resolutionTimestamp, phaseIndex, totalPhases: 1);
 
             Complete(result);
         }
 
-        private void PublishEvent(TimedHitJudgment judgment, double deltaMs, bool consumedInput, double resolutionTimestamp)
+        private void PublishResultEvent(
+            TimedHitJudgment judgment,
+            double deltaMs,
+            bool consumedInput,
+            double resolutionTimestamp,
+            int phaseIndex,
+            int totalPhases)
         {
             var bus = installer?.EventBus;
             if (bus == null || activeRequest.Attacker == null)
@@ -170,8 +178,8 @@ namespace BattleV2.Execution.TimedHits
                 judgment,
                 deltaMs,
                 inputTimestamp,
-                windowIndex: 0,
-                windowCount: 1,
+                windowIndex: Mathf.Max(1, phaseIndex),
+                windowCount: Mathf.Max(1, totalPhases),
                 consumedInput,
                 openedAt,
                 resolutionTimestamp);
@@ -182,6 +190,30 @@ namespace BattleV2.Execution.TimedHits
             {
                 Debug.Log($"[BasicTimedHitRunner] Event -> {judgment} (Δ={deltaMs:0.#}ms).", this);
             }
+        }
+
+        private void PublishPhaseEvent(
+            TimedHitJudgment judgment,
+            float accuracy,
+            int phaseIndex,
+            bool isFinal,
+            bool cancelled,
+            int totalPhases)
+        {
+            var bus = installer?.EventBus;
+            if (bus == null || activeRequest.Attacker == null)
+            {
+                return;
+            }
+
+            bus.Publish(new TimedHitPhaseEvent(
+                activeRequest.Attacker,
+                judgment,
+                accuracy,
+                Mathf.Max(1, phaseIndex),
+                Mathf.Max(1, totalPhases),
+                cancelled,
+                isFinal));
         }
 
         private void AbortSequence(bool cancelled)
@@ -201,13 +233,15 @@ namespace BattleV2.Execution.TimedHits
                     0,
                     1,
                     activeProfile != null ? activeProfile.MissMultiplier : 0f,
-                    0,
+                    1,
                     1,
                     isFinal: true,
                     cpRefund: 0,
                     cancelled: cancelled,
                     successStreak: 0);
 
+                PublishPhaseEvent(TimedHitJudgment.Miss, 0f, phaseIndex: 1, isFinal: true, cancelled: cancelled, totalPhases: 1);
+                PublishResultEvent(TimedHitJudgment.Miss, deltaMs: activeProfile != null ? activeProfile.WindowTimeoutMs : 0d, consumedInput: false, resolutionTimestamp: Time.timeAsDouble, phaseIndex: 1, totalPhases: 1);
                 pendingRun.TrySetResult(fallback);
                 OnSequenceCompleted?.Invoke(fallback);
             }
