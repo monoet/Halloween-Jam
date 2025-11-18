@@ -81,6 +81,52 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
             }
         }
 
+        /// <summary>
+        /// Emits a combat flag from external callers (non-scheduler) using a minimal context
+        /// built from the provided actor and optional single target.
+        /// </summary>
+        public void EmitExternalFlag(string flagId, CombatantState actor, CombatantState target = null)
+        {
+            if (string.IsNullOrWhiteSpace(flagId) || actor == null || Volatile.Read(ref listenerCount) == 0)
+            {
+                return;
+            }
+
+            var root = actor.transform;
+            var actorView = new CombatEventContext.ActorView(
+                actor.GetInstanceID(),
+                ResolveAlignment(actor, assumeAlly: true),
+                actor,
+                root,
+                root);
+
+            var actionView = new CombatEventContext.ActionView(
+                actionId: "timed_hit",
+                family: "timed_hit",
+                weaponKind: "none",
+                element: "neutral",
+                recipeId: null,
+                staggerStepSeconds: 0f);
+
+            var refs = new List<CombatEventContext.CombatantRef>(target != null ? 1 : 0);
+            if (target != null)
+            {
+                refs.Add(new CombatEventContext.CombatantRef(
+                    target.GetInstanceID(),
+                    ResolveAlignment(target, assumeAlly: false),
+                    target,
+                    target.transform,
+                    null));
+            }
+
+            var ctx = CombatEventContext.Acquire();
+            ctx.Populate(actorView, actionView, refs, perTarget: false, tags: Array.Empty<string>());
+
+            var list = new List<CombatEventContext>(1) { ctx };
+            Debug.Log($"CED01 [CombatEventDispatcher] EmitExternalFlag flag='{flagId}' actor={actor.name} targets={refs.Count}", actor);
+            Dispatch(flagId, list);
+        }
+
         public void OnRecipeStarted(ActionRecipe recipe, StepSchedulerContext context)
         {
         }

@@ -63,6 +63,12 @@ namespace BattleV2.Audio
             if (database == null || string.IsNullOrWhiteSpace(flagId))
                 return;
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            var map = database.SfxByFlagId;
+            bool hasSfx = map != null && map.ContainsKey(flagId);
+            Debug.Log($"[BattleAudio] Received flag='{flagId}' (hasSfx={hasSfx})", this);
+#endif
+
             var audioCtx = ConvertContext(context);
 
             if (!database.TryGetSfx(flagId, out var entry))

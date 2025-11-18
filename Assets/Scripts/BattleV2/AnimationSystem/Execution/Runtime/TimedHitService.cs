@@ -2,6 +2,9 @@ using System;
 using System.Collections.Generic;
 using BattleV2.AnimationSystem;
 using BattleV2.AnimationSystem.Execution.Routers;
+using BattleV2.AnimationSystem.Execution.Runtime.CombatEvents;
+using BattleV2.AnimationSystem.Runtime;
+using UnityEngine;
 
 namespace BattleV2.AnimationSystem.Execution.Runtime
 {
@@ -87,6 +90,9 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
             {
                 return;
             }
+
+            var actorName = evt.Actor != null ? evt.Actor.name : "(null)";
+            Debug.Log($"THS00 [TimedHitService] window {(evt.IsOpening ? "open" : "close")} actor={actorName} tag={evt.Tag} idx={evt.WindowIndex}/{evt.WindowCount}", evt.Actor);
 
             clock.Sample();
             double timestamp = clock.Now;
@@ -194,7 +200,13 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
                 consumedInput,
                 windowOpenedAt,
                 windowClosedAt);
+
+            var actorName = actor != null ? actor.name : "(null)";
+            Debug.Log($"THS01 [TimedHitService] actor={actorName} tag={tag} judgment={judgment} delta={deltaMs:0.#}ms win={windowIndex}/{windowCount}", actor);
+
             eventBus.Publish(evt);
+
+            EmitCombatFlag(actor, judgment);
         }
 
         private void PublishMiss(
@@ -219,6 +231,32 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
                 windowClosedAt,
                 TimedHitJudgment.Miss,
                 consumedInput);
+        }
+
+        private static void EmitCombatFlag(CombatantState actor, TimedHitJudgment judgment)
+        {
+            if (actor == null)
+            {
+                return;
+            }
+
+            var installer = AnimationSystemInstaller.Current;
+            var dispatcher = installer?.CombatEvents;
+            if (dispatcher == null)
+            {
+                return;
+            }
+
+            string flag = judgment switch
+            {
+                TimedHitJudgment.Perfect => CombatEventFlags.Success,
+                TimedHitJudgment.Good => CombatEventFlags.Impact,
+                _ => CombatEventFlags.Missed
+            };
+
+            var actorName = actor != null ? actor.name : "(null)";
+            Debug.Log($"THS02 [TimedHitService] emit flag='{flag}' actor={actorName}", actor);
+            dispatcher.EmitExternalFlag(flag, actor);
         }
 
         private static TimedHitJudgment Classify(double deltaMs, TimedHitTolerance tolerance)

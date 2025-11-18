@@ -15,6 +15,15 @@ Track the implementation of the combat audio MVP and the groundwork for future e
 - [x] Validation: editor warnings for missing SfxEntry per flag (once) and missing ActorMotionAnchor.
 - [x] Asset: create `BattleAudioDatabase.asset` with MVP entries: windup, impact, runback, mark/apply, mark/detonate, ui/turn_change, music snapshots.
 
+### FMOD Integration (MVP)
+- Imported FMOD Unity Integration package
+- Created FMOD Studio project with combat + UI event hierarchy
+- Added global FMOD parameters: weapon, element, crit, targets
+- Created basic mixer snapshots: exploration, combat
+- Built banks and linked FMOD Settings to Unity
+- Connected event paths into BattleAudioDatabase.asset
+- Verified logs: FMOD present and dispatching flags correctly
+
 ## Mapping (documented once)
 - Weapon param: 0=None, 1=Sword, 2=HeavySword, 3=Dagger, 4=Staff, 5=Mace, 6=Fist, 7=Bow, 8=Gun, 9=Thrown.
 - Element param: 0=None, 1=Moon, 2=Sun, 3=Mind, 4=Form, 5=Chaos, 6=Forge, 7=Axis.

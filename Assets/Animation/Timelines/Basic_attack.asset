@@ -42,15 +42,3 @@ MonoBehaviour:
       parameters:
       - key: duration
         value: 0.2
-  - groupId: basic_attack_end
-    executionMode: 0
-    joinPolicy: 0
-    timeoutSeconds: 0
-    steps:
-    - stepId: end_wait
-      executorId: wait_seconds
-      bindingId: 
-      conflictPolicy: 0
-      overrideConflictPolicy: 0
-      delaySeconds: 2
-      parameters: []

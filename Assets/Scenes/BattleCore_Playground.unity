@@ -1208,6 +1208,7 @@ GameObject:
   - component: {fileID: 497996905}
   - component: {fileID: 497996904}
   - component: {fileID: 497996903}
+  - component: {fileID: 497996906}
   m_Layer: 5
   m_Name: Text (TMP)
   m_TagString: Untagged
@@ -1353,6 +1354,19 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 497996901}
   m_CullTransparentMesh: 1
+--- !u!114 &497996906
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 497996901}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 31f233938647e3a45ad02d604c4c1f28, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BattleV2.Audio.TimedHitAudioBridge
+  installer: {fileID: 1144566323}
 --- !u!1 &507446357
 GameObject:
   m_ObjectHideFlags: 0
@@ -1493,6 +1507,7 @@ GameObject:
   - component: {fileID: 519420032}
   - component: {fileID: 519420031}
   - component: {fileID: 519420029}
+  - component: {fileID: 519420033}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -1574,6 +1589,20 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &519420033
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 519420028}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 86c6556701af9e04380698b89f691b6e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: FMODUnity::FMODUnity.StudioListener
+  nonRigidbodyVelocity: 0
+  attenuationObject: {fileID: 0}
 --- !u!1 &566380323
 GameObject:
   m_ObjectHideFlags: 0
@@ -3330,7 +3359,7 @@ MonoBehaviour:
     Sockets: []
   clipBindings: []
   vfxServiceSource: {fileID: 11400000, guid: 20090a1018d7c7c428861b7cd92e7169, type: 2}
-  sfxServiceSource: {fileID: 11400000, guid: 20090a1018d7c7c428861b7cd92e7169, type: 2}
+  sfxServiceSource: {fileID: 11400000, guid: 32c50e875b1c00441afc8aa91cfb8647, type: 2}
   cameraServiceSource: {fileID: 11400000, guid: 498d77ca35e7bf24a9f774d2626c4f73, type: 2}
   uiServiceSource: {fileID: 11400000, guid: 3a5f9f304036093478571e1b26f49f51, type: 2}
   pacingSettings: {fileID: 11400000, guid: 7b10e08c4f0564048b855efb36e4bc62, type: 2}

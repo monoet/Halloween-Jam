@@ -9,6 +9,7 @@ namespace BattleV2.Audio
         public const string AttackWindup = "attack/windup";
         public const string AttackImpact = "attack/impact";
         public const string AttackRunback = "attack/runback";
+        public const string TimedHitSuccess = "attack/timed_success";
         public const string MarkApply = "mark/apply";
         public const string MarkDetonate = "mark/detonate";
         public const string UiTurnChange = "ui/turn_change";
