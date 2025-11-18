@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using BattleV2.AnimationSystem;
 using BattleV2.Charge;
@@ -9,13 +10,12 @@ using UnityEngine;
 namespace BattleV2.Execution.TimedHits
 {
     /// <summary>
-    /// Experimental runner that emits per-phase outcomes for KS1 chains.
+    /// Experimental KS1 runner that consumes TimedHitResultEvent from the service and emits Ks1PhaseOutcome.
     /// </summary>
     public sealed class Ks1MultiWindowTimedHitRunner : MonoBehaviour, ITimedHitRunner
     {
         [SerializeField] private BattleManagerV2 manager;
-        [SerializeField] private KeyCode inputKey = KeyCode.Space;
-        [SerializeField, Min(0f)] private float autoMissGrace = 0.05f;
+        [SerializeField] private AnimationSystemInstaller installer;
         [SerializeField] private bool enableExperimentalRunner = false;
 
         public event Action OnSequenceStarted;
@@ -24,8 +24,11 @@ namespace BattleV2.Execution.TimedHits
         public event Action<TimedHitResult> OnSequenceCompleted;
         public event Action<Ks1PhaseOutcome> PhaseResolved;
 
-        private Coroutine runRoutine;
+        private readonly Queue<TimedHitResultEvent> pendingEvents = new();
+        private readonly object eventGate = new();
+
         private TaskCompletionSource<TimedHitResult> pendingRun;
+        private IDisposable eventSubscription;
         private TimedHitRequest currentRequest;
         private bool sequenceActive;
 
@@ -50,6 +53,9 @@ namespace BattleV2.Execution.TimedHits
             {
                 AbortSequence(cancelled: true);
             }
+
+            UnsubscribeFromTimedHitEvents();
+            ClearQueue();
 
             if (manager != null && ReferenceEquals(manager.TimedHitRunner, this))
             {
@@ -96,21 +102,30 @@ namespace BattleV2.Execution.TimedHits
                 throw new InvalidOperationException("Timed hit runner is already executing a sequence.");
             }
 
-            currentRequest = request;
-            pendingRun = new TaskCompletionSource<TimedHitResult>(TaskCreationOptions.RunContinuationsAsynchronously);
-
             if (request.Profile == null)
             {
-                var empty = new TimedHitResult(0, 0, 0, 1f, cancelled: false, successStreak: 0);
+                var fallback = new TimedHitResult(0, 0, 0, 1f, cancelled: false, successStreak: 0);
                 OnSequenceStarted?.Invoke();
-                OnSequenceCompleted?.Invoke(empty);
-                pendingRun.SetResult(empty);
-                return pendingRun.Task;
+                OnSequenceCompleted?.Invoke(fallback);
+                return Task.FromResult(fallback);
             }
 
+            installer ??= AnimationSystemInstaller.Current;
+            if (installer?.EventBus == null)
+            {
+                Debug.LogWarning("[Ks1MultiWindowTimedHitRunner] EventBus not available, falling back to instant runner.", this);
+                return InstantTimedHitRunner.Shared.RunAsync(request);
+            }
+
+            SubscribeToTimedHitEvents();
+
+            currentRequest = request;
+            pendingRun = new TaskCompletionSource<TimedHitResult>(TaskCreationOptions.RunContinuationsAsynchronously);
             runRoutine = StartCoroutine(RunSequence());
             return pendingRun.Task;
         }
+
+        private Coroutine runRoutine;
 
         private IEnumerator RunSequence()
         {
@@ -118,19 +133,17 @@ namespace BattleV2.Execution.TimedHits
 
             var request = currentRequest;
             var token = request.CancellationToken;
-            var profile = request.Profile;
-            var tier = profile.GetTierForCharge(request.CpCharge);
-
-            int totalPhases = Mathf.Max(1, tier.Hits);
-            float basePhaseDuration = tier.TimelineDuration > 0f ? tier.TimelineDuration : 1f;
-            float resultHold = Mathf.Max(0f, tier.ResultHoldDuration);
-
-            OnSequenceStarted?.Invoke();
-
+            var tier = request.Profile.GetTierForCharge(request.CpCharge);
+            int expectedPhases = Mathf.Max(1, tier.Hits);
+            int processedPhases = 0;
             int perfectCount = 0;
             int goodCount = 0;
+            bool chainCancelled = false;
 
-            for (int phaseIndex = 1; phaseIndex <= totalPhases; phaseIndex++)
+            ClearQueue();
+            OnSequenceStarted?.Invoke();
+
+            while (!chainCancelled && processedPhases < expectedPhases)
             {
                 if (token.IsCancellationRequested)
                 {
@@ -138,54 +151,31 @@ namespace BattleV2.Execution.TimedHits
                     yield break;
                 }
 
-                var window = ResolveWindows(tier);
-                OnPhaseStarted?.Invoke(new TimedHitPhaseInfo(
-                    phaseIndex,
-                    totalPhases,
-                    window.SuccessWindowStart,
-                    window.SuccessWindowEnd));
-
-                float normalizedTime = 1f;
-                bool autoMiss = false;
-
-                if (!autoMiss)
+                if (!TryDequeueEvent(request.Attacker, out var evt))
                 {
-                    float startTime = Time.time;
-                    while (true)
-                    {
-                        if (token.IsCancellationRequested)
-                        {
-                            AbortSequence(cancelled: true);
-                            yield break;
-                        }
-
-                        float elapsed = basePhaseDuration > 0f
-                            ? (Time.time - startTime) / basePhaseDuration
-                            : float.PositiveInfinity;
-
-                        normalizedTime = Mathf.Clamp01(elapsed);
-
-                        if (Input.GetKeyDown(inputKey))
-                        {
-                            autoMiss = false;
-                            break;
-                        }
-
-                        if (elapsed >= 1f + autoMissGrace)
-                        {
-                            autoMiss = true;
-                            break;
-                        }
-
-                        yield return null;
-                    }
+                    yield return null;
+                    continue;
                 }
 
-                var outcome = EvaluateOutcome(tier, window, normalizedTime, autoMiss);
-                bool success = outcome.Kind != PhaseOutcomeKind.Miss;
+                processedPhases++;
+
+                if (evt.WindowCount > 0)
+                {
+                    expectedPhases = Mathf.Max(expectedPhases, evt.WindowCount);
+                }
+
+                OnPhaseStarted?.Invoke(new TimedHitPhaseInfo(
+                    evt.WindowIndex > 0 ? evt.WindowIndex : processedPhases,
+                    evt.WindowCount > 0 ? evt.WindowCount : expectedPhases,
+                    0f,
+                    1f));
+
+                TimedHitJudgment judgment = evt.Judgment;
+                bool success = judgment != TimedHitJudgment.Miss;
+
                 if (success)
                 {
-                    if (outcome.Kind == PhaseOutcomeKind.Perfect)
+                    if (judgment == TimedHitJudgment.Perfect)
                     {
                         perfectCount++;
                     }
@@ -194,44 +184,29 @@ namespace BattleV2.Execution.TimedHits
                         goodCount++;
                     }
                 }
+                else
+                {
+                    chainCancelled = true;
+                }
 
+                float phaseMultiplier = ResolvePhaseMultiplier(tier, judgment);
                 var phaseResult = new TimedHitPhaseResult(
-                    phaseIndex,
+                    processedPhases,
                     success,
-                    outcome.Multiplier,
-                    outcome.AccuracyNormalized);
+                    phaseMultiplier,
+                    ResolveAccuracy(judgment));
                 OnPhaseResolved?.Invoke(phaseResult);
 
-                bool isLastPhase = phaseIndex == totalPhases;
-                bool chainCancelled = !success;
-                bool chainCompleted = success && isLastPhase;
-
                 EmitPhaseOutcome(
-                    phaseIndex - 1,
-                    totalPhases,
-                    success
-                        ? (outcome.Kind == PhaseOutcomeKind.Perfect ? TimedHitJudgment.Perfect : TimedHitJudgment.Good)
-                        : TimedHitJudgment.Miss,
+                    phaseIndex: processedPhases - 1,
+                    totalPhases: expectedPhases,
+                    judgment,
                     chainCancelled,
-                    chainCompleted,
-                    success ? 1 : 0,
-                    totalPhases,
-                    outcome.Multiplier,
-                    chainCancelled || chainCompleted);
-
-                if (resultHold > 0f)
-                {
-                    float holdTarget = Time.time + resultHold;
-                    while (Time.time < holdTarget)
-                    {
-                        if (token.IsCancellationRequested)
-                        {
-                            AbortSequence(cancelled: true);
-                            yield break;
-                        }
-                        yield return null;
-                    }
-                }
+                    chainCompleted: success && processedPhases >= expectedPhases,
+                    phaseHitsSucceeded: success ? 1 : 0,
+                    overallTotalHits: expectedPhases,
+                    phaseMultiplier,
+                    isFinal: false);
 
                 if (chainCancelled)
                 {
@@ -239,8 +214,8 @@ namespace BattleV2.Execution.TimedHits
                 }
             }
 
-            int missCount = Mathf.Max(0, totalPhases - (perfectCount + goodCount));
-            var finalResult = BuildResult(tier, perfectCount, goodCount, missCount, totalPhases - 1);
+            int missCount = Mathf.Max(0, expectedPhases - (perfectCount + goodCount));
+            var finalResult = BuildResult(tier, perfectCount, goodCount, missCount, processedPhases - 1, expectedPhases);
             CompleteSequence(finalResult);
         }
 
@@ -253,6 +228,9 @@ namespace BattleV2.Execution.TimedHits
                 StopCoroutine(runRoutine);
                 runRoutine = null;
             }
+
+            UnsubscribeFromTimedHitEvents();
+            ClearQueue();
 
             OnSequenceCompleted?.Invoke(result);
             pendingRun?.TrySetResult(result);
@@ -268,11 +246,92 @@ namespace BattleV2.Execution.TimedHits
                 runRoutine = null;
             }
 
-            var fallback = new TimedHitResult(0, 0, 0, 0f, cancelled: cancelled, successStreak: 0);
+            UnsubscribeFromTimedHitEvents();
+            ClearQueue();
+
+            var fallback = new TimedHitResult(
+                TimedHitJudgment.Miss,
+                0,
+                0,
+                0f,
+                phaseIndex: 0,
+                totalPhases: 1,
+                isFinal: true,
+                cancelled: cancelled,
+                successStreak: 0);
+
             pendingRun?.TrySetResult(fallback);
             pendingRun = null;
             currentRequest = default;
             sequenceActive = false;
+        }
+
+        private void SubscribeToTimedHitEvents()
+        {
+            if (eventSubscription != null)
+            {
+                return;
+            }
+
+            var bus = installer?.EventBus;
+            if (bus == null)
+            {
+                return;
+            }
+
+            eventSubscription = bus.Subscribe<TimedHitResultEvent>(OnTimedHitResultEvent);
+        }
+
+        private void UnsubscribeFromTimedHitEvents()
+        {
+            eventSubscription?.Dispose();
+            eventSubscription = null;
+        }
+
+        private void OnTimedHitResultEvent(TimedHitResultEvent evt)
+        {
+            if (!sequenceActive)
+            {
+                return;
+            }
+
+            var request = currentRequest;
+            if (request.Attacker == null || evt.Actor != request.Attacker)
+            {
+                return;
+            }
+
+            lock (eventGate)
+            {
+                pendingEvents.Enqueue(evt);
+            }
+        }
+
+        private bool TryDequeueEvent(CombatantState actor, out TimedHitResultEvent evt)
+        {
+            lock (eventGate)
+            {
+                while (pendingEvents.Count > 0)
+                {
+                    var candidate = pendingEvents.Dequeue();
+                    if (candidate.Actor == actor)
+                    {
+                        evt = candidate;
+                        return true;
+                    }
+                }
+            }
+
+            evt = default;
+            return false;
+        }
+
+        private void ClearQueue()
+        {
+            lock (eventGate)
+            {
+                pendingEvents.Clear();
+            }
         }
 
         private void EmitPhaseOutcome(
@@ -286,7 +345,7 @@ namespace BattleV2.Execution.TimedHits
             float phaseMultiplier,
             bool isFinal)
         {
-            var result = new TimedHitResult(
+            var phaseResult = new TimedHitResult(
                 judgment,
                 phaseHitsSucceeded,
                 overallTotalHits,
@@ -301,7 +360,7 @@ namespace BattleV2.Execution.TimedHits
                 judgment,
                 chainCancelled,
                 chainCompleted,
-                result));
+                phaseResult));
         }
 
         private static TimedHitResult BuildResult(
@@ -309,7 +368,8 @@ namespace BattleV2.Execution.TimedHits
             int perfectCount,
             int goodCount,
             int missCount,
-            int finalPhaseIndex)
+            int finalPhaseIndex,
+            int totalPhases)
         {
             int totalHits = Mathf.Max(0, perfectCount + goodCount + missCount);
             int hitsSucceeded = Mathf.Max(0, perfectCount + goodCount);
@@ -321,12 +381,32 @@ namespace BattleV2.Execution.TimedHits
                 hitsSucceeded,
                 totalHits,
                 multiplier,
-                finalPhaseIndex,
-                totalHits <= 0 ? 1 : totalHits,
+                Math.Max(0, finalPhaseIndex),
+                Math.Max(1, totalPhases),
                 true,
                 refund,
                 cancelled: false,
                 successStreak: hitsSucceeded);
+        }
+
+        private static float ResolvePhaseMultiplier(Ks1TimedHitProfile.Tier tier, TimedHitJudgment judgment)
+        {
+            return judgment switch
+            {
+                TimedHitJudgment.Perfect => tier.PerfectHitMultiplier > 0f ? tier.PerfectHitMultiplier : 1.5f,
+                TimedHitJudgment.Good => tier.SuccessHitMultiplier > 0f ? tier.SuccessHitMultiplier : 1f,
+                _ => tier.MissHitMultiplier > 0f ? tier.MissHitMultiplier : 0f
+            };
+        }
+
+        private static float ResolveAccuracy(TimedHitJudgment judgment)
+        {
+            return judgment switch
+            {
+                TimedHitJudgment.Perfect => 1f,
+                TimedHitJudgment.Good => 0.65f,
+                _ => 0f
+            };
         }
 
         private static float CalculateCombinedMultiplier(
@@ -347,101 +427,6 @@ namespace BattleV2.Execution.TimedHits
             float totalContribution = perfectCount * perfectMultiplier + goodCount * successMultiplier;
             float averageContribution = totalContribution / successCount;
             return averageContribution * tierMultiplier;
-        }
-
-        private static PhaseOutcome EvaluateOutcome(
-            Ks1TimedHitProfile.Tier tier,
-            PhaseWindows window,
-            float normalizedTime,
-            bool autoMiss)
-        {
-            if (autoMiss)
-            {
-                float missMultiplier = tier.MissHitMultiplier > 0f ? tier.MissHitMultiplier : 0f;
-                return PhaseOutcome.Miss(missMultiplier);
-            }
-
-            float delta = Mathf.Abs(normalizedTime - window.PerfectCenter);
-            float accuracy = window.SuccessRadius > 0f
-                ? Mathf.Clamp01(1f - (delta / window.SuccessRadius))
-                : 1f;
-
-            if (delta <= window.PerfectRadius)
-            {
-                float perfectMultiplier = tier.PerfectHitMultiplier > 0f ? tier.PerfectHitMultiplier : 1.5f;
-                return PhaseOutcome.Perfect(perfectMultiplier, accuracy);
-            }
-
-            if (delta <= window.SuccessRadius)
-            {
-                float successMultiplier = tier.SuccessHitMultiplier > 0f ? tier.SuccessHitMultiplier : 1f;
-                return PhaseOutcome.Good(successMultiplier, accuracy);
-            }
-
-            float missMult = tier.MissHitMultiplier > 0f ? tier.MissHitMultiplier : 0f;
-            return PhaseOutcome.Miss(missMult);
-        }
-
-        private static PhaseWindows ResolveWindows(Ks1TimedHitProfile.Tier tier)
-        {
-            float perfectCenter = (tier.PerfectWindowCenter <= 0f && tier.PerfectWindowRadius <= 0f)
-                ? 0.5f
-                : Mathf.Clamp01(tier.PerfectWindowCenter);
-            float perfectRadius = Mathf.Max(0f, tier.PerfectWindowRadius);
-            float successRadius = Mathf.Max(perfectRadius, tier.SuccessWindowRadius);
-
-            float successStart = Mathf.Clamp01(perfectCenter - successRadius);
-            float successEnd = Mathf.Clamp01(perfectCenter + successRadius);
-
-            return new PhaseWindows(perfectCenter, perfectRadius, successRadius, successStart, successEnd);
-        }
-
-        private readonly struct PhaseWindows
-        {
-            public PhaseWindows(float perfectCenter, float perfectRadius, float successRadius, float successWindowStart, float successWindowEnd)
-            {
-                PerfectCenter = perfectCenter;
-                PerfectRadius = perfectRadius;
-                SuccessRadius = successRadius;
-                SuccessWindowStart = successWindowStart;
-                SuccessWindowEnd = successWindowEnd;
-            }
-
-            public float PerfectCenter { get; }
-            public float PerfectRadius { get; }
-            public float SuccessRadius { get; }
-            public float SuccessWindowStart { get; }
-            public float SuccessWindowEnd { get; }
-        }
-
-        private readonly struct PhaseOutcome
-        {
-            private PhaseOutcome(PhaseOutcomeKind kind, float multiplier, float accuracyNormalized)
-            {
-                Kind = kind;
-                Multiplier = multiplier;
-                AccuracyNormalized = Mathf.Clamp01(accuracyNormalized);
-            }
-
-            public PhaseOutcomeKind Kind { get; }
-            public float Multiplier { get; }
-            public float AccuracyNormalized { get; }
-
-            public static PhaseOutcome Perfect(float multiplier, float accuracyNormalized) =>
-                new PhaseOutcome(PhaseOutcomeKind.Perfect, multiplier, accuracyNormalized);
-
-            public static PhaseOutcome Good(float multiplier, float accuracyNormalized) =>
-                new PhaseOutcome(PhaseOutcomeKind.Good, multiplier, accuracyNormalized);
-
-            public static PhaseOutcome Miss(float multiplier) =>
-                new PhaseOutcome(PhaseOutcomeKind.Miss, multiplier, 0f);
-        }
-
-        private enum PhaseOutcomeKind
-        {
-            Perfect,
-            Good,
-            Miss
         }
     }
 }
