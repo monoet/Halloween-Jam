@@ -1,13 +1,14 @@
 using System;
 using BattleV2.Charge;
 using BattleV2.Core;
+using BattleV2.Execution.TimedHits;
 using HalloweenJam.Combat;
 using UnityEngine;
 
 namespace BattleV2.Actions
 {
     [CreateAssetMenu(menuName = "Battle/Actions/Simple Attack")]
-    public class SimpleAttackAction : ScriptableObject, IAction, IActionProvider
+    public class SimpleAttackAction : ScriptableObject, IAction, IActionProvider, IBasicTimedHitAction
     {
         [SerializeField] private string actionId = "simple_attack";
         [SerializeField] private int costSp;
@@ -17,11 +18,13 @@ namespace BattleV2.Actions
         [SerializeField] private int minimumDamage = 1;
         [SerializeField] private int cpGain = 1;
         [SerializeField] private ChargeProfile chargeProfile;
+        [SerializeField] private BasicTimedHitProfile basicTimedHitProfile;
 
         public string Id => actionId;
         public int CostSP => costSp;
         public int CostCP => costCp;
         public ChargeProfile ChargeProfile => chargeProfile;
+        public BasicTimedHitProfile BasicTimedHitProfile => basicTimedHitProfile;
 
         public IAction Get() => this;
 
@@ -76,10 +79,17 @@ namespace BattleV2.Actions
             float cpMultiplier = ComboPointScaling.GetDamageMultiplier(cpCharge);
 
             int totalDamage = Mathf.Max(minimumDamage, Mathf.RoundToInt(scaledDamage * cpMultiplier));
+            float timedMultiplier = 1f;
+            if (timedResult.HasValue)
+            {
+                timedMultiplier = Mathf.Max(0f, timedResult.Value.DamageMultiplier);
+            }
+
+            totalDamage = Mathf.Max(minimumDamage, Mathf.RoundToInt(totalDamage * timedMultiplier));
 
             BattleLogger.Log(
                 "Action",
-                $"SimpleAttack dealing {totalDamage} damage (Base {baseDamage}, AP {stats.Physical:F1}, Charge {cpCharge}, Mult {cpMultiplier:F2}).");
+                $"SimpleAttack dealing {totalDamage} damage (Base {baseDamage}, AP {stats.Physical:F1}, Charge {cpCharge}, Mult {cpMultiplier:F2}, TimedMult {timedMultiplier:F2}).");
             context.Enemy.TakeDamage(totalDamage);
 
             if (cpGain > 0 && costCp == 0 && cpCharge == 0)

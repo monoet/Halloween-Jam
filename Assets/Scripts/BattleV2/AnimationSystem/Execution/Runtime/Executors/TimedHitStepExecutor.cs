@@ -28,6 +28,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Executors
             var handle = selection.TimedHitHandle;
             var runner = context.TimedHitRunner ?? InstantTimedHitRunner.Shared;
             var profile = selection.TimedHitProfile;
+            var basicProfile = selection.BasicTimedHitProfile;
 
             if (handle == null)
             {
@@ -35,7 +36,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Executors
                 return;
             }
 
-            if (profile == null)
+            if (profile == null && basicProfile == null)
             {
                 handle.TrySetResult(default);
                 return;
@@ -52,7 +53,9 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Executors
                 profile,
                 selection.CpCharge,
                 mode,
-                context.CancellationToken);
+                context.CancellationToken,
+                basicProfile,
+                selection.RunnerKind);
 
             TimedHitResult result;
             try

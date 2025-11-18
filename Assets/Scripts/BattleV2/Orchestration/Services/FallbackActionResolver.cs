@@ -1,5 +1,6 @@
 using BattleV2.Actions;
 using BattleV2.Core;
+using BattleV2.Execution.TimedHits;
 using BattleV2.Providers;
 using UnityEngine;
 
@@ -43,7 +44,21 @@ namespace BattleV2.Orchestration.Services
                 return false;
             }
 
-            selection = new BattleSelection(fallback, 0, implementation.ChargeProfile, null);
+            BasicTimedHitProfile basicProfile = null;
+            TimedHitRunnerKind runnerKind = TimedHitRunnerKind.Default;
+            if (implementation is IBasicTimedHitAction basicTimedAction && basicTimedAction.BasicTimedHitProfile != null)
+            {
+                basicProfile = basicTimedAction.BasicTimedHitProfile;
+                runnerKind = TimedHitRunnerKind.Basic;
+            }
+
+            selection = new BattleSelection(
+                fallback,
+                0,
+                implementation.ChargeProfile,
+                null,
+                basicTimedHitProfile: basicProfile,
+                runnerKind: runnerKind);
             return true;
         }
     }

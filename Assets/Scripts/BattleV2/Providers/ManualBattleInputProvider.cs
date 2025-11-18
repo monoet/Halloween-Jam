@@ -2,6 +2,7 @@ using System;
 using BattleV2.Actions;
 using BattleV2.Charge;
 using BattleV2.Core;
+using BattleV2.Execution.TimedHits;
 using UnityEngine;
 
 namespace BattleV2.Providers
@@ -23,21 +24,25 @@ namespace BattleV2.Providers
             }
 
             var action = context.AvailableActions[0];
-            ResolveProfiles(context, action, out var chargeProfile, out var timedProfile);
+            ResolveProfiles(context, action, out var chargeProfile, out var timedProfile, out var basicProfile, out var runnerKind);
             BattleLogger.Log("Provider", "Manual provider degrading to auto (UI pending).");
-            onSelected?.Invoke(new BattleSelection(action, 0, chargeProfile, timedProfile));
+            onSelected?.Invoke(new BattleSelection(action, 0, chargeProfile, timedProfile, basicTimedHitProfile: basicProfile, runnerKind: runnerKind));
         }
 
         private void ResolveProfiles(
             BattleActionContext context,
             BattleActionData action,
             out ChargeProfile chargeProfile,
-            out Ks1TimedHitProfile timedProfile)
+            out Ks1TimedHitProfile timedProfile,
+            out BasicTimedHitProfile basicProfile,
+            out TimedHitRunnerKind runnerKind)
         {
             var catalog = context?.Context?.Catalog;
             var impl = catalog != null ? catalog.Resolve(action) : null;
             chargeProfile = defaultChargeProfile;
             timedProfile = null;
+            basicProfile = null;
+            runnerKind = TimedHitRunnerKind.Default;
 
             if (impl != null)
             {
@@ -49,6 +54,12 @@ namespace BattleV2.Providers
                 if (impl is ITimedHitAction timedHitAction)
                 {
                     timedProfile = timedHitAction.TimedHitProfile;
+                }
+
+                if (impl is IBasicTimedHitAction basicTimedAction && basicTimedAction.BasicTimedHitProfile != null)
+                {
+                    basicProfile = basicTimedAction.BasicTimedHitProfile;
+                    runnerKind = TimedHitRunnerKind.Basic;
                 }
             }
 

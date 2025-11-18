@@ -72,6 +72,7 @@ namespace BattleV2.Orchestration
         private CombatContext context;
         private ITimedHitRunner timedHitRunner;
         private TimedHitInputRelay timedHitInputRelay;
+        [SerializeField] private BasicTimedHitRunner basicTimedHitRunner;
 
         private IBattleTurnService turnService;
         private ICombatantActionValidator actionValidator;
@@ -464,6 +465,26 @@ namespace BattleV2.Orchestration
             timedHitRunner = runner;
         }
 
+        public ITimedHitRunner ResolveTimedHitRunner(BattleSelection selection)
+        {
+            if (selection.RunnerKind == TimedHitRunnerKind.Basic)
+            {
+                return ResolveBasicTimedHitRunner() ?? InstantTimedHitRunner.Shared;
+            }
+
+            return TimedHitRunner;
+        }
+
+        public ITimedHitRunner ResolveBasicTimedHitRunner()
+        {
+            if (basicTimedHitRunner != null && basicTimedHitRunner.isActiveAndEnabled)
+            {
+                return basicTimedHitRunner;
+            }
+
+            return null;
+        }
+
         public void SetTargetSelectionInteractor(ITargetSelectionInteractor interactor)
         {
             targetingCoordinator?.SetInteractor(interactor);
@@ -638,7 +659,7 @@ namespace BattleV2.Orchestration
             OnPlayerActionSelected?.Invoke(enrichedSelection, cpBefore);
 
             var playbackTask = animOrchestrator != null
-                ? animOrchestrator.PlayAsync(new ActionPlaybackRequest(currentPlayer, enrichedSelection, targets, CalculateAverageSpeed(), TimedHitRunner, enrichedSelection.AnimationRecipeId))
+                ? animOrchestrator.PlayAsync(new ActionPlaybackRequest(currentPlayer, enrichedSelection, targets, CalculateAverageSpeed(), ResolveTimedHitRunner(enrichedSelection), enrichedSelection.AnimationRecipeId))
                 : Task.CompletedTask;
 
             state?.Set(BattleState.Resolving);

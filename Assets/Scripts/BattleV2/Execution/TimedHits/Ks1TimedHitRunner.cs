@@ -212,7 +212,8 @@ namespace BattleV2.Execution.TimedHits
                     phaseIndex,
                     outcome.Kind != PhaseOutcomeKind.Miss,
                     outcome.Multiplier,
-                    outcome.AccuracyNormalized));
+                    outcome.AccuracyNormalized,
+                    request.Attacker));
                 Debug.Log($"[Ks1TimedHitRunner] Phase {phaseIndex} result: {outcome.Kind} mult={outcome.Multiplier:F2} acc={outcome.AccuracyNormalized:F2}", this);
 
                 if (resultHold > 0f)

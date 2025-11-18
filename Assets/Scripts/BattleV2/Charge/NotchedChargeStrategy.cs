@@ -1,5 +1,6 @@
 using System;
 using BattleV2.Actions;
+using BattleV2.Execution.TimedHits;
 using BattleV2.Providers;
 using UnityEngine;
 
@@ -124,7 +125,13 @@ namespace BattleV2.Charge
                 return;
 
             active = false;
-            onCompleted?.Invoke(new BattleSelection(action, charge, request.ChargeProfile, request.TimedHitProfile));
+            onCompleted?.Invoke(new BattleSelection(
+                action,
+                charge,
+                request.ChargeProfile,
+                request.TimedHitProfile,
+                basicTimedHitProfile: request.BasicTimedHitProfile,
+                runnerKind: request.RunnerKind));
         }
 
         private void Log(string message)

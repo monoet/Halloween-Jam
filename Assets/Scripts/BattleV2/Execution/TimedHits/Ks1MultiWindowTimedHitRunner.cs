@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using BattleV2.AnimationSystem;
+using BattleV2.AnimationSystem.Runtime;
 using BattleV2.Charge;
 using BattleV2.Orchestration;
 using UnityEngine;
@@ -194,7 +195,8 @@ namespace BattleV2.Execution.TimedHits
                     processedPhases,
                     success,
                     phaseMultiplier,
-                    ResolveAccuracy(judgment));
+                    ResolveAccuracy(judgment),
+                    request.Attacker);
                 OnPhaseResolved?.Invoke(phaseResult);
 
                 EmitPhaseOutcome(
@@ -206,7 +208,8 @@ namespace BattleV2.Execution.TimedHits
                     phaseHitsSucceeded: success ? 1 : 0,
                     overallTotalHits: expectedPhases,
                     phaseMultiplier,
-                    isFinal: false);
+                    isFinal: false,
+                    actor: request.Attacker);
 
                 if (chainCancelled)
                 {
@@ -343,7 +346,8 @@ namespace BattleV2.Execution.TimedHits
             int phaseHitsSucceeded,
             int overallTotalHits,
             float phaseMultiplier,
-            bool isFinal)
+            bool isFinal,
+            CombatantState actor)
         {
             var phaseResult = new TimedHitResult(
                 judgment,
@@ -360,7 +364,8 @@ namespace BattleV2.Execution.TimedHits
                 judgment,
                 chainCancelled,
                 chainCompleted,
-                phaseResult));
+                phaseResult,
+                actor));
         }
 
         private static TimedHitResult BuildResult(

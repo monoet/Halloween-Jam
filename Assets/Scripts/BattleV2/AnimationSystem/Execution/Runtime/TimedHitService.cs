@@ -4,6 +4,7 @@ using BattleV2.AnimationSystem;
 using BattleV2.AnimationSystem.Execution.Routers;
 using BattleV2.AnimationSystem.Execution.Runtime.CombatEvents;
 using BattleV2.AnimationSystem.Runtime;
+using BattleV2.Core;
 using UnityEngine;
 
 namespace BattleV2.AnimationSystem.Execution.Runtime

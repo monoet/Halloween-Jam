@@ -11,14 +11,20 @@
 - [x] Step 3: Wire dual mode (legacy vs v2) with configuration flag (enableExperimentalRunner bool)
 
 ## Phase 3 - Integrate PhaseOutcome with HUD/animation (test env)
-- [ ] Step 1: Ks1AnimationBridge listening to PhaseResolved
-- [ ] Step 2: Optional per-phase HUD feedback
-- [ ] Step 3: Audio untouched (confirm)
+- [x] Step 1: Ks1AnimationBridge listening to PhaseResolved (Ks1PhaseAnimationBridge.cs)
+- [x] Step 2: Optional per-phase HUD feedback (TimedHitHudBridge.cs update)
+- [x] Step 3: Audio untouched (confirm)
+- Notes:
+  - Added runner auto-discovery + terminal recipe guard to Ks1PhaseAnimationBridge.
+  - TimedHitHudBridge now clears phase/final labels via sequence events and short terminal hold.
 
 ## Phase 4 - BasicTimedHitRunner (single window opt-in)
-- [ ] Step 1: Introduce BasicTimedHitRunner + profile
+- [x] Step 1: Introduce BasicTimedHitRunner + profile
 - [ ] Step 2: Hook basic_attack via opt-in flag
 - [ ] Step 3: Ensure HUD compatibility
+- Notes:
+  - Added BasicTimedHitProfile + runner kind plumbing through selections/requests.
+  - SimpleAttackAction now opts into Basic runner and scales damage via timed results.
 
 ## Phase 5 - Cleanup and convergence
 - [ ] Step 1: Consolidate on v2 runners (KS1)

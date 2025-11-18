@@ -73,7 +73,20 @@ namespace BattleV2.Execution.TimedHits
             }
 
             var profile = selection.TimedHitProfile ?? timedHitAction?.TimedHitProfile;
-            if (profile == null)
+            var basicProfile = selection.BasicTimedHitProfile;
+            if (basicProfile == null && timedHitAction is IBasicTimedHitAction basicTimedAction)
+            {
+                basicProfile = basicTimedAction.BasicTimedHitProfile;
+            }
+
+            var runnerKind = selection.RunnerKind;
+            if (runnerKind == TimedHitRunnerKind.Basic && basicProfile == null)
+            {
+                BattleLogger.Warn("TimedHitMiddleware", $"Selection for action '{selection.Action?.id}' requested Basic runner without a profile.");
+                runnerKind = TimedHitRunnerKind.Default;
+            }
+
+            if (profile == null && basicProfile == null)
             {
                 if (next != null)
                 {
@@ -83,9 +96,17 @@ namespace BattleV2.Execution.TimedHits
             }
 
             bool isPlayerAction = manager != null && context.Attacker != null && manager.Player == context.Attacker;
-            var runner = isPlayerAction
-                ? manager?.TimedHitRunner ?? InstantTimedHitRunner.Shared
+            bool wantsBasicRunner = runnerKind == TimedHitRunnerKind.Basic;
+            ITimedHitRunner runner = manager != null
+                ? manager.ResolveTimedHitRunner(selection)
                 : InstantTimedHitRunner.Shared;
+
+            if (wantsBasicRunner && manager != null && manager.ResolveBasicTimedHitRunner() == null)
+            {
+                BattleLogger.Warn("TimedHitMiddleware", $"Basic runner requested for '{selection.Action?.id}' but no BasicTimedHitRunner is available. Falling back to default runner.");
+            }
+
+            runner ??= InstantTimedHitRunner.Shared;
 
             var request = new TimedHitRequest(
                 context.Attacker,
@@ -95,7 +116,9 @@ namespace BattleV2.Execution.TimedHits
                 profile,
                 selection.CpCharge,
                 TimedHitRunMode.Execute,
-                context.CancellationToken);
+                context.CancellationToken,
+                basicProfile,
+                runnerKind);
 
             TimedHitResult result;
             try

@@ -166,11 +166,21 @@ namespace BattleV2.Orchestration.Services
                 return;
             }
 
+            BasicTimedHitProfile basicProfile = null;
+            TimedHitRunnerKind runnerKind = TimedHitRunnerKind.Default;
+            if (implementation is IBasicTimedHitAction basicTimedAction && basicTimedAction.BasicTimedHitProfile != null)
+            {
+                basicProfile = basicTimedAction.BasicTimedHitProfile;
+                runnerKind = TimedHitRunnerKind.Basic;
+            }
+
             var selection = new BattleSelection(
                 actionData,
                 0,
                 implementation.ChargeProfile,
-                null);
+                null,
+                basicTimedHitProfile: basicProfile,
+                runnerKind: runnerKind);
 
             await RunEnemyActionAsync(
                 context,
@@ -221,7 +231,7 @@ namespace BattleV2.Orchestration.Services
                 }
 
                 var playbackTask = animOrchestrator != null
-                    ? animOrchestrator.PlayAsync(new ActionPlaybackRequest(attacker, enrichedSelection, resolution.Targets, context.AverageSpeed, context.Manager?.TimedHitRunner, enrichedSelection.AnimationRecipeId))
+                    ? animOrchestrator.PlayAsync(new ActionPlaybackRequest(attacker, enrichedSelection, resolution.Targets, context.AverageSpeed, context.Manager?.ResolveTimedHitRunner(enrichedSelection), enrichedSelection.AnimationRecipeId))
                     : Task.CompletedTask;
 
                 var defeatCandidates = CollectDeathCandidates(resolution.Targets);

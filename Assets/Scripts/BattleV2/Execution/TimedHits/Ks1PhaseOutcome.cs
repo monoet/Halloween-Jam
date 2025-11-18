@@ -1,5 +1,6 @@
 using BattleV2.AnimationSystem;
 using BattleV2.Charge;
+using BattleV2.Core;
 
 namespace BattleV2.Execution.TimedHits
 {
@@ -14,7 +15,8 @@ namespace BattleV2.Execution.TimedHits
             TimedHitJudgment judgment,
             bool chainCancelled,
             bool chainCompleted,
-            TimedHitResult result)
+            TimedHitResult result,
+            CombatantState actor)
         {
             PhaseIndex = phaseIndex;
             TotalPhases = totalPhases;
@@ -22,6 +24,7 @@ namespace BattleV2.Execution.TimedHits
             ChainCancelled = chainCancelled;
             ChainCompleted = chainCompleted;
             Result = result;
+            Actor = actor;
         }
 
         /// <summary>Zero-based index of the phase that just resolved.</summary>
@@ -41,5 +44,8 @@ namespace BattleV2.Execution.TimedHits
 
         /// <summary>Canonical result snapshot for this phase.</summary>
         public TimedHitResult Result { get; }
+
+        /// <summary>Actor that triggered this phase outcome.</summary>
+        public CombatantState Actor { get; }
     }
 }
