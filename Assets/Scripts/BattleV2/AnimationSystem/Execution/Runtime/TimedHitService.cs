@@ -21,6 +21,8 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
         private readonly ITimedInputBuffer inputBuffer;
         private readonly ITimedHitToleranceProfile toleranceProfile;
         private readonly IAnimationEventBus eventBus;
+        private const bool EnableResultDebugLogs = false;
+
         private readonly Dictionary<CombatantState, List<ActiveWindow>> activeWindows = new();
         private readonly List<IDisposable> subscriptions = new();
         private bool disposed;
@@ -201,6 +203,14 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
             eventBus.Publish(evt);
 
             EmitCombatFlag(actor, judgment);
+
+            if (EnableResultDebugLogs)
+            {
+                double displayedDelta = double.IsInfinity(deltaMs) ? double.NaN : deltaMs;
+                BattleLogger.Log(
+                    "TimedHitService",
+                    $"Result -> hits {windowIndex}/{windowCount}, delta={displayedDelta:0.#}ms, judgment={judgment}");
+            }
         }
 
         private void PublishMiss(

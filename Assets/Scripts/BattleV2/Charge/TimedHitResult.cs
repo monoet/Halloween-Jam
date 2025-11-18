@@ -33,6 +33,8 @@ namespace BattleV2.Charge
             TotalDamageApplied = totalDamageApplied;
         }
 
+        // Legacy constructor kept for backwards compatibility (single-phase results).
+        // New code should prefer the constructor that accepts explicit judgment/phase metadata.
         public TimedHitResult(
             int hitsSucceeded,
             int totalHits,

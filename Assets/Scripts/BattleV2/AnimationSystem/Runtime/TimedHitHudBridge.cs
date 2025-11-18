@@ -9,6 +9,8 @@ namespace BattleV2.AnimationSystem.Runtime
     /// </summary>
     public sealed class TimedHitHudBridge : MonoBehaviour
     {
+        private const bool EnableDebugLog = false;
+
         [SerializeField] private AnimationSystemInstaller installer;
         [SerializeField] private TMP_Text feedbackLabel;
         [SerializeField, Min(0f)] private float holdSeconds = 1f;
@@ -66,6 +68,11 @@ namespace BattleV2.AnimationSystem.Runtime
             if (feedbackLabel == null)
             {
                 return;
+            }
+
+            if (EnableDebugLog)
+            {
+                Debug.Log($"[TimedHitHUD] Judgment: {evt.Judgment}, Δms: {evt.DeltaMilliseconds}", this);
             }
 
             feedbackLabel.gameObject.SetActive(true);
