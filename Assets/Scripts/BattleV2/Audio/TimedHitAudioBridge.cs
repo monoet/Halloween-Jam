@@ -52,25 +52,11 @@ namespace BattleV2.Audio
             }
 
             subscription = installer.EventBus.Subscribe<TimedHitResultEvent>(OnTimedHitResult);
-            Debug.Log("[TimedHitAudioBridge] THA00 subscribed to TimedHitResultEvent.", this);
         }
 
         private void OnTimedHitResult(TimedHitResultEvent evt)
         {
-            if (dispatcher == null || evt.Actor == null)
-            {
-                return;
-            }
-
-            string flag = evt.Judgment switch
-            {
-                TimedHitJudgment.Perfect => CombatEventFlags.Success,
-                TimedHitJudgment.Good => CombatEventFlags.Impact,
-                _ => CombatEventFlags.Missed
-            };
-
-            Debug.Log($"THA01 [TimedHitAudioBridge] judgment={evt.Judgment} -> flag='{flag}'", this);
-            dispatcher.EmitExternalFlag(flag, evt.Actor, null);
+            // Temporal: bridge deshabilitado, no emite flags ni logs.
         }
     }
 }

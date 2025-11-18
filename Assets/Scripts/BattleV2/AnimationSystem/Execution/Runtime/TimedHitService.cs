@@ -91,9 +91,6 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
                 return;
             }
 
-            var actorName = evt.Actor != null ? evt.Actor.name : "(null)";
-            Debug.Log($"THS00 [TimedHitService] window {(evt.IsOpening ? "open" : "close")} actor={actorName} tag={evt.Tag} idx={evt.WindowIndex}/{evt.WindowCount}", evt.Actor);
-
             clock.Sample();
             double timestamp = clock.Now;
 
@@ -201,9 +198,6 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
                 windowOpenedAt,
                 windowClosedAt);
 
-            var actorName = actor != null ? actor.name : "(null)";
-            Debug.Log($"THS01 [TimedHitService] actor={actorName} tag={tag} judgment={judgment} delta={deltaMs:0.#}ms win={windowIndex}/{windowCount}", actor);
-
             eventBus.Publish(evt);
 
             EmitCombatFlag(actor, judgment);
@@ -254,8 +248,6 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
                 _ => CombatEventFlags.Missed
             };
 
-            var actorName = actor != null ? actor.name : "(null)";
-            Debug.Log($"THS02 [TimedHitService] emit flag='{flag}' actor={actorName}", actor);
             dispatcher.EmitExternalFlag(flag, actor);
         }
 

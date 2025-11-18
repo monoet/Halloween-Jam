@@ -68,9 +68,6 @@ namespace BattleV2.AnimationSystem.Runtime
                 return;
             }
 
-            var actorName = evt.Actor != null ? evt.Actor.name : "(null)";
-            Debug.Log($"THH01 [TimedHitHudBridge] judgment={evt.Judgment} delta={evt.DeltaMilliseconds:0.#}ms actor={actorName}", this);
-
             feedbackLabel.gameObject.SetActive(true);
             feedbackLabel.text = $"{evt.Judgment} ({evt.DeltaMilliseconds:0.#} ms)";
             feedbackLabel.color = evt.Judgment switch

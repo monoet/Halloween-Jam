@@ -71,6 +71,7 @@ namespace BattleV2.Orchestration
         private IBattleInputProvider inputProvider;
         private CombatContext context;
         private ITimedHitRunner timedHitRunner;
+        private TimedHitInputRelay timedHitInputRelay;
 
         private IBattleTurnService turnService;
         private ICombatantActionValidator actionValidator;
@@ -143,6 +144,7 @@ namespace BattleV2.Orchestration
             BootstrapServices();
             InitializeCombatants();
             PrepareContext();
+            timedHitInputRelay ??= FindTimedHitInputRelay();
         }
 
         private void Start()
@@ -721,6 +723,8 @@ namespace BattleV2.Orchestration
 
         private async void HandleTurnReady(CombatantState actor)
         {
+            timedHitInputRelay?.SetActor(actor);
+
             if (actor == null)
             {
                 battleEndService?.TryResolve(rosterSnapshot, Player, state);
@@ -958,6 +962,15 @@ namespace BattleV2.Orchestration
             OnCombatantsBound?.Invoke(AlliesList, EnemiesList);
 
             battleEndService?.TryResolve(rosterSnapshot, Player, state);
+        }
+
+        private TimedHitInputRelay FindTimedHitInputRelay()
+        {
+#if UNITY_2023_1_OR_NEWER
+            return FindFirstObjectByType<TimedHitInputRelay>();
+#else
+            return FindObjectOfType<TimedHitInputRelay>();
+#endif
         }
     }
 

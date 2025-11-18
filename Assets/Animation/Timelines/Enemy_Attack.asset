@@ -26,13 +26,6 @@ MonoBehaviour:
       overrideConflictPolicy: 0
       delaySeconds: 1
       parameters: []
-    - stepId: 
-      executorId: timed_hit
-      bindingId: 
-      conflictPolicy: 0
-      overrideConflictPolicy: 0
-      delaySeconds: 0
-      parameters: []
     - stepId: windup_wait
       executorId: wait_seconds
       bindingId: 

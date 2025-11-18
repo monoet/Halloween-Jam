@@ -1208,7 +1208,6 @@ GameObject:
   - component: {fileID: 497996905}
   - component: {fileID: 497996904}
   - component: {fileID: 497996903}
-  - component: {fileID: 497996906}
   m_Layer: 5
   m_Name: Text (TMP)
   m_TagString: Untagged
@@ -1354,19 +1353,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 497996901}
   m_CullTransparentMesh: 1
---- !u!114 &497996906
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 497996901}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 31f233938647e3a45ad02d604c4c1f28, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BattleV2.Audio.TimedHitAudioBridge
-  installer: {fileID: 1144566323}
 --- !u!1 &507446357
 GameObject:
   m_ObjectHideFlags: 0
@@ -3325,6 +3311,7 @@ GameObject:
   - component: {fileID: 1144566324}
   - component: {fileID: 1144566323}
   - component: {fileID: 1144566326}
+  - component: {fileID: 1144566327}
   m_Layer: 0
   m_Name: AnimationSystemRuntime
   m_TagString: Untagged
@@ -3416,6 +3403,19 @@ MonoBehaviour:
   usePlayerActor: 1
   explicitActor: {fileID: 0}
   sourceId: Keyboard
+--- !u!114 &1144566327
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1144566322}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 31f233938647e3a45ad02d604c4c1f28, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BattleV2.Audio.TimedHitAudioBridge
+  installer: {fileID: 1144566323}
 --- !u!1 &1238446612
 GameObject:
   m_ObjectHideFlags: 0

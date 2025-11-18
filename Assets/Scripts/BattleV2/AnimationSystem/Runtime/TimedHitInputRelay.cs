@@ -32,6 +32,7 @@ namespace BattleV2.AnimationSystem.Runtime
             if (Input.GetKeyDown(inputKey))
             {
                 var actor = ResolveActor();
+                Debug.Log($"[TimedHitInputRelay] KeyDown actor={(actor != null ? actor.name : "(null)")}", this);
                 if (actor != null)
                 {
                     installer.TimedHitService.RegisterInput(actor, sourceId);
@@ -53,8 +54,14 @@ namespace BattleV2.AnimationSystem.Runtime
 
         public void SetExplicitActor(CombatantState actor)
         {
+            SetActor(actor);
+        }
+
+        public void SetActor(CombatantState actor)
+        {
+            usePlayerActor = false;
             explicitActor = actor;
+            Debug.Log($"[TimedHitInputRelay] Actor updated to {(actor != null ? actor.name : "(null)")}", this);
         }
     }
 }
-
