@@ -1,9 +1,11 @@
+using System;
+using System.Threading;
 using BattleV2.Actions;
 using BattleV2.Charge;
 using BattleV2.Core;
+using BattleV2.Execution.TimedHits;
 using BattleV2.Orchestration;
 using BattleV2.Providers;
-using System.Threading;
 
 namespace BattleV2.Execution
 {
@@ -47,6 +49,7 @@ namespace BattleV2.Execution
         public bool PhaseDamageApplied { get; set; }
         public int TotalDamageApplied { get; set; }
         public int ComboPointsAwarded { get; set; }
+        public Action<TimedHitPhaseResult> PhaseResultListener { get; set; }
     }
 }
 

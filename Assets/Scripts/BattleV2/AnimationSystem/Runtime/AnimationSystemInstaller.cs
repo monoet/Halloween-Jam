@@ -13,6 +13,7 @@ using BattleV2.AnimationSystem.Runtime.Internal;
 using BattleV2.AnimationSystem.Timelines;
 using BattleV2.Core;
 using BattleV2.Orchestration.Runtime;
+using BattleV2.Execution.TimedHits;
 using BattleV2.AnimationSystem.Strategies;
 using HalloweenJam.Combat.Animations.StepScheduler;
 using UnityEngine;
@@ -47,6 +48,8 @@ namespace BattleV2.AnimationSystem.Runtime
         [SerializeField] private bool autoScanBindings = true;
         [Header("Timed Hit Settings")]
         [SerializeField] private TimedHitToleranceProfileAsset toleranceProfileAsset;
+        [SerializeField] private Ks1TimedHitRunner ks1TimedHitRunner;
+        [SerializeField] private BasicTimedHitRunner basicTimedHitRunner;
 
         [Header("Recipe Defaults")]
         [Tooltip("Register the built-in PilotActionRecipes (turn_intro, run_up, etc.) for legacy scenes.")]
@@ -148,6 +151,9 @@ namespace BattleV2.AnimationSystem.Runtime
             timedInputBuffer = new TimedInputBuffer(combatClock);
             toleranceProfile = DefaultTimedHitToleranceProfile.FromAsset(toleranceProfileAsset);
             timedHitService = new TimedHitService(combatClock, timedInputBuffer, toleranceProfile, eventBus);
+            ks1TimedHitRunner ??= FindRunnerInstance<Ks1TimedHitRunner>();
+            basicTimedHitRunner ??= FindRunnerInstance<BasicTimedHitRunner>();
+            timedHitService.ConfigureRunners(ks1TimedHitRunner, basicTimedHitRunner);
 
             clipResolver = new AnimationClipResolver(clipBindings);
             wrapperResolver = new AnimatorWrapperResolver(ResolveActorBindings());
@@ -557,6 +563,15 @@ namespace BattleV2.AnimationSystem.Runtime
                 recipeCatalog.Register(recipe);
                 stepScheduler.RegisterRecipe(recipe);
             }
+        }
+
+        private static T FindRunnerInstance<T>() where T : Component
+        {
+#if UNITY_2023_1_OR_NEWER
+            return UnityEngine.Object.FindFirstObjectByType<T>();
+#else
+            return UnityEngine.Object.FindObjectOfType<T>();
+#endif
         }
 #if UNITY_EDITOR
         [ContextMenu("[Debug] Dump Actor Bindings")]

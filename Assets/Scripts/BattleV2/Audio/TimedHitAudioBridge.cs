@@ -15,6 +15,7 @@ namespace BattleV2.Audio
         [SerializeField] private AnimationSystemInstaller installer;
 
         private IDisposable subscription;
+        private IDisposable phaseSubscription;
         private CombatEventDispatcher dispatcher;
         private Coroutine subscribeRoutine;
 
@@ -39,6 +40,9 @@ namespace BattleV2.Audio
 
             subscription?.Dispose();
             subscription = null;
+
+            phaseSubscription?.Dispose();
+            phaseSubscription = null;
         }
 
         private IEnumerator SubscribeWhenReady()
@@ -52,11 +56,28 @@ namespace BattleV2.Audio
             }
 
             subscription = installer.EventBus.Subscribe<TimedHitResultEvent>(OnTimedHitResult);
+            phaseSubscription = installer.EventBus.Subscribe<TimedHitPhaseEvent>(OnTimedHitPhase);
         }
 
         private void OnTimedHitResult(TimedHitResultEvent evt)
         {
-            // Temporal: bridge deshabilitado, no emite flags ni logs.
+            string quality = evt.Judgment.ToString().ToUpper();
+            int window = evt.WindowIndex;
+            double offset = evt.DeltaMilliseconds;
+
+            Debug.Log($"PhasEv01 | RESULT={quality} | Window={window} | OffsetMs={offset:F1}", this);
+        }
+
+        private void OnTimedHitPhase(TimedHitPhaseEvent evt)
+        {
+            string quality = evt.Judgment.ToString().ToUpper();
+            int index = evt.PhaseIndex;
+            int total = evt.TotalPhases;
+            float accuracy = evt.AccuracyNormalized;
+
+            Debug.Log(
+                $"PhasEv02 | PHASE={index}/{total} | JUDGMENT={quality} | Accuracy={accuracy:F2} | Cancelled={evt.Cancelled} | Final={evt.IsFinal}",
+                this);
         }
     }
 }

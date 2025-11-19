@@ -1,9 +1,8 @@
 using BattleV2.AnimationSystem;
+using BattleV2.AnimationSystem.Execution.Runtime;
 using BattleV2.Charge;
 using BattleV2.Execution.TimedHits;
-using BattleV2.Orchestration;
 using UnityEngine;
-using Object = UnityEngine.Object;
 
 namespace BattleV2.AnimationSystem.Runtime
 {
@@ -13,8 +12,7 @@ namespace BattleV2.AnimationSystem.Runtime
     public sealed class Ks1PhaseAnimationBridge : MonoBehaviour
     {
         [SerializeField] private AnimationSystemInstaller installer;
-        [SerializeField] private BattleManagerV2 manager;
-        [SerializeField] private Ks1MultiWindowTimedHitRunner runner;
+        [SerializeField] private Ks1TimedHitRunner runner;
 
         [Header("Recipe Ids")]
         [SerializeField] private string goodPhaseRecipeId;
@@ -32,8 +30,7 @@ namespace BattleV2.AnimationSystem.Runtime
         private void Awake()
         {
             installer ??= AnimationSystemInstaller.Current;
-            manager ??= TryFindManager();
-            runner ??= GetComponent<Ks1MultiWindowTimedHitRunner>();
+            runner ??= GetComponent<Ks1TimedHitRunner>();
             TrySubscribe();
         }
 
@@ -61,15 +58,12 @@ namespace BattleV2.AnimationSystem.Runtime
 
             Unsubscribe();
 
-            runner ??= GetComponent<Ks1MultiWindowTimedHitRunner>();
+            runner ??= GetComponent<Ks1TimedHitRunner>();
 
             if (runner == null)
             {
-                manager ??= TryFindManager();
-                if (manager?.TimedHitRunner is Ks1MultiWindowTimedHitRunner managerRunner)
-                {
-                    runner = managerRunner;
-                }
+                installer ??= AnimationSystemInstaller.Current;
+                runner = installer?.TimedHitService?.GetRunner(TimedHitRunnerKind.Default) as Ks1TimedHitRunner;
             }
 
             if (runner != null && runner.isActiveAndEnabled)
@@ -107,15 +101,6 @@ namespace BattleV2.AnimationSystem.Runtime
             {
                 Unsubscribe();
             }
-        }
-
-        private static BattleManagerV2 TryFindManager()
-        {
-#if UNITY_2023_1_OR_NEWER
-            return Object.FindFirstObjectByType<BattleManagerV2>();
-#else
-            return Object.FindObjectOfType<BattleManagerV2>();
-#endif
         }
 
         private void HandleSequenceStarted()

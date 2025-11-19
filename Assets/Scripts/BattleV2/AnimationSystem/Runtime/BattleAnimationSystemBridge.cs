@@ -31,7 +31,6 @@ namespace BattleV2.AnimationSystem.Runtime
                 request.Selection,
                 request.Targets,
                 request.AverageSpeed,
-                request.TimedHitRunner,
                 request.RecipeOverride);
 
             return orchestrator.PlayAsync(animationRequest);

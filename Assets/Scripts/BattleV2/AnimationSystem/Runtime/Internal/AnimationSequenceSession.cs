@@ -371,7 +371,7 @@ namespace BattleV2.AnimationSystem.Runtime.Internal
                 return false;
             }
 
-            context = new StepSchedulerContext(request, timeline, wrapper, bindingResolver, routerBundle, eventBus, timedHitService, request.TimedHitRunner);
+            context = new StepSchedulerContext(request, timeline, wrapper, bindingResolver, routerBundle, eventBus, timedHitService);
             cachedSchedulerContext = context;
             hasSchedulerContext = true;
             return true;

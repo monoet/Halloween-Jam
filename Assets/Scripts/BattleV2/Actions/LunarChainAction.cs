@@ -162,6 +162,11 @@ namespace BattleV2.Actions
             if (timedResult.HasValue)
             {
                 var raw = timedResult.Value;
+
+                Debug.Log(
+                    $"[KS1] Final timed-hit result → Judgment={raw.Judgment}, Mult={raw.DamageMultiplier:0.00}, Hits={raw.HitsSucceeded}/{raw.TotalHits}",
+                    this);
+
                 BattleLogger.Log(
                     "KS1",
                     $"LunarChain timed-hit -> hits {raw.HitsSucceeded}/{raw.TotalHits}, judgment={raw.Judgment}, mult {raw.DamageMultiplier:F2}, externalDamage={raw.TotalDamageApplied}, phasesResolved={raw.PhaseDamageApplied}");

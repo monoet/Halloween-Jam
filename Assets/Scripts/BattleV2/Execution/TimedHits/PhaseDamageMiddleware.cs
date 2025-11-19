@@ -13,13 +13,6 @@ namespace BattleV2.Execution.TimedHits
     /// </summary>
     public sealed class PhaseDamageMiddleware : IActionMiddleware
     {
-        private readonly ITimedHitRunner runner;
-
-        public PhaseDamageMiddleware(ITimedHitRunner runner)
-        {
-            this.runner = runner;
-        }
-
         public async Task InvokeAsync(ActionContext context, Func<Task> next)
         {
             if (context == null)
@@ -27,7 +20,7 @@ namespace BattleV2.Execution.TimedHits
                 throw new ArgumentNullException(nameof(context));
             }
 
-            if (runner == null || context.ActionImplementation is not ITimedHitPhaseDamageAction phaseAction)
+            if (context.ActionImplementation is not ITimedHitPhaseDamageAction phaseAction)
             {
                 if (next != null)
                 {
@@ -101,7 +94,11 @@ namespace BattleV2.Execution.TimedHits
                 EmitFeedback(phase, damageValue, combinedMultiplier);
             }
 
-            runner.OnPhaseResolved += HandlePhaseResolved;
+            var previousListener = context.PhaseResultListener;
+            context.PhaseResultListener = phase =>
+            {
+                HandlePhaseResolved(phase);
+            };
             try
             {
                 if (next != null)
@@ -111,7 +108,7 @@ namespace BattleV2.Execution.TimedHits
             }
             finally
             {
-                runner.OnPhaseResolved -= HandlePhaseResolved;
+                context.PhaseResultListener = previousListener;
             }
 
             if (appliedAny)

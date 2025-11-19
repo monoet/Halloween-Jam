@@ -280,3 +280,10 @@ tag: v0.5.0-so-optin
 Estado parcial (11/10): TweenCueSet/SoundCueSet ScriptableObjects viven en `Assets/Scripts/.../Setup` y el router ya hidrata sus diccionarios antes de aplicar overrides embebidos. Falta exponer un inspector helper (dropdown) y documentar el flujo para equipos de contenido, pero el runtime soporta cargar presets 100% desde assets.
 
 Estado parcial telemetry (11/10): `router.stats` vive en el DevConsole interno (toggle con backtick). El comando imprime counters + top 5 misses y dispara `CombatEventRouter.SnapshotGenerated`. El snapshot opcional tambiÃ©n se emite cada vez que se usa `SnapshotCounters()` en inspector.
+### Timed Hit v2 – Runner/Service Architecture
+
+- **Runners activos**: BasicTimedHitRunner (ventana única, opt-in por acción) y Ks1TimedHitRunner (multi-ventana KS1 consolidado) son las únicas implementaciones soportadas. Ambos publican TimedHitPhaseEvent y TimedHitResultEvent a través de AnimationEventBus, por lo que HUD/anim/audio consumen solo eventos compartidos.
+- **Servicio único**: TimedHitService encapsula la ejecución (RunBasicAsync, RunKs1Async, RunAsync) y el registro de runners (ConfigureRunners, SetRunner, GetRunner). BattleManager, TimedHitMiddleware y los StepExecutors solo conocen al servicio; nunca resuelven componentes concretos.
+- **Selección de runner**: TimedHitRunnerKind viaja en TimedHitRequest. TimedHitService decide si usa KS1 o Basic y opcionalmente acepta un callback por fase (para PhaseDamageMiddleware y telemetría).
+- **HUD/Bridges**: TimedHitHudBridge, Ks1PhaseAnimationBridge, audio hooks y el nuevo TimedHitHooksBridge se conectan al AnimationSystemInstaller.TimedHitService (o directamente al EventBus). Nada depende ya de BattleManager.SetTimedHitRunner.
+- **Compatibilidad futura**: Debug harnesses pueden inyectar runners temporales a través de TimedHitService.SetRunner(kind, runner) sin tocar gameplay; al salir restauran el runner previo.

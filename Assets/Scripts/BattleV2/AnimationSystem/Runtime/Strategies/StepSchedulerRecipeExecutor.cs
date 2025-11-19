@@ -94,7 +94,7 @@ namespace BattleV2.AnimationSystem.Strategies
 
             var participants = animContext.Participants ?? Array.Empty<CombatantState>();
             var selection = new BattleSelection(new BattleActionData { id = recipeId }, animationRecipeId: recipeId);
-            var request = new AnimationRequest(actor, selection, participants, 1f, null, recipeId);
+            var request = new AnimationRequest(actor, selection, participants, 1f, recipeId);
 
             await mainThreadInvoker.RunAsync(() =>
             {
@@ -110,8 +110,7 @@ namespace BattleV2.AnimationSystem.Strategies
                     wrapper,
                     routerBundle,
                     eventBus,
-                    timedHitService,
-                    request.TimedHitRunner);
+                    timedHitService);
 
                 LogSchedulerExecution(actor, recipe.Id, context);
                 await scheduler.ExecuteAsync(recipe, schedulerContext, token).ConfigureAwait(false);

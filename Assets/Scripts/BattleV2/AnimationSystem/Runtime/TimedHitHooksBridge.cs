@@ -1,5 +1,5 @@
+using BattleV2.AnimationSystem.Execution.Runtime;
 using BattleV2.Execution.TimedHits;
-using BattleV2.Orchestration;
 using BattleV2.Providers;
 using UnityEngine;
 
@@ -10,33 +10,41 @@ namespace BattleV2.AnimationSystem.Runtime
     /// </summary>
     public sealed class TimedHitHooksBridge : MonoBehaviour
     {
-        [SerializeField] private BattleManagerV2 manager;
+        [SerializeField] private AnimationSystemInstaller installer;
 
-        public ITimedHitRunner CurrentRunner => manager != null ? manager.TimedHitRunner : InstantTimedHitRunner.Shared;
+        public ITimedHitRunner CurrentRunner
+        {
+            get
+            {
+                var service = ResolveService();
+                return service?.GetRunner(TimedHitRunnerKind.Default) ?? InstantTimedHitRunner.Shared;
+            }
+        }
 
         public ITimedHitRunner ResolveRunner(BattleSelection selection)
         {
-            EnsureManager();
-            return manager != null ? manager.ResolveTimedHitRunner(selection) : InstantTimedHitRunner.Shared;
+            var service = ResolveService();
+            if (service == null)
+            {
+                return InstantTimedHitRunner.Shared;
+            }
+
+            var kind = selection.RunnerKind == TimedHitRunnerKind.Basic
+                ? TimedHitRunnerKind.Basic
+                : TimedHitRunnerKind.Default;
+
+            return service.GetRunner(kind) ?? InstantTimedHitRunner.Shared;
         }
 
         private void Reset()
         {
-            EnsureManager();
+            installer ??= AnimationSystemInstaller.Current;
         }
 
-        private void EnsureManager()
+        private ITimedHitService ResolveService()
         {
-            if (manager != null)
-            {
-                return;
-            }
-
-#if UNITY_2023_1_OR_NEWER
-            manager = Object.FindFirstObjectByType<BattleManagerV2>();
-#else
-            manager = Object.FindObjectOfType<BattleManagerV2>();
-#endif
+            installer ??= AnimationSystemInstaller.Current;
+            return installer != null ? installer.TimedHitService : null;
         }
     }
 }

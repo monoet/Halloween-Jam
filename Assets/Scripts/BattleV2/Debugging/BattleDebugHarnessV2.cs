@@ -4,6 +4,8 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using BattleV2.Actions;
+using BattleV2.AnimationSystem.Execution.Runtime;
+using BattleV2.AnimationSystem.Runtime;
 using BattleV2.Charge;
 using BattleV2.Core;
 using BattleV2.Execution.TimedHits;
@@ -40,6 +42,8 @@ namespace BattleV2.Debugging
         public static BattleDebugHarnessV2 Instance { get; private set; }
 
         private BattleManagerV2 manager;
+        private ITimedHitService timedHitService;
+        private ITimedHitRunner previousKs1Runner;
         private FieldInfo inputProviderField;
         private bool suppressWindow;
         private Vector2 actionScroll;
@@ -137,8 +141,9 @@ namespace BattleV2.Debugging
                 return;
             }
 
+            timedHitService = manager.TimedHitService ?? AnimationSystemInstaller.Current?.TimedHitService;
             manager.SetRuntimeInputProvider(this);
-            manager.SetTimedHitRunner(this);
+            ClaimRunnerOwnership();
             LogDebug("[BattleDebugHarnessV2] Provider registered.");
 
             targetSelector ??= GetComponent<DebugManualTargetSelector>();
@@ -174,10 +179,10 @@ namespace BattleV2.Debugging
                 manager.SetRuntimeInputProvider(this);
             }
 
-            if (hijackTimedHitRunner && manager != null && !ReferenceEquals(manager.TimedHitRunner, this))
+            if (hijackTimedHitRunner && !HasRunnerOwnership())
             {
                 LogDebug("[BattleDebugHarnessV2] Hijacking timed hit runner (Update).", this);
-                manager.SetTimedHitRunner(this);
+                ClaimRunnerOwnership();
             }
 
             HandleChargeHotkeys();
@@ -199,6 +204,7 @@ namespace BattleV2.Debugging
                 ensureRunnerCoroutine = null;
             }
 
+            RestoreRunnerOwnership();
             CancelLiveSequence();
 
             if (Instance == this)
@@ -1070,6 +1076,47 @@ namespace BattleV2.Debugging
             return inputProviderField.GetValue(manager) as IBattleInputProvider;
         }
 
+        private void ClaimRunnerOwnership()
+        {
+            timedHitService ??= manager != null ? manager.TimedHitService : AnimationSystemInstaller.Current?.TimedHitService;
+            if (timedHitService == null)
+            {
+                return;
+            }
+
+            var current = timedHitService.GetRunner(TimedHitRunnerKind.Default);
+            if (ReferenceEquals(current, this))
+            {
+                return;
+            }
+
+            if (previousKs1Runner == null || ReferenceEquals(previousKs1Runner, this))
+            {
+                previousKs1Runner = current;
+            }
+
+            timedHitService.SetRunner(TimedHitRunnerKind.Default, this);
+        }
+
+        private bool HasRunnerOwnership()
+        {
+            timedHitService ??= manager != null ? manager.TimedHitService : AnimationSystemInstaller.Current?.TimedHitService;
+            return timedHitService != null && ReferenceEquals(timedHitService.GetRunner(TimedHitRunnerKind.Default), this);
+        }
+
+        private void RestoreRunnerOwnership()
+        {
+            if (timedHitService == null)
+            {
+                return;
+            }
+
+            if (ReferenceEquals(timedHitService.GetRunner(TimedHitRunnerKind.Default), this))
+            {
+                timedHitService.SetRunner(TimedHitRunnerKind.Default, previousKs1Runner);
+            }
+        }
+
         private async Task<TimedHitResult> RunViaInstantRunner(TimedHitRequest request)
         {
             void ForwardStarted() => OnSequenceStarted?.Invoke();
@@ -1101,10 +1148,7 @@ namespace BattleV2.Debugging
             for (int i = 0; i < framesToEnforce && isActiveAndEnabled; i++)
             {
                 yield return null;
-                if (manager != null)
-                {
-                    manager.SetTimedHitRunner(this);
-                }
+                ClaimRunnerOwnership();
             }
 
             ensureRunnerCoroutine = null;
@@ -1112,9 +1156,9 @@ namespace BattleV2.Debugging
 
         public async Task<TimedHitResult> RunAsync(TimedHitRequest request)
         {
-            if (manager != null && !ReferenceEquals(manager.TimedHitRunner, this))
+            if (!HasRunnerOwnership())
             {
-                manager.SetTimedHitRunner(this);
+                ClaimRunnerOwnership();
             }
 
             if (hijackTimedHitRunner || request.Profile == null)

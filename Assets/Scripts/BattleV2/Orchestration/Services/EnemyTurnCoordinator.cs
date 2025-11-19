@@ -231,7 +231,7 @@ namespace BattleV2.Orchestration.Services
                 }
 
                 var playbackTask = animOrchestrator != null
-                    ? animOrchestrator.PlayAsync(new ActionPlaybackRequest(attacker, enrichedSelection, resolution.Targets, context.AverageSpeed, context.Manager?.ResolveTimedHitRunner(enrichedSelection), enrichedSelection.AnimationRecipeId))
+                    ? animOrchestrator.PlayAsync(new ActionPlaybackRequest(attacker, enrichedSelection, resolution.Targets, context.AverageSpeed, enrichedSelection.AnimationRecipeId))
                     : Task.CompletedTask;
 
                 var defeatCandidates = CollectDeathCandidates(resolution.Targets);

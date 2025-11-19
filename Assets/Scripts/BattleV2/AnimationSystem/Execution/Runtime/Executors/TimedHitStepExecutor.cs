@@ -26,7 +26,6 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Executors
         {
             var selection = context.Request.Selection;
             var handle = selection.TimedHitHandle;
-            var runner = context.TimedHitRunner ?? InstantTimedHitRunner.Shared;
             var profile = selection.TimedHitProfile;
             var basicProfile = selection.BasicTimedHitProfile;
 
@@ -60,7 +59,14 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Executors
             TimedHitResult result;
             try
             {
-                result = await runner.RunAsync(request).ConfigureAwait(false);
+                if (context.TimedHitService != null)
+                {
+                    result = await context.TimedHitService.RunAsync(request).ConfigureAwait(false);
+                }
+                else
+                {
+                    result = await InstantTimedHitRunner.Shared.RunAsync(request).ConfigureAwait(false);
+                }
             }
             catch (OperationCanceledException)
             {

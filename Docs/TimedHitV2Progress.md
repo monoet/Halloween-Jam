@@ -32,6 +32,12 @@
   - Normalized KS1/Basic phase indices + HUD to consume TimedHitPhaseEvent/TimedHitResultEvent exclusively.
 
 ## Phase 5 - Cleanup and convergence
-- [ ] Step 1: Consolidate on v2 runners (KS1)
-- [ ] Step 2: Remove/Archive legacy code
-- [ ] Step 3: Document TimedHit v2 (CombatEventsImpPlan.md)
+- [x] Step 1: Consolidate on v2 runners (KS1)
+- [x] Step 2: Remove/Archive legacy code
+- [x] Step 3: Document TimedHit v2 (CombatEventsImpPlan.md)
+- Notes:
+  - `Ks1TimedHitRunner` es ahora el único runner KS1; el servicio resuelve la ejecutor según `TimedHitRunnerKind`.
+  - `BattleManager`, `TimedHitMiddleware`, `PhaseDamageMiddleware` y el StepScheduler delegan todo en `TimedHitService.RunKs1Async/RunBasicAsync`.
+  - `AnimationSystemInstaller` registra solo dos runners (Basic + KS1) y los expone al servicio; debug harnesses pueden hijackear via `SetRunner`.
+  - HUD/bridges consumen únicamente `TimedHitPhaseEvent` / `TimedHitResultEvent`; `TimedHitHudBridge` y `Ks1PhaseAnimationBridge` ya no dependen de `BattleManager`.
+  - `Docs/AnimationSystem/CombatEventsImpPlan.md` resume la arquitectura final del servicio + runners, y este log cubre los artefactos vivos finales.

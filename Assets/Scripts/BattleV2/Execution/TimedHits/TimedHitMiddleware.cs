@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using BattleV2.Actions;
+using BattleV2.AnimationSystem.Execution.Runtime;
 using BattleV2.Charge;
 using BattleV2.Core;
 using BattleV2.Execution;
@@ -10,12 +11,12 @@ namespace BattleV2.Execution.TimedHits
 {
     public sealed class TimedHitMiddleware : IActionMiddleware
     {
-        private readonly BattleManagerV2 manager;
+        private readonly ITimedHitService timedHitService;
         private readonly ITimedHitAction timedHitAction;
 
-        public TimedHitMiddleware(BattleManagerV2 manager, ITimedHitAction timedHitAction)
+        public TimedHitMiddleware(ITimedHitService timedHitService, ITimedHitAction timedHitAction)
         {
-            this.manager = manager;
+            this.timedHitService = timedHitService;
             this.timedHitAction = timedHitAction;
         }
 
@@ -96,13 +97,6 @@ namespace BattleV2.Execution.TimedHits
                 return;
             }
 
-            bool wantsBasicRunner = runnerKind == TimedHitRunnerKind.Basic;
-            ITimedHitRunner runner = manager != null
-                ? manager.ResolveTimedHitRunner(selection)
-                : InstantTimedHitRunner.Shared;
-
-            runner ??= InstantTimedHitRunner.Shared;
-
             var request = new TimedHitRequest(
                 context.Attacker,
                 context.Target,
@@ -118,7 +112,14 @@ namespace BattleV2.Execution.TimedHits
             TimedHitResult result;
             try
             {
-                result = await runner.RunAsync(request).ConfigureAwait(false);
+                if (timedHitService != null)
+                {
+                    result = await timedHitService.RunAsync(request, context.PhaseResultListener).ConfigureAwait(false);
+                }
+                else
+                {
+                    result = await RunWithFallbackAsync(request, context.PhaseResultListener).ConfigureAwait(false);
+                }
             }
             catch (OperationCanceledException)
             {
@@ -137,6 +138,44 @@ namespace BattleV2.Execution.TimedHits
             if (next != null)
             {
                 await next().ConfigureAwait(false);
+            }
+        }
+
+        private static Task<TimedHitResult> RunWithFallbackAsync(
+            TimedHitRequest request,
+            Action<TimedHitPhaseResult> phaseListener)
+        {
+            var runner = InstantTimedHitRunner.Shared;
+            if (phaseListener == null)
+            {
+                return runner.RunAsync(request);
+            }
+
+            void Handler(TimedHitPhaseResult phase) => phaseListener(phase);
+            runner.OnPhaseResolved += Handler;
+            var task = runner.RunAsync(request);
+
+            if (task.IsCompleted)
+            {
+                runner.OnPhaseResolved -= Handler;
+                return task;
+            }
+
+            return AwaitRunnerAsync(runner, task, Handler);
+        }
+
+        private static async Task<TimedHitResult> AwaitRunnerAsync(
+            ITimedHitRunner runner,
+            Task<TimedHitResult> task,
+            Action<TimedHitPhaseResult> handler)
+        {
+            try
+            {
+                return await task.ConfigureAwait(false);
+            }
+            finally
+            {
+                runner.OnPhaseResolved -= handler;
             }
         }
     }

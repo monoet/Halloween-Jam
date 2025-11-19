@@ -6,6 +6,7 @@ using UnityEngine;
 using BattleV2.Actions;
 
 using BattleV2.AnimationSystem;
+using BattleV2.AnimationSystem.Execution.Runtime;
 using BattleV2.AnimationSystem.Runtime;
 using BattleV2.Charge;
 using BattleV2.Core;
@@ -70,9 +71,7 @@ namespace BattleV2.Orchestration
 
         private IBattleInputProvider inputProvider;
         private CombatContext context;
-        private ITimedHitRunner timedHitRunner;
         private TimedHitInputRelay timedHitInputRelay;
-        [SerializeField] private BasicTimedHitRunner basicTimedHitRunner;
 
         private IBattleTurnService turnService;
         private ICombatantActionValidator actionValidator;
@@ -99,7 +98,7 @@ namespace BattleV2.Orchestration
         public event Action<IReadOnlyList<CombatantState>, IReadOnlyList<CombatantState>> OnCombatantsBound;
 
         public BattleActionData LastExecutedAction { get; private set; }
-        public ITimedHitRunner TimedHitRunner => timedHitRunner ?? InstantTimedHitRunner.Shared;
+        public ITimedHitService TimedHitService => animationSystemInstaller != null ? animationSystemInstaller.TimedHitService : null;
         public TargetResolverRegistry TargetResolvers { get; private set; }
         public IReadOnlyList<CombatantState> ActiveAllies => rosterSnapshot.ActiveAllies ?? Array.Empty<CombatantState>();
         public CombatantState PrimaryPlayer => ActiveAllies.Count > 0 ? ActiveAllies[0] : null;
@@ -224,7 +223,6 @@ namespace BattleV2.Orchestration
             {
                 Debug.LogWarning("[BattleManagerV2] No input provider configured. Awaiting runtime provider assignment.", this);
             }
-            timedHitRunner = InstantTimedHitRunner.Shared;
 
             ComboPointScaling.Configure(config != null ? config.comboPointScaling : null);
 
@@ -458,33 +456,6 @@ namespace BattleV2.Orchestration
             TryFlushPendingPlayerRequest();
         }
 
-        public void SetTimedHitRunner(ITimedHitRunner runner)
-        {
-            string name = runner != null ? runner.GetType().Name : "(null)";
-            LogDebug($"[BattleManagerV2] Timed hit runner set to {name}.\nCall stack:\n{Environment.StackTrace}", this);
-            timedHitRunner = runner;
-        }
-
-        public ITimedHitRunner ResolveTimedHitRunner(BattleSelection selection)
-        {
-            if (selection.RunnerKind == TimedHitRunnerKind.Basic)
-            {
-                return ResolveBasicTimedHitRunner() ?? InstantTimedHitRunner.Shared;
-            }
-
-            return TimedHitRunner;
-        }
-
-        public ITimedHitRunner ResolveBasicTimedHitRunner()
-        {
-            if (basicTimedHitRunner != null && basicTimedHitRunner.isActiveAndEnabled)
-            {
-                return basicTimedHitRunner;
-            }
-
-            return null;
-        }
-
         public void SetTargetSelectionInteractor(ITargetSelectionInteractor interactor)
         {
             targetingCoordinator?.SetInteractor(interactor);
@@ -659,7 +630,7 @@ namespace BattleV2.Orchestration
             OnPlayerActionSelected?.Invoke(enrichedSelection, cpBefore);
 
             var playbackTask = animOrchestrator != null
-                ? animOrchestrator.PlayAsync(new ActionPlaybackRequest(currentPlayer, enrichedSelection, targets, CalculateAverageSpeed(), ResolveTimedHitRunner(enrichedSelection), enrichedSelection.AnimationRecipeId))
+                ? animOrchestrator.PlayAsync(new ActionPlaybackRequest(currentPlayer, enrichedSelection, targets, CalculateAverageSpeed(), enrichedSelection.AnimationRecipeId))
                 : Task.CompletedTask;
 
             state?.Set(BattleState.Resolving);

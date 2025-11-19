@@ -1,10 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using BattleV2.AnimationSystem;
 using BattleV2.AnimationSystem.Execution.Routers;
 using BattleV2.AnimationSystem.Execution.Runtime.CombatEvents;
 using BattleV2.AnimationSystem.Runtime;
+using BattleV2.Charge;
 using BattleV2.Core;
+using BattleV2.Execution.TimedHits;
 using UnityEngine;
 
 namespace BattleV2.AnimationSystem.Execution.Runtime
@@ -14,6 +17,12 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
         void RegisterInput(CombatantState actor, string source = null, double? timestamp = null);
         void Reset(CombatantState actor);
         void ResetAll();
+        void ConfigureRunners(ITimedHitRunner ks1Runner, ITimedHitRunner basicRunner);
+        void SetRunner(TimedHitRunnerKind kind, ITimedHitRunner runner);
+        ITimedHitRunner GetRunner(TimedHitRunnerKind kind);
+        Task<TimedHitResult> RunAsync(TimedHitRequest request, Action<TimedHitPhaseResult> onPhaseResolved = null);
+        Task<TimedHitResult> RunKs1Async(TimedHitRequest request, Action<TimedHitPhaseResult> onPhaseResolved = null);
+        Task<TimedHitResult> RunBasicAsync(TimedHitRequest request, Action<TimedHitPhaseResult> onPhaseResolved = null);
     }
 
     public sealed class TimedHitService : ITimedHitService
@@ -22,6 +31,8 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
         private readonly ITimedInputBuffer inputBuffer;
         private readonly ITimedHitToleranceProfile toleranceProfile;
         private readonly IAnimationEventBus eventBus;
+        private ITimedHitRunner ks1Runner;
+        private ITimedHitRunner basicRunner;
         private const bool EnableResultDebugLogs = false;
 
         private readonly Dictionary<CombatantState, List<ActiveWindow>> activeWindows = new();
@@ -41,6 +52,29 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
 
             subscriptions.Add(eventBus.Subscribe<AnimationWindowEvent>(OnWindowEvent));
             subscriptions.Add(eventBus.Subscribe<AnimationLockEvent>(OnLockEvent));
+        }
+
+        public void ConfigureRunners(ITimedHitRunner ks1Runner, ITimedHitRunner basicRunner)
+        {
+            this.ks1Runner = ks1Runner;
+            this.basicRunner = basicRunner;
+        }
+
+        public void SetRunner(TimedHitRunnerKind kind, ITimedHitRunner runner)
+        {
+            if (kind == TimedHitRunnerKind.Basic)
+            {
+                basicRunner = runner;
+            }
+            else
+            {
+                ks1Runner = runner;
+            }
+        }
+
+        public ITimedHitRunner GetRunner(TimedHitRunnerKind kind)
+        {
+            return kind == TimedHitRunnerKind.Basic ? basicRunner : ks1Runner;
         }
 
         public void RegisterInput(CombatantState actor, string source = null, double? timestamp = null)
@@ -68,6 +102,32 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
         {
             activeWindows.Clear();
             inputBuffer.ClearAll();
+        }
+
+        public Task<TimedHitResult> RunAsync(
+            TimedHitRequest request,
+            Action<TimedHitPhaseResult> onPhaseResolved = null)
+        {
+            if (request.RunnerKind == TimedHitRunnerKind.Basic)
+            {
+                return RunBasicAsync(request, onPhaseResolved);
+            }
+
+            return RunKs1Async(request, onPhaseResolved);
+        }
+
+        public Task<TimedHitResult> RunKs1Async(
+            TimedHitRequest request,
+            Action<TimedHitPhaseResult> onPhaseResolved = null)
+        {
+            return RunInternalAsync(ks1Runner, request, onPhaseResolved);
+        }
+
+        public Task<TimedHitResult> RunBasicAsync(
+            TimedHitRequest request,
+            Action<TimedHitPhaseResult> onPhaseResolved = null)
+        {
+            return RunInternalAsync(basicRunner, request, onPhaseResolved);
         }
 
         public void Dispose()
@@ -113,6 +173,57 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
             {
                 ResolveWindow(evt.Actor, evt.Tag, evt.WindowIndex, evt.WindowCount, list, timestamp);
             }
+        }
+
+        private static Task<TimedHitResult> RunInternalAsync(
+            ITimedHitRunner runner,
+            TimedHitRequest request,
+            Action<TimedHitPhaseResult> onPhaseResolved)
+        {
+            var resolvedRunner = ResolveRunner(runner);
+
+            if (onPhaseResolved == null)
+            {
+                return resolvedRunner.RunAsync(request);
+            }
+
+            void PhaseHandler(TimedHitPhaseResult phase) => onPhaseResolved(phase);
+
+            resolvedRunner.OnPhaseResolved += PhaseHandler;
+            var task = resolvedRunner.RunAsync(request);
+
+            if (task.IsCompleted)
+            {
+                resolvedRunner.OnPhaseResolved -= PhaseHandler;
+                return task;
+            }
+
+            return AwaitAndUnsubscribeAsync(resolvedRunner, task, PhaseHandler);
+        }
+
+        private static async Task<TimedHitResult> AwaitAndUnsubscribeAsync(
+            ITimedHitRunner runner,
+            Task<TimedHitResult> task,
+            Action<TimedHitPhaseResult> handler)
+        {
+            try
+            {
+                return await task.ConfigureAwait(false);
+            }
+            finally
+            {
+                runner.OnPhaseResolved -= handler;
+            }
+        }
+
+        private static ITimedHitRunner ResolveRunner(ITimedHitRunner runner)
+        {
+            if (runner is MonoBehaviour behaviour && !behaviour.isActiveAndEnabled)
+            {
+                return InstantTimedHitRunner.Shared;
+            }
+
+            return runner ?? InstantTimedHitRunner.Shared;
         }
 
         private void ResolveWindow(

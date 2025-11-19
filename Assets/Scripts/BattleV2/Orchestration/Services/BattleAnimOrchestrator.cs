@@ -6,7 +6,6 @@ using BattleV2.Orchestration.Events;
 using BattleV2.Orchestration.Services.Animation;
 using BattleV2.Providers;
 using UnityEngine;
-using BattleV2.Execution.TimedHits;
 
 namespace BattleV2.Orchestration.Services
 {
@@ -79,7 +78,6 @@ namespace BattleV2.Orchestration.Services
             BattleSelection selection,
             IReadOnlyList<CombatantState> targets,
             float averageSpeed,
-            ITimedHitRunner timedHitRunner = null,
             string recipeOverride = null)
         {
             Actor = actor;
@@ -87,7 +85,6 @@ namespace BattleV2.Orchestration.Services
             Targets = targets ?? Array.Empty<CombatantState>();
             AverageSpeed = averageSpeed;
             ActorSpeed = actor != null ? actor.FinalStats.Speed : 1f;
-            TimedHitRunner = timedHitRunner;
             RecipeOverride = recipeOverride;
         }
 
@@ -95,9 +92,8 @@ namespace BattleV2.Orchestration.Services
             CombatantState actor,
             BattleSelection selection,
             IReadOnlyList<CombatantState> targets,
-            ITimedHitRunner timedHitRunner = null,
             string recipeOverride = null)
-            : this(actor, selection, targets, 1f, timedHitRunner, recipeOverride)
+            : this(actor, selection, targets, 1f, recipeOverride)
         {
         }
 
@@ -106,7 +102,6 @@ namespace BattleV2.Orchestration.Services
         public IReadOnlyList<CombatantState> Targets { get; }
         public float AverageSpeed { get; }
         public float ActorSpeed { get; }
-        public ITimedHitRunner TimedHitRunner { get; }
         public string RecipeOverride { get; }
     }
 }
