@@ -66,6 +66,20 @@ namespace BattleV2.Audio
             double offset = evt.DeltaMilliseconds;
 
             Debug.Log($"PhasEv01 | RESULT={quality} | Window={window} | OffsetMs={offset:F1}", this);
+
+            if (dispatcher == null || evt.Actor == null)
+            {
+                return;
+            }
+
+            string flag = evt.Judgment switch
+            {
+                TimedHitJudgment.Perfect => BattleAudioFlags.AttackTimedPerfect,
+                TimedHitJudgment.Good => BattleAudioFlags.AttackTimedGood,
+                _ => BattleAudioFlags.AttackTimedMiss
+            };
+
+            dispatcher.EmitExternalFlag(flag, evt.Actor);
         }
 
         private void OnTimedHitPhase(TimedHitPhaseEvent evt)
