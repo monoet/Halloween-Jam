@@ -130,6 +130,7 @@ namespace BattleV2.Audio
         public string ElementParamName;
         public string CritParamName;
         public string TargetsParamName;
+        public string SignatureParamName;
 
         [Header("Anti-Spam")]
         [Tooltip("Cooldown in milliseconds for this flag per actor.")]

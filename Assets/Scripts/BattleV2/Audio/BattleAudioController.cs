@@ -95,6 +95,12 @@ namespace BattleV2.Audio
                 SetParam(instance, entry.CritParamName, audioCtx.IsCrit ? 1f : 0f);
                 SetParam(instance, entry.TargetsParamName, Mathf.Max(1, audioCtx.TargetCount));
 
+                if (context != null)
+                {
+                    var signature = AudioOwnerResolver.ResolveSignature(context.Actor.Combatant);
+                    SetParam(instance, entry.SignatureParamName, (float)signature);
+                }
+
                 instance.start();
                 instance.release();
             }

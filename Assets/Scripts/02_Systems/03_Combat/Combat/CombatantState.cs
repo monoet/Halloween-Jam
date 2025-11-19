@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using BattleV2.Audio;
 using BattleV2.Debugging;
 using UnityEngine.Events;
 
@@ -38,6 +39,9 @@ public class CombatantState : MonoBehaviour
     [SerializeField, Range(0, 10)] private int maxCP = 5;
     [SerializeField, Range(0, 10)] private int currentCP = 0;
 
+    [Header("Audio / Identity")]
+    [SerializeField] private AudioSignatureId audioSignatureId = AudioSignatureId.None;
+
     [Header("Eventos")]
     public UnityEvent OnVitalsChanged = new UnityEvent();
 
@@ -71,6 +75,7 @@ public class CombatantState : MonoBehaviour
     public string DisplayName => string.IsNullOrWhiteSpace(displayName) ? name : displayName;
     public Sprite Portrait => characterRuntime?.Core.portrait ?? characterRuntime?.Archetype?.portrait;
     public IReadOnlyList<string> AllowedActionIds => allowedActionIds;
+    public AudioSignatureId AudioSignatureId => audioSignatureId;
 
     private void Awake()
     {
