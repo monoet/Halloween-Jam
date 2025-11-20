@@ -85,7 +85,14 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
         /// Emits a combat flag from external callers (non-scheduler) using a minimal context
         /// built from the provided actor and optional single target.
         /// </summary>
-        public void EmitExternalFlag(string flagId, CombatantState actor, CombatantState target = null)
+        public void EmitExternalFlag(
+            string flagId,
+            CombatantState actor,
+            CombatantState target = null,
+            string weaponKind = "none",
+            string element = "neutral",
+            bool isCritical = false,
+            int targetCount = 1)
         {
             if (string.IsNullOrWhiteSpace(flagId) || actor == null || Volatile.Read(ref listenerCount) == 0)
             {
@@ -103,12 +110,12 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
             var actionView = new CombatEventContext.ActionView(
                 actionId: "timed_hit",
                 family: "timed_hit",
-                weaponKind: "none",
-                element: "neutral",
+                weaponKind: string.IsNullOrWhiteSpace(weaponKind) ? "none" : weaponKind,
+                element: string.IsNullOrWhiteSpace(element) ? "neutral" : element,
                 recipeId: null,
                 staggerStepSeconds: 0f);
 
-            var refs = new List<CombatEventContext.CombatantRef>(target != null ? 1 : 0);
+            var refs = new List<CombatEventContext.CombatantRef>(Math.Max(1, targetCount));
             if (target != null)
             {
                 refs.Add(new CombatEventContext.CombatantRef(
@@ -118,9 +125,17 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
                     target.transform,
                     null));
             }
+            else
+            {
+                // if no explicit target, still reflect target count for params
+                for (int i = 0; i < targetCount; i++)
+                {
+                    refs.Add(default);
+                }
+            }
 
             var ctx = CombatEventContext.Acquire();
-            ctx.Populate(actorView, actionView, refs, perTarget: false, tags: Array.Empty<string>());
+            ctx.Populate(actorView, actionView, refs, perTarget: false, tags: isCritical ? new[] { "crit" } : Array.Empty<string>());
 
             var list = new List<CombatEventContext>(1) { ctx };
             Debug.Log($"CED01 [CombatEventDispatcher] EmitExternalFlag flag='{flagId}' actor={actor.name} targets={refs.Count}", actor);

@@ -3,12 +3,14 @@ using System.Collections;
 using BattleV2.AnimationSystem;
 using BattleV2.AnimationSystem.Execution.Runtime.CombatEvents;
 using BattleV2.AnimationSystem.Runtime;
+using BattleV2.Charge;
 using UnityEngine;
 
 namespace BattleV2.Audio
 {
     /// <summary>
-    /// Listens to TimedHitResultEvent and emits combat flags for audio (miss/good/perfect).
+    /// Listens to TimedHitResultEvent and emits combat flags for audio (miss/impact/perfect).
+    /// Solo procesa resultados finales agregados (Scope = Final).
     /// </summary>
     public sealed class TimedHitAudioBridge : MonoBehaviour
     {
@@ -57,6 +59,8 @@ namespace BattleV2.Audio
 
             subscription = installer.EventBus.Subscribe<TimedHitResultEvent>(OnTimedHitResult);
             phaseSubscription = installer.EventBus.Subscribe<TimedHitPhaseEvent>(OnTimedHitPhase);
+
+            Debug.Log($"[AUDIO-BRIDGE] Subscribed | BusHash={installer.EventBus.GetHashCode()} | DispatcherHash={dispatcher?.GetHashCode()}", this);
         }
 
         private void OnTimedHitResult(TimedHitResultEvent evt)
@@ -64,8 +68,15 @@ namespace BattleV2.Audio
             string quality = evt.Judgment.ToString().ToUpper();
             int window = evt.WindowIndex;
             double offset = evt.DeltaMilliseconds;
+            int safeTargetCount = evt.TargetCount <= 0 ? 1 : evt.TargetCount;
 
-            Debug.Log($"PhasEv01 | RESULT={quality} | Window={window} | OffsetMs={offset:F1}", this);
+            Debug.Log($"PhasEv01 | RESULT={quality} | Window={window} | OffsetMs={offset:F1} | Scope={evt.Scope} | Targets(raw/used)={evt.TargetCount}/{safeTargetCount}", this);
+            Debug.Log($"[AUDIO-BRIDGE] Event Received | Scope={evt.Scope} | Actor={evt.Actor?.name} | BusHash={installer.EventBus.GetHashCode()}", this);
+
+            if (evt.Scope != TimedHitResultScope.Final)
+            {
+                return;
+            }
 
             if (dispatcher == null || evt.Actor == null)
             {
@@ -75,11 +86,18 @@ namespace BattleV2.Audio
             string flag = evt.Judgment switch
             {
                 TimedHitJudgment.Perfect => BattleAudioFlags.AttackTimedPerfect,
-                TimedHitJudgment.Good => BattleAudioFlags.AttackTimedGood,
+                TimedHitJudgment.Good => BattleAudioFlags.AttackTimedImpact,
                 _ => BattleAudioFlags.AttackTimedMiss
             };
 
-            dispatcher.EmitExternalFlag(flag, evt.Actor);
+            dispatcher.EmitExternalFlag(
+                flag,
+                evt.Actor,
+                target: null,
+                weaponKind: evt.WeaponKind,
+                element: evt.Element,
+                isCritical: evt.IsCritical,
+                targetCount: safeTargetCount);
         }
 
         private void OnTimedHitPhase(TimedHitPhaseEvent evt)

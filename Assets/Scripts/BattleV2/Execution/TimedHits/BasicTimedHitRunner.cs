@@ -182,7 +182,12 @@ namespace BattleV2.Execution.TimedHits
                 windowCount: Mathf.Max(1, totalPhases),
                 consumedInput,
                 openedAt,
-                resolutionTimestamp);
+                resolutionTimestamp,
+                TimedHitResultScope.Final,
+                weaponKind: "none",
+                element: "neutral",
+                isCritical: false,
+                targetCount: 1);
 
             bus.Publish(evt);
 

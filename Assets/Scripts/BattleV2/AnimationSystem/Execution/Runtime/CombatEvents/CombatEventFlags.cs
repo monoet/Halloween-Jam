@@ -8,11 +8,14 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
         public const string Runback = "attack/runback";
         public const string ActionCancel = "action/cancel";
 
-        // Timed-hit outcome flags (emitted from TimedHitAudioBridge)
+        // Obsoletos: resultados de timed-hit ahora se emiten solo via BattleAudioFlags.attack/timed/*
+        [System.Obsolete("Use attack/timed/* flags via TimedHitAudioBridge")]
         public const string Missed = "attack/missed";
+
+        [System.Obsolete("Use attack/timed/impact or attack/timed/perfect")]
         public const string Success = "attack/success";
 
-        // Legacy alias kept for existing references (maps to Success).
+        [System.Obsolete("Use attack/timed/impact or attack/timed/perfect")]
         public const string TimedHitSuccess = Success;
     }
 }

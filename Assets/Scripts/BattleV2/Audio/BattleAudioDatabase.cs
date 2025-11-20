@@ -77,8 +77,10 @@ namespace BattleV2.Audio
             string[] required =
             {
                 BattleAudioFlags.AttackWindup,
-                BattleAudioFlags.AttackImpact,
                 BattleAudioFlags.AttackRunback,
+                BattleAudioFlags.AttackTimedMiss,
+                BattleAudioFlags.AttackTimedImpact,
+                BattleAudioFlags.AttackTimedPerfect,
                 BattleAudioFlags.MarkApply,
                 BattleAudioFlags.MarkDetonate,
                 BattleAudioFlags.UiTurnChange

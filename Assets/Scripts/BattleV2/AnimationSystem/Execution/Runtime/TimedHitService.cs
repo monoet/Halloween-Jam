@@ -310,11 +310,14 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
                 windowCount,
                 consumedInput,
                 windowOpenedAt,
-                windowClosedAt);
+                windowClosedAt,
+                TimedHitResultScope.RawWindow,
+                weaponKind: "none",
+                element: "neutral",
+                isCritical: false,
+                targetCount: 1);
 
             eventBus.Publish(evt);
-
-            EmitCombatFlag(actor, judgment);
 
             if (EnableResultDebugLogs)
             {
@@ -347,30 +350,6 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
                 windowClosedAt,
                 TimedHitJudgment.Miss,
                 consumedInput);
-        }
-
-        private static void EmitCombatFlag(CombatantState actor, TimedHitJudgment judgment)
-        {
-            if (actor == null)
-            {
-                return;
-            }
-
-            var installer = AnimationSystemInstaller.Current;
-            var dispatcher = installer?.CombatEvents;
-            if (dispatcher == null)
-            {
-                return;
-            }
-
-            string flag = judgment switch
-            {
-                TimedHitJudgment.Perfect => CombatEventFlags.Success,
-                TimedHitJudgment.Good => CombatEventFlags.Impact,
-                _ => CombatEventFlags.Missed
-            };
-
-            dispatcher.EmitExternalFlag(flag, actor);
         }
 
         private static TimedHitJudgment Classify(double deltaMs, TimedHitTolerance tolerance)

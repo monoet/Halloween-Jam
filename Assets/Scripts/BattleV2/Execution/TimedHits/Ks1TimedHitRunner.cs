@@ -179,6 +179,7 @@ namespace BattleV2.Execution.TimedHits
 
             int missCount = Mathf.Max(0, expectedPhases - (perfectCount + goodCount));
             var finalResult = BuildResult(tier, perfectCount, goodCount, missCount, processedPhases, expectedPhases);
+            PublishFinalResultEvent(finalResult, request);
             CompleteSequence(finalResult);
         }
 
@@ -199,6 +200,60 @@ namespace BattleV2.Execution.TimedHits
             pendingRun?.TrySetResult(result);
             pendingRun = null;
             currentRequest = default;
+        }
+
+        private void PublishFinalResultEvent(TimedHitResult result, TimedHitRequest request)
+        {
+            Debug.Log(
+                $"[KS1-FINAL] ENTERED | installer={installer} | bus={installer?.EventBus} | attacker={request.Attacker?.name}",
+                this);
+
+            if (installer?.EventBus == null)
+            {
+                Debug.LogError("[KS1-FINAL] ERROR: installer.EventBus is NULL", this);
+                return;
+            }
+
+            var bus = installer.EventBus;
+            if (bus == null || request.Attacker == null)
+            {
+                if (bus == null)
+                {
+                    Debug.LogError("[KS1-FINAL] ERROR: bus is NULL", this);
+                }
+                if (request.Attacker == null)
+                {
+                    Debug.LogError("[KS1-FINAL] ERROR: request.Attacker is NULL", this);
+                }
+                return;
+            }
+
+            double timestamp = Time.timeAsDouble;
+            string weaponKind = "none";
+            string element = "neutral";
+            int targetCount = request.Target != null ? 1 : 1;
+            var evt = new TimedHitResultEvent(
+                request.Attacker,
+                string.Empty,
+                result.Judgment,
+                deltaMilliseconds: 0d,
+                inputTimestamp: timestamp,
+                windowIndex: Math.Max(1, result.PhaseIndex),
+                windowCount: Math.Max(1, result.TotalPhases),
+                consumedInput: result.HitsSucceeded > 0,
+                windowOpenedAt: timestamp,
+                windowClosedAt: timestamp,
+                scope: TimedHitResultScope.Final,
+                weaponKind: weaponKind,
+                element: element,
+                isCritical: false,
+                targetCount: targetCount);
+
+            Debug.Log(
+                $"[KS1-FINAL] PUBLISH | BusHash={bus.GetHashCode()} | Actor={request.Attacker?.name} | Judgment={result.Judgment} | Scope={evt.Scope}",
+                this);
+
+            bus.Publish(evt);
         }
 
         private void AbortSequence(bool cancelled)

@@ -202,6 +202,8 @@ namespace BattleV2.AnimationSystem.Runtime
             {
                 Debug.LogError("[AnimationSystemInstaller] Missing ActionTimelineCatalog reference.", this);
             }
+
+            Debug.Log($"[INSTALLER] Active Installer | Hash={GetHashCode()} | BusHash={eventBus?.GetHashCode()}", this);
         }
 
         private void OnDestroy()

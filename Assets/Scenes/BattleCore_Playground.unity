@@ -1256,8 +1256,8 @@ MonoBehaviour:
   perfectColor: {r: 0.1, g: 0.9, b: 0.2, a: 1}
   goodColor: {r: 0.9, g: 0.8, b: 0.1, a: 1}
   missColor: {r: 0.9, g: 0.2, b: 0.2, a: 1}
-  enableResultDebugLogs: 0
-  enablePhaseDebugLogs: 0
+  enableResultDebugLogs: 1
+  enablePhaseDebugLogs: 1
 --- !u!114 &497996904
 MonoBehaviour:
   m_ObjectHideFlags: 0
