@@ -3,6 +3,10 @@ using BattleV2.Charge;
 using BattleV2.Core;
 using BattleV2.Execution.TimedHits;
 using UnityEngine;
+using BattleV2.Audio;
+using BattleV2.AnimationSystem;
+using BattleV2.AnimationSystem.Execution.Runtime.CombatEvents;
+using BattleV2.Audio.Strategies;
 
 namespace BattleV2.Actions
 {
@@ -17,6 +21,8 @@ namespace BattleV2.Actions
         [SerializeField] private int minimumDamage = 1;
         [SerializeField] private ChargeProfile chargeProfile;
         [SerializeField] private Ks1TimedHitProfile timedHitProfile;
+        [Header("Debug / Harness")]
+        [SerializeField] private bool useHarnessAudioFallback = true;
 
         public string Id => actionId;
         public int CostSP => costSp;
@@ -170,6 +176,10 @@ namespace BattleV2.Actions
                 BattleLogger.Log(
                     "KS1",
                     $"LunarChain timed-hit -> hits {raw.HitsSucceeded}/{raw.TotalHits}, judgment={raw.Judgment}, mult {raw.DamageMultiplier:F2}, externalDamage={raw.TotalDamageApplied}, phasesResolved={raw.PhaseDamageApplied}");
+
+                var audioStrategy = TimedHitAudioStrategySelector.Get(useHarnessAudioFallback);
+                audioStrategy.Emit(raw, actor, context?.Enemy);
+
                 totalHits = raw.TotalHits > 0 ? raw.TotalHits : totalHits;
                 hitsSucceeded = Mathf.Clamp(raw.HitsSucceeded, 0, totalHits);
                 perHitMultiplier = raw.DamageMultiplier > 0f ? raw.DamageMultiplier : perHitMultiplier;
