@@ -1,5 +1,13 @@
 # Battle UI & Harness V2 Refactor Plan
 
+## Progreso (checklist)
+- [x] F1.1 Hijack del runner desactivado por defecto y sujeto a flag (`hijackTimedHitRunner`).
+- [x] F1.2 Reflection/reinyección de `IBattleInputProvider` eliminada; registro solo si `registerAsInputProvider` está activo.
+- [x] F1.3 Escrituras de estado (CP/MaxCpCharge) protegidas por flag (`allowStateMutation`).
+- [ ] F1.4 Validar runner oficial activo sin harness.
+- [ ] F1.5 Validar `IBattleInputProvider` oficial antes del primer turno.
+- [ ] F2/F3/F4/F5/F6: Implementar UI Alpha + reconversión del harness (pendiente).
+
 ## Objetivo
 - Desacoplar el harness de responsabilidades de ejecución.
 - Introducir una UI Alpha que hable con BattleManager/TimedHitService sin lógica de combate en la UI.
