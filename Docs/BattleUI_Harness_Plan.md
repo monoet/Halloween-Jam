@@ -4,9 +4,14 @@
 - [x] F1.1 Hijack del runner desactivado por defecto y sujeto a flag (`hijackTimedHitRunner`).
 - [x] F1.2 Reflection/reinyección de `IBattleInputProvider` eliminada; registro solo si `registerAsInputProvider` está activo.
 - [x] F1.3 Escrituras de estado (CP/MaxCpCharge) protegidas por flag (`allowStateMutation`).
-- [ ] F1.4 Validar runner oficial activo sin harness.
-- [ ] F1.5 Validar `IBattleInputProvider` oficial antes del primer turno.
+- [x] F1.4 Validar runner oficial activo sin harness. (Log: `TimedHitService runners | KS1=Ks1TimedHitRunner | Basic=(null)`)
+- [x] F1.5 Validar `IBattleInputProvider` oficial antes del primer turno.
 - [ ] F2/F3/F4/F5/F6: Implementar UI Alpha + reconversión del harness (pendiente).
+
+Notas rápidas:
+- Runner por defecto: `AnimationSystemInstaller` configura `TimedHitService.ConfigureRunners(ks1TimedHitRunner, basicTimedHitRunner)` (Assets/Scripts/BattleV2/AnimationSystem/Runtime/AnimationSystemInstaller.cs).
+- Input provider: `BattleManagerV2` resuelve primero `inputProviderComponent`/`inputProviderAsset` o `config.inputProvider`; si no hay, muestra warning y espera `SetRuntimeInputProvider` (Assets/Scripts/BattleV2/Orchestration/BattleManagerV2.cs).
+- Log para F1.4: en consola busca `[AnimationSystemInstaller] TimedHitService runners | KS1=... | Basic=...` al iniciar la escena.
 
 ## Objetivo
 - Desacoplar el harness de responsabilidades de ejecución.

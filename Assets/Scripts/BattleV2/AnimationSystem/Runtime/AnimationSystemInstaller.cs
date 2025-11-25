@@ -154,6 +154,7 @@ namespace BattleV2.AnimationSystem.Runtime
             ks1TimedHitRunner ??= FindRunnerInstance<Ks1TimedHitRunner>();
             basicTimedHitRunner ??= FindRunnerInstance<BasicTimedHitRunner>();
             timedHitService.ConfigureRunners(ks1TimedHitRunner, basicTimedHitRunner);
+            Debug.Log($"[AnimationSystemInstaller] TimedHitService runners | KS1={ks1TimedHitRunner?.GetType().Name ?? "(null)"} | Basic={basicTimedHitRunner?.GetType().Name ?? "(null)"}", this);
 
             clipResolver = new AnimationClipResolver(clipBindings);
             wrapperResolver = new AnimatorWrapperResolver(ResolveActorBindings());

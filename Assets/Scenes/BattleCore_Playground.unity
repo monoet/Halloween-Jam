@@ -5956,7 +5956,7 @@ MonoBehaviour:
   enemyEncounterLoadout: {fileID: 11400000, guid: 79219e8d2028b7f4890c4253d71451da, type: 2}
   enemySpawnPoints: []
   preActionDelaySeconds: 0.33
-  enableDebugLogs: 0
+  enableDebugLogs: 1
 --- !u!114 &1941987471
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6010,6 +6010,8 @@ MonoBehaviour:
   timedHitKey: 32
   hijackTimedHitRunner: 0
   targetSelector: {fileID: 1941987475}
+  registerAsInputProvider: 1
+  allowStateMutation: 0
   enableDebugLogs: 0
 --- !u!114 &1941987474
 MonoBehaviour:
