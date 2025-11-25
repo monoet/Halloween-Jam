@@ -6,7 +6,10 @@
 - [x] F1.3 Escrituras de estado (CP/MaxCpCharge) protegidas por flag (`allowStateMutation`).
 - [x] F1.4 Validar runner oficial activo sin harness. (Log: `TimedHitService runners | KS1=Ks1TimedHitRunner | Basic=(null)`)
 - [x] F1.5 Validar `IBattleInputProvider` oficial antes del primer turno.
-- [ ] F2/F3/F4/F5/F6: Implementar UI Alpha + reconversión del harness (pendiente).
+- [x] F2.1 Skeleton UI Alpha (UGUI) creado: `BattleUIRoot`, `ActionMenuPanel`, `AtkMenuPanel`, `MagMenuPanel`, `ItemMenuPanel`, `CPChargePanel`, `TargetSelectionPanel`, `TimedHitPanel`.
+- [x] F2.2 Bridges creados: `BattleUIInputProvider` (IBattleInputProvider), `BattleUITargetInteractor` (ITargetSelectionInteractor).
+- [ ] F2.3 Conectar UI a BattleManager en escena (`BattleCore_Playground`): asignar provider/interactor y prefab.
+- [ ] F3/F4/F5/F6: Reconversión harness y mejoras posteriores (pendiente).
 
 Notas rápidas:
 - Runner por defecto: `AnimationSystemInstaller` configura `TimedHitService.ConfigureRunners(ks1TimedHitRunner, basicTimedHitRunner)` (Assets/Scripts/BattleV2/AnimationSystem/Runtime/AnimationSystemInstaller.cs).
