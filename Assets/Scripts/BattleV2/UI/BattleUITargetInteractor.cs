@@ -46,6 +46,8 @@ namespace BattleV2.UI
             }
         }
 
+
+
         public Task<TargetSet> SelectAsync(TargetContext context, TargetSet proposedSet)
         {
             if (pendingTcs != null)
@@ -56,13 +58,21 @@ namespace BattleV2.UI
             BattleDiagnostics.Log("Targeting", "Manual Selection Started", this);
             proposed = proposedSet;
             CacheCandidates(context);
-
+            
             pendingTcs = new TaskCompletionSource<TargetSet>();
 
             if (targetPanel == null)
             {
                 // Modo virtual (sin panel): usar el driver/inputs para ciclar y confirmar
                 BattleDiagnostics.Log("Targeting", "Virtual targeting (no panel)", this);
+                
+                if (inputDriver != null)
+                {
+                    Debug.Log("[BattleUITargetInteractor] Virtual Mode: Setting InputDriver state to TargetSelectionState(true)");
+                    inputDriver.SetState(new TargetSelectionState(true));
+                    inputDriver.OnNavigate += HandleNavigate;
+                }
+                
                 if (lastCandidates.Length > 0)
                 {
                     currentIndex = 0;
@@ -73,9 +83,15 @@ namespace BattleV2.UI
             {
                 if (inputDriver != null)
                 {
+                    Debug.Log("[BattleUITargetInteractor] Setting InputDriver state to TargetSelectionState");
                     inputDriver.SetState(new TargetSelectionState());
                 }
-                else if (uiRoot != null)
+                else
+                {
+                    Debug.LogError("[BattleUITargetInteractor] InputDriver is NULL! Cannot set state.");
+                }
+
+                if (uiRoot != null)
                 {
                     uiRoot.EnterTarget();
                 }
@@ -91,45 +107,77 @@ namespace BattleV2.UI
             if (uiRoot != null)
             {
                 uiRoot.OnCancel += HandleCancel;
+                uiRoot.OnTargetConfirmed += HandleConfirm;
             }
 
             return pendingTcs.Task;
         }
 
-        private void Update()
+        private void HandleNavigate(Vector2 direction)
         {
-            // Solo modo virtual (sin panel) y con selección pendiente
-            if (pendingTcs == null || targetPanel != null)
-            {
-                return;
-            }
+            if (pendingTcs == null || targetPanel != null) return; // Only for virtual mode
+            if (lastCandidates.Length == 0) return;
 
-            if (lastCandidates.Length == 0)
-            {
-                return;
-            }
+            if (direction.x > 0) CycleTarget(1);
+            else if (direction.x < 0) CycleTarget(-1);
+        }
 
-            // Navegación
-            if (Input.GetKeyDown(KeyCode.RightArrow) || Input.GetKeyDown(KeyCode.D))
-            {
-                CycleTarget(1);
-            }
-            else if (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.A))
-            {
-                CycleTarget(-1);
-            }
-
-            // Confirmar
-            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Z))
+        private void HandleConfirm()
+        {
+            if (pendingTcs == null) return;
+            
+            // If virtual mode, confirm current index
+            if (targetPanel == null && lastCandidates.Length > 0)
             {
                 HandleSelected(lastCandidates[currentIndex].GetInstanceID());
             }
+            // If panel mode, the panel handles selection via OnTargetSelected, 
+            // but if we want to support "Confirm" button on gamepad triggering the current selection in panel:
+            // We might need to know what the panel has selected. 
+            // For now, let's assume panel handles its own confirmation via UI buttons.
+            // But wait, TargetSelectionState calls ConfirmTarget() on Enter/Space/Z.
+            // So we MUST handle it here for panel mode too if we want keyboard support for panel buttons.
+            // However, Unity UI usually handles Enter on selected button.
+            // If we are using Unity UI navigation, the button OnClick fires.
+            // So we might not need to do anything here for panel mode, 
+            // UNLESS the user presses a button that isn't "Submit" but we mapped it to confirm?
+            // But TargetSelectionState uses "AllowConfirm" which checks ConfirmKeys.
+            // If Unity UI handles it, we might double confirm?
+            // TargetSelectionState calls ExecuteEvents.submitHandler in MenuState, but in TargetSelectionState it calls ConfirmTarget().
+            // So we should probably NOT call ConfirmTarget() if we want Unity UI to handle it?
+            // Actually, TargetSelectionState in my previous edit calls ConfirmTarget().
+            // If I want Unity UI to work, I should probably let Unity UI handle it OR manually invoke the selected button.
+            // Let's stick to Virtual Mode support for now in HandleConfirm.
+            // If Panel Mode needs it, we can add it later.
+        }
 
-            // Cancelar
-            if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.Backspace) || Input.GetKeyDown(KeyCode.X))
+        private void ResolveAndClear(TargetSet result)
+        {
+            if (pendingTcs != null)
             {
-                HandleCancel();
+                pendingTcs.TrySetResult(result);
+                pendingTcs = null;
             }
+
+            if (targetPanel != null)
+            {
+                targetPanel.OnTargetSelected -= HandleSelected;
+                targetPanel.OnCancelRequested -= HandleCancel;
+                targetPanel.gameObject.SetActive(false);
+            }
+
+            if (uiRoot != null)
+            {
+                uiRoot.OnCancel -= HandleCancel;
+                uiRoot.OnTargetConfirmed -= HandleConfirm;
+            }
+
+            if (inputDriver != null)
+            {
+                inputDriver.OnNavigate -= HandleNavigate;
+            }
+
+            ClearAllHighlights();
         }
 
         private void CycleTarget(int direction)
@@ -143,6 +191,8 @@ namespace BattleV2.UI
 
         private void HandleSelected(int targetId)
         {
+
+
             BattleDiagnostics.Log("Targeting", $"Target Selected: {targetId}", this);
             ClearAllHighlights();
             ResolveAndClear(TargetSet.Single(targetId));
@@ -150,32 +200,19 @@ namespace BattleV2.UI
 
         private void HandleCancel()
         {
-            BattleDiagnostics.Log("Targeting", "Selection Cancelled", this);
+            BattleDiagnostics.Log("Targeting", "Selection Cancelled (Back)", this);
             ClearAllHighlights();
-            ResolveAndClear(proposed.IsEmpty ? TargetSet.None : proposed);
+            
+            // Resolve with Back set to signal return to previous menu
+            ResolveAndClear(TargetSet.Back);
 
             // Regresar al estado de menú si el driver existe
-            inputDriver?.SetState(new MenuState());
+            // NOTE: With the new refactor, the Provider/Manager handles the state transition based on the result.
+            // We remove the direct state change here to avoid double-pushing state or flickers.
+            // inputDriver?.SetState(new MenuState());
         }
 
-        private void ResolveAndClear(TargetSet result)
-        {
-            if (targetPanel != null)
-            {
-                targetPanel.OnTargetSelected -= HandleSelected;
-                targetPanel.OnCancelRequested -= HandleCancel;
-            }
 
-            if (uiRoot != null)
-            {
-                uiRoot.OnCancel -= HandleCancel;
-            }
-
-            pendingTcs?.TrySetResult(result);
-            pendingTcs = null;
-            proposed = TargetSet.None;
-            lastCandidates = System.Array.Empty<CombatantState>();
-        }
 
         private void CacheCandidates(TargetContext context)
         {

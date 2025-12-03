@@ -91,6 +91,7 @@ namespace BattleV2.Orchestration.Services
         public CombatantState PrimaryEnemy { get; }
         public CharacterRuntime PrimaryEnemyRuntime { get; }
 
+        public TargetResolutionStatus Status => Result.Status;
         public bool HasTargets => Result.Targets != null && Result.Targets.Count > 0;
 
         public static PlayerTargetResolution Empty => new PlayerTargetResolution(

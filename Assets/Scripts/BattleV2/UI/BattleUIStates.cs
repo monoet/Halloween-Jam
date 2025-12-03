@@ -13,10 +13,13 @@ namespace BattleV2.UI
 
     public class MenuState : IBattleUIState
     {
+        private readonly IInputGate gate = new NoGate();
+
         public void Enter(BattleUIInputDriver driver)
         {
-            Debug.Log("[UIState] Entering Menu State");
-            driver.UiRoot?.EnterRoot();
+            Debug.Log("[UIState] Entering Menu State (Input Only)");
+            gate.OnEnter(driver);
+            // No longer forcing UI Root entry. The UI Manager (BattleUIRoot) handles the visual stack.
         }
 
         public void Exit(BattleUIInputDriver driver) { }
@@ -27,7 +30,7 @@ namespace BattleV2.UI
             driver.HandleCpIntentHotkeys();
             
             // Confirm
-            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Z))
+            if (gate.AllowConfirm(driver))
             {
                 GameObject current = EventSystem.current.currentSelectedGameObject;
                 if (current != null)
@@ -38,7 +41,7 @@ namespace BattleV2.UI
             }
 
             // Cancel
-            if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.Backspace) || Input.GetKeyDown(KeyCode.X))
+            if (gate.AllowCancel(driver))
             {
                 if (driver.UiRoot != null)
                 {
@@ -48,6 +51,10 @@ namespace BattleV2.UI
             }
         }
     }
+
+    // ... ExecutionState ...
+
+
 
     public class ExecutionState : IBattleUIState
     {
@@ -64,8 +71,8 @@ namespace BattleV2.UI
 
         public void HandleInput(BattleUIInputDriver driver)
         {
-            // Forward input to TimedHitService (Space only to avoid capturar confirm)
-            if (Input.GetKeyDown(KeyCode.Space))
+            // Forward input to TimedHitService
+            if (driver.TimedHitPressedThisFrame)
             {
                 if (driver.TimedHitService != null && driver.ActiveActor != null)
                 {
@@ -85,10 +92,26 @@ namespace BattleV2.UI
 
     public class TargetSelectionState : IBattleUIState
     {
+        private readonly IInputGate gate = new WaitReleaseThenPressGate();
+        private readonly bool isVirtual;
+
+        public TargetSelectionState(bool isVirtual = false)
+        {
+            this.isVirtual = isVirtual;
+        }
+
         public void Enter(BattleUIInputDriver driver)
         {
-            Debug.Log("[UIState] Entering Target Selection State");
-            if (driver.UiRoot != null)
+            Debug.Log($"[UIState] Entering Target Selection State (Virtual={isVirtual})");
+            gate.OnEnter(driver);
+            driver.ResetInputAxes(); // Ensure gate sees a clean state (release)
+            
+            if (isVirtual)
+            {
+                // In Virtual Mode, we don't want to show the panel, and we don't want to interact with previous UI.
+                EventSystem.current.SetSelectedGameObject(null);
+            }
+            else if (driver.UiRoot != null)
             {
                 driver.UiRoot.EnterTarget();
             }
@@ -104,16 +127,52 @@ namespace BattleV2.UI
         public void HandleInput(BattleUIInputDriver driver)
         {
             driver.HandleNavigation();
+            driver.HandleCpIntentHotkeys();
+
+            // Confirm
+            if (gate.AllowConfirm(driver))
+            {
+                // In Virtual Mode, ignore UI selection and go straight to ConfirmTarget
+                if (isVirtual)
+                {
+                    Debug.Log("[TargetSelectionState] Virtual Confirm. Calling ConfirmTarget.");
+                    driver.UiRoot?.ConfirmTarget();
+                }
+                else
+                {
+                    GameObject current = EventSystem.current.currentSelectedGameObject;
+                    if (current != null)
+                    {
+                        Debug.Log($"[TargetSelectionState] Confirm allowed. Executing Submit on {current.name}");
+                        ExecuteEvents.Execute(current, new BaseEventData(EventSystem.current), ExecuteEvents.submitHandler);
+                    }
+                    else if (driver.UiRoot != null)
+                    {
+                        // Fallback if no selection even in Panel Mode
+                        Debug.Log("[TargetSelectionState] Panel Mode but no selection. Calling ConfirmTarget.");
+                        driver.UiRoot.ConfirmTarget();
+                    }
+                }
+            }
 
             // Cancel
-            if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.Backspace) || Input.GetKeyDown(KeyCode.X))
+            if (gate.AllowCancel(driver))
             {
+                Debug.Log("[TargetSelectionState] Cancel allowed.");
                 if (driver.UiRoot != null)
                 {
-                    // This triggers OnCancel event in UIRoot, which BattleUITargetInteractor listens to.
-                    // The Interactor then resolves the task with Empty/Proposed.
-                    // The Orchestrator then decides what to do (likely go back to Menu).
-                    driver.UiRoot.GoBack(); 
+                    // 1. Restore UI Visuals (Pop Target -> Show Previous)
+                    if (!isVirtual)
+                    {
+                        driver.UiRoot.GoBack();
+                    }
+                    
+                    // 2. Restore Input State (Clean MenuState)
+                    driver.SetState(new MenuState());
+                    
+                    // 3. Signal Cancellation to Interactor (so it cleans up TCS)
+                    driver.UiRoot.CancelTarget(); 
+
                     driver.PlayCancelAudio();
                 }
             }

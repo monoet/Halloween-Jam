@@ -254,7 +254,7 @@ namespace BattleV2.Orchestration
                     timedHitOverlay.Initialize((IAnimationEventBus)eventBus);
                 }
             }
-            targetingCoordinator = new TargetingCoordinator(TargetResolvers, eventBus);
+            targetingCoordinator = new TargetingCoordinator(TargetResolvers, eventBus, null, new BattleV2.Targeting.Policies.BackAwareResolutionPolicy());
             
             // Fail Fast / Auto-Wire: Ensure we have an interactor for manual targeting
             // Search for ACTIVE first
@@ -626,31 +626,115 @@ namespace BattleV2.Orchestration
             playerActionExecutor = new PlayerActionExecutor(actionPipeline, timedResultResolver, triggeredEffects, eventBus);
         }
 
+        private SelectionDraft currentDraft;
+
         private void HandlePlayerSelection(BattleSelection selection)
         {
-            ProcessPlayerSelection(selection);
+            // Start the draft process
+            currentDraft = SelectionDraft.Create(Player, selection.Action, 0, "Root"); // TODO: OriginMenu
+            _ = ResolveDraftAsync(currentDraft, selection);
         }
 
-        private async void ProcessPlayerSelection(BattleSelection selection)
+        private async Task ResolveDraftAsync(SelectionDraft draft, BattleSelection initialSelection)
         {
-            BattleDiagnostics.Log("Orchestrator", $"Processing Selection: {selection.Action?.id ?? "null"}");
+            if (!draft.IsValid)
+            {
+                Debug.LogError("[BattleManagerV2] Invalid draft started.");
+                return;
+            }
+
+            // 1. Resolve Targets (Build Phase)
+            var playerResolution = targetResolutionService != null
+                ? await targetResolutionService.ResolveForPlayerAsync(
+                    draft.Actor,
+                    initialSelection,
+                    context,
+                    AlliesList,
+                    EnemiesList,
+                    combatant => ResolveRuntime(combatant, combatant?.CharacterRuntime))
+                : PlayerTargetResolution.Empty;
+
+            if (this == null || !isActiveAndEnabled)
+            {
+                // Component destroyed or disabled during async resolution
+                return;
+            }
+
+            // 2. Interpret Result (Strategy Phase)
+            switch (playerResolution.Status)
+            {
+                case TargetResolutionStatus.Back:
+                    BattleDiagnostics.Log("Orchestrator", "Draft Resolution: BACK. returning to menu.", draft.Actor);
+                    // Do NOT commit. Do NOT end turn.
+                    // The UI Interactor should have already handled the state transition to Menu.
+                    currentDraft = currentDraft.ClearTargets(); 
+                    
+                    // Re-request input since the provider unsubscribed
+                    RequestPlayerAction();
+                    return;
+
+                case TargetResolutionStatus.Cancelled:
+                    BattleDiagnostics.Log("Orchestrator", "Draft Resolution: CANCELLED.", draft.Actor);
+                    currentDraft = SelectionDraft.Empty;
+                    return;
+
+                case TargetResolutionStatus.Confirmed:
+                    // Proceed to Commit
+                    var targets = playerResolution.Result.TargetSet;
+                    currentDraft = currentDraft.WithTargets(targets);
+                    
+                    await CommitSelectionDraft(currentDraft, initialSelection, playerResolution);
+                    return;
+                
+                case TargetResolutionStatus.None:
+                default:
+                    Debug.LogWarning($"[BattleManagerV2] Unexpected resolution status: {playerResolution.Status}. Treating as Cancelled.");
+                    currentDraft = SelectionDraft.Empty;
+                    return;
+            }
+        }
+
+        private async Task CommitSelectionDraft(SelectionDraft draft, BattleSelection selection, PlayerTargetResolution resolution)
+        {
+            if (this == null || !isActiveAndEnabled)
+            {
+                return;
+            }
+
+            if (draft.IsCommitted)
+            {
+                Debug.LogWarning("[BattleManagerV2] Attempted to commit an already committed draft.");
+                return;
+            }
+
+            BattleDiagnostics.Log("Orchestrator", $"Committing Selection: {draft.Action?.id ?? "null"}");
             
-            var currentPlayer = Player;
+            var currentPlayer = draft.Actor;
             int selectionId = ++cpSelectionCounter;
 
-            bool consumesCp = selection.Action != null &&
-                              (selection.Action.costCP > 0 || selection.ChargeProfile != null || selection.TimedHitProfile != null);
+            // 3. Consume Resources (Commit Phase)
+            bool consumesCp = draft.Action != null &&
+                              (draft.Action.costCP > 0 || selection.ChargeProfile != null || selection.TimedHitProfile != null);
+            
             int extraCp = consumesCp ? cpIntent.ConsumeOnce(selectionId, "ActionCommit") : 0;
+            
             if (!consumesCp)
             {
                 cpIntent.Cancel("NonConsumingOutcome");
             }
+            
+            // Mark as committed
+            currentDraft = draft.MarkCommitted();
+
+            // End Turn Signal
             cpIntent.EndTurn("CommittedOutcome");
+            
             if (extraCp > 0)
             {
                 selection = selection.WithCpCharge(selection.CpCharge + extraCp);
             }
 
+            // 4. Validate
             if (!actionValidator.TryValidate(selection.Action, currentPlayer, context, selection.CpCharge, out var implementation))
             {
                 BattleDiagnostics.Log("Orchestrator", "Validation Failed", currentPlayer);
@@ -658,50 +742,20 @@ namespace BattleV2.Orchestration
                 return;
             }
 
-            var playerResolution = targetResolutionService != null
-                ? await targetResolutionService.ResolveForPlayerAsync(
-                    currentPlayer,
-                    selection,
-                    context,
-                    AlliesList,
-                    EnemiesList,
-                    combatant => ResolveRuntime(combatant, combatant?.CharacterRuntime))
-                : new PlayerTargetResolution(
-                    await targetingCoordinator.ResolveAsync(
-                        currentPlayer,
-                        selection.Action,
-                        TargetSourceType.Manual,
-                        Enemy,
-                        AlliesList,
-                        EnemiesList),
-                    null,
-                    null);
-
-            var resolution = playerResolution.Result;
-            var targets = resolution.Targets ?? Array.Empty<CombatantState>();
-
-            if (targets.Count == 0)
+            // 5. Update Context
+            if (resolution.PrimaryEnemy != null)
             {
-                Debug.LogWarning($"[BattleManagerV2] Failed to resolve targets for {selection.Action.id}.");
-                if (!(battleEndService?.TryResolve(rosterSnapshot, currentPlayer, state) ?? false))
-                {
-                    ExecuteFallback();
-                }
-                return;
-            }
-
-            if (playerResolution.PrimaryEnemy != null)
-            {
-                var resolvedRuntime = playerResolution.PrimaryEnemyRuntime ?? ResolveRuntime(playerResolution.PrimaryEnemy, playerResolution.PrimaryEnemy?.CharacterRuntime);
-                UpdateEnemyReference(playerResolution.PrimaryEnemy, resolvedRuntime);
+                var resolvedRuntime = resolution.PrimaryEnemyRuntime ?? ResolveRuntime(resolution.PrimaryEnemy, resolution.PrimaryEnemy?.CharacterRuntime);
+                UpdateEnemyReference(resolution.PrimaryEnemy, resolvedRuntime);
             }
 
             RefreshCombatContext();
 
-            var enrichedSelection = selection.WithTargets(resolution.TargetSet);
-            if (playerResolution.PrimaryEnemy != null)
+            // 6. Enrich Selection
+            var enrichedSelection = selection.WithTargets(resolution.Result.TargetSet);
+            if (resolution.PrimaryEnemy != null)
             {
-                var targetTransform = playerResolution.PrimaryEnemy.transform;
+                var targetTransform = resolution.PrimaryEnemy.transform;
                 if (targetTransform != null)
                 {
                     enrichedSelection = enrichedSelection.WithTargetTransform(targetTransform);
@@ -712,6 +766,7 @@ namespace BattleV2.Orchestration
                 enrichedSelection = enrichedSelection.WithTimedHitHandle(new TimedHitExecutionHandle(enrichedSelection.TimedHitResult));
             }
 
+            // 7. Execute
             int cpBefore = currentPlayer != null ? currentPlayer.CurrentCP : 0;
             LastExecutedAction = enrichedSelection.Action;
             OnPlayerActionSelected?.Invoke(enrichedSelection, cpBefore);
@@ -722,9 +777,12 @@ namespace BattleV2.Orchestration
                 inputDriver.SetActiveActor(currentPlayer);
             }
 
+            var targetsList = resolution.Result.Targets ?? Array.Empty<CombatantState>();
+
             var playbackTask = animOrchestrator != null
-                ? animOrchestrator.PlayAsync(new ActionPlaybackRequest(currentPlayer, enrichedSelection, targets, CalculateAverageSpeed(), enrichedSelection.AnimationRecipeId))
+                ? animOrchestrator.PlayAsync(new ActionPlaybackRequest(currentPlayer, enrichedSelection, targetsList, CalculateAverageSpeed(), enrichedSelection.AnimationRecipeId))
                 : Task.CompletedTask;
+            
             if (playerActionExecutor == null)
             {
                 Debug.LogError("[BattleManagerV2] PlayerActionExecutor not initialised. Falling back.", this);
@@ -739,7 +797,7 @@ namespace BattleV2.Orchestration
                 Selection = enrichedSelection,
                 Implementation = implementation,
                 CombatContext = context,
-                Targets = targets ?? Array.Empty<CombatantState>(),
+                Targets = targetsList,
                 PlaybackTask = playbackTask,
                 ComboPointsBefore = cpBefore,
                 TryResolveBattleEnd = () => battleEndService != null && battleEndService.TryResolve(rosterSnapshot, currentPlayer, state),
@@ -1088,16 +1146,3 @@ namespace BattleV2.Orchestration
         }
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -14,5 +14,8 @@ namespace BattleV2.Actions
         [Header("Combat Event Options")]
         [Tooltip("Delay (seconds) between impact raises when the action hits multiple targets. 0 disables staggering.")]
         public float combatEventStaggerStep = 0f;
+
+        [Header("Targeting")]
+        public bool requiresTarget = true;
     }
 }

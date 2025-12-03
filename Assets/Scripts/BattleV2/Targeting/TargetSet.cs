@@ -43,7 +43,10 @@ namespace BattleV2.Targeting
             (!IsGroup && SingleId == 0) ||
             (IsGroup && (ids == null || ids.Count == 0));
 
+        public bool IsBack => !IsGroup && SingleId == -1;
+
         public static TargetSet None => new TargetSet(false, 0, Array.Empty<int>());
+        public static TargetSet Back => new TargetSet(false, -1, Array.Empty<int>());
 
         public static TargetSet Single(int instanceId)
         {

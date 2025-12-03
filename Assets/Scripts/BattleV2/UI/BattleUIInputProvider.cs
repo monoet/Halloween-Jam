@@ -49,7 +49,10 @@ namespace BattleV2.UI
                 uiRoot.OnRootActionSelected += HandleRootActionSelected;
                 uiRoot.OnChargeCommitted += HandleChargeCommitted;
                 uiRoot.OnCancel += HandleCancel;
-                uiRoot.EnterRoot();
+                if (uiRoot.StackCount == 0)
+                {
+                    uiRoot.EnterRoot();
+                }
             }
             else
             {

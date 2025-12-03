@@ -5,6 +5,7 @@ using BattleV2.Actions;
 using BattleV2.Core;
 using BattleV2.Orchestration.Events;
 using BattleV2.Targeting;
+using BattleV2.Targeting.Policies;
 using UnityEngine;
 
 namespace BattleV2.Orchestration.Services
@@ -12,6 +13,7 @@ namespace BattleV2.Orchestration.Services
     public interface ITargetingCoordinator
     {
         void SetInteractor(ITargetSelectionInteractor interactor);
+        void SetPolicy(ITargetResolutionPolicy policy);
         Task<TargetResolutionResult> ResolveAsync(
             CombatantState origin,
             BattleActionData action,
@@ -30,20 +32,28 @@ namespace BattleV2.Orchestration.Services
         private readonly IBattleEventBus eventBus;
         private readonly List<CombatantState> scratchTargets = new();
         private ITargetSelectionInteractor selectionInteractor;
+        private ITargetResolutionPolicy resolutionPolicy;
 
         public TargetingCoordinator(
             TargetResolverRegistry resolverRegistry,
             IBattleEventBus eventBus,
-            ITargetSelectionInteractor selectionInteractor = null)
+            ITargetSelectionInteractor selectionInteractor = null,
+            ITargetResolutionPolicy resolutionPolicy = null)
         {
             this.resolverRegistry = resolverRegistry;
             this.eventBus = eventBus;
             this.selectionInteractor = selectionInteractor;
+            this.resolutionPolicy = resolutionPolicy ?? new DefaultResolutionPolicy();
         }
 
         public void SetInteractor(ITargetSelectionInteractor interactor)
         {
             selectionInteractor = interactor;
+        }
+
+        public void SetPolicy(ITargetResolutionPolicy policy)
+        {
+            resolutionPolicy = policy ?? new DefaultResolutionPolicy();
         }
 
         public async Task<TargetResolutionResult> ResolveAsync(
@@ -68,15 +78,23 @@ namespace BattleV2.Orchestration.Services
                 set = EnsureFallbackSet(sourceType, fallback, allies, enemies);
             }
 
-            if (sourceType == TargetSourceType.Manual && selectionInteractor != null)
+            if (sourceType == TargetSourceType.Manual)
             {
-                try
+                if (selectionInteractor != null)
                 {
-                    set = await selectionInteractor.SelectAsync(context, set);
+                    try
+                    {
+                        BattleDiagnostics.Log("Targeting", "Invoking Manual Selection...", origin);
+                        set = await selectionInteractor.SelectAsync(context, set);
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.LogWarning($"[TargetingCoordinator] Manual selection failed ({ex.Message}). Falling back to auto resolution.");
+                    }
                 }
-                catch (Exception ex)
+                else
                 {
-                    Debug.LogWarning($"[TargetingCoordinator] Manual selection failed ({ex.Message}). Falling back to auto resolution.");
+                    BattleDiagnostics.Log("Targeting", "Manual selection requested but NO INTERACTOR registered. Skipping UI.", origin);
                 }
             }
 
@@ -90,7 +108,14 @@ namespace BattleV2.Orchestration.Services
 
             var targetsCopy = scratchTargets.ToArray();
             scratchTargets.Clear();
-            return new TargetResolutionResult(set, targetsCopy);
+
+            var initialStatus = set.IsBack ? TargetResolutionStatus.Back : TargetResolutionStatus.Confirmed;
+            if (set.IsEmpty && !set.IsBack) initialStatus = TargetResolutionStatus.Cancelled;
+
+            var tempResult = new TargetResolutionResult(set, targetsCopy, initialStatus);
+            var finalStatus = resolutionPolicy.Interpret(tempResult, action);
+
+            return new TargetResolutionResult(set, targetsCopy, finalStatus);
         }
 
         private static TargetQuery ResolveQuery(CombatantState origin, IReadOnlyList<CombatantState> allies, IReadOnlyList<CombatantState> enemies)
@@ -230,15 +255,28 @@ namespace BattleV2.Orchestration.Services
         }
     }
 
+    public enum TargetResolutionStatus
+    {
+        None = 0,
+        Confirmed,
+        Back,
+        Cancelled
+    }
+
     public readonly struct TargetResolutionResult
     {
-        public TargetResolutionResult(TargetSet targetSet, CombatantState[] targets)
+        public TargetResolutionResult(TargetSet targetSet, CombatantState[] targets, TargetResolutionStatus status)
         {
             TargetSet = targetSet;
             Targets = targets ?? Array.Empty<CombatantState>();
+            Status = status;
         }
+
+        public TargetResolutionResult(TargetSet targetSet, CombatantState[] targets) 
+            : this(targetSet, targets, TargetResolutionStatus.Confirmed) { }
 
         public TargetSet TargetSet { get; }
         public IReadOnlyList<CombatantState> Targets { get; }
+        public TargetResolutionStatus Status { get; }
     }
 }
