@@ -106,7 +106,7 @@ namespace BattleV2.UI
 
             if (uiRoot != null)
             {
-                uiRoot.OnCancel += HandleCancel;
+                uiRoot.OnTargetCancel += HandleCancel;
                 uiRoot.OnTargetConfirmed += HandleConfirm;
             }
 
@@ -168,7 +168,7 @@ namespace BattleV2.UI
 
             if (uiRoot != null)
             {
-                uiRoot.OnCancel -= HandleCancel;
+                uiRoot.OnTargetCancel -= HandleCancel;
                 uiRoot.OnTargetConfirmed -= HandleConfirm;
             }
 

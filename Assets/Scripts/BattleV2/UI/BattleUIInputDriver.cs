@@ -174,7 +174,7 @@ namespace BattleV2.UI
                 uiRoot.OnSpellChosen += HandleActionChosen;
                 uiRoot.OnItemChosen += HandleActionChosen;
                 uiRoot.OnRootActionSelected += HandleRootAction;
-                uiRoot.OnCancel += HandleCancel;
+                uiRoot.OnMenuCancel += HandleCancel;
             }
         }
 

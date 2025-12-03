@@ -30,7 +30,8 @@ namespace BattleV2.UI
         public event Action<int> OnTargetSelected;
         public event Action OnTargetConfirmed;
         public event Action OnTimedHitPressed;
-        public event Action OnCancel;
+        public event Action OnMenuCancel;
+        public event Action OnTargetCancel;
 
         private enum UiState
         {
@@ -137,11 +138,7 @@ namespace BattleV2.UI
             if (targetPanel != null)
             {
                 targetPanel.OnTargetSelected += id => OnTargetSelected?.Invoke(id);
-                targetPanel.OnCancelRequested += () =>
-                {
-                    OnCancel?.Invoke();
-                    GoBack();
-                };
+                targetPanel.OnCancelRequested += () => RequestCancelTarget(goBack: true);
             }
 
             if (timedHitPanel != null)
@@ -289,6 +286,20 @@ namespace BattleV2.UI
 
         // ... Confirm/Cancel Target ...
         public void ConfirmTarget() => OnTargetConfirmed?.Invoke();
-        public void CancelTarget() => OnCancel?.Invoke();
+        public void CancelTarget() => OnTargetCancel?.Invoke();
+        public void CancelMenu() => OnMenuCancel?.Invoke();
+
+        /// <summary>
+        /// Cancela la selección de objetivo. Opcionalmente hace GoBack antes de emitir el evento.
+        /// </summary>
+        public void RequestCancelTarget(bool goBack)
+        {
+            if (goBack)
+            {
+                GoBack();
+            }
+
+            CancelTarget();
+        }
     }
 }

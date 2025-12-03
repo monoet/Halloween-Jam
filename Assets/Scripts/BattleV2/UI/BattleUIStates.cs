@@ -45,7 +45,14 @@ namespace BattleV2.UI
             {
                 if (driver.UiRoot != null)
                 {
-                    driver.UiRoot.GoBack();
+                    if (driver.UiRoot.StackCount > 1)
+                    {
+                        driver.UiRoot.GoBack();
+                    }
+                    else
+                    {
+                        driver.UiRoot.CancelMenu();
+                    }
                     driver.PlayCancelAudio();
                 }
             }
@@ -161,18 +168,8 @@ namespace BattleV2.UI
                 Debug.Log("[TargetSelectionState] Cancel allowed.");
                 if (driver.UiRoot != null)
                 {
-                    // 1. Restore UI Visuals (Pop Target -> Show Previous)
-                    if (!isVirtual)
-                    {
-                        driver.UiRoot.GoBack();
-                    }
-                    
-                    // 2. Restore Input State (Clean MenuState)
+                    driver.UiRoot.RequestCancelTarget(goBack: !isVirtual);
                     driver.SetState(new MenuState());
-                    
-                    // 3. Signal Cancellation to Interactor (so it cleans up TCS)
-                    driver.UiRoot.CancelTarget(); 
-
                     driver.PlayCancelAudio();
                 }
             }

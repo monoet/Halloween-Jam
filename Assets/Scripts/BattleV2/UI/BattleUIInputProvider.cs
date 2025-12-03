@@ -48,7 +48,7 @@ namespace BattleV2.UI
                 uiRoot.OnItemChosen += HandleItemChosen;
                 uiRoot.OnRootActionSelected += HandleRootActionSelected;
                 uiRoot.OnChargeCommitted += HandleChargeCommitted;
-                uiRoot.OnCancel += HandleCancel;
+                uiRoot.OnMenuCancel += HandleCancel;
                 if (uiRoot.StackCount == 0)
                 {
                     uiRoot.EnterRoot();
@@ -152,7 +152,7 @@ namespace BattleV2.UI
                 uiRoot.OnItemChosen -= HandleItemChosen;
                 uiRoot.OnRootActionSelected -= HandleRootActionSelected;
                 uiRoot.OnChargeCommitted -= HandleChargeCommitted;
-                uiRoot.OnCancel -= HandleCancel;
+                uiRoot.OnMenuCancel -= HandleCancel;
                 
                 if (hideUI)
                 {
