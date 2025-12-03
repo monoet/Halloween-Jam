@@ -84,7 +84,7 @@ namespace BattleV2.Orchestration.Services
                 {
                     try
                     {
-                        BattleDiagnostics.Log("Targeting", "Invoking Manual Selection...", origin);
+                        BattleDiagnostics.Log("Targeting", "Invoking Manual Selection (SelectAsync)...", origin);
                         set = await selectionInteractor.SelectAsync(context, set);
                     }
                     catch (Exception ex)

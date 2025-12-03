@@ -52,7 +52,10 @@ namespace BattleV2.UI
         {
             if (pendingTcs != null)
             {
-                return pendingTcs.Task;
+                // Evita quedar en limbo si la selección anterior no se limpió
+                BattleDiagnostics.Log("Targeting", "SelectAsync called while pendingTcs still alive. Forcing cancel/back.", this);
+                pendingTcs.TrySetResult(TargetSet.Back);
+                pendingTcs = null;
             }
 
             BattleDiagnostics.Log("Targeting", "Manual Selection Started", this);
@@ -93,7 +96,7 @@ namespace BattleV2.UI
 
                 if (uiRoot != null)
                 {
-                    uiRoot.EnterTarget();
+                    // El estado TargetSelectionState ya hace EnterTarget; evitar doble push en el stack
                 }
                 else
                 {

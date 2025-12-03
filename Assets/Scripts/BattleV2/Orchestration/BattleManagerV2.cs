@@ -667,10 +667,9 @@ namespace BattleV2.Orchestration
                     BattleDiagnostics.Log("Orchestrator", "Draft Resolution: BACK. returning to menu.", draft.Actor);
                     // Do NOT commit. Do NOT end turn.
                     // The UI Interactor should have already handled the state transition to Menu.
-                    currentDraft = currentDraft.ClearTargets(); 
-                    
-                    // Re-request input since the provider unsubscribed
-                    RequestPlayerAction();
+                    currentDraft = currentDraft.ClearTargets();
+                    // Nota: no re-llamamos RequestPlayerAction aquí para evitar reabrir Root.
+                    // El stack UI ya quedó en el submenú previo (Atk/Mag/Item); el driver sigue en MenuState.
                     return;
 
                 case TargetResolutionStatus.Cancelled:

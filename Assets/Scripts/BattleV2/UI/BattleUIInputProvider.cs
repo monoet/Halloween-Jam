@@ -114,8 +114,10 @@ namespace BattleV2.UI
 
             var selection = new BattleSelection(action, cp, chargeProfile, timedProfile);
             pendingOnSelected?.Invoke(selection);
-            // Do NOT hide UI here. Let the next step (Targeting or Execution) handle UI state.
-            ClearPending(false);
+
+            // Seguimos escuchando para permitir que el jugador reabra targeting tras un Back.
+            // No limpiamos suscripciones aquí; el ciclo termina en commit o cancel duro.
+            pendingCp = 0;
         }
 
         private static BattleActionData FindAction(IReadOnlyList<BattleActionData> list, string id)
