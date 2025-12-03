@@ -5,6 +5,7 @@ using BattleV2.AnimationSystem;
 using BattleV2.AnimationSystem.Runtime;
 using BattleV2.Charge;
 using UnityEngine;
+using BattleV2.AnimationSystem.Execution.Runtime.CombatEvents;
 
 namespace BattleV2.Execution.TimedHits
 {
@@ -15,7 +16,7 @@ namespace BattleV2.Execution.TimedHits
     {
         [SerializeField] private AnimationSystemInstaller installer;
         [SerializeField] private KeyCode inputKey = KeyCode.Space;
-        [SerializeField] private bool enableDebugLogs;
+        [SerializeField] private bool enableDebugLogs = true;
 
         private TaskCompletionSource<TimedHitResult> pendingRun;
         private TimedHitRequest activeRequest;
@@ -64,11 +65,31 @@ namespace BattleV2.Execution.TimedHits
 
             if (enableDebugLogs)
             {
-                Debug.Log("[BasicTimedHitRunner] Sequence started.", this);
+                Debug.Log($"[BasicTimedHitRunner] Sequence started. Bus Hash: {installer?.EventBus?.GetHashCode()}", this);
             }
 
             OnSequenceStarted?.Invoke();
             OnPhaseStarted?.Invoke(new TimedHitPhaseInfo(1, 1, 0f, 1f));
+
+            // Publish Window Open Event
+            if (installer?.EventBus != null)
+            {
+                float durationSeconds = (float)activeProfile.WindowTimeoutMs / 1000f;
+                // Construct payload with duration
+                string payload = $"duration={durationSeconds};perfect=0.0"; // Basic hit usually starts immediately, perfect at 0? Or maybe perfect is at start? 
+                // Actually BasicTimedHitRunner logic: "elapsedMs <= activeProfile.PerfectThresholdMs" means perfect is at 0.
+                
+                installer.EventBus.Publish(new AnimationWindowEvent(
+                    request.Attacker,
+                    activeProfile.EventTag,
+                    payload,
+                    0f,
+                    1f, // Normalized Window End
+                    isOpening: true,
+                    windowIndex: 0,
+                    windowCount: 1));
+            }
+
             return pendingRun.Task;
         }
 
@@ -82,7 +103,21 @@ namespace BattleV2.Execution.TimedHits
             double now = Time.timeAsDouble;
             double elapsedMs = (now - windowOpenedAt) * 1000d;
 
-            bool pressed = Input.GetKeyDown(inputKey);
+            bool pressed = false;
+            // Try consume from service provider first
+            if (installer?.TimedHitService != null && installer.TimedHitService.TryConsumeInput(out var timestamp))
+            {
+                pressed = true;
+                // Use the timestamp from provider if needed, but for BasicRunner we mostly care about "now" vs window start.
+                // Ideally we should use (timestamp - windowOpenedAt) but for simplicity and safety with frame alignment:
+                now = timestamp; 
+                elapsedMs = (now - windowOpenedAt) * 1000d;
+            }
+            else if (Input.GetKeyDown(inputKey))
+            {
+                pressed = true;
+            }
+
             bool timedOut = elapsedMs >= activeProfile.WindowTimeoutMs;
 
             if (!pressed && !timedOut)
@@ -154,6 +189,20 @@ namespace BattleV2.Execution.TimedHits
             PublishResultEvent(judgment, elapsedMs, consumedInput, resolutionTimestamp, phaseIndex, totalPhases: 1);
 
             Complete(result);
+
+            // Publish Window Close Event
+            if (installer?.EventBus != null)
+            {
+                installer.EventBus.Publish(new AnimationWindowEvent(
+                    activeRequest.Attacker,
+                    activeProfile.EventTag,
+                    "Basic",
+                    (float)elapsedMs / 1000f,
+                    (float)activeProfile.WindowTimeoutMs / 1000f,
+                    isOpening: false,
+                    windowIndex: 0,
+                    windowCount: 1));
+            }
         }
 
         private void PublishResultEvent(
@@ -193,7 +242,7 @@ namespace BattleV2.Execution.TimedHits
 
             if (enableDebugLogs)
             {
-                Debug.Log($"[BasicTimedHitRunner] Event -> {judgment} (Δ={deltaMs:0.#}ms).", this);
+                Debug.Log($"[BasicTimedHitRunner] Event -> {judgment} (dt={deltaMs:0.#}ms).", this);
             }
         }
 

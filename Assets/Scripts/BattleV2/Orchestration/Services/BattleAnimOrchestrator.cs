@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using BattleV2.Core;
 using BattleV2.Orchestration.Events;
 using BattleV2.Orchestration.Services.Animation;
+using BattleV2.AnimationSystem;
 using BattleV2.Providers;
 using UnityEngine;
 
@@ -44,7 +45,12 @@ namespace BattleV2.Orchestration.Services
             float actionDelay = timing.BaseActionTime * speedScale;
             if (actionDelay > 0f)
             {
+                // Simulate Timed Hit Window
+                eventBus?.Publish(new AnimationWindowEvent(request.Actor, "Attack", "Basic", 0f, actionDelay, true, 0, 1));
+                
                 await Task.Delay(TimeSpan.FromSeconds(actionDelay));
+
+                eventBus?.Publish(new AnimationWindowEvent(request.Actor, "Attack", "Basic", 0f, actionDelay, false, 0, 1));
             }
 
             var targets = request.Targets;

@@ -1,13 +1,14 @@
 using System;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 
 namespace BattleV2.UI
 {
     /// <summary>
     /// Submenú de ítems.
     /// </summary>
-    public sealed class ItemMenuPanel : MonoBehaviour
+    public sealed class ItemMenuPanel : BattlePanelBase, ICancelHandler
     {
         [Serializable]
         private struct ItemEntry
@@ -18,12 +19,14 @@ namespace BattleV2.UI
 
         [SerializeField] private ItemEntry[] items = Array.Empty<ItemEntry>();
         [SerializeField] private Button backButton;
+        [SerializeField] private Button defaultButton;
 
         public event Action<string> OnItemChosen;
         public event Action OnBack;
 
-        private void Awake()
+        protected override void Awake()
         {
+            base.Awake();
             if (items != null)
             {
                 for (int i = 0; i < items.Length; i++)
@@ -40,6 +43,26 @@ namespace BattleV2.UI
             }
 
             backButton?.onClick.AddListener(() => OnBack?.Invoke());
+        }
+
+        public override void FocusFirst()
+        {
+            Button target = defaultButton;
+            if (target == null && items != null && items.Length > 0)
+            {
+                target = items[0].button;
+            }
+
+            if (target != null)
+            {
+                EventSystem.current?.SetSelectedGameObject(target.gameObject);
+            }
+        }
+
+        public void OnCancel(BaseEventData eventData)
+        {
+            UIAudio.PlayBack();
+            OnBack?.Invoke();
         }
     }
 }

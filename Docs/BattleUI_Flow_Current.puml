@@ -1,0 +1,48 @@
+@startuml
+title BattleV2 UI/Target/Commit - Flujo Actual
+
+participant "BattleUIInputDriver\n(Menu/Target/Exec states)" as Driver
+participant "BattleUIStates\n(Menu/TargetSelection)" as States
+participant "BattleUITargetInteractor" as Interactor
+participant "IBattleInputProvider\n(Manual UI/V2)" as Provider
+participant "BattleManagerV2" as Manager
+participant "TargetingCoordinator/\nTargetResolutionService" as Targeting
+participant "PlayerActionExecutor/\nStepScheduler" as Executor
+participant "RuntimeCPIntent" as CpIntent
+
+== Request Player Action ==
+Manager -> CpIntent: BeginTurn(currentCP)
+Manager -> Provider: RequestAction(onSelected,onCancel)
+
+== Menú ==
+Provider -> Driver: Set MenuState
+Driver -> States: MenuState HandleInput
+
+note over States: Confirm Attack -> provider arma BattleSelection(Action)\nCancel/Esc -> UiRoot.GoBack -> provider onCancel
+
+== Target Selection (Attack) ==
+Provider -> Interactor: SelectAsync(selection)
+Interactor -> Driver: Set TargetSelectionState
+Driver -> States: TargetSelectionState HandleInput
+
+alt Confirm target
+  States -> Interactor: HandleSelected(targetId)
+  Interactor -> Provider: Resolve TCS with TargetSet
+  Provider -> Manager: onSelected(BattleSelection with targets)
+else ESC/Back
+  States -> UiRoot.GoBack()
+  UiRoot -> Interactor: HandleCancel()
+  Interactor -> Provider: Resolve TCS as cancel/proposed
+  Provider -> Manager: onCancel()
+end
+
+== Commit ==
+Manager -> CpIntent: ConsumeOnce/Cancel (heurística cost/profile)
+Manager -> CpIntent: EndTurn(reason)
+Manager -> Targeting: Resolve targets (manual/auto)
+Manager -> Executor: Execute action (StepScheduler)
+
+== Fallback (cuando cancel/targets vacíos) ==
+Manager -> Executor: ExecuteFallback() (timeline “fantasma” percibida)
+
+@enduml

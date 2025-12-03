@@ -15,6 +15,8 @@ namespace BattleV2.Audio
         public const string AttackTimedMiss = "attack/timed/miss";
         public const string AttackTimedImpact = "attack/timed/impact";
         public const string AttackTimedPerfect = "attack/timed/perfect";
+        public const string UiCpIncrease = "ui/cp/increase";
+        public const string UiCpDecrease = "ui/cp/decrease";
 
         // Obsoletos: mantener para compatibilidad puntual hasta limpiar assets/DB.
         [Obsolete("Usa attack/timed/impact.")]

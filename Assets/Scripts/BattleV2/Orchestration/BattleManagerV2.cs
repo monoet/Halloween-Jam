@@ -4,7 +4,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
 using BattleV2.Actions;
-
 using BattleV2.AnimationSystem;
 using BattleV2.AnimationSystem.Execution.Runtime;
 using BattleV2.AnimationSystem.Runtime;
@@ -66,12 +65,14 @@ namespace BattleV2.Orchestration
         [Header("Pipeline Tuning")]
         [SerializeField, Min(0f)] private float preActionDelaySeconds = 0.12f;
 
+
         [Header("Debug")]
         [SerializeField] private bool enableDebugLogs = false;
 
         private IBattleInputProvider inputProvider;
         private CombatContext context;
         private TimedHitInputRelay timedHitInputRelay;
+        private BattleUIInputDriver inputDriver;
 
         private IBattleTurnService turnService;
         private ICombatantActionValidator actionValidator;
@@ -79,6 +80,7 @@ namespace BattleV2.Orchestration
         private ITargetingCoordinator targetingCoordinator;
         private IActionPipeline actionPipeline;
         private ITriggeredEffectsService triggeredEffects;
+        private readonly RuntimeCPIntent cpIntent = RuntimeCPIntent.Shared;
         private IBattleAnimOrchestrator animOrchestrator;
         private IBattleEventBus eventBus;
         private IEnemyTurnCoordinator enemyTurnCoordinator;
@@ -92,6 +94,7 @@ namespace BattleV2.Orchestration
         private RosterSnapshot rosterSnapshot = RosterSnapshot.Empty;
         private PendingPlayerRequest pendingPlayerRequest;
         private IDisposable combatantDefeatedSubscription;
+        private int cpSelectionCounter;
 
         public event Action<BattleSelection, int> OnPlayerActionSelected;
         public event Action<BattleSelection, int, int> OnPlayerActionResolved;
@@ -104,6 +107,8 @@ namespace BattleV2.Orchestration
         public CombatantState PrimaryPlayer => ActiveAllies.Count > 0 ? ActiveAllies[0] : null;
         public CombatantState Player => referenceService?.Player ?? PrimaryPlayer ?? player;
         public CombatantState Enemy => referenceService?.Enemy ?? enemy;
+        public ICpIntentSource CpIntentSource => cpIntent;
+        public ICpIntentSink CpIntentSink => cpIntent;
         public IReadOnlyList<CombatantState> Allies => ActiveAllies;
         public IReadOnlyList<CombatantState> Enemies => rosterSnapshot.Enemies ?? Array.Empty<CombatantState>();
         public float PreActionDelaySeconds
@@ -119,6 +124,7 @@ namespace BattleV2.Orchestration
 
         private IReadOnlyList<CombatantState> AlliesList => ActiveAllies;
         private IReadOnlyList<CombatantState> EnemiesList => rosterSnapshot.Enemies ?? Array.Empty<CombatantState>();
+        private TimedHitOverlay timedHitOverlay;
 
         private bool IsAlly(CombatantState combatant)
         {
@@ -145,11 +151,20 @@ namespace BattleV2.Orchestration
             InitializeCombatants();
             PrepareContext();
             timedHitInputRelay ??= FindTimedHitInputRelay();
+            inputDriver = FindObjectOfType<BattleUIInputDriver>();
+            timedHitOverlay = FindObjectOfType<TimedHitOverlay>();
         }
 
         private void Start()
         {
             TrySwitchToAnimationInstaller();
+            // Wire CP intent to combat dispatcher once installer is resolved.
+            cpIntent.SetDispatcher(animationSystemInstaller?.CombatEvents ?? AnimationSystemInstaller.Current?.CombatEvents);
+            cpIntent.SetDefaultActor(Player);
+            if (inputDriver != null && TimedHitService != null)
+            {
+                inputDriver.Initialize(TimedHitService);
+            }
         }
 
         private void OnDisable()
@@ -228,7 +243,51 @@ namespace BattleV2.Orchestration
 
             // Servicios dedicados — por ahora implementaciones por defecto mínimas.
             eventBus = new BattleEventBus();
+            if (timedHitOverlay != null)
+            {
+                if (useAnimationSystemInstaller && AnimationSystemInstaller.Current != null)
+                {
+                    timedHitOverlay.Initialize(AnimationSystemInstaller.Current.EventBus);
+                }
+                else
+                {
+                    timedHitOverlay.Initialize((IAnimationEventBus)eventBus);
+                }
+            }
             targetingCoordinator = new TargetingCoordinator(TargetResolvers, eventBus);
+            
+            // Fail Fast / Auto-Wire: Ensure we have an interactor for manual targeting
+            // Search for ACTIVE first
+            var interactor = FindObjectOfType<BattleUITargetInteractor>();
+            
+            // If not found, search for INACTIVE to give a better error
+            if (interactor == null)
+            {
+                var allInteractors = Resources.FindObjectsOfTypeAll<BattleUITargetInteractor>();
+                if (allInteractors != null && allInteractors.Length > 0)
+                {
+                    // Filter out assets (prefabs) if possible, but Resources.FindObjectsOfTypeAll returns everything.
+                    // Better to use FindObjectsOfType(true) in newer Unity, or just warn.
+                    // Assuming Unity 2020+:
+                    interactor = FindObjectOfType<BattleUITargetInteractor>(true);
+                    if (interactor != null)
+                    {
+                        Debug.LogError($"[BattleManagerV2] CRITICAL: Found BattleUITargetInteractor on '{interactor.name}', but the GameObject is DISABLED. It MUST be active to receive events and initialize! Please enable it or move the script to an active object.");
+                        // We cannot use it safely if it's inactive because Awake() hasn't run.
+                        interactor = null; 
+                    }
+                }
+            }
+
+            if (interactor != null)
+            {
+                targetingCoordinator.SetInteractor(interactor);
+            }
+            else
+            {
+                Debug.LogWarning("[BattleManagerV2] No BattleUITargetInteractor found. Manual targeting will fall back to legacy/highlight behavior.");
+            }
+
             actionPipeline = new OrchestrationActionPipeline(eventBus);
             targetResolutionService = new TargetResolutionService(targetingCoordinator);
             contextService = new CombatContextService(config, actionCatalog);
@@ -522,12 +581,14 @@ namespace BattleV2.Orchestration
 
         private void TrySwitchToAnimationInstaller()
         {
+            animationSystemInstaller ??= AnimationSystemInstaller.Current;
+            if (animationSystemInstaller != null) useAnimationSystemInstaller = true;
+
             if (!useAnimationSystemInstaller)
             {
                 return;
             }
 
-            animationSystemInstaller ??= AnimationSystemInstaller.Current;
             if (animationSystemInstaller?.Orchestrator == null)
             {
                 return;
@@ -540,6 +601,14 @@ namespace BattleV2.Orchestration
             }
 
             animOrchestrator = new BattleAnimationSystemBridge(animationSystemInstaller.Orchestrator);
+            
+            // Re-bind Overlay to the correct bus
+            if (timedHitOverlay != null && animationSystemInstaller.EventBus != null)
+            {
+                Debug.Log("[BattleManagerV2] Re-binding TimedHitOverlay to AnimationSystemInstaller EventBus");
+                timedHitOverlay.Initialize(animationSystemInstaller.EventBus);
+            }
+
             enemyTurnCoordinator = new EnemyTurnCoordinator(
                 actionCatalog,
                 actionValidator,
@@ -564,9 +633,27 @@ namespace BattleV2.Orchestration
 
         private async void ProcessPlayerSelection(BattleSelection selection)
         {
+            BattleDiagnostics.Log("Orchestrator", $"Processing Selection: {selection.Action?.id ?? "null"}");
+            
             var currentPlayer = Player;
+            int selectionId = ++cpSelectionCounter;
+
+            bool consumesCp = selection.Action != null &&
+                              (selection.Action.costCP > 0 || selection.ChargeProfile != null || selection.TimedHitProfile != null);
+            int extraCp = consumesCp ? cpIntent.ConsumeOnce(selectionId, "ActionCommit") : 0;
+            if (!consumesCp)
+            {
+                cpIntent.Cancel("NonConsumingOutcome");
+            }
+            cpIntent.EndTurn("CommittedOutcome");
+            if (extraCp > 0)
+            {
+                selection = selection.WithCpCharge(selection.CpCharge + extraCp);
+            }
+
             if (!actionValidator.TryValidate(selection.Action, currentPlayer, context, selection.CpCharge, out var implementation))
             {
+                BattleDiagnostics.Log("Orchestrator", "Validation Failed", currentPlayer);
                 ExecuteFallback();
                 return;
             }
@@ -629,11 +716,15 @@ namespace BattleV2.Orchestration
             LastExecutedAction = enrichedSelection.Action;
             OnPlayerActionSelected?.Invoke(enrichedSelection, cpBefore);
 
+            if (inputDriver != null)
+            {
+                inputDriver.SetMode(BattleInputMode.Execution);
+                inputDriver.SetActiveActor(currentPlayer);
+            }
+
             var playbackTask = animOrchestrator != null
                 ? animOrchestrator.PlayAsync(new ActionPlaybackRequest(currentPlayer, enrichedSelection, targets, CalculateAverageSpeed(), enrichedSelection.AnimationRecipeId))
                 : Task.CompletedTask;
-
-            state?.Set(BattleState.Resolving);
             if (playerActionExecutor == null)
             {
                 Debug.LogError("[BattleManagerV2] PlayerActionExecutor not initialised. Falling back.", this);
@@ -732,10 +823,18 @@ namespace BattleV2.Orchestration
             {
                 TriggerTurnPhase(actor);
                 state?.Set(BattleState.AwaitingAction);
+                
+                if (inputDriver != null)
+                {
+                    inputDriver.SetMode(BattleInputMode.Menu);
+                    inputDriver.SetActiveActor(actor);
+                }
+
                 RequestPlayerAction();
             }
             else
             {
+                cpIntent.EndTurn("EnemyTurn");
                 if (enemyTurnCoordinator != null)
                 {
                     var enemyContext = BuildEnemyTurnContext(actor);
@@ -810,10 +909,12 @@ namespace BattleV2.Orchestration
 
             if (inputProvider == null)
             {
+                cpIntent.BeginTurn(currentPlayer.CurrentCP);
                 QueuePendingPlayerRequest(actionContext, HandlePlayerSelection, ExecuteFallback);
                 return;
             }
 
+            cpIntent.BeginTurn(currentPlayer.CurrentCP);
             DispatchToInputProvider(actionContext, HandlePlayerSelection, ExecuteFallback);
         }
 
@@ -912,7 +1013,14 @@ namespace BattleV2.Orchestration
                 pendingPlayerRequest = null;
             }
 
-            inputProvider.RequestAction(context, onSelected, onCancel);
+            void CancelWrapper()
+            {
+                cpIntent.Cancel("SelectionCanceled");
+                cpIntent.EndTurn("SelectionCanceled");
+                onCancel?.Invoke();
+            }
+
+            inputProvider.RequestAction(context, onSelected, CancelWrapper);
         }
 
         private void TryFlushPendingPlayerRequest()

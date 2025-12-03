@@ -20,6 +20,9 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
         void ConfigureRunners(ITimedHitRunner ks1Runner, ITimedHitRunner basicRunner);
         void SetRunner(TimedHitRunnerKind kind, ITimedHitRunner runner);
         ITimedHitRunner GetRunner(TimedHitRunnerKind kind);
+        bool HasActiveWindow(CombatantState actor);
+        void SetInputProvider(ITimedHitInputProvider provider);
+        bool TryConsumeInput(out double timestamp);
         Task<TimedHitResult> RunAsync(TimedHitRequest request, Action<TimedHitPhaseResult> onPhaseResolved = null);
         Task<TimedHitResult> RunKs1Async(TimedHitRequest request, Action<TimedHitPhaseResult> onPhaseResolved = null);
         Task<TimedHitResult> RunBasicAsync(TimedHitRequest request, Action<TimedHitPhaseResult> onPhaseResolved = null);
@@ -33,6 +36,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
         private readonly IAnimationEventBus eventBus;
         private ITimedHitRunner ks1Runner;
         private ITimedHitRunner basicRunner;
+        private ITimedHitInputProvider inputProvider;
         private const bool EnableResultDebugLogs = false;
 
         private readonly Dictionary<CombatantState, List<ActiveWindow>> activeWindows = new();
@@ -77,6 +81,32 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
             return kind == TimedHitRunnerKind.Basic ? basicRunner : ks1Runner;
         }
 
+        public bool HasActiveWindow(CombatantState actor)
+        {
+            if (actor == null)
+            {
+                return false;
+            }
+
+            return activeWindows.TryGetValue(actor, out var list) && list != null && list.Count > 0;
+        }
+
+        public void SetInputProvider(ITimedHitInputProvider provider)
+        {
+            inputProvider = provider;
+        }
+
+        public bool TryConsumeInput(out double timestamp)
+        {
+            if (inputProvider != null && inputProvider.TryConsumeInput(out timestamp))
+            {
+                return true;
+            }
+
+            timestamp = 0d;
+            return false;
+        }
+
         public void RegisterInput(CombatantState actor, string source = null, double? timestamp = null)
         {
             if (disposed)
@@ -84,7 +114,14 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
                 throw new ObjectDisposedException(nameof(TimedHitService));
             }
 
-            inputBuffer.Register(actor, source, timestamp);
+            if (inputBuffer == null)
+            {
+                return;
+            }
+
+            var input = inputBuffer.Register(actor, source, timestamp);
+            Debug.Log($"PhasEvInput | [TimedHitService] Input Registered: {source} @ {input.Timestamp:F3} for {actor.name}");
+            BattleDiagnostics.Log("TimedHit", $"Input Registered: {source} @ {input.Timestamp:F3}", actor);
         }
 
         public void Reset(CombatantState actor)
@@ -120,6 +157,16 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
             TimedHitRequest request,
             Action<TimedHitPhaseResult> onPhaseResolved = null)
         {
+            // Runtime Configuration Check
+            if (request.Profile != null && inputBuffer is TimedInputBuffer bufferImpl)
+            {
+                var tier = request.Profile.GetTierForCharge(request.CpCharge);
+                if (tier.TimelineDuration > bufferImpl.RetentionSeconds)
+                {
+                    Debug.LogWarning($"[TimedHitService] CONFIG MISMATCH: Profile duration ({tier.TimelineDuration}s) > Buffer retention ({bufferImpl.RetentionSeconds}s). Inputs may be dropped! Increase TimedInputBuffer retention.");
+                }
+            }
+
             return RunInternalAsync(ks1Runner, request, onPhaseResolved);
         }
 
@@ -145,34 +192,6 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
 
             subscriptions.Clear();
             activeWindows.Clear();
-        }
-
-        private void OnWindowEvent(AnimationWindowEvent evt)
-        {
-            if (disposed || evt.Actor == null)
-            {
-                return;
-            }
-
-            clock.Sample();
-            double timestamp = clock.Now;
-
-            var list = GetOrCreate(evt.Actor);
-            if (evt.IsOpening)
-            {
-                list.Add(new ActiveWindow(
-                    evt.Tag,
-                    evt.Payload,
-                    timestamp,
-                    evt.WindowStart,
-                    evt.WindowEnd,
-                    evt.WindowIndex,
-                    evt.WindowCount));
-            }
-            else
-            {
-                ResolveWindow(evt.Actor, evt.Tag, evt.WindowIndex, evt.WindowCount, list, timestamp);
-            }
         }
 
         private static Task<TimedHitResult> RunInternalAsync(
@@ -226,6 +245,34 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
             return runner ?? InstantTimedHitRunner.Shared;
         }
 
+        private void OnWindowEvent(AnimationWindowEvent evt)
+        {
+            if (disposed || evt.Actor == null)
+            {
+                return;
+            }
+
+            clock.Sample();
+            double timestamp = clock.Now;
+
+            var list = GetOrCreate(evt.Actor);
+            if (evt.IsOpening)
+            {
+                list.Add(new ActiveWindow(
+                    evt.Tag,
+                    evt.Payload,
+                    timestamp,
+                    evt.WindowStart,
+                    evt.WindowEnd,
+                    evt.WindowIndex,
+                    evt.WindowCount));
+            }
+            else
+            {
+                ResolveWindow(evt.Actor, evt.Tag, evt.WindowIndex, evt.WindowCount, list, timestamp);
+            }
+        }
+
         private void ResolveWindow(
             CombatantState actor,
             string tag,
@@ -257,14 +304,18 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
             string resolvedTag = string.IsNullOrWhiteSpace(tag) ? window.Tag : tag;
             double centerTimestamp = window.ComputeCenterTimestamp(openTimestamp, closeTimestamp);
 
+            BattleDiagnostics.Log("TimedHit", $"Resolving Window: {openTimestamp:F3} - {closeTimestamp:F3}", actor);
+
             if (inputBuffer.TryConsume(actor, openTimestamp, closeTimestamp, tolerance, out var buffered, out var deltaSeconds, centerTimestamp))
             {
                 double deltaMs = Math.Abs(deltaSeconds) * 1000d;
                 var judgment = Classify(deltaMs, tolerance);
+                BattleDiagnostics.Log("TimedHit", $"Result: {judgment} (Delta: {deltaSeconds:F3}s)", actor);
                 PublishResult(actor, resolvedTag, resolvedIndex, resolvedCount, deltaMs, buffered.Timestamp, openTimestamp, closeTimestamp, judgment, consumedInput: true);
             }
             else
             {
+                BattleDiagnostics.Log("TimedHit", "Result: Miss", actor);
                 PublishMiss(actor, resolvedTag, resolvedIndex, resolvedCount, double.PositiveInfinity, double.NaN, openTimestamp, closeTimestamp, consumedInput: false);
             }
         }

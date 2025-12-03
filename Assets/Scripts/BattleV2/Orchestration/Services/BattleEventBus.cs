@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using BattleV2.AnimationSystem;
 
 namespace BattleV2.Orchestration.Services
 {
@@ -12,7 +13,7 @@ namespace BattleV2.Orchestration.Services
     /// <summary>
     /// Simplest synchronous pub/sub. Se reemplazará con versión robusta más adelante.
     /// </summary>
-    public sealed class BattleEventBus : IBattleEventBus
+    public sealed class BattleEventBus : IBattleEventBus, IAnimationEventBus
     {
         private readonly Dictionary<Type, List<Delegate>> subscribers = new();
 
@@ -67,6 +68,16 @@ namespace BattleV2.Orchestration.Services
                     subscribers.Remove(type);
                 }
             });
+        }
+
+        void IAnimationEventBus.Publish<TEvent>(TEvent evt)
+        {
+            Publish(evt);
+        }
+
+        IDisposable IAnimationEventBus.Subscribe<TEvent>(Action<TEvent> handler)
+        {
+            return Subscribe(handler);
         }
 
         private sealed class Subscription : IDisposable

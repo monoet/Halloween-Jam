@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Threading.Tasks;
 using BattleV2.AnimationSystem;
 using BattleV2.AnimationSystem.Runtime;
@@ -15,6 +16,7 @@ namespace BattleV2.Execution.TimedHits
     public sealed class Ks1TimedHitRunner : MonoBehaviour, ITimedHitRunner
     {
         [SerializeField] private AnimationSystemInstaller installer;
+        [SerializeField] private bool enableDebugLogs = true;
 
         public event Action OnSequenceStarted;
         public event Action<TimedHitPhaseInfo> OnPhaseStarted;
@@ -30,6 +32,7 @@ namespace BattleV2.Execution.TimedHits
         private TimedHitRequest currentRequest;
         private bool sequenceActive;
         private Coroutine runRoutine;
+        private Coroutine windowRoutine;
 
         private void Awake()
         {
@@ -75,6 +78,11 @@ namespace BattleV2.Execution.TimedHits
                 return InstantTimedHitRunner.Shared.RunAsync(request);
             }
 
+            if (enableDebugLogs)
+            {
+                Debug.Log($"[Ks1TimedHitRunner] Sequence started. Bus Hash: {installer.EventBus.GetHashCode()}.", this);
+            }
+
             SubscribeToTimedHitEvents();
 
             currentRequest = request;
@@ -98,6 +106,7 @@ namespace BattleV2.Execution.TimedHits
 
             ClearQueue();
             OnSequenceStarted?.Invoke();
+            windowRoutine = StartCoroutine(EmitWindows(request, tier));
 
             while (!chainCancelled && processedPhases < expectedPhases)
             {
@@ -107,10 +116,20 @@ namespace BattleV2.Execution.TimedHits
                     yield break;
                 }
 
+                // Wait for the event to be processed and enqueued
+                float timeout = 2.0f; // Safety timeout
+                float timer = 0f;
+                while (pendingEvents.Count == 0 && timer < timeout)
+                {
+                    timer += Time.deltaTime;
+                    yield return null;
+                }
+
                 if (!TryDequeueEvent(request.Attacker, out var evt))
                 {
-                    yield return null;
-                    continue;
+                    Debug.LogError($"[Ks1TimedHitRunner] TIMEOUT waiting for Window Event! The Timeline for '{request.ActionData?.id}' might be missing 'AnimationWindowEvent' markers, or the EventBus is disconnected.");
+                    // If we timed out, force a miss to prevent hanging
+                    evt = new TimedHitResultEvent(request.Attacker, ResolveEventTag(request), TimedHitJudgment.Miss, 0, 0, processedPhases + 1, expectedPhases, false, 0, 0, TimedHitResultScope.RawWindow, "none", "neutral", false, 1);
                 }
 
                 processedPhases++;
@@ -187,6 +206,7 @@ namespace BattleV2.Execution.TimedHits
         {
             sequenceActive = false;
 
+            StopWindowRoutine();
             if (runRoutine != null)
             {
                 StopCoroutine(runRoutine);
@@ -258,6 +278,7 @@ namespace BattleV2.Execution.TimedHits
 
         private void AbortSequence(bool cancelled)
         {
+            StopWindowRoutine();
             if (runRoutine != null)
             {
                 StopCoroutine(runRoutine);
@@ -282,6 +303,15 @@ namespace BattleV2.Execution.TimedHits
             pendingRun = null;
             currentRequest = default;
             sequenceActive = false;
+        }
+
+        private void StopWindowRoutine()
+        {
+            if (windowRoutine != null)
+            {
+                StopCoroutine(windowRoutine);
+                windowRoutine = null;
+            }
         }
 
         private void SubscribeToTimedHitEvents()
@@ -397,6 +427,75 @@ namespace BattleV2.Execution.TimedHits
                 actor));
         }
 
+        private IEnumerator EmitWindows(TimedHitRequest request, Ks1TimedHitProfile.Tier tier)
+        {
+            var bus = installer?.EventBus;
+            if (bus == null || request.Attacker == null)
+            {
+                yield break;
+            }
+
+            ResolveWindowBounds(tier, out float startNorm, out float endNorm, out float perfectNorm);
+            int total = Mathf.Max(1, tier.Hits);
+            float timelineDuration = Mathf.Max(0.05f, tier.TimelineDuration);
+            float segmentDuration = timelineDuration / total;
+            float timelineStart = Time.time;
+            string payload = $"perfect={perfectNorm.ToString(CultureInfo.InvariantCulture)}";
+            float windowNormDuration = Mathf.Max(0.01f, endNorm - startNorm);
+            float windowSeconds = Mathf.Max(0.01f, windowNormDuration * segmentDuration);
+
+            for (int i = 0; i < total; i++)
+            {
+                float segmentOffset = i * segmentDuration;
+                float openAt = timelineStart + segmentOffset + (startNorm * segmentDuration);
+                float closeAt = timelineStart + segmentOffset + (endNorm * segmentDuration);
+
+                float waitToOpen = Mathf.Max(0f, openAt - Time.time);
+                if (waitToOpen > 0f)
+                {
+                    yield return new WaitForSeconds(waitToOpen);
+                }
+
+                PublishWindow(bus, request, payload, startNorm, endNorm, true, i + 1, total, windowSeconds);
+
+                float windowDuration = Mathf.Max(0.01f, closeAt - Time.time);
+                yield return new WaitForSeconds(windowDuration);
+
+                PublishWindow(bus, request, payload, startNorm, endNorm, false, i + 1, total, windowSeconds);
+            }
+        }
+
+        private void PublishWindow(
+            IAnimationEventBus bus,
+            TimedHitRequest request,
+            string payload,
+            float startNorm,
+            float endNorm,
+            bool opening,
+            int index,
+            int count,
+            float windowSeconds)
+        {
+            string tag = ResolveEventTag(request);
+            bus.Publish(new AnimationWindowEvent(request.Attacker, tag, payload, startNorm, endNorm, opening, index, count));
+
+            if (enableDebugLogs)
+            {
+                Debug.Log($"[KS1] Runner window {(opening ? "open" : "close")} dur={windowSeconds:0.###} tag={tag} idx={index}/{count}", this);
+                Debug.Log($"PhasEvWindow | {(opening ? "OPEN" : "CLOSE")} | Tag={tag} | Actor={request.Attacker?.name ?? "(null)"} | idx={index}/{count} | Norm={startNorm:0.###}-{endNorm:0.###} | DurSec={windowSeconds:0.###}");
+            }
+        }
+
+        private static void ResolveWindowBounds(Ks1TimedHitProfile.Tier tier, out float startNorm, out float endNorm, out float perfectNorm)
+        {
+            // Force full timeline window: start at 0, end at 1. Perfect center still used for payload.
+            perfectNorm = (tier.PerfectWindowCenter <= 0f && tier.PerfectWindowRadius <= 0f)
+                ? 0.5f
+                : Mathf.Clamp01(tier.PerfectWindowCenter);
+            startNorm = 0f;
+            endNorm = 1f;
+        }
+
         private static TimedHitResult BuildResult(
             Ks1TimedHitProfile.Tier tier,
             int perfectCount,
@@ -488,6 +587,12 @@ namespace BattleV2.Execution.TimedHits
                 Mathf.Max(1, totalPhases),
                 chainCancelled,
                 isFinal));
+        }
+
+        private static string ResolveEventTag(TimedHitRequest request)
+        {
+            // Ks1 profile doesn't carry an EventTag; use action id as a stable tag.
+            return !string.IsNullOrWhiteSpace(request.ActionData?.id) ? request.ActionData.id : "ks1";
         }
     }
 }

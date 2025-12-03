@@ -46,6 +46,11 @@ namespace BattleV2.Providers
         public BasicTimedHitProfile BasicTimedHitProfile { get; }
         public TimedHitRunnerKind RunnerKind { get; }
 
+        public BattleSelection WithCpCharge(int cpCharge)
+        {
+            return new BattleSelection(Action, cpCharge, ChargeProfile, TimedHitProfile, TimedHitResult, Targets, TimedHitHandle, AnimationRecipeId, TargetTransform, BasicTimedHitProfile, RunnerKind);
+        }
+
         public BattleSelection WithTargets(TargetSet? targets)
         {
             return new BattleSelection(Action, CpCharge, ChargeProfile, TimedHitProfile, TimedHitResult, targets, TimedHitHandle, AnimationRecipeId, TargetTransform, BasicTimedHitProfile, RunnerKind);

@@ -70,7 +70,7 @@ namespace BattleV2.Audio
             double offset = evt.DeltaMilliseconds;
             int safeTargetCount = evt.TargetCount <= 0 ? 1 : evt.TargetCount;
 
-            Debug.Log($"PhasEv01 | RESULT={quality} | Window={window} | OffsetMs={offset:F1} | Scope={evt.Scope} | Targets(raw/used)={evt.TargetCount}/{safeTargetCount}", this);
+            Debug.Log($"PhasEv01 | RESULT={quality} | Window={window} | OffsetMs={offset:F1} | Scope={evt.Scope} | Targets(raw/used)={evt.TargetCount}/{safeTargetCount} | Open={evt.WindowOpenedAt:F3} | Close={evt.WindowClosedAt:F3} | Input={evt.InputTimestamp:F3}", this);
             Debug.Log($"[AUDIO-BRIDGE] Event Received | Scope={evt.Scope} | Actor={evt.Actor?.name} | BusHash={installer.EventBus.GetHashCode()}", this);
 
             if (evt.Scope != TimedHitResultScope.Final)
@@ -86,7 +86,7 @@ namespace BattleV2.Audio
             string flag = evt.Judgment switch
             {
                 TimedHitJudgment.Perfect => BattleAudioFlags.AttackTimedPerfect,
-                TimedHitJudgment.Good => BattleAudioFlags.AttackTimedImpact,
+                TimedHitJudgment.Good => BattleAudioFlags.AttackTimedGood,
                 _ => BattleAudioFlags.AttackTimedMiss
             };
 

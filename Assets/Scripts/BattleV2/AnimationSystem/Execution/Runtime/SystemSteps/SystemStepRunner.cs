@@ -3,6 +3,9 @@ using System.Collections.Generic;
 using BattleV2.AnimationSystem;
 using BattleV2.AnimationSystem.Execution.Runtime.Core;
 using BattleV2.Core;
+using BattleV2.Execution.TimedHits;
+using BattleV2.Providers;
+using UnityEngine;
 
 namespace BattleV2.AnimationSystem.Execution.Runtime.SystemSteps
 {
@@ -80,6 +83,12 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.SystemSteps
 
         private void HandleWindowOpen(ActionStep step, StepSchedulerContext context, ExecutionState state)
         {
+            if (IsKs1Selection(context))
+            {
+                Debug.Log($"[KS1] Dispatcher windows suppressed action={context.Request.Selection.Action?.id ?? "(unknown)"}");
+                return;
+            }
+
             var parameters = step.Parameters;
             if (!TryGetRequired(parameters, "id", out var id))
             {
@@ -100,6 +109,11 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.SystemSteps
 
         private void HandleWindowClose(ActionStep step, StepSchedulerContext context, ExecutionState state)
         {
+            if (IsKs1Selection(context))
+            {
+                return;
+            }
+
             var parameters = step.Parameters;
             if (!TryGetRequired(parameters, "id", out var id))
             {
@@ -282,6 +296,15 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.SystemSteps
             }
 
             return set;
+        }
+
+        private static bool IsKs1Selection(StepSchedulerContext context)
+        {
+            var selection = context.Request.Selection;
+            var kind = selection.RunnerKind;
+            bool runnerIsKs1 = kind == TimedHitRunnerKind.Default;
+            bool profileIsKs1 = selection.TimedHitProfile != null;
+            return runnerIsKs1 && profileIsKs1;
         }
     }
 }

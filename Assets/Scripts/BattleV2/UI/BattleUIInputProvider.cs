@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using BattleV2.Actions;
 using BattleV2.Charge;
+using BattleV2.Execution.TimedHits;
 using BattleV2.Providers;
 using UnityEngine;
 
@@ -27,7 +28,7 @@ namespace BattleV2.UI
 
         public void RequestAction(BattleActionContext context, Action<BattleSelection> onSelected, Action onCancel)
         {
-            ClearPending();
+            ClearPending(true);
 
             if (context == null || context.AvailableActions == null || context.AvailableActions.Count == 0)
             {
@@ -54,7 +55,7 @@ namespace BattleV2.UI
             {
                 // Sin UI asignada, no se puede procesar. Cancelar.
                 onCancel?.Invoke();
-                ClearPending();
+                ClearPending(true);
             }
         }
 
@@ -87,7 +88,7 @@ namespace BattleV2.UI
         private void HandleCancel()
         {
             pendingOnCancel?.Invoke();
-            ClearPending();
+            ClearPending(true);
         }
 
         private void ConfirmSelection(string actionId)
@@ -101,16 +102,17 @@ namespace BattleV2.UI
             if (action == null)
             {
                 pendingOnCancel?.Invoke();
-                ClearPending();
+                ClearPending(true);
                 return;
             }
 
             int cp = Mathf.Clamp(pendingCp, 0, Mathf.Max(0, pendingContext.MaxCpCharge));
-            var chargeProfile = fallbackChargeProfile != null ? fallbackChargeProfile : ChargeProfile.CreateRuntimeDefault();
+            ResolveProfiles(pendingContext, action, out var chargeProfile, out var timedProfile);
 
-            var selection = new BattleSelection(action, cp, chargeProfile, timedHitProfile: null);
+            var selection = new BattleSelection(action, cp, chargeProfile, timedProfile);
             pendingOnSelected?.Invoke(selection);
-            ClearPending();
+            // Do NOT hide UI here. Let the next step (Targeting or Execution) handle UI state.
+            ClearPending(false);
         }
 
         private static BattleActionData FindAction(IReadOnlyList<BattleActionData> list, string id)
@@ -138,7 +140,7 @@ namespace BattleV2.UI
             return null;
         }
 
-        private void ClearPending()
+        private void ClearPending(bool hideUI = true)
         {
             if (uiRoot != null)
             {
@@ -148,13 +150,42 @@ namespace BattleV2.UI
                 uiRoot.OnRootActionSelected -= HandleRootActionSelected;
                 uiRoot.OnChargeCommitted -= HandleChargeCommitted;
                 uiRoot.OnCancel -= HandleCancel;
-                uiRoot.HideAll();
+                
+                if (hideUI)
+                {
+                    uiRoot.HideAll();
+                }
             }
 
             pendingContext = null;
             pendingOnSelected = null;
             pendingOnCancel = null;
             pendingCp = 0;
+        }
+
+        private void ResolveProfiles(BattleActionContext context, BattleActionData action, out ChargeProfile chargeProfile, out Ks1TimedHitProfile timedProfile)
+        {
+            chargeProfile = fallbackChargeProfile;
+            timedProfile = null;
+
+            var impl = context?.Context?.Catalog?.Resolve(action);
+            if (impl != null)
+            {
+                if (impl.ChargeProfile != null)
+                {
+                    chargeProfile = impl.ChargeProfile;
+                }
+
+                if (impl is ITimedHitAction timedHitAction)
+                {
+                    timedProfile = timedHitAction.TimedHitProfile;
+                }
+            }
+
+            if (chargeProfile == null)
+            {
+                chargeProfile = fallbackChargeProfile != null ? fallbackChargeProfile : ChargeProfile.CreateRuntimeDefault();
+            }
         }
     }
 }

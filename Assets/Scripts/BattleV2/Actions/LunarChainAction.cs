@@ -181,6 +181,16 @@ namespace BattleV2.Actions
                 hitsSucceeded = totalHits;
             }
 
+            // Ensure we still deal some damage on miss/fail.
+            if (!damageResolvedExternally && hitsSucceeded == 0)
+            {
+                hitsSucceeded = 1;
+                // Miss multiplier: default to 0.8f if tier doesn't provide one.
+                float missMult = snapshot.Tier.MissHitMultiplier > 0f ? snapshot.Tier.MissHitMultiplier : 0.8f;
+                perHitMultiplier = missMult;
+                BattleLogger.Warn("KS1", "Timed hit missed; applying fallback damage with miss multiplier.");
+            }
+
             if (damageResolvedExternally)
             {
                 if (externalDamage > 0)

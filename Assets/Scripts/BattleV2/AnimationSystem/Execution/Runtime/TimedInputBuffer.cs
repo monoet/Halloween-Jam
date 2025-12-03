@@ -42,11 +42,13 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
         private readonly Dictionary<CombatantState, List<BufferedInput>> buffers = new();
         private int nextSequenceId;
 
-        public TimedInputBuffer(ICombatClock clock, double retentionSeconds = 0.35d)
+        public TimedInputBuffer(ICombatClock clock, double retentionSeconds = 2.0d)
         {
             this.clock = clock ?? throw new ArgumentNullException(nameof(clock));
             this.retentionSeconds = Math.Max(0.05d, retentionSeconds);
         }
+
+        public double RetentionSeconds => retentionSeconds;
 
         public BufferedInput Register(CombatantState actor, string source = null, double? timestamp = null)
         {

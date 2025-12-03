@@ -20,22 +20,34 @@ MonoBehaviour:
     ElementParamName: 
     CritParamName: 
     TargetsParamName: 
+    SignatureParamName: 
     MinIntervalMs: 0
-  - FlagId: attack/impact
-    EventPath: event:/SFX/combat/attack/impact
+  - FlagId: attack/timed/miss
+    EventPath: event:/SFX/combat/attack/timed/miss
     Use3D: 0
     WeaponParamName: 
     ElementParamName: 
     CritParamName: 
     TargetsParamName: 
+    SignatureParamName: 
     MinIntervalMs: 0
-  - FlagId: attack/timed_success
-    EventPath: event:/SFX/combat/attack/timed_success
+  - FlagId: attack/good
+    EventPath: event:/SFX/combat/attack/timed/good
     Use3D: 0
     WeaponParamName: 
     ElementParamName: 
     CritParamName: 
     TargetsParamName: 
+    SignatureParamName: 
+    MinIntervalMs: 0
+  - FlagId: attack/timed/perfect
+    EventPath: event:/SFX/combat/attack/timed/perfect
+    Use3D: 0
+    WeaponParamName: 
+    ElementParamName: 
+    CritParamName: 
+    TargetsParamName: 
+    SignatureParamName: 
     MinIntervalMs: 0
   - FlagId: attack/runback
     EventPath: event:/battle/attack_runback
@@ -44,6 +56,7 @@ MonoBehaviour:
     ElementParamName: 
     CritParamName: 
     TargetsParamName: 
+    SignatureParamName: 
     MinIntervalMs: 0
   - FlagId: mark/apply
     EventPath: event:/battle/mark_apply
@@ -52,6 +65,7 @@ MonoBehaviour:
     ElementParamName: 
     CritParamName: 
     TargetsParamName: 
+    SignatureParamName: 
     MinIntervalMs: 0
   - FlagId: mark/detonate
     EventPath: event:/battle/mark_detonate
@@ -60,6 +74,7 @@ MonoBehaviour:
     ElementParamName: 
     CritParamName: 
     TargetsParamName: 
+    SignatureParamName: 
     MinIntervalMs: 0
   - FlagId: ui/turn_change
     EventPath: event:/ui/turn_change
@@ -68,6 +83,25 @@ MonoBehaviour:
     ElementParamName: 
     CritParamName: 
     TargetsParamName: 
+    SignatureParamName: 
+    MinIntervalMs: 0
+  - FlagId: ui/cp/increase
+    EventPath: event:/ui/CP_Increase
+    Use3D: 0
+    WeaponParamName: 
+    ElementParamName: 
+    CritParamName: 
+    TargetsParamName: 
+    SignatureParamName: 
+    MinIntervalMs: 0
+  - FlagId: ui/cp/decrease
+    EventPath: event:/ui/CP_Decrease
+    Use3D: 0
+    WeaponParamName: 
+    ElementParamName: 
+    CritParamName: 
+    TargetsParamName: 
+    SignatureParamName: 
     MinIntervalMs: 0
   musicConfig:
     ExplorationSnapshot: snapshot:/music/exploration

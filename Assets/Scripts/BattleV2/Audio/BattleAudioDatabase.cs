@@ -81,6 +81,8 @@ namespace BattleV2.Audio
                 BattleAudioFlags.AttackTimedMiss,
                 BattleAudioFlags.AttackTimedImpact,
                 BattleAudioFlags.AttackTimedPerfect,
+                BattleAudioFlags.UiCpIncrease,
+                BattleAudioFlags.UiCpDecrease,
                 BattleAudioFlags.MarkApply,
                 BattleAudioFlags.MarkDetonate,
                 BattleAudioFlags.UiTurnChange

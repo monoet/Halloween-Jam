@@ -50,6 +50,8 @@ namespace BattleV2.AnimationSystem.Runtime
         [SerializeField] private TimedHitToleranceProfileAsset toleranceProfileAsset;
         [SerializeField] private Ks1TimedHitRunner ks1TimedHitRunner;
         [SerializeField] private BasicTimedHitRunner basicTimedHitRunner;
+        [Tooltip("How long (in seconds) to keep input in the buffer before pruning. Must be longer than the longest Timed Hit window.")]
+        [SerializeField, Min(0.5f)] private double inputBufferRetention = 2.0d;
 
         [Header("Recipe Defaults")]
         [Tooltip("Register the built-in PilotActionRecipes (turn_intro, run_up, etc.) for legacy scenes.")]
@@ -148,7 +150,7 @@ namespace BattleV2.AnimationSystem.Runtime
             lockManager = new ActionLockManager();
             timelineCompiler = new TimelineCompiler();
             runtimeBuilder = new TimelineRuntimeBuilder(timelineCompiler, combatClock, eventBus, lockManager);
-            timedInputBuffer = new TimedInputBuffer(combatClock);
+            timedInputBuffer = new TimedInputBuffer(combatClock, inputBufferRetention);
             toleranceProfile = DefaultTimedHitToleranceProfile.FromAsset(toleranceProfileAsset);
             timedHitService = new TimedHitService(combatClock, timedInputBuffer, toleranceProfile, eventBus);
             ks1TimedHitRunner ??= FindRunnerInstance<Ks1TimedHitRunner>();
@@ -577,6 +579,21 @@ namespace BattleV2.AnimationSystem.Runtime
 #endif
         }
 #if UNITY_EDITOR
+        private void OnValidate()
+        {
+            if (ks1TimedHitRunner == null)
+            {
+                ks1TimedHitRunner = FindRunnerInstance<Ks1TimedHitRunner>();
+                if (ks1TimedHitRunner != null) UnityEditor.EditorUtility.SetDirty(this);
+            }
+
+            if (basicTimedHitRunner == null)
+            {
+                basicTimedHitRunner = FindRunnerInstance<BasicTimedHitRunner>();
+                if (basicTimedHitRunner != null) UnityEditor.EditorUtility.SetDirty(this);
+            }
+        }
+
         [ContextMenu("[Debug] Dump Actor Bindings")]
         private void Debug_DumpActorBindings()
         {
