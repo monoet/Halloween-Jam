@@ -183,6 +183,10 @@ namespace BattleV2.UI
             currentContext = context;
             onActionSelected = onSelected;
             onMenuCancel = onCancel;
+            if (uiRoot != null)
+            {
+                uiRoot.SetActionContext(context);
+            }
 
             SetMode(BattleInputMode.Menu);
         }

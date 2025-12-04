@@ -43,6 +43,7 @@ namespace BattleV2.UI
 
             if (uiRoot != null)
             {
+                uiRoot.SetActionContext(context);
                 uiRoot.OnAttackChosen += HandleAttackChosen;
                 uiRoot.OnSpellChosen += HandleSpellChosen;
                 uiRoot.OnItemChosen += HandleItemChosen;

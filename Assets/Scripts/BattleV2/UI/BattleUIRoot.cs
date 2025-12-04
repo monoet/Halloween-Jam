@@ -1,4 +1,6 @@
 using System;
+using BattleV2.Core;
+using BattleV2.Providers;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
@@ -47,6 +49,10 @@ namespace BattleV2.UI
 
         private UiState state = UiState.Hidden;
         private GameObject lastSelected;
+        private CombatantState currentActor;
+        private CombatContext combatContext;
+        private BattleActionContext pendingActionContext;
+        private CombatContext ActiveContext => combatContext != null ? combatContext : pendingActionContext?.Context;
 
         private void Update()
         {
@@ -86,6 +92,17 @@ namespace BattleV2.UI
 
         private System.Collections.Generic.Stack<UiState> menuStack = new System.Collections.Generic.Stack<UiState>();
         public int StackCount => menuStack.Count;
+
+        public void SetActionContext(BattleActionContext context)
+        {
+            pendingActionContext = context;
+            currentActor = context != null ? context.Player : null;
+            combatContext = context != null ? context.Context : null;
+            if (cpPanel != null && context != null)
+            {
+                cpPanel.ConfigureMax(context.MaxCpCharge);
+            }
+        }
 
         private void Awake()
         {
@@ -178,11 +195,13 @@ namespace BattleV2.UI
 
         public void EnterMag()
         {
+            magMenu?.ShowFor(currentActor, ActiveContext);
             PushState(UiState.Mag);
         }
 
         public void EnterItem()
         {
+            itemMenu?.ShowFor(currentActor, ActiveContext);
             PushState(UiState.Item);
         }
 

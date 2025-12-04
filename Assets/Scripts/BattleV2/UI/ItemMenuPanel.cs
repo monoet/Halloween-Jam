@@ -1,65 +1,82 @@
 using System;
+using System.Collections.Generic;
+using BattleV2.Core;
+using BattleV2.UI.Lists;
 using UnityEngine;
-using UnityEngine.UI;
 using UnityEngine.EventSystems;
+using UnityEngine.UI;
 
 namespace BattleV2.UI
 {
     /// <summary>
-    /// Submenú de ítems.
+    /// Submenú de ítems con lista dinámica y cantidades.
     /// </summary>
     public sealed class ItemMenuPanel : BattlePanelBase, ICancelHandler
     {
-        [Serializable]
-        private struct ItemEntry
-        {
-            public string itemId;
-            public Button button;
-        }
-
-        [SerializeField] private ItemEntry[] items = Array.Empty<ItemEntry>();
+        [SerializeField] private ActionListPopulator populator;
+        [SerializeField] private MonoBehaviour itemSourceBehaviour;
+        [SerializeField] private TooltipUI tooltip;
         [SerializeField] private Button backButton;
-        [SerializeField] private Button defaultButton;
 
         public event Action<string> OnItemChosen;
         public event Action OnBack;
 
+        private IItemListSource ItemSource => itemSourceBehaviour as IItemListSource;
+        private IReadOnlyList<IItemRowData> cachedRows = Array.Empty<IItemRowData>();
+
         protected override void Awake()
         {
             base.Awake();
-            if (items != null)
-            {
-                for (int i = 0; i < items.Length; i++)
-                {
-                    var entry = items[i];
-                    if (entry.button == null || string.IsNullOrWhiteSpace(entry.itemId))
-                    {
-                        continue;
-                    }
+            backButton?.onClick.AddListener(HandleBack);
+        }
 
-                    var id = entry.itemId;
-                    entry.button.onClick.AddListener(() => OnItemChosen?.Invoke(id));
-                }
-            }
-
-            backButton?.onClick.AddListener(() => OnBack?.Invoke());
+        public void ShowFor(CombatantState actor, CombatContext context)
+        {
+            cachedRows = ItemSource != null ? ItemSource.GetItemsFor(actor, context) : Array.Empty<IItemRowData>();
+            populator?.ShowItems(cachedRows, HandleHover, HandleSubmit, HandleBlocked);
+            tooltip?.Hide();
         }
 
         public override void FocusFirst()
         {
-            Button target = defaultButton;
-            if (target == null && items != null && items.Length > 0)
-            {
-                target = items[0].button;
-            }
-
-            if (target != null)
-            {
-                EventSystem.current?.SetSelectedGameObject(target.gameObject);
-            }
+            populator?.FocusLast();
         }
 
         public void OnCancel(BaseEventData eventData)
+        {
+            HandleBack();
+        }
+
+        private void HandleHover(IItemRowData data)
+        {
+            if (tooltip != null)
+            {
+                tooltip.Show(data != null ? data.Description : string.Empty);
+            }
+        }
+
+        private void HandleSubmit(IItemRowData data)
+        {
+            if (data == null || data.Quantity <= 0 || !data.IsEnabled)
+            {
+                HandleBlocked(data);
+                return;
+            }
+
+            OnItemChosen?.Invoke(data.Id);
+        }
+
+        private void HandleBlocked(IItemRowData data)
+        {
+            if (tooltip != null && data != null && !string.IsNullOrWhiteSpace(data.DisabledReason))
+            {
+                tooltip.Show(data.DisabledReason);
+            }
+
+            UIAudio.PlayBack();
+        }
+
+        private void HandleBack()
         {
             UIAudio.PlayBack();
             OnBack?.Invoke();
