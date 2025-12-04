@@ -20,6 +20,9 @@ namespace BattleV2.UI
         [SerializeField] private CPChargePanel cpPanel;
         [SerializeField] private TargetSelectionPanel targetPanel;
         [SerializeField] private TimedHitPanel timedHitPanel;
+        [Header("Root Menu Container")]
+        [SerializeField] private GameObject rootMenuContainer;
+        [SerializeField] private GameObject rootDefaultSelectable;
         [Header("Debug")]
         [SerializeField] private bool debugStartVisible = false;
 
@@ -54,10 +57,33 @@ namespace BattleV2.UI
         private BattleActionContext pendingActionContext;
         private CombatContext ActiveContext => combatContext != null ? combatContext : pendingActionContext?.Context;
 
+        // FMOD/UI mode: do NOT conflate player-hidden with system-hidden.
+        public enum BattleUIMode
+        {
+            CombatUI = 0,
+            Cinematic = 1,
+            SystemHidden = 2
+        }
+
+        public event Action<BattleUIMode> OnUIModeChanged;
+
+        [SerializeField] private BattleUIMode debugInitialMode = BattleUIMode.SystemHidden;
+        private BattleUIMode uiMode;
+        public BattleUIMode CurrentUIMode => uiMode;
+
+        private enum RootMenuVisibility
+        {
+            Visible,
+            Hidden
+        }
+
+        private RootMenuVisibility rootVisibility = RootMenuVisibility.Visible;
+        public bool IsRootHidden => rootVisibility == RootMenuVisibility.Hidden;
+
         private void Update()
         {
-            // Enforce focus if we are in a menu state and nothing is selected
-            if (state != UiState.Hidden && state != UiState.Locked && state != UiState.TimedHit)
+            // Enforce focus if we are in a menu state and nothing is selected (unless root is intentionally hidden)
+            if (state != UiState.Hidden && state != UiState.Locked && state != UiState.TimedHit && !IsRootHidden)
             {
                 if (EventSystem.current != null && EventSystem.current.currentSelectedGameObject == null)
                 {
@@ -72,6 +98,10 @@ namespace BattleV2.UI
 
         private void RestoreFocus()
         {
+            var es = EventSystem.current;
+            var cur = es != null ? es.currentSelectedGameObject : null;
+            BattleV2.UI.Diagnostics.MagMenuDebug.Log("07", $"RestoreFocus state={state} cur={(cur ? cur.name : "null")} last={(lastSelected ? lastSelected.name : "null")}", this);
+
             if (lastSelected != null && lastSelected.activeInHierarchy)
             {
                 EventSystem.current.SetSelectedGameObject(lastSelected);
@@ -106,7 +136,13 @@ namespace BattleV2.UI
 
         private void Awake()
         {
+            // Initialize mode early for audio bridges.
+            uiMode = debugInitialMode;
             WirePanels();
+            if (rootMenuContainer == null && rootMenu != null)
+            {
+                rootMenuContainer = rootMenu.gameObject;
+            }
             if (debugStartVisible)
             {
                 EnterRoot();
@@ -126,7 +162,7 @@ namespace BattleV2.UI
                 rootMenu.OnItem += () => EnterItem();
                 rootMenu.OnDefend += () => OnRootActionSelected?.Invoke("Defend");
                 rootMenu.OnFlee += () => OnRootActionSelected?.Invoke("Flee");
-                rootMenu.OnClose += HideAll;
+                rootMenu.OnClose += HideRootToHidden; // Presentation-only close -> cinematic
             }
 
             if (atkMenu != null)
@@ -185,7 +221,13 @@ namespace BattleV2.UI
         public void EnterRoot()
         {
             Debug.Log("BattleUIRoot: EnterRoot called");
+            EnsureRootVisible();
             PushState(UiState.Root);
+
+            if (!IsRootHidden)
+            {
+                SetUIMode(BattleUIMode.CombatUI);
+            }
         }
 
         public void EnterAtk()
@@ -221,8 +263,13 @@ namespace BattleV2.UI
         public void HideAll()
         {
             state = UiState.Hidden;
+            rootVisibility = RootMenuVisibility.Hidden;
             ShowOnly(null);
             menuStack.Clear(); // Reset stack on full hide? Or just hide visuals?
+            SetRootContainerActive(false);
+            ClearSelection();
+
+            SetUIMode(BattleUIMode.SystemHidden);
         }
 
         private void PushState(UiState newState)
@@ -251,6 +298,7 @@ namespace BattleV2.UI
             switch (uiState)
             {
                 case UiState.Root:
+                    EnsureRootVisible();
                     ShowOnly(rootMenu);
                     rootMenu?.FocusFirst();
                     break;
@@ -320,5 +368,104 @@ namespace BattleV2.UI
 
             CancelTarget();
         }
+
+        private void SetRootContainerActive(bool active)
+        {
+            if (rootMenuContainer != null)
+            {
+                rootMenuContainer.SetActive(active);
+            }
+            else if (rootMenu != null)
+            {
+                rootMenu.gameObject.SetActive(active);
+            }
+        }
+
+        private void ClearSelection()
+        {
+            if (EventSystem.current != null)
+            {
+                EventSystem.current.SetSelectedGameObject(null);
+            }
+
+            lastSelected = null;
+        }
+
+        public void HideRootToHidden()
+        {
+            if (rootVisibility == RootMenuVisibility.Hidden)
+            {
+                return;
+            }
+
+            rootVisibility = RootMenuVisibility.Hidden;
+            SetRootContainerActive(false);
+            ClearSelection();
+
+            SetUIMode(BattleUIMode.Cinematic);
+        }
+
+        public void ShowRootFromHidden()
+        {
+            if (rootVisibility == RootMenuVisibility.Visible)
+            {
+                return;
+            }
+
+            SetRootContainerActive(true);
+            rootVisibility = RootMenuVisibility.Visible;
+            RestoreRootSelection();
+
+            SetUIMode(BattleUIMode.CombatUI);
+        }
+
+        public void ToggleRootVisibility()
+        {
+            if (IsRootHidden)
+            {
+                ShowRootFromHidden();
+            }
+            else
+            {
+                HideRootToHidden();
+            }
+        }
+
+        public void EnsureRootVisible()
+        {
+            if (IsRootHidden)
+            {
+                ShowRootFromHidden();
+            }
+        }
+
+        private void RestoreRootSelection()
+        {
+            if (EventSystem.current == null)
+            {
+                return;
+            }
+
+            if (rootDefaultSelectable != null)
+            {
+                EventSystem.current.SetSelectedGameObject(rootDefaultSelectable);
+            }
+            else
+            {
+                rootMenu?.FocusFirst();
+            }
+        }
+
+        private void SetUIMode(BattleUIMode mode)
+        {
+            if (uiMode == mode)
+            {
+                return;
+            }
+
+            uiMode = mode;
+            OnUIModeChanged?.Invoke(uiMode);
+        }
     }
 }
+

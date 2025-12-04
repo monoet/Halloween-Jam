@@ -243,6 +243,10 @@ namespace BattleV2.UI
 
         public void HandleNavigation()
         {
+            var es = EventSystem.current;
+            var before = es != null ? es.currentSelectedGameObject : null;
+            BattleV2.UI.Diagnostics.MagMenuDebug.Log("00", $"HandleNavigation before={(before ? before.name : "null")} sendNav={(es ? es.sendNavigationEvents : false)} module={(es && es.currentInputModule!=null ? es.currentInputModule.GetType().Name : "null")}", this);
+
             float h = Input.GetAxisRaw("Horizontal");
             float v = Input.GetAxisRaw("Vertical");
 
@@ -268,6 +272,9 @@ namespace BattleV2.UI
                 nextMoveTime = Time.unscaledTime + (direction != lastDirection ? repeatDelay : repeatRate);
                 lastDirection = direction;
                 Navigate(direction);
+
+                var after = EventSystem.current != null ? EventSystem.current.currentSelectedGameObject : null;
+                BattleV2.UI.Diagnostics.MagMenuDebug.Log("01", $"MoveResult {(before ? before.name : "null")} -> {(after ? after.name : "null")}", after);
             }
         }
 
@@ -370,3 +377,4 @@ namespace BattleV2.UI
         }
     }
 }
+

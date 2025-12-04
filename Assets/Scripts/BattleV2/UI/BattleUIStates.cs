@@ -26,6 +26,34 @@ namespace BattleV2.UI
 
         public void HandleInput(BattleUIInputDriver driver)
         {
+            // If the root menu is hidden, Confirm/Back simply restores it and consumes input.
+            if (driver.UiRoot != null && driver.UiRoot.IsRootHidden)
+            {
+                bool confirm = gate.AllowConfirm(driver);
+                bool cancel = gate.AllowCancel(driver);
+                if (confirm || cancel)
+                {
+                    if (driver.UiRoot.StackCount == 0)
+                    {
+                        driver.UiRoot.EnterRoot();
+                    }
+                    else
+                    {
+                        driver.UiRoot.ShowRootFromHidden();
+                    }
+
+                    if (confirm)
+                    {
+                        driver.PlayConfirmAudio();
+                    }
+                    else
+                    {
+                        driver.PlayCancelAudio();
+                    }
+                }
+                return;
+            }
+
             driver.HandleNavigation();
             driver.HandleCpIntentHotkeys();
             
@@ -51,7 +79,7 @@ namespace BattleV2.UI
                     }
                     else
                     {
-                        driver.UiRoot.CancelMenu();
+                        driver.UiRoot.HideRootToHidden();
                     }
                     driver.PlayCancelAudio();
                 }

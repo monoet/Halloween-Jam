@@ -1374,6 +1374,8 @@ MonoBehaviour:
   - {fileID: 7002306585215683869}
   - {fileID: 4783531568768914571}
   - {fileID: 370004625374594737}
+  highlightRoot: {fileID: 0}
+  highlightNameColor: {r: 1, g: 0.85, b: 0.2, a: 1}
   hpFormat: '{0}/{1}'
   spFormat: '{0}/{1}'
   cpFormat: '{0}/{1}'
@@ -2060,7 +2062,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   m_Sprite: {fileID: 1845343445303295713, guid: 88e723ccbe534984cad73fdd89bb90c3, type: 3}
-  m_Type: 0
+  m_Type: 1
   m_PreserveAspect: 0
   m_FillCenter: 1
   m_FillMethod: 4

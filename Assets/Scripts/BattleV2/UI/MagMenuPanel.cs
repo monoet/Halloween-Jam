@@ -42,7 +42,7 @@ namespace BattleV2.UI
 
         public override void FocusFirst()
         {
-            populator?.FocusLast();
+            populator?.FocusFirstRow(preferEnabled: true);
         }
 
         public void OnCancel(BaseEventData eventData)
@@ -101,7 +101,7 @@ namespace BattleV2.UI
                 return;
             }
 
-            spCostHeader.text = $"SP: {Mathf.Max(0, data.SpCost)}";
+            spCostHeader.text = $"{Mathf.Max(0, data.SpCost)}";
         }
     }
 }

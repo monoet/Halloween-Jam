@@ -39,7 +39,7 @@ namespace BattleV2.UI
 
         public override void FocusFirst()
         {
-            populator?.FocusLast();
+            populator?.FocusFirstRow(preferEnabled: true);
         }
 
         public void OnCancel(BaseEventData eventData)

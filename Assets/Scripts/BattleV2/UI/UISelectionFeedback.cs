@@ -1,97 +1,124 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
-using UnityEngine.UI;
 using DG.Tweening;
 
 namespace BattleV2.UI
 {
     /// <summary>
-    /// Adds a simple scale/color effect when selected. Visual only; audio handled elsewhere.
-    /// Requires DOTween.
+    /// Visual feedback for UI selection. Deterministic: never accumulates scale.
+    /// Works with keyboard/gamepad navigation via ISelect/IDeselect.
     /// </summary>
-    public class UISelectionFeedback : MonoBehaviour, ISelectHandler, IDeselectHandler
+    public sealed class UISelectionFeedback : MonoBehaviour, ISelectHandler, IDeselectHandler
     {
-        [Header("Scale Settings")]
-        [SerializeField] private bool useScale = true;
-        [SerializeField] private float scaleAmount = 1.1f;
+        [Header("Target")]
+        [Tooltip("What actually scales. If null, scales this RectTransform.")]
+        [SerializeField] private RectTransform scaleTarget;
 
-        [Header("Color Settings")]
-        [SerializeField] private bool useColor = true;
-        [SerializeField] private Color selectedColor = Color.yellow;
-        [SerializeField] private Image targetImage;
+        [Header("Scale")]
+        [SerializeField] private float selectedScaleMultiplier = 1.08f;
+        [SerializeField] private float duration = 0.10f;
+        [SerializeField] private Ease ease = Ease.OutQuad;
 
-        [Header("Common")]
-        [SerializeField] private float duration = 0.2f;
+        [Header("Debug")]
+        [SerializeField] private bool logEvents = false;
 
-        private Vector3 originalScale;
-        private Color originalColor;
-        private Tweener scaleTween;
-        private Tweener colorTween;
+        private Vector3 baseScale;
+        private bool baseCaptured;
+        private bool isSelected;
+        private Tween activeTween;
 
-        private void Awake()
+        private RectTransform Target
         {
-            if (targetImage == null)
+            get
             {
-                targetImage = GetComponent<Image>();
+                if (scaleTarget != null) return scaleTarget;
+                return transform as RectTransform;
             }
-            CacheOriginals();
         }
 
-        private void OnEnable()
+        private void CaptureBaseIfNeeded()
         {
-            CacheOriginals();
+            if (baseCaptured) return;
+            var t = Target;
+            if (t == null) return;
+            baseScale = t.localScale;
+            baseCaptured = true;
         }
 
-        private void CacheOriginals()
+        private void KillTween()
         {
-            originalScale = transform.localScale;
-            if (targetImage != null)
+            if (activeTween != null && activeTween.IsActive())
             {
-                originalColor = targetImage.color;
+                activeTween.Kill(false);
             }
+            activeTween = null;
+        }
+
+        public void ResetInstant()
+        {
+            CaptureBaseIfNeeded();
+            KillTween();
+            var t = Target;
+            if (t != null && baseCaptured)
+                t.localScale = baseScale;
+            isSelected = false;
+        }
+
+        private void AnimateTo(Vector3 targetScale)
+        {
+            var t = Target;
+            if (t == null) return;
+
+            KillTween();
+            activeTween = t.DOScale(targetScale, duration).SetEase(ease).SetUpdate(true);
         }
 
         public void OnSelect(BaseEventData eventData)
         {
-            if (useScale)
-            {
-                scaleTween?.Kill();
-                scaleTween = transform.DOScale(originalScale * scaleAmount, duration).SetUpdate(true);
-            }
+            BattleV2.UI.Diagnostics.MagMenuDebug.Log("04", $"OnSelect name={name}", this);
+            CaptureBaseIfNeeded();
+            if (!baseCaptured) return;
 
-            if (useColor && targetImage != null)
-            {
-                colorTween?.Kill();
-                colorTween = targetImage.DOColor(selectedColor, duration).SetUpdate(true);
-            }
+            if (logEvents) Debug.Log($"[UISelectionFeedback] OnSelect {name}");
+
+            if (isSelected)
+                return;
+
+            isSelected = true;
+
+            var t = Target;
+            if (t == null) return;
+
+            t.localScale = baseScale;
+            AnimateTo(baseScale * selectedScaleMultiplier);
         }
 
         public void OnDeselect(BaseEventData eventData)
         {
-            if (useScale)
-            {
-                scaleTween?.Kill();
-                scaleTween = transform.DOScale(originalScale, duration).SetUpdate(true);
-            }
+            BattleV2.UI.Diagnostics.MagMenuDebug.Log("05", $"OnDeselect name={name}", this);
+            CaptureBaseIfNeeded();
+            if (!baseCaptured) return;
 
-            if (useColor && targetImage != null)
-            {
-                colorTween?.Kill();
-                colorTween = targetImage.DOColor(originalColor, duration).SetUpdate(true);
-            }
+            if (logEvents) Debug.Log($"[UISelectionFeedback] OnDeselect {name}");
+
+            isSelected = false;
+            AnimateTo(baseScale);
         }
 
         private void OnDisable()
         {
-            scaleTween?.Kill();
-            colorTween?.Kill();
-            scaleTween = null;
-            colorTween = null;
-            transform.localScale = originalScale;
-            if (targetImage != null)
-            {
-                targetImage.color = originalColor;
-            }
+            BattleV2.UI.Diagnostics.MagMenuDebug.Log("06", $"OnDisable name={name}", this);
+            if (logEvents) Debug.Log($"[UISelectionFeedback] OnDisable {name}");
+            ResetInstant();
         }
+
+#if UNITY_EDITOR
+        private void OnValidate()
+        {
+            if (selectedScaleMultiplier < 1.01f) selectedScaleMultiplier = 1.01f;
+            if (duration < 0.01f) duration = 0.01f;
+        }
+#endif
     }
 }
+
