@@ -12,7 +12,6 @@ GameObject:
   - component: {fileID: 7634638008693688759}
   - component: {fileID: 1012148836291655518}
   - component: {fileID: 8218106657827423281}
-  - component: {fileID: 1389782261517380970}
   m_Layer: 5
   m_Name: SpellNameText
   m_TagString: Untagged
@@ -182,23 +181,6 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
---- !u!114 &1389782261517380970
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6736278079700546234}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4b9b14660c6fe9841b829c789716db66, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BattleV2.UI.UISelectionFeedback
-  scaleTarget: {fileID: 0}
-  selectedScaleMultiplier: 1.033
-  duration: 0.2
-  ease: 6
-  logEvents: 0
 --- !u!1 &7024446712040144561
 GameObject:
   m_ObjectHideFlags: 0
@@ -209,10 +191,11 @@ GameObject:
   m_Component:
   - component: {fileID: 2977265308779834963}
   - component: {fileID: 1506042232334190837}
-  - component: {fileID: 8074607770830025816}
   - component: {fileID: 2946464467016423323}
+  - component: {fileID: 8074607770830025816}
   - component: {fileID: -3922644739582385642}
   - component: {fileID: 3419722173079099793}
+  - component: {fileID: 568426669934689713}
   m_Layer: 5
   m_Name: SpellRowUI 1
   m_TagString: Untagged
@@ -267,6 +250,18 @@ MonoBehaviour:
   m_ChildScaleWidth: 0
   m_ChildScaleHeight: 0
   m_ReverseArrangement: 0
+--- !u!225 &2946464467016423323
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7024446712040144561}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!114 &8074607770830025816
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -284,22 +279,10 @@ MonoBehaviour:
   elementIconImage: {fileID: 442546683230382240}
   canvasGroup: {fileID: 2946464467016423323}
   disabledAlpha: 0.5
-  selectionFeedback: {fileID: 1389782261517380970}
+  selectionFeedback: {fileID: 0}
   useHighlightColor: 1
   normalColor: {r: 1, g: 1, b: 1, a: 1}
   highlightedColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
---- !u!225 &2946464467016423323
-CanvasGroup:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7024446712040144561}
-  m_Enabled: 1
-  m_Alpha: 1
-  m_Interactable: 1
-  m_BlocksRaycasts: 1
-  m_IgnoreParentGroups: 0
 --- !u!222 &-3922644739582385642
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -338,6 +321,23 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1.66
+--- !u!114 &568426669934689713
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7024446712040144561}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b9b14660c6fe9841b829c789716db66, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BattleV2.UI.UISelectionFeedback
+  scaleTarget: {fileID: 0}
+  selectedScaleMultiplier: 1.033
+  duration: 0.2
+  ease: 6
+  logEvents: 0
 --- !u!1 &7662990919942298322
 GameObject:
   m_ObjectHideFlags: 0

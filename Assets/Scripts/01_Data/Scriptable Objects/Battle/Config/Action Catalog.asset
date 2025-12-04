@@ -124,7 +124,88 @@ MonoBehaviour:
     requiresTarget: 1
   items:
   - id: item_use
-    displayName: MinorHealthpot
+    displayName: Wind Soulstone
+    costSP: 0
+    costCP: 0
+    actionImpl: {fileID: 11400000, guid: 3c5fb851f85748e449f0542693efc519, type: 2}
+    description: 
+    elementIcon: {fileID: 0}
+    combatEventStaggerStep: 0
+    requiresTarget: 1
+  - id: item_use
+    displayName: Penial Enlargement
+    costSP: 0
+    costCP: 0
+    actionImpl: {fileID: 11400000, guid: 3c5fb851f85748e449f0542693efc519, type: 2}
+    description: 
+    elementIcon: {fileID: 0}
+    combatEventStaggerStep: 0
+    requiresTarget: 1
+  - id: item_use
+    displayName: Extra Minor Health Pot
+    costSP: 0
+    costCP: 0
+    actionImpl: {fileID: 11400000, guid: 3c5fb851f85748e449f0542693efc519, type: 2}
+    description: 
+    elementIcon: {fileID: 0}
+    combatEventStaggerStep: 0
+    requiresTarget: 1
+  - id: item_use
+    displayName: Moon Dust
+    costSP: 0
+    costCP: 0
+    actionImpl: {fileID: 11400000, guid: 3c5fb851f85748e449f0542693efc519, type: 2}
+    description: 
+    elementIcon: {fileID: 0}
+    combatEventStaggerStep: 0
+    requiresTarget: 1
+  - id: item_use
+    displayName: Herb
+    costSP: 0
+    costCP: 0
+    actionImpl: {fileID: 11400000, guid: 3c5fb851f85748e449f0542693efc519, type: 2}
+    description: 
+    elementIcon: {fileID: 0}
+    combatEventStaggerStep: 0
+    requiresTarget: 1
+  - id: item_use
+    displayName: Tree Nut
+    costSP: 0
+    costCP: 0
+    actionImpl: {fileID: 11400000, guid: 3c5fb851f85748e449f0542693efc519, type: 2}
+    description: 
+    elementIcon: {fileID: 0}
+    combatEventStaggerStep: 0
+    requiresTarget: 1
+  - id: item_use
+    displayName: Candy
+    costSP: 0
+    costCP: 0
+    actionImpl: {fileID: 11400000, guid: 3c5fb851f85748e449f0542693efc519, type: 2}
+    description: 
+    elementIcon: {fileID: 0}
+    combatEventStaggerStep: 0
+    requiresTarget: 1
+  - id: item_use
+    displayName: Spiritual Stone
+    costSP: 0
+    costCP: 0
+    actionImpl: {fileID: 11400000, guid: 3c5fb851f85748e449f0542693efc519, type: 2}
+    description: 
+    elementIcon: {fileID: 0}
+    combatEventStaggerStep: 0
+    requiresTarget: 1
+  - id: item_use
+    displayName: E Key
+    costSP: 0
+    costCP: 0
+    actionImpl: {fileID: 11400000, guid: 3c5fb851f85748e449f0542693efc519, type: 2}
+    description: 
+    elementIcon: {fileID: 0}
+    combatEventStaggerStep: 0
+    requiresTarget: 1
+  - id: item_use
+    displayName: How do you turn this on?
     costSP: 0
     costCP: 0
     actionImpl: {fileID: 11400000, guid: 3c5fb851f85748e449f0542693efc519, type: 2}

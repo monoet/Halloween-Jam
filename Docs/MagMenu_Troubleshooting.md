@@ -1,29 +1,30 @@
-# MagMenu Troubleshooting Log (para replicar en ItemMenu)
+# MagMenu Troubleshooting Log (replicable en ItemMenu)
 
-## Navegación y focus
-- ActionListPopulator limpia filas, reconstruye layout (Canvas.ForceUpdateCanvases + LayoutRebuilder) y arma navegación explícita con wrap; no depende del inspector.
+## Navegacion y focus
+- ActionListPopulator limpia filas, reconstruye layout (Canvas.ForceUpdateCanvases + LayoutRebuilder) y arma navegacion explicita con wrap sin depender del inspector.
 - No se filtra Selectable.IsInteractable(): las filas soft-disabled siguen navegables para tooltip, evitando que el cursor se atasque.
-- Focus inicial: siempre la primera habilitada (o la primera si todas están bloqueadas) tras rebuild de layout.
-- Filas estáticas fuera del ScrollRect bloqueaban navegación/feedback. Todo debe instanciarse vía populator en el Content para que el focus pase por ellas.
-- **Scroll de navegación:** agrega `ScrollRectFollowSelection` al GO del ScrollRect (Mag/Item). Usa el RowIndex real de cada fila (asignado en ActionListPopulator) y desplaza el contenido cuando el cursor sale de la ventana de `visibleSlots` (default 4). Ajusta `scrollSpeed`/`margin` según anticipación o suavizado deseado.
+- Focus inicial: siempre la primera habilitada (o la primera si todas estan bloqueadas) tras rebuild de layout.
+- Filas estaticas fuera del ScrollRect bloquean navegacion/feedback: todo debe instanciarse via populator en el Content.
+- Scroll de navegacion: agrega `ScrollRectFollowSelection` al GO del ScrollRect (Mag/Item). Usa RowIndex real de cada fila (asignado en ActionListPopulator) y desplaza el contenido al salir de la ventana de `visibleSlots` (banda muerta simetrica: slot2 al subir, slot3 al bajar cuando visibleSlots=4). Ajusta `scrollSpeed`/`margin` segun anticipacion o suavizado deseado. Si hay scrollbar asignada en el ScrollRect, el handle se actualiza via SetValueWithoutNotify.
 
 ## Feedback visual
-- UISelectionFeedback reescrito: usa baseScale fija, no acumula, tiene guard isSelected y resetea instant en OnDisable.
+- UISelectionFeedback reescrito: baseScale fija, no acumula, guard isSelected, reset instant en OnDisable.
 - SpellRowUI/ItemRowUI autoinyectan UISelectionFeedback si falta (buscan en el Selectable o lo agregan).
 - ClearHandlers fuerza reset visual para evitar filas infladas al salir/cancelar.
 
 ## Submit/confirm
-- Binding directo al Button del Selectable: el submit (Enter/confirm) llega a HandleSubmit, no se pierde en el botón hijo.
+- Binding directo al Button del Selectable: el submit (Enter/confirm) llega a HandleSubmit, no se pierde en el boton hijo.
 
 ## Pitfalls encontrados
-- Si el Selectable no está asignado al botón real en el prefab, no hay feedback ni submit.
-- Placeholders en la jerarquía (ej. “Magic Bolt” fijo) tapan el ScrollRect; eliminarlos.
-- Si content del populator o spellRowPrefab están en null, no se pobla la lista.
-- ScrollMask: el enmascarado depende del prefab/escena. Asegurar Viewport con Mask/RectMask2D y Content hijo; sin eso, las filas se dibujan fuera del área.
+- Si el Selectable no esta asignado al boton real en el prefab, no hay feedback ni submit.
+- Placeholders en la jerarquia (ej. "Magic Bolt" fijo) tapan el ScrollRect; eliminarlos.
+- Si content del populator o spellRowPrefab estan en null, no se pobla la lista.
+- ScrollMask: asegurar Viewport con Mask/RectMask2D y Content hijo; sin eso, las filas se dibujan fuera del area.
+- Si el seleccionado no es hijo del Content (ej. otro panel) el seguimiento de scroll no corre.
 
 ## Guardrails del root a vigilar
-- Suprimir SFX de navegación en el primer focus (root lo hacía vía flag en driver).
-- Actualizar lastFocus con selección de usuario si se quiere “volver al último” al reabrir.
+- Suprimir SFX de navegacion en el primer focus (root lo hacia via flag en driver).
+- Actualizar lastFocus con seleccion de usuario si se quiere "volver al ultimo" al reabrir.
 
-## Práctica recomendada para ItemMenu
-- Reusar el mismo wiring: content del ScrollRect asignado, prefabs con Selectable correcto, feedback auto, submit bind, sin placeholders en jerarquía.
+## Practica recomendada para ItemMenu
+- Reusar el mismo wiring: content del ScrollRect asignado, prefabs con Selectable correcto, feedback auto, submit bind, sin placeholders en jerarquia. Ajustar visibleSlots/scrollSpeed/margin segun viewport.***
