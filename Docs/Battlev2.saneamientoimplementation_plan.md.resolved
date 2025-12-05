@@ -1,29 +1,5 @@
-# Implementation Plan - Targeting MVP & Safety Refactors (Final)
-
-This plan implements Single/All targeting support with "Production-Grade" safety measures, incorporating specific architectural improvements for decoupling, determinism, and future-proofing enemy AI.
-
-## Goal
-Enable "All" targeting support in [BattleManagerV2](file:///j:/Unreal%20Projects/UNITY/Halloween%20Jam/Assets/Scripts/BattleV2/Orchestration/BattleManagerV2.cs#29-1133) and [TargetingCoordinator](file:///j:/Unreal%20Projects/UNITY/Halloween%20Jam/Assets/Scripts/BattleV2/Orchestration/Services/TargetingCoordinator.cs#29-257) while ensuring execution stability via immutable snapshots, explicit dependencies, and formal side logic.
-
-## User Review Required
-> [!IMPORTANT]
-> **Commit Sequence Change**: The commit sequence will be strictly reordered to `Validate -> Consume -> Commit -> EndTurn -> Execute`.
-> **Snapshot Authority**: **ALL** execution-time logic (marks, RNG, hit events, triggers) MUST read from `ExecutionSnapshot` (deep copy), NOT live lists or `context.Enemy`.
-> **Flow Semantics**: `Back` and [Cancel](file:///j:/Unreal%20Projects/UNITY/Halloween%20Jam/Assets/Scripts/BattleV2/UI/BattleUITargetInteractor.cs#204-217) MUST NOT consume CP or trigger `EndTurn`. Only `Confirmed` (via Commit) triggers `EndTurn`.
-> **Auto-Confirm**: For this MVP, "All" targeting will bypass manual selection (Auto-Confirm).
-
-## Proposed Changes
-
-### Step 0: Formalize Combat Side (The Foundation)
-Avoid fragile list checks by formalizing side logic.
-
-#### [NEW] [ICombatSideService.cs](file:///j:/Unreal%20Projects/UNITY/Halloween%20Jam/Assets/Scripts/BattleV2/Core/Services/ICombatSideService.cs)
-- Interface for [IsAlly(a, b)](file:///j:/Unreal%20Projects/UNITY/Halloween%20Jam/Assets/Scripts/BattleV2/Orchestration/BattleManagerV2.cs#129-147) and `IsEnemy(a, b)`.
-
-#### [NEW] [CombatSideService.cs](file:///j:/Unreal%20Projects/UNITY/Halloween%20Jam/Assets/Scripts/BattleV2/Core/Services/CombatSideService.cs)
-- Implementation using `FactionId` or Team tags (fallback to list checks if needed for MVP, but encapsulated).
-
-### Step 1: Targeting Logic (Decoupled)
+q
+            ### Step 1: Targeting Logic (Decoupled)
 Enable "All" targeting using a DTO to avoid coupling Coordinator to full ActionData.
 
 #### [NEW] [TargetingIntent.cs](file:///j:/Unreal%20Projects/UNITY/Halloween%20Jam/Assets/Scripts/BattleV2/Targeting/TargetingIntent.cs)
@@ -37,7 +13,7 @@ Enable "All" targeting using a DTO to avoid coupling Coordinator to full ActionD
 #### [MODIFY] [TargetResolutionService.cs](file:///j:/Unreal%20Projects/UNITY/Halloween%20Jam/Assets/Scripts/BattleV2/Orchestration/Services/TargetResolutionService.cs)
 - Construct `TargetingIntent` from `BattleActionData` and pass it to Coordinator.
 
-### Step 2: Safety Refactors (The Guardrails)
+           ### Step 2: Safety Refactors (The Guardrails)
 
 #### [NEW] [ExecutionSnapshot.cs](file:///j:/Unreal%20Projects/UNITY/Halloween%20Jam/Assets/Scripts/BattleV2/Orchestration/Execution/ExecutionSnapshot.cs)
 - **Crucial**: Constructor must create **new Arrays** (deep copy via `.ToArray()`) of `Allies`, `Enemies`, and [Targets](file:///j:/Unreal%20Projects/UNITY/Halloween%20Jam/Assets/Scripts/BattleV2/Orchestration/Services/TargetingCoordinator.cs#195-226). Do not store references to the live lists.
@@ -55,7 +31,7 @@ Enable "All" targeting using a DTO to avoid coupling Coordinator to full ActionD
 - **PP-007 (Cancellation)**: Add `CancellationTokenSource battleCts`. Cancel on [OnDisable](file:///j:/Unreal%20Projects/UNITY/Halloween%20Jam/Assets/Scripts/BattleV2/Orchestration/BattleManagerV2.cs#170-182)/[Reset](file:///j:/Unreal%20Projects/UNITY/Halloween%20Jam/Assets/Scripts/BattleV2/Orchestration/BattleManagerV2.cs#530-543). Pass token to async methods.
 - **PP-002 (EnemyReference)**: Only update [EnemyReference](file:///j:/Unreal%20Projects/UNITY/Halloween%20Jam/Assets/Scripts/BattleV2/Orchestration/BattleManagerV2.cs#488-494) if `Scope == Single` and `Target == Enemy`.
 
-#### [MODIFY] [PlayerActionExecutor.cs](file:///j:/Unreal%20Projects/UNITY/Halloween%20Jam/Assets/Scripts/BattleV2/Execution/PlayerActionExecutor.cs)
+            #### [MODIFY] [PlayerActionExecutor.cs](file:///j:/Unreal%20Projects/UNITY/Halloween%20Jam/Assets/Scripts/BattleV2/Execution/PlayerActionExecutor.cs)
 - Update `ExecuteAsync` to accept `ExecutionSnapshot`.
 - **Rule**: Logic must iterate `snapshot.Targets`, not `context.Enemy` or live lists.
 - **Safety**: Inside loops, explicitly check `if (target == null || !target.IsAlive) continue;` to handle Unity object destruction during execution.
@@ -64,13 +40,13 @@ Enable "All" targeting using a DTO to avoid coupling Coordinator to full ActionD
 - Update methods to accept `ExecutionSnapshot` or [TargetSet](file:///j:/Unreal%20Projects/UNITY/Halloween%20Jam/Assets/Scripts/BattleV2/Targeting/TargetSet.cs#13-19) where relevant.
 - **Safety**: Apply the same `if (target == null || !target.IsAlive) continue;` check in any target processing loops.
 
-### Step 3: Enemy Foundation
+            ### Step 3: Enemy Foundation
 
 #### [MODIFY] [EnemyTurnCoordinator.cs](file:///j:/Unreal%20Projects/UNITY/Halloween%20Jam/Assets/Scripts/BattleV2/Orchestration/Services/EnemyTurnCoordinator.cs)
 - Update to use `TargetingIntent` and [TargetingCoordinator](file:///j:/Unreal%20Projects/UNITY/Halloween%20Jam/Assets/Scripts/BattleV2/Orchestration/Services/TargetingCoordinator.cs#29-257) for target resolution.
 - Remove hardcoded [Player](file:///j:/Unreal%20Projects/UNITY/Halloween%20Jam/Assets/Scripts/BattleV2/Orchestration/BattleManagerV2.cs#934-977) targeting where possible; allow the resolver to determine targets based on action scope/side (even if AI logic is simple for now).
 
-### Step 4: Cleanup & Wiring
+            ### Step 4: Cleanup & Wiring
 
 #### [MODIFY] [BattleUITargetInteractor.cs](file:///j:/Unreal%20Projects/UNITY/Halloween%20Jam/Assets/Scripts/BattleV2/UI/BattleUITargetInteractor.cs)
 - Ensure it handles [TargetSet](file:///j:/Unreal%20Projects/UNITY/Halloween%20Jam/Assets/Scripts/BattleV2/Targeting/TargetSet.cs#13-19) with multiple IDs gracefully.

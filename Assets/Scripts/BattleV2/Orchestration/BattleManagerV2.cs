@@ -789,6 +789,8 @@ namespace BattleV2.Orchestration
             var playbackTask = animOrchestrator != null
                 ? animOrchestrator.PlayAsync(new ActionPlaybackRequest(currentPlayer, enrichedSelection, targetsList, CalculateAverageSpeed(), enrichedSelection.AnimationRecipeId))
                 : Task.CompletedTask;
+            var judgmentSeed = System.HashCode.Combine(selectionId, currentPlayer != null ? currentPlayer.GetInstanceID() : 0, enrichedSelection.Action != null ? enrichedSelection.Action.id.GetHashCode() : 0);
+            var actionJudgment = ActionJudgment.FromSelection(enrichedSelection, currentPlayer, enrichedSelection.CpCharge, judgmentSeed);
             
             if (playerActionExecutor == null)
             {
@@ -807,6 +809,7 @@ namespace BattleV2.Orchestration
                 Snapshot = snapshot,
                 PlaybackTask = playbackTask,
                 ComboPointsBefore = cpBefore,
+                Judgment = actionJudgment,
                 TryResolveBattleEnd = () => battleEndService != null && battleEndService.TryResolve(rosterSnapshot, currentPlayer, state),
                 RefreshCombatContext = RefreshCombatContext,
                 OnActionResolved = (resolved, before, after) => OnPlayerActionResolved?.Invoke(resolved, before, after),

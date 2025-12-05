@@ -258,13 +258,17 @@ namespace BattleV2.Orchestration.Services
 
                 var defeatCandidates = CollectDeathCandidates(resolution.Targets);
 
+                var judgmentSeed = System.HashCode.Combine(attacker != null ? attacker.GetInstanceID() : 0, enrichedSelection.Action != null ? enrichedSelection.Action.id.GetHashCode() : 0, resolution.Targets.Count);
+                var judgment = BattleV2.Execution.ActionJudgment.FromSelection(enrichedSelection, attacker, enrichedSelection.CpCharge, judgmentSeed);
+
                 var request = new ActionRequest(
                     context.Manager,
                     attacker,
                     resolution.Targets,
                     enrichedSelection,
                     implementation,
-                    context.CombatContext);
+                    context.CombatContext,
+                    judgment);
 
                 var result = await actionPipeline.Run(request);
                 if (!result.Success)

@@ -19,7 +19,8 @@ namespace BattleV2.Orchestration.Services
             IReadOnlyList<CombatantState> targets,
             BattleSelection selection,
             IAction implementation,
-            CombatContext combatContext)
+            CombatContext combatContext,
+            Execution.ActionJudgment judgment = default)
         {
             Manager = manager;
             Actor = actor;
@@ -27,6 +28,7 @@ namespace BattleV2.Orchestration.Services
             Selection = selection;
             Implementation = implementation;
             CombatContext = combatContext;
+            Judgment = judgment;
         }
 
         public BattleManagerV2 Manager { get; }
@@ -35,6 +37,7 @@ namespace BattleV2.Orchestration.Services
         public BattleSelection Selection { get; }
         public IAction Implementation { get; }
         public CombatContext CombatContext { get; }
+        public Execution.ActionJudgment Judgment { get; }
 
         public CombatantState PrimaryTarget =>
             Targets != null && Targets.Count > 0 ? Targets[0] : CombatContext?.Enemy;
@@ -101,7 +104,8 @@ namespace BattleV2.Orchestration.Services
                 request.Selection.Action,
                 request.Implementation,
                 combatContext,
-                request.Selection);
+                request.Selection,
+                request.Judgment);
 
             await pipeline.ExecuteAsync(actionContext);
             return ActionResult.From(actionContext.TimedResult, actionContext.ComboPointsAwarded);

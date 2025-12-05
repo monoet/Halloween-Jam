@@ -8,6 +8,7 @@ using BattleV2.Orchestration.Events;
 using BattleV2.Orchestration;
 using BattleV2.Providers;
 using BattleV2.Targeting;
+using BattleV2.Execution;
 using UnityEngine;
 
 namespace BattleV2.Orchestration.Services
@@ -192,13 +193,17 @@ namespace BattleV2.Orchestration.Services
                 catalog);
 
             var selection = request.Selection;
+            int judgmentSeed = System.HashCode.Combine(request.Origin != null ? request.Origin.GetInstanceID() : 0, selection.Action != null ? selection.Action.id.GetHashCode() : 0, targets.Count);
+            var judgment = ActionJudgment.FromSelection(selection, request.Origin, selection.CpCharge, judgmentSeed);
+
             var actionRequest = new ActionRequest(
                 manager,
                 request.Origin,
                 targets,
                 selection,
                 implementation,
-                effectContext);
+                effectContext,
+                judgment);
 
             try
             {

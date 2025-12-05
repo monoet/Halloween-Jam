@@ -45,13 +45,18 @@ namespace BattleV2.Orchestration.Services
                 var targets = context.Snapshot.Targets ?? Array.Empty<CombatantState>();
                 var defeatCandidates = CollectDeathCandidates(targets);
 
+                var judgment = context.Judgment.HasValue
+                    ? context.Judgment
+                    : BattleV2.Execution.ActionJudgment.FromSelection(context.Selection, context.Player, context.Selection.CpCharge, System.HashCode.Combine(context.Player != null ? context.Player.GetInstanceID() : 0, context.Selection.Action != null ? context.Selection.Action.id.GetHashCode() : 0, context.Selection.CpCharge));
+
                 var request = new ActionRequest(
                     context.Manager,
                     context.Player,
                     targets,
                     context.Selection,
                     context.Implementation,
-                    context.CombatContext);
+                    context.CombatContext,
+                    judgment);
 
                 var result = await actionPipeline.Run(request);
                 if (!result.Success)
@@ -251,20 +256,21 @@ namespace BattleV2.Orchestration.Services
         }
     }
 
-    public readonly struct PlayerActionExecutionContext
-    {
-        public BattleManagerV2 Manager { get; init; }
-        public CombatantState Player { get; init; }
-        public BattleSelection Selection { get; init; }
-        public IAction Implementation { get; init; }
-        public CombatContext CombatContext { get; init; }
-        public ExecutionSnapshot Snapshot { get; init; }
-        public Task PlaybackTask { get; init; }
-        public int ComboPointsBefore { get; init; }
-        public Func<bool> TryResolveBattleEnd { get; init; }
-        public Action RefreshCombatContext { get; init; }
-        public Action<BattleSelection, int, int> OnActionResolved { get; init; }
-        public Action OnFallback { get; init; }
-        public Action<BattleState> SetState { get; init; }
+        public readonly struct PlayerActionExecutionContext
+        {
+            public BattleManagerV2 Manager { get; init; }
+            public CombatantState Player { get; init; }
+            public BattleSelection Selection { get; init; }
+            public IAction Implementation { get; init; }
+            public CombatContext CombatContext { get; init; }
+            public ExecutionSnapshot Snapshot { get; init; }
+            public Task PlaybackTask { get; init; }
+            public int ComboPointsBefore { get; init; }
+            public BattleV2.Execution.ActionJudgment Judgment { get; init; }
+            public Func<bool> TryResolveBattleEnd { get; init; }
+            public Action RefreshCombatContext { get; init; }
+            public Action<BattleSelection, int, int> OnActionResolved { get; init; }
+            public Action OnFallback { get; init; }
+            public Action<BattleState> SetState { get; init; }
     }
 }

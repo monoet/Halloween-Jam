@@ -24,18 +24,19 @@
 ## Fases y tareas
 
 ### Fase 1: Contratos base y compatibilidad
-- [ ] Agregar enums TargetSide (Self/Ally/Enemy) y TargetScope (Single/All) con defaults (Enemy+Single para ofensivas actuales).
-- [ ] Extender ActionData con side/scope (defaults para backcompat).
-- [ ] Actualizar TargetSet: soportar lista (IReadOnlyList<Combatant>), con Primary como alias de Targets[0]. Helpers: FromSingle(primary), FromMany(list).
-- [ ] Asegurar que todo el código existente que asume single lea Primary (no romper comportamiento actual).
+- [x] Agregar enums TargetSide (Self/Ally/Enemy) y TargetScope (Single/All) con defaults (Enemy+Single para ofensivas actuales).
+- [x] Extender ActionData con side/scope (defaults para backcompat).
+- [x] Actualizar TargetSet: soportar lista (IReadOnlyList<Combatant>), con Primary como alias de Targets[0]. Helpers: FromSingle(primary), FromMany(list).
+- [x] Asegurar que todo el código existente que asume single lea Primary (no romper comportamiento actual).
 
 ### Fase 2: Resolver de objetivos (y snapshot)
-- [ ] Implementar TargetResolver.GetTargets(source, side, scope, optionalSelected):
+- [x] Implementar TargetResolver.GetTargets(source, side, scope, optionalSelected):
   - Self: ignora scope, devuelve solo source.
   - Enemy/Ally: Single usa seleccionado; All devuelve todos vivos de esa facción.
-- [ ] Integrar resolver en el flujo actual:
+- [x] Integrar resolver en el flujo actual:
   - Acciones Single se comportan igual.
   - Acciones All crean TargetSet con la lista capturada en commit (snapshot).
+
 
 ### Fase 3: ActionJudgment / TargetJudgment
 - [ ] Crear ActionJudgment (cpSpent, timedGrade, scope, side, rngSeed, actionId, sourceActorId) y adjuntarlo al contexto de acción.

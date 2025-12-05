@@ -22,6 +22,7 @@ namespace BattleV2.Execution
             IAction actionImplementation,
             CombatContext combatContext,
             BattleSelection selection,
+            ActionJudgment judgment = default,
             CancellationToken cancellationToken = default)
         {
             Manager = manager;
@@ -31,6 +32,7 @@ namespace BattleV2.Execution
             ActionImplementation = actionImplementation;
             CombatContext = combatContext;
             Selection = selection;
+            Judgment = judgment;
             CancellationToken = cancellationToken;
         }
 
@@ -42,6 +44,7 @@ namespace BattleV2.Execution
         public CombatContext CombatContext { get; }
         public BattleSelection Selection { get; }
         public int CpCharge => Selection.CpCharge;
+        public ActionJudgment Judgment { get; }
         public CancellationToken CancellationToken { get; }
 
         public bool Cancelled { get; set; }

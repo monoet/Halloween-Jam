@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using BattleV2.Targeting;
 using BattleV2.Core;
@@ -50,6 +51,14 @@ namespace BattleV2.UI
 
         public Task<TargetSet> SelectAsync(TargetContext context, TargetSet proposedSet)
         {
+            // Auto-confirm group/All sets (no manual selection path).
+            if ((proposedSet.IsGroup && proposedSet.Ids != null && proposedSet.Ids.Count > 1) ||
+                context.Query.Shape == TargetShape.All)
+            {
+                BattleDiagnostics.Log("Targeting", "Auto-confirming multi-id/All TargetSet; skipping manual UI.", this);
+                return Task.FromResult(proposedSet.IsEmpty ? TargetSet.None : proposedSet);
+            }
+
             if (pendingTcs != null)
             {
                 // Evita quedar en limbo si la selección anterior no se limpió
@@ -79,7 +88,7 @@ namespace BattleV2.UI
                 if (lastCandidates.Length > 0)
                 {
                     currentIndex = 0;
-                    HighlightSingle(TargetSet.Single(lastCandidates[0].GetInstanceID()));
+                    HighlightSet(TargetSet.Single(lastCandidates[0].GetInstanceID()));
                 }
             }
             else
@@ -187,7 +196,7 @@ namespace BattleV2.UI
         {
             currentIndex = (currentIndex + direction + lastCandidates.Length) % lastCandidates.Length;
             var target = lastCandidates[currentIndex];
-            HighlightSingle(TargetSet.Single(target.GetInstanceID()));
+            HighlightSet(TargetSet.Single(target.GetInstanceID()));
             BattleDiagnostics.Log("Targeting", $"Virtual Cycle -> {target.name}", this);
             inputDriver?.PlayNavigateAudio();
         }
@@ -237,7 +246,7 @@ namespace BattleV2.UI
             }
 
             lastCandidates = list.ToArray();
-            HighlightSingle(proposed);
+            HighlightSet(proposed);
         }
 
         private System.Collections.Generic.IReadOnlyList<CombatantState> ResolveAudience(TargetContext context)
@@ -250,20 +259,36 @@ namespace BattleV2.UI
             };
         }
 
-        private void HighlightSingle(TargetSet set)
+        private void HighlightSet(TargetSet set)
         {
             ClearAllHighlights();
 
-            if (set.TryGetSingle(out var id))
+            if (set.IsEmpty || lastCandidates == null || lastCandidates.Length == 0)
             {
-                for (int i = 0; i < lastCandidates.Length; i++)
+                return;
+            }
+
+            HashSet<int> ids = null;
+            if (set.IsGroup && set.Ids != null)
+            {
+                ids = new HashSet<int>(set.Ids);
+            }
+            else if (set.TryGetSingle(out var singleId))
+            {
+                ids = new HashSet<int> { singleId };
+            }
+
+            if (ids == null || ids.Count == 0)
+            {
+                return;
+            }
+
+            for (int i = 0; i < lastCandidates.Length; i++)
+            {
+                var c = lastCandidates[i];
+                if (c != null && ids.Contains(c.GetInstanceID()))
                 {
-                    var c = lastCandidates[i];
-                    if (c != null && c.GetInstanceID() == id)
-                    {
-                        TrySetHighlight(c, true);
-                        break;
-                    }
+                    TrySetHighlight(c, true);
                 }
             }
         }
