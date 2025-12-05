@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using BattleV2.Core;
 using BattleV2.Targeting;
 using BattleV2.Providers;
+using BattleV2.Core.Services;
 
 namespace BattleV2.Orchestration.Services
 {

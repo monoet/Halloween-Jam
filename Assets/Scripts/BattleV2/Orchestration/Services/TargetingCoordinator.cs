@@ -30,6 +30,7 @@ namespace BattleV2.Orchestration.Services
     {
         private readonly TargetResolverRegistry resolverRegistry;
         private readonly IBattleEventBus eventBus;
+        private readonly BattleV2.Core.Services.ICombatSideService sideService;
         private readonly List<CombatantState> scratchTargets = new();
         private ITargetSelectionInteractor selectionInteractor;
         private ITargetResolutionPolicy resolutionPolicy;
@@ -38,12 +39,14 @@ namespace BattleV2.Orchestration.Services
             TargetResolverRegistry resolverRegistry,
             IBattleEventBus eventBus,
             ITargetSelectionInteractor selectionInteractor = null,
-            ITargetResolutionPolicy resolutionPolicy = null)
+            ITargetResolutionPolicy resolutionPolicy = null,
+            BattleV2.Core.Services.ICombatSideService sideService = null)
         {
             this.resolverRegistry = resolverRegistry;
             this.eventBus = eventBus;
             this.selectionInteractor = selectionInteractor;
             this.resolutionPolicy = resolutionPolicy ?? new DefaultResolutionPolicy();
+            this.sideService = sideService ?? new BattleV2.Core.Services.CombatSideService();
         }
 
         public void SetInteractor(ITargetSelectionInteractor interactor)
@@ -64,7 +67,7 @@ namespace BattleV2.Orchestration.Services
             IReadOnlyList<CombatantState> allies,
             IReadOnlyList<CombatantState> enemies)
         {
-            var query = ResolveQuery(origin, allies, enemies);
+            var query = ResolveQuery(origin, action, allies, enemies);
             var context = new TargetContext(origin, action, query, sourceType, allies, enemies);
 
             TargetSet set = TargetSet.None;
@@ -78,7 +81,7 @@ namespace BattleV2.Orchestration.Services
                 set = EnsureFallbackSet(sourceType, fallback, allies, enemies);
             }
 
-            if (sourceType == TargetSourceType.Manual)
+            if (sourceType == TargetSourceType.Manual && query.Shape != TargetShape.All)
             {
                 if (selectionInteractor != null)
                 {
@@ -118,31 +121,67 @@ namespace BattleV2.Orchestration.Services
             return new TargetResolutionResult(set, targetsCopy, finalStatus);
         }
 
-        private static TargetQuery ResolveQuery(CombatantState origin, IReadOnlyList<CombatantState> allies, IReadOnlyList<CombatantState> enemies)
+        private TargetQuery ResolveQuery(CombatantState origin, BattleActionData action, IReadOnlyList<CombatantState> allies, IReadOnlyList<CombatantState> enemies)
         {
-            if (origin != null && Contains(allies, origin))
+            var shape = action != null ? action.targetShape : TargetShape.Single;
+            TargetAudience audience = TargetAudience.Enemies;
+
+            if (origin != null)
             {
-                return TargetQuery.EnemiesSingle;
+                bool originIsAlly = IsInRelationList(allies, origin, BattleV2.Core.Services.CombatRelation.Ally);
+                bool originIsEnemy = IsInRelationList(enemies, origin, BattleV2.Core.Services.CombatRelation.Ally);
+
+                if (originIsAlly)
+                {
+                    audience = TargetAudience.Enemies;
+                }
+                else if (originIsEnemy)
+                {
+                    audience = TargetAudience.Allies;
+                }
+                else if (action != null)
+                {
+                    audience = action.targetAudience;
+                    if (audience == TargetAudience.Self)
+                    {
+                        audience = TargetAudience.Enemies;
+                    }
+                }
+            }
+            else if (action != null)
+            {
+                audience = action.targetAudience;
             }
 
-            if (origin != null && Contains(enemies, origin))
+            if (audience == TargetAudience.Self)
             {
-                return TargetQuery.AlliesSingle;
+                return TargetQuery.SelfSingle;
             }
 
-            return TargetQuery.EnemiesSingle;
+            if (audience == TargetAudience.Allies)
+            {
+                return shape == TargetShape.All ? TargetQuery.AlliesAll : TargetQuery.AlliesSingle;
+            }
+
+            return shape == TargetShape.All ? TargetQuery.EnemiesAll : TargetQuery.EnemiesSingle;
         }
 
-        private static bool Contains(IReadOnlyList<CombatantState> list, CombatantState value)
+        private bool IsInRelationList(IReadOnlyList<CombatantState> list, CombatantState origin, BattleV2.Core.Services.CombatRelation expected)
         {
-            if (list == null)
+            if (list == null || origin == null)
             {
                 return false;
             }
 
             for (int i = 0; i < list.Count; i++)
             {
-                if (list[i] == value)
+                var other = list[i];
+                if (other == null)
+                {
+                    continue;
+                }
+
+                if (sideService.GetRelation(origin, other) == expected)
                 {
                     return true;
                 }

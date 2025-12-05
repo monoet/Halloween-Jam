@@ -38,6 +38,9 @@ namespace BattleV2.Targeting
         public static TargetQuery SelfSingle => new TargetQuery(TargetAudience.Self, TargetShape.Single);
         public static TargetQuery EnemiesSingle => new TargetQuery(TargetAudience.Enemies, TargetShape.Single);
         public static TargetQuery AlliesSingle => new TargetQuery(TargetAudience.Allies, TargetShape.Single);
+        public static TargetQuery EnemiesAll => new TargetQuery(TargetAudience.Enemies, TargetShape.All);
+        public static TargetQuery AlliesAll => new TargetQuery(TargetAudience.Allies, TargetShape.All);
+        public static TargetQuery SelfAll => new TargetQuery(TargetAudience.Self, TargetShape.All);
     }
 
     public readonly struct TargetContext

@@ -23,6 +23,8 @@ public class CombatantState : MonoBehaviour
 
     [Header("Faction")]
     [SerializeField] private CombatantFaction faction = CombatantFaction.Player;
+    [SerializeField, Tooltip("Team identifier for side checks. If 0, falls back to faction.")]
+    private int teamId = 0;
 
     [Header("HP Runtime")]
     [SerializeField] private int maxHP;
@@ -72,6 +74,7 @@ public class CombatantState : MonoBehaviour
     public FinalStats FinalStats => characterRuntime != null ? characterRuntime.Final : default;
     public bool IsPlayer => faction == CombatantFaction.Player;
     public bool IsEnemy => faction == CombatantFaction.Enemy;
+    public int TeamId => teamId != 0 ? teamId : (int)faction + 1;
     public string DisplayName => string.IsNullOrWhiteSpace(displayName) ? name : displayName;
     public Sprite Portrait => characterRuntime?.Core.portrait ?? characterRuntime?.Archetype?.portrait;
     public IReadOnlyList<string> AllowedActionIds => allowedActionIds;
@@ -112,6 +115,11 @@ public class CombatantState : MonoBehaviour
         if (Application.isPlaying)
         {
             return;
+        }
+
+        if (teamId == 0)
+        {
+            teamId = (int)faction + 1;
         }
 
         runtimeStatsListener ??= HandleRuntimeStatsChanged;

@@ -1,4 +1,5 @@
 using UnityEngine;
+using BattleV2.Targeting;
 
 namespace BattleV2.Actions
 {
@@ -22,5 +23,17 @@ namespace BattleV2.Actions
 
         [Header("Targeting")]
         public bool requiresTarget = true;
+        public TargetAudience targetAudience = TargetAudience.Enemies;
+        public TargetShape targetShape = TargetShape.Single;
+
+#if UNITY_EDITOR
+        private void OnValidate()
+        {
+            if (requiresTarget && targetAudience == TargetAudience.Self)
+            {
+                targetAudience = TargetAudience.Enemies;
+            }
+        }
+#endif
     }
 }

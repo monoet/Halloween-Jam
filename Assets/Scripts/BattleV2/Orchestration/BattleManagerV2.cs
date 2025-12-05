@@ -11,6 +11,7 @@ using BattleV2.Charge;
 using BattleV2.Core;
 using BattleV2.Execution;
 using BattleV2.Execution.TimedHits;
+using BattleV2.Core.Services;
 using BattleV2.Orchestration.Services;
 using BattleV2.Orchestration.Services.Animation;
 using BattleV2.Orchestration.Events;
@@ -80,6 +81,7 @@ namespace BattleV2.Orchestration
         private ITargetingCoordinator targetingCoordinator;
         private IActionPipeline actionPipeline;
         private ITriggeredEffectsService triggeredEffects;
+        private ICombatSideService sideService;
         private readonly RuntimeCPIntent cpIntent = RuntimeCPIntent.Shared;
         private IBattleAnimOrchestrator animOrchestrator;
         private IBattleEventBus eventBus;
@@ -214,6 +216,7 @@ namespace BattleV2.Orchestration
 
         private void BootstrapServices()
         {
+            sideService = new CombatSideService();
             TargetResolvers = ShapeResolverBootstrap.RegisterDefaults(new TargetResolverRegistry());
 
             if (config != null)
@@ -254,7 +257,7 @@ namespace BattleV2.Orchestration
                     timedHitOverlay.Initialize((IAnimationEventBus)eventBus);
                 }
             }
-            targetingCoordinator = new TargetingCoordinator(TargetResolvers, eventBus, null, new BattleV2.Targeting.Policies.BackAwareResolutionPolicy());
+            targetingCoordinator = new TargetingCoordinator(TargetResolvers, eventBus, null, new BattleV2.Targeting.Policies.BackAwareResolutionPolicy(), sideService);
             
             // Fail Fast / Auto-Wire: Ensure we have an interactor for manual targeting
             // Search for ACTIVE first
@@ -313,7 +316,8 @@ namespace BattleV2.Orchestration
                 actionPipeline,
                 triggeredEffects,
                 animOrchestrator,
-                eventBus);
+                eventBus,
+                sideService);
             turnService = new BattleTurnService(eventBus);
             turnService.OnTurnReady += HandleTurnReady;
             battleEndService = new BattleEndService(eventBus);
@@ -616,7 +620,8 @@ namespace BattleV2.Orchestration
                 actionPipeline,
                 triggeredEffects,
                 animOrchestrator,
-                eventBus);
+                eventBus,
+                sideService);
 
             RebuildPlayerActionExecutor();
         }

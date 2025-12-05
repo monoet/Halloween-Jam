@@ -72,6 +72,7 @@ namespace BattleV2.Orchestration.Services
         private readonly ITriggeredEffectsService triggeredEffects;
         private readonly IBattleAnimOrchestrator animOrchestrator;
         private readonly IBattleEventBus eventBus;
+        private readonly BattleV2.Core.Services.ICombatSideService sideService;
 
         public EnemyTurnCoordinator(
             ActionCatalog actionCatalog,
@@ -80,7 +81,8 @@ namespace BattleV2.Orchestration.Services
             IActionPipeline actionPipeline,
             ITriggeredEffectsService triggeredEffects,
             IBattleAnimOrchestrator animOrchestrator,
-            IBattleEventBus eventBus)
+            IBattleEventBus eventBus,
+            BattleV2.Core.Services.ICombatSideService sideService)
         {
             this.actionCatalog = actionCatalog;
             this.actionValidator = actionValidator;
@@ -89,6 +91,7 @@ namespace BattleV2.Orchestration.Services
             this.triggeredEffects = triggeredEffects;
             this.animOrchestrator = animOrchestrator;
             this.eventBus = eventBus;
+            this.sideService = sideService ?? new BattleV2.Core.Services.CombatSideService();
         }
 
         public async Task ExecuteAsync(EnemyTurnContext context)
@@ -197,6 +200,7 @@ namespace BattleV2.Orchestration.Services
         {
             try
             {
+                // Use targeting coordinator to resolve based on action side/scope.
                 var resolution = await targetingCoordinator.ResolveAsync(
                     attacker,
                     selection.Action,
