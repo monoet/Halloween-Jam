@@ -89,6 +89,7 @@ namespace BattleV2.Orchestration
         private IFallbackActionResolver fallbackActionResolver;
         private ITimedHitResultResolver timedResultResolver;
         private PlayerActionExecutor playerActionExecutor;
+        private CancellationTokenSource battleCts;
         private TargetResolutionService targetResolutionService;
         private CombatContextService contextService;
         private CombatantReferenceService referenceService;
@@ -149,6 +150,7 @@ namespace BattleV2.Orchestration
 
         private void Awake()
         {
+            ResetBattleCts();
             BootstrapServices();
             InitializeCombatants();
             PrepareContext();
@@ -171,6 +173,7 @@ namespace BattleV2.Orchestration
 
         private void OnDisable()
         {
+            CancelBattleCts();
             turnService?.Stop();
             triggeredEffects?.Clear();
             ClearPendingPlayerRequest();
@@ -184,6 +187,7 @@ namespace BattleV2.Orchestration
 
         private void OnDestroy()
         {
+            CancelBattleCts();
             if (turnService != null)
             {
                 turnService.OnTurnReady -= HandleTurnReady;
@@ -533,6 +537,7 @@ namespace BattleV2.Orchestration
 
         public void ResetBattle()
         {
+            ResetBattleCts();
             ComboPointScaling.Configure(config != null ? config.comboPointScaling : null);
             triggeredEffects?.Clear();
             ClearPendingPlayerRequest();
@@ -730,11 +735,6 @@ namespace BattleV2.Orchestration
             
             int extraCp = consumesCp ? cpIntent.ConsumeOnce(selectionId, "ActionCommit") : 0;
             
-            if (!consumesCp)
-            {
-                cpIntent.Cancel("NonConsumingOutcome");
-            }
-            
             // Mark as committed
             currentDraft = draft.MarkCommitted();
 
@@ -812,7 +812,7 @@ namespace BattleV2.Orchestration
                 SetState = state != null ? new Action<BattleState>(s => state.Set(s)) : null
             });
 
-            await BattlePacingUtility.DelayGlobalAsync("PlayerTurn", currentPlayer, CancellationToken.None);
+            await BattlePacingUtility.DelayGlobalAsync("PlayerTurn", currentPlayer, battleCts != null ? battleCts.Token : CancellationToken.None);
         }
 
         private void ExecuteFallback()
@@ -869,40 +869,51 @@ namespace BattleV2.Orchestration
 
         private async void HandleTurnReady(CombatantState actor)
         {
-            timedHitInputRelay?.SetActor(actor);
-
-            if (actor == null)
+            try
             {
-                battleEndService?.TryResolve(rosterSnapshot, Player, state);
-                return;
-            }
+                timedHitInputRelay?.SetActor(actor);
 
-            if (battleEndService != null && battleEndService.TryResolve(rosterSnapshot, Player, state))
-            {
-                return;
-            }
-
-            if (IsAlly(actor))
-            {
-                TriggerTurnPhase(actor);
-                state?.Set(BattleState.AwaitingAction);
-                
-                if (inputDriver != null)
+                if (actor == null)
                 {
-                    inputDriver.SetMode(BattleInputMode.Menu);
-                    inputDriver.SetActiveActor(actor);
+                    battleEndService?.TryResolve(rosterSnapshot, Player, state);
+                    return;
                 }
 
-                RequestPlayerAction();
-            }
-            else
-            {
-                cpIntent.EndTurn("EnemyTurn");
-                if (enemyTurnCoordinator != null)
+                if (battleEndService != null && battleEndService.TryResolve(rosterSnapshot, Player, state))
                 {
-                    var enemyContext = BuildEnemyTurnContext(actor);
-                    await enemyTurnCoordinator.ExecuteAsync(enemyContext);
+                    return;
                 }
+
+                if (IsAlly(actor))
+                {
+                    TriggerTurnPhase(actor);
+                    state?.Set(BattleState.AwaitingAction);
+                    
+                    if (inputDriver != null)
+                    {
+                        inputDriver.SetMode(BattleInputMode.Menu);
+                        inputDriver.SetActiveActor(actor);
+                    }
+
+                    RequestPlayerAction();
+                }
+                else
+                {
+                    cpIntent.EndTurn("EnemyTurn");
+                    if (enemyTurnCoordinator != null)
+                    {
+                        var enemyContext = BuildEnemyTurnContext(actor);
+                        await enemyTurnCoordinator.ExecuteAsync(enemyContext);
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Battle cancelled/reset; safely ignore.
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[BattleManagerV2] HandleTurnReady exception: {ex}");
             }
         }
 
@@ -1020,7 +1031,8 @@ namespace BattleV2.Orchestration
                 a => turnService?.Advance(a),
                 () => turnService?.Stop(),
                 () => battleEndService != null && battleEndService.TryResolve(rosterSnapshot, Player, state),
-                RefreshCombatContext);
+                RefreshCombatContext,
+                battleCts != null ? battleCts.Token : CancellationToken.None);
         }
 
         private CombatContext CreateEnemyCombatContext(CombatantState attacker, CombatantState target)
@@ -1079,7 +1091,7 @@ namespace BattleV2.Orchestration
             void CancelWrapper()
             {
                 cpIntent.Cancel("SelectionCanceled");
-                cpIntent.EndTurn("SelectionCanceled");
+                // Do NOT end turn here; only confirmed commits should end the turn.
                 onCancel?.Invoke();
             }
 
@@ -1134,6 +1146,32 @@ namespace BattleV2.Orchestration
 #else
             return FindObjectOfType<TimedHitInputRelay>();
 #endif
+        }
+
+        private void ResetBattleCts()
+        {
+            CancelBattleCts();
+            battleCts = new CancellationTokenSource();
+        }
+
+        private void CancelBattleCts()
+        {
+            if (battleCts == null)
+            {
+                return;
+            }
+
+            try
+            {
+                battleCts.Cancel();
+            }
+            catch
+            {
+                // ignore
+            }
+
+            battleCts.Dispose();
+            battleCts = null;
         }
     }
 

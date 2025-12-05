@@ -33,7 +33,8 @@ namespace BattleV2.Orchestration.Services
             Action<CombatantState> advanceTurn,
             Action stopTurnService,
             Func<bool> tryResolveBattleEnd,
-            Action refreshCombatContext)
+            Action refreshCombatContext,
+            CancellationToken token)
         {
             Manager = manager;
             Attacker = attacker;
@@ -47,6 +48,7 @@ namespace BattleV2.Orchestration.Services
             StopTurnService = stopTurnService ?? (() => { });
             TryResolveBattleEnd = tryResolveBattleEnd ?? (() => false);
             RefreshCombatContext = refreshCombatContext ?? (() => { });
+            Token = token;
         }
 
         public BattleManagerV2 Manager { get; }
@@ -61,6 +63,7 @@ namespace BattleV2.Orchestration.Services
         public Action StopTurnService { get; }
         public Func<bool> TryResolveBattleEnd { get; }
         public Action RefreshCombatContext { get; }
+        public CancellationToken Token { get; }
     }
 
     public sealed class EnemyTurnCoordinator : IEnemyTurnCoordinator
@@ -213,7 +216,7 @@ namespace BattleV2.Orchestration.Services
                 {
                     context.AdvanceTurn(attacker);
                     context.StateController?.Set(BattleState.AwaitingAction);
-                    await BattlePacingUtility.DelayGlobalAsync("EnemyTurn", attacker, CancellationToken.None);
+                    await BattlePacingUtility.DelayGlobalAsync("EnemyTurn", attacker, context.Token);
                     return;
                 }
 
@@ -253,7 +256,7 @@ namespace BattleV2.Orchestration.Services
                 {
                     context.AdvanceTurn(attacker);
                     context.StateController?.Set(BattleState.AwaitingAction);
-                    await BattlePacingUtility.DelayGlobalAsync("EnemyTurn", attacker, CancellationToken.None);
+                    await BattlePacingUtility.DelayGlobalAsync("EnemyTurn", attacker, context.Token);
                     return;
                 }
 
@@ -285,19 +288,19 @@ namespace BattleV2.Orchestration.Services
 
                 if (battleEnded)
                 {
-                    await BattlePacingUtility.DelayGlobalAsync("EnemyTurn", attacker, CancellationToken.None);
+                    await BattlePacingUtility.DelayGlobalAsync("EnemyTurn", attacker, context.Token);
                     return;
                 }
 
                 context.StateController?.Set(BattleState.AwaitingAction);
-                await BattlePacingUtility.DelayGlobalAsync("EnemyTurn", attacker, CancellationToken.None);
+                await BattlePacingUtility.DelayGlobalAsync("EnemyTurn", attacker, context.Token);
             }
             catch (Exception ex)
             {
                 Debug.LogError($"[EnemyTurnCoordinator] Enemy action error: {ex}");
                 context.AdvanceTurn(attacker);
                 context.StateController?.Set(BattleState.AwaitingAction);
-                await BattlePacingUtility.DelayGlobalAsync("EnemyTurn", attacker, CancellationToken.None);
+                await BattlePacingUtility.DelayGlobalAsync("EnemyTurn", attacker, context.Token);
             }
         }
 

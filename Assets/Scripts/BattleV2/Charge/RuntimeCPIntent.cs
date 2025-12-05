@@ -27,6 +27,27 @@ namespace BattleV2.Charge
         public event Action<CpIntentTurnStartedEvent> OnTurnStarted;
         public event Action<CpIntentTurnEndedEvent> OnTurnEnded;
 
+        /// <summary>
+        /// Resets any in-progress selection without emitting OnCanceled or ending the turn.
+        /// Use when you need to clear UI state but keep the turn active.
+        /// </summary>
+        public void ResetSelection(string reason = null)
+        {
+            if (!IsActiveTurn)
+            {
+                return;
+            }
+
+            if (Current == 0)
+            {
+                return;
+            }
+
+            int prev = Current;
+            Current = 0;
+            RaiseChanged(prev, Current, reason ?? "ResetSelection");
+        }
+
         public void BeginTurn(int maxCp)
         {
             Max = Math.Max(0, maxCp);
