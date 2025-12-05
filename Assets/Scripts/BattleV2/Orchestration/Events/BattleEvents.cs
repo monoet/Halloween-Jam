@@ -2,6 +2,7 @@ using System;
 using BattleV2.Actions;
 using System.Collections.Generic;
 using BattleV2.Core;
+using BattleV2.Execution;
 using BattleV2.Providers;
 using BattleV2.Targeting;
 
@@ -23,18 +24,20 @@ namespace BattleV2.Orchestration.Events
 
     public readonly struct ActionCompletedEvent
     {
-        public ActionCompletedEvent(CombatantState actor, BattleSelection selection, IReadOnlyList<CombatantState> targets, bool isTriggered = false)
+        public ActionCompletedEvent(CombatantState actor, BattleSelection selection, IReadOnlyList<CombatantState> targets, bool isTriggered = false, ActionJudgment? judgment = null)
         {
             Actor = actor;
             Selection = selection;
             Targets = targets;
             IsTriggered = isTriggered;
+            Judgment = judgment;
         }
 
         public CombatantState Actor { get; }
         public BattleSelection Selection { get; }
         public IReadOnlyList<CombatantState> Targets { get; }
         public bool IsTriggered { get; }
+        public ActionJudgment? Judgment { get; }
     }
 
     public readonly struct AttackFrameEvent

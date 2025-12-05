@@ -39,15 +39,15 @@
 
 
 ### Fase 3: ActionJudgment / TargetJudgment
-- [ ] Crear ActionJudgment (cpSpent, timedGrade, scope, side, rngSeed, actionId, sourceActorId) y adjuntarlo al contexto de acción.
-- [ ] Crear TargetJudgment (targetIndex, perTargetRng derivado de rngSeed + id estable + index).
-- [ ] Set cpSpent en commit (según input CP intent). Set rngSeed determinista (turn seed + actor + acción).
-- [ ] timedGrade inicia en None; se actualizará cuando TimedHit termine.
+- [x] Crear ActionJudgment (cpSpent, timedGrade, scope, side, rngSeed, actionId, sourceActorId) y adjuntarlo al contexto de acción.
+- [x] Crear TargetJudgment (targetIndex, perTargetRng derivado de rngSeed + id estable + index).
+- [x] Set cpSpent en commit (según input CP intent). Set rngSeed determinista (turn seed + actor + acción).
+- [x] timedGrade inicia en None; se actualizará cuando TimedHit termine.
 
 ### Fase 4: TimedHit integración (solo gate, sin cambiar daño base)
-- [ ] Suscribirse al resultado canónico de TimedHit y actualizar timedGrade en ActionJudgment.
-- [ ] Regla: si una acción no produce TimedHit → timedGrade permanece None.
-- [ ] No alterar daño base; solo exponer timedGrade para gates.
+- [x] Suscribirse al resultado canónico de TimedHit y actualizar timedGrade en ActionJudgment.
+- [x] Regla: si una acción no produce TimedHit → timedGrade permanece None.
+- [x] No alterar daño base; solo exponer timedGrade para gates.
 
 ### Fase 5: Marks (Apply/Detonate) con gates CP+TimedHit
 - [ ] Crear MarkService (ApplyMark, HasMark, DetonateMark, ClearOnDeath).

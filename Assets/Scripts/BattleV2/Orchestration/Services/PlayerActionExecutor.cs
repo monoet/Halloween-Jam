@@ -69,6 +69,11 @@ namespace BattleV2.Orchestration.Services
                     ? timedResultResolver.Resolve(context.Selection, context.Implementation, result.TimedResult)
                     : result.TimedResult;
 
+                var timedGrade = ActionJudgment.ResolveTimedGrade(resolvedTimedResult);
+                var finalJudgment = context.Judgment.HasValue
+                    ? context.Judgment.WithTimedGrade(timedGrade)
+                    : ActionJudgment.FromSelection(context.Selection, context.Player, context.Selection.CpCharge, request.Judgment.RngSeed).WithTimedGrade(timedGrade);
+
                 int totalComboPointsAwarded = Mathf.Max(0, result.ComboPointsAwarded);
                 if (context.Implementation is LunarChainAction && context.Player != null && context.CombatContext != null && context.CombatContext.Player == context.Player)
                 {
@@ -94,7 +99,7 @@ namespace BattleV2.Orchestration.Services
 
                 bool battleEnded = context.TryResolveBattleEnd != null && context.TryResolveBattleEnd();
                 var completedTargets = context.Snapshot.Targets ?? Array.Empty<CombatantState>();
-                eventBus?.Publish(new ActionCompletedEvent(context.Player, resolvedSelection, completedTargets));
+                eventBus?.Publish(new ActionCompletedEvent(context.Player, resolvedSelection, completedTargets, isTriggered: false, judgment: finalJudgment));
 
                 if (battleEnded)
                 {

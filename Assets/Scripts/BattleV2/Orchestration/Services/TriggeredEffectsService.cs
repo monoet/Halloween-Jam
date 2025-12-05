@@ -208,7 +208,9 @@ namespace BattleV2.Orchestration.Services
             try
             {
                 var result = await actionPipeline.Run(actionRequest);
-                eventBus?.Publish(new ActionCompletedEvent(request.Origin, selection.WithTimedResult(result.TimedResult), targets, true));
+                var timedGrade = ActionJudgment.ResolveTimedGrade(result.TimedResult);
+                var finalJudgment = judgment.WithTimedGrade(timedGrade);
+                eventBus?.Publish(new ActionCompletedEvent(request.Origin, selection.WithTimedResult(result.TimedResult), targets, true, finalJudgment));
             }
             catch (Exception ex)
             {

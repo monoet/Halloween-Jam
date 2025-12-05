@@ -279,6 +279,9 @@ namespace BattleV2.Orchestration.Services
                     return;
                 }
 
+                var timedGrade = BattleV2.Execution.ActionJudgment.ResolveTimedGrade(result.TimedResult);
+                judgment = judgment.WithTimedGrade(timedGrade);
+
                 triggeredEffects?.Schedule(
                     attacker,
                     enrichedSelection,
@@ -303,7 +306,7 @@ namespace BattleV2.Orchestration.Services
                 PublishDefeatEvents(defeatCandidates, attacker);
 
                 bool battleEnded = context.TryResolveBattleEnd();
-                eventBus?.Publish(new ActionCompletedEvent(attacker, enrichedSelection.WithTimedResult(result.TimedResult), resolution.Targets));
+                eventBus?.Publish(new ActionCompletedEvent(attacker, enrichedSelection.WithTimedResult(result.TimedResult), resolution.Targets, isTriggered: false, judgment: judgment));
 
                 if (battleEnded)
                 {

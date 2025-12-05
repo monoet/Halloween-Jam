@@ -1,4 +1,5 @@
 using BattleV2.Actions;
+using BattleV2.Charge;
 using BattleV2.Core;
 using BattleV2.Providers;
 using BattleV2.Targeting;
@@ -47,8 +48,16 @@ namespace BattleV2.Execution
         public int SourceActorId { get; }
         public bool HasValue { get; }
 
-        public ActionJudgment WithTimedGrade(TimedGrade grade) =>
-            new ActionJudgment(CpSpent, grade, Audience, Shape, RngSeed, ActionId, SourceActorId, true);
+        public ActionJudgment WithTimedGrade(TimedGrade grade)
+        {
+            // Atomic: once a timed grade is set, do not overwrite.
+            if (TimedGrade != TimedGrade.None)
+            {
+                return this;
+            }
+
+            return new ActionJudgment(CpSpent, grade, Audience, Shape, RngSeed, ActionId, SourceActorId, true);
+        }
 
         public static ActionJudgment FromSelection(BattleSelection selection, CombatantState actor, int cpSpent, int selectionSeed)
         {
@@ -62,6 +71,38 @@ namespace BattleV2.Execution
                 action != null ? action.id : null,
                 actor != null ? actor.GetInstanceID() : 0,
                 true);
+        }
+
+        // Contract: TimedGrade applies to the entire action, not per-target.
+        public static TimedGrade ResolveTimedGrade(TimedHitResult? timedResult)
+        {
+            if (!timedResult.HasValue)
+            {
+                return TimedGrade.None;
+            }
+
+            var result = timedResult.Value;
+            if (result.Cancelled)
+            {
+                return TimedGrade.Fail;
+            }
+
+            if (result.TotalHits <= 0)
+            {
+                return TimedGrade.None;
+            }
+
+            if (result.HitsSucceeded <= 0)
+            {
+                return TimedGrade.Fail;
+            }
+
+            if (result.HitsSucceeded >= result.TotalHits)
+            {
+                return TimedGrade.Perfect;
+            }
+
+            return TimedGrade.Success;
         }
     }
 
