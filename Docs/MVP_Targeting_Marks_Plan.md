@@ -50,10 +50,10 @@
 - [x] No alterar daño base; solo exponer timedGrade para gates.
 
 ### Fase 5: Marks (Apply/Detonate) con gates CP+TimedHit
-- [ ] Crear MarkService (ApplyMark, HasMark, DetonateMark, ClearOnDeath).
-- [ ] Crear MarkDefinition catálogo (SO o diccionario) con efectos de detonate simples al inicio (bonus damage/cc/heal).
+- [x] Crear MarkService (ApplyMark, HasMark, DetonateMark, ClearOnDeath).
+- [x] Crear MarkDefinition catálogo (SO o diccionario) con efectos de detonate simples al inicio (bonus damage/cc/heal).
 - [ ] Añadir MarkRule en ActionData (lista; default vacío para acciones actuales).
-- [ ] Implementar MarkRuleEvaluator (única autoridad para detonar):
+- [x] Implementar MarkRuleEvaluator (única autoridad para detonar):
   - GatePolicy (requiresCp, requiresTimedSuccess, minGrade)
   - ChanceProfile (singleChance, allChance, rollPerTarget)
   - DetonateProfile (requiresMarkPresent, consumeMark, maxDetonationsPerCast default -1, scopeOverride default)
@@ -64,6 +64,7 @@
 - [ ] UI: si scope=All, saltar target selection y llamar ConfirmAllTargets (usa TargetResolver + snapshot).
 - [ ] Cobro de CP/SP: asegurar que ocurre una vez por acción antes del loop per-target.
 - [ ] Opcional: icono Single/All basado en scope (sin comportamiento extra).
+- [ ] Exponer Mark en CombatantHudWidget: suscribirse a MarkService (apply/clear), mostrar icono opcional por target, limpiar al cambiar de source (sin lógica de gameplay).
 
 ### Fase 7: Verificación y regresión
 - [ ] Regresión: acciones single-target siguen idénticas (daño, selección, recursos).
