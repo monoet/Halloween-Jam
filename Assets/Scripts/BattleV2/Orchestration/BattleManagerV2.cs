@@ -716,7 +716,15 @@ namespace BattleV2.Orchestration
             var currentPlayer = draft.Actor;
             int selectionId = ++cpSelectionCounter;
 
-            // 3. Consume Resources (Commit Phase)
+            // 1) Validate before consuming or ending turn
+            if (!actionValidator.TryValidate(selection.Action, currentPlayer, context, selection.CpCharge, out var implementation))
+            {
+                BattleDiagnostics.Log("Orchestrator", "Validation Failed", currentPlayer);
+                ExecuteFallback();
+                return;
+            }
+
+            // 2) Consume Resources (Commit Phase)
             bool consumesCp = draft.Action != null &&
                               (draft.Action.costCP > 0 || selection.ChargeProfile != null || selection.TimedHitProfile != null);
             
@@ -738,16 +746,8 @@ namespace BattleV2.Orchestration
                 selection = selection.WithCpCharge(selection.CpCharge + extraCp);
             }
 
-            // 4. Validate
-            if (!actionValidator.TryValidate(selection.Action, currentPlayer, context, selection.CpCharge, out var implementation))
-            {
-                BattleDiagnostics.Log("Orchestrator", "Validation Failed", currentPlayer);
-                ExecuteFallback();
-                return;
-            }
-
             // 5. Update Context
-            if (resolution.PrimaryEnemy != null)
+            if (resolution.PrimaryEnemy != null && !resolution.Result.TargetSet.IsGroup)
             {
                 var resolvedRuntime = resolution.PrimaryEnemyRuntime ?? ResolveRuntime(resolution.PrimaryEnemy, resolution.PrimaryEnemy?.CharacterRuntime);
                 UpdateEnemyReference(resolution.PrimaryEnemy, resolvedRuntime);
