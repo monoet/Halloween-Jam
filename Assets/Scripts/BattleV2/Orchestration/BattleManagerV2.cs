@@ -782,6 +782,7 @@ namespace BattleV2.Orchestration
             }
 
             var targetsList = resolution.Result.Targets ?? Array.Empty<CombatantState>();
+            var snapshot = new BattleV2.Orchestration.ExecutionSnapshot(AlliesList, EnemiesList, targetsList);
 
             var playbackTask = animOrchestrator != null
                 ? animOrchestrator.PlayAsync(new ActionPlaybackRequest(currentPlayer, enrichedSelection, targetsList, CalculateAverageSpeed(), enrichedSelection.AnimationRecipeId))
@@ -801,7 +802,7 @@ namespace BattleV2.Orchestration
                 Selection = enrichedSelection,
                 Implementation = implementation,
                 CombatContext = context,
-                Targets = targetsList,
+                Snapshot = snapshot,
                 PlaybackTask = playbackTask,
                 ComboPointsBefore = cpBefore,
                 TryResolveBattleEnd = () => battleEndService != null && battleEndService.TryResolve(rosterSnapshot, currentPlayer, state),

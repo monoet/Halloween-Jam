@@ -42,12 +42,13 @@ namespace BattleV2.Orchestration.Services
 
             try
             {
-                var defeatCandidates = CollectDeathCandidates(context.Targets);
+                var targets = context.Snapshot.Targets ?? Array.Empty<CombatantState>();
+                var defeatCandidates = CollectDeathCandidates(targets);
 
                 var request = new ActionRequest(
                     context.Manager,
                     context.Player,
-                    context.Targets,
+                    targets,
                     context.Selection,
                     context.Implementation,
                     context.CombatContext);
@@ -87,7 +88,8 @@ namespace BattleV2.Orchestration.Services
                 context.OnActionResolved?.Invoke(resolvedSelection, context.ComboPointsBefore, cpAfter);
 
                 bool battleEnded = context.TryResolveBattleEnd != null && context.TryResolveBattleEnd();
-                eventBus?.Publish(new ActionCompletedEvent(context.Player, resolvedSelection, context.Targets));
+                var completedTargets = context.Snapshot.Targets ?? Array.Empty<CombatantState>();
+                eventBus?.Publish(new ActionCompletedEvent(context.Player, resolvedSelection, completedTargets));
 
                 if (battleEnded)
                 {
@@ -220,7 +222,7 @@ namespace BattleV2.Orchestration.Services
                 return;
             }
 
-            var targets = context.Targets ?? Array.Empty<CombatantState>();
+            var targets = context.Snapshot.Targets ?? Array.Empty<CombatantState>();
             if (targets.Count == 0)
             {
                 return;
@@ -256,7 +258,7 @@ namespace BattleV2.Orchestration.Services
         public BattleSelection Selection { get; init; }
         public IAction Implementation { get; init; }
         public CombatContext CombatContext { get; init; }
-        public IReadOnlyList<CombatantState> Targets { get; init; }
+        public ExecutionSnapshot Snapshot { get; init; }
         public Task PlaybackTask { get; init; }
         public int ComboPointsBefore { get; init; }
         public Func<bool> TryResolveBattleEnd { get; init; }
