@@ -738,7 +738,7 @@ namespace BattleV2.Orchestration
             // Mark as committed
             currentDraft = draft.MarkCommitted();
 
-            // End Turn Signal
+            // End Turn Signal (only confirmed commits reach EndTurn; Cancel/Back never do).
             cpIntent.EndTurn("CommittedOutcome");
             
             if (extraCp > 0)
@@ -1090,8 +1090,8 @@ namespace BattleV2.Orchestration
 
             void CancelWrapper()
             {
-                cpIntent.Cancel("SelectionCanceled");
-                // Do NOT end turn here; only confirmed commits should end the turn.
+                // Limpia la selección CP sin terminar el turno.
+                cpIntent.ResetSelection("SelectionCanceled");
                 onCancel?.Invoke();
             }
 

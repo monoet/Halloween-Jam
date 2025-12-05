@@ -237,6 +237,8 @@ namespace BattleV2.Orchestration.Services
                     enrichedSelection = enrichedSelection.WithTimedHitHandle(new TimedHitExecutionHandle(enrichedSelection.TimedHitResult));
                 }
 
+                var snapshot = new ExecutionSnapshot(context.Allies, context.Enemies, resolution.Targets);
+
                 var playbackTask = animOrchestrator != null
                     ? animOrchestrator.PlayAsync(new ActionPlaybackRequest(attacker, enrichedSelection, resolution.Targets, context.AverageSpeed, enrichedSelection.AnimationRecipeId))
                     : Task.CompletedTask;
@@ -264,7 +266,7 @@ namespace BattleV2.Orchestration.Services
                     attacker,
                     enrichedSelection,
                     result.TimedResult,
-                    resolution.Targets,
+                    snapshot,
                     context.CombatContext);
 
                 if (playbackTask != null)

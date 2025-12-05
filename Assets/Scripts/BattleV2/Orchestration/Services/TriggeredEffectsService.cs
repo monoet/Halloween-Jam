@@ -18,7 +18,7 @@ namespace BattleV2.Orchestration.Services
             CombatantState origin,
             BattleSelection selection,
             TimedHitResult? timedResult,
-            IReadOnlyList<CombatantState> targets,
+            ExecutionSnapshot snapshot,
             CombatContext context);
 
         void Clear();
@@ -54,7 +54,7 @@ namespace BattleV2.Orchestration.Services
             CombatantState origin,
             BattleSelection selection,
             TimedHitResult? timedResult,
-            IReadOnlyList<CombatantState> targets,
+            ExecutionSnapshot snapshot,
             CombatContext context)
         {
             if (origin == null || selection.Action == null)
@@ -62,18 +62,13 @@ namespace BattleV2.Orchestration.Services
                 return;
             }
 
-            targets ??= Array.Empty<CombatantState>();
-            if (targets.Count == 0)
-            {
-                return;
-            }
-
+            var snapshotTargets = snapshot.Targets ?? Array.Empty<CombatantState>();
             var effectSelection = selection.WithTimedResult(timedResult);
             var request = new TriggeredEffectRequest(
                 origin,
                 selection.Action,
                 effectSelection,
-                targets,
+                snapshot,
                 context);
 
             Enqueue(request);
@@ -164,17 +159,26 @@ namespace BattleV2.Orchestration.Services
                 return;
             }
 
-            var targets = request.Targets ?? Array.Empty<CombatantState>();
-            if (targets.Count == 0)
+            var targets = request.Snapshot.Targets ?? Array.Empty<CombatantState>();
+            CombatantState primaryTarget = null;
+            for (int i = 0; i < targets.Count; i++)
             {
-                return;
+                var candidate = targets[i];
+                if (candidate == null || !candidate.IsAlive)
+                {
+                    continue;
+                }
+
+                primaryTarget = candidate;
+                break;
             }
 
-            var primaryTarget = targets[0];
-            if (primaryTarget == null || !primaryTarget.IsAlive)
+            if (primaryTarget == null && targets.Count > 0)
             {
-                return;
+                primaryTarget = targets[0];
             }
+
+            primaryTarget ??= request.Context?.Enemy ?? request.Origin;
 
             var services = request.Context?.Services ?? new BattleServices();
             var catalog = request.Context?.Catalog ?? actionCatalog;
@@ -199,7 +203,7 @@ namespace BattleV2.Orchestration.Services
             try
             {
                 var result = await actionPipeline.Run(actionRequest);
-                eventBus?.Publish(new ActionCompletedEvent(request.Origin, selection.WithTimedResult(result.TimedResult), request.Targets, true));
+                eventBus?.Publish(new ActionCompletedEvent(request.Origin, selection.WithTimedResult(result.TimedResult), targets, true));
             }
             catch (Exception ex)
             {
@@ -234,20 +238,20 @@ namespace BattleV2.Orchestration.Services
             CombatantState origin,
             BattleActionData action,
             BattleSelection selection,
-            IReadOnlyList<CombatantState> targets,
+            ExecutionSnapshot snapshot,
             CombatContext context)
         {
             Origin = origin;
             Action = action;
             Selection = selection;
-            Targets = targets ?? Array.Empty<CombatantState>();
+            Snapshot = snapshot;
             Context = context;
         }
 
         public CombatantState Origin { get; }
         public BattleActionData Action { get; }
         public BattleSelection Selection { get; }
-        public IReadOnlyList<CombatantState> Targets { get; }
+        public ExecutionSnapshot Snapshot { get; }
         public CombatContext Context { get; }
     }
 }

@@ -230,7 +230,7 @@ namespace BattleV2.Orchestration.Services
 
             try
             {
-                triggeredEffects.Schedule(context.Player, context.Selection, timedResult, targets, context.CombatContext);
+                triggeredEffects.Schedule(context.Player, context.Selection, timedResult, context.Snapshot, context.CombatContext);
             }
             catch (Exception ex)
             {
