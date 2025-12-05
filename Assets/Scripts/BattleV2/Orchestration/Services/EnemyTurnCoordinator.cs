@@ -76,6 +76,7 @@ namespace BattleV2.Orchestration.Services
         private readonly IBattleAnimOrchestrator animOrchestrator;
         private readonly IBattleEventBus eventBus;
         private readonly BattleV2.Core.Services.ICombatSideService sideService;
+        private readonly IFallbackActionResolver fallbackActionResolver;
 
         public EnemyTurnCoordinator(
             ActionCatalog actionCatalog,
@@ -85,7 +86,8 @@ namespace BattleV2.Orchestration.Services
             ITriggeredEffectsService triggeredEffects,
             IBattleAnimOrchestrator animOrchestrator,
             IBattleEventBus eventBus,
-            BattleV2.Core.Services.ICombatSideService sideService)
+            BattleV2.Core.Services.ICombatSideService sideService,
+            IFallbackActionResolver fallbackActionResolver = null)
         {
             this.actionCatalog = actionCatalog;
             this.actionValidator = actionValidator;
@@ -95,6 +97,7 @@ namespace BattleV2.Orchestration.Services
             this.animOrchestrator = animOrchestrator;
             this.eventBus = eventBus;
             this.sideService = sideService ?? new BattleV2.Core.Services.CombatSideService();
+            this.fallbackActionResolver = fallbackActionResolver;
         }
 
         public async Task ExecuteAsync(EnemyTurnContext context)
@@ -199,7 +202,8 @@ namespace BattleV2.Orchestration.Services
             EnemyTurnContext context,
             CombatantState attacker,
             BattleSelection selection,
-            IAction implementation)
+            IAction implementation,
+            bool allowFallback = true)
         {
             try
             {
@@ -217,6 +221,12 @@ namespace BattleV2.Orchestration.Services
 
                 if (resolution.Targets.Count == 0)
                 {
+                    if (allowFallback && TryResolveFallback(context, attacker, out var fallbackSelection, out var fallbackImpl))
+                    {
+                        await RunEnemyActionAsync(context, attacker, fallbackSelection, fallbackImpl, allowFallback: false);
+                        return;
+                    }
+
                     context.AdvanceTurn(attacker);
                     context.StateController?.Set(BattleState.AwaitingAction);
                     await BattlePacingUtility.DelayGlobalAsync("EnemyTurn", attacker, context.Token);
@@ -307,6 +317,29 @@ namespace BattleV2.Orchestration.Services
                 context.StateController?.Set(BattleState.AwaitingAction);
                 await BattlePacingUtility.DelayGlobalAsync("EnemyTurn", attacker, context.Token);
             }
+        }
+
+        private bool TryResolveFallback(EnemyTurnContext context, CombatantState attacker, out BattleSelection selection, out IAction implementation)
+        {
+            selection = default;
+            implementation = null;
+
+            if (fallbackActionResolver == null || attacker == null)
+            {
+                return false;
+            }
+
+            if (!fallbackActionResolver.TryResolve(attacker, context.CombatContext, out selection) || selection.Action == null)
+            {
+                return false;
+            }
+
+            if (!actionValidator.TryValidate(selection.Action, attacker, context.CombatContext, selection.CpCharge, out implementation))
+            {
+                return false;
+            }
+
+            return true;
         }
 
         private static List<CombatantState> CollectDeathCandidates(IReadOnlyList<CombatantState> targets)

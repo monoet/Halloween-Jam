@@ -321,7 +321,8 @@ namespace BattleV2.Orchestration
                 triggeredEffects,
                 animOrchestrator,
                 eventBus,
-                sideService);
+                sideService,
+                fallbackActionResolver);
             turnService = new BattleTurnService(eventBus);
             turnService.OnTurnReady += HandleTurnReady;
             battleEndService = new BattleEndService(eventBus);
@@ -626,7 +627,8 @@ namespace BattleV2.Orchestration
                 triggeredEffects,
                 animOrchestrator,
                 eventBus,
-                sideService);
+                sideService,
+                fallbackActionResolver);
 
             RebuildPlayerActionExecutor();
         }

@@ -43,10 +43,12 @@ public class TargetingCoordinatorTests
         var enemies = new List<CombatantState> { enemy };
 
         var action = new BattleActionData { id = "basic" };
+        var intent = TargetingIntent.FromAction(action);
 
         var result = await coordinator.ResolveAsync(
             enemy,
             action,
+            intent,
             TargetSourceType.Auto,
             player,
             allies,
