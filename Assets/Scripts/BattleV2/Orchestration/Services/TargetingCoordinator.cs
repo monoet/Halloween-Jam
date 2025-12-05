@@ -17,6 +17,7 @@ namespace BattleV2.Orchestration.Services
         Task<TargetResolutionResult> ResolveAsync(
             CombatantState origin,
             BattleActionData action,
+            TargetingIntent intent,
             TargetSourceType sourceType,
             CombatantState fallback,
             IReadOnlyList<CombatantState> allies,
@@ -62,12 +63,13 @@ namespace BattleV2.Orchestration.Services
         public async Task<TargetResolutionResult> ResolveAsync(
             CombatantState origin,
             BattleActionData action,
+            TargetingIntent intent,
             TargetSourceType sourceType,
             CombatantState fallback,
             IReadOnlyList<CombatantState> allies,
             IReadOnlyList<CombatantState> enemies)
         {
-            var query = ResolveQuery(origin, action, allies, enemies);
+            var query = ResolveQuery(origin, action, intent, allies, enemies);
             var context = new TargetContext(origin, action, query, sourceType, allies, enemies);
 
             TargetSet set = TargetSet.None;
@@ -121,10 +123,10 @@ namespace BattleV2.Orchestration.Services
             return new TargetResolutionResult(set, targetsCopy, finalStatus);
         }
 
-        private TargetQuery ResolveQuery(CombatantState origin, BattleActionData action, IReadOnlyList<CombatantState> allies, IReadOnlyList<CombatantState> enemies)
+        private TargetQuery ResolveQuery(CombatantState origin, BattleActionData action, TargetingIntent intent, IReadOnlyList<CombatantState> allies, IReadOnlyList<CombatantState> enemies)
         {
-            var shape = action != null ? action.targetShape : TargetShape.Single;
-            TargetAudience audience = TargetAudience.Enemies;
+            TargetShape shape = intent.HasValue ? intent.Shape : (action != null ? action.targetShape : TargetShape.Single);
+            TargetAudience audience = intent.HasValue ? intent.Audience : TargetAudience.Enemies;
 
             if (origin != null)
             {

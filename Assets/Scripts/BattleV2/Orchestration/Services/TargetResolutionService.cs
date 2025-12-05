@@ -30,9 +30,11 @@ namespace BattleV2.Orchestration.Services
                 return PlayerTargetResolution.Empty;
             }
 
+            var intent = TargetingIntent.FromAction(selection.Action);
             var resolution = await targetingCoordinator.ResolveAsync(
                 actor,
                 selection.Action,
+                intent,
                 TargetSourceType.Manual,
                 context?.Enemy,
                 allies,

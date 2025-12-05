@@ -203,10 +203,13 @@ namespace BattleV2.Orchestration.Services
         {
             try
             {
+                var intent = TargetingIntent.FromAction(selection.Action);
+
                 // Use targeting coordinator to resolve based on action side/scope.
                 var resolution = await targetingCoordinator.ResolveAsync(
                     attacker,
                     selection.Action,
+                    intent,
                     TargetSourceType.Auto,
                     context.Player,
                     context.Allies,
