@@ -11,6 +11,7 @@ using BattleV2.Providers;
 using BattleV2.Targeting;
 using UnityEngine;
 using BattleV2.AnimationSystem.Runtime;
+using BattleV2.Marks;
 
 namespace BattleV2.Orchestration.Services
 {
@@ -77,6 +78,7 @@ namespace BattleV2.Orchestration.Services
         private readonly IBattleEventBus eventBus;
         private readonly BattleV2.Core.Services.ICombatSideService sideService;
         private readonly IFallbackActionResolver fallbackActionResolver;
+        private readonly BattleV2.Marks.MarkProcessor markProcessor;
 
         public EnemyTurnCoordinator(
             ActionCatalog actionCatalog,
@@ -87,7 +89,8 @@ namespace BattleV2.Orchestration.Services
             IBattleAnimOrchestrator animOrchestrator,
             IBattleEventBus eventBus,
             BattleV2.Core.Services.ICombatSideService sideService,
-            IFallbackActionResolver fallbackActionResolver = null)
+            IFallbackActionResolver fallbackActionResolver = null,
+            BattleV2.Marks.MarkProcessor markProcessor = null)
         {
             this.actionCatalog = actionCatalog;
             this.actionValidator = actionValidator;
@@ -98,6 +101,7 @@ namespace BattleV2.Orchestration.Services
             this.eventBus = eventBus;
             this.sideService = sideService ?? new BattleV2.Core.Services.CombatSideService();
             this.fallbackActionResolver = fallbackActionResolver;
+            this.markProcessor = markProcessor;
         }
 
         public async Task ExecuteAsync(EnemyTurnContext context)
@@ -208,6 +212,7 @@ namespace BattleV2.Orchestration.Services
             try
             {
                 var intent = TargetingIntent.FromAction(selection.Action);
+                bool resourcesCharged = false;
 
                 // Use targeting coordinator to resolve based on action side/scope.
                 var resolution = await targetingCoordinator.ResolveAsync(
@@ -259,7 +264,9 @@ namespace BattleV2.Orchestration.Services
                 var defeatCandidates = CollectDeathCandidates(resolution.Targets);
 
                 var judgmentSeed = System.HashCode.Combine(attacker != null ? attacker.GetInstanceID() : 0, enrichedSelection.Action != null ? enrichedSelection.Action.id.GetHashCode() : 0, resolution.Targets.Count);
-                var judgment = BattleV2.Execution.ActionJudgment.FromSelection(enrichedSelection, attacker, enrichedSelection.CpCharge, judgmentSeed);
+                var resourcesPre = BattleV2.Execution.ResourceSnapshot.FromCombatant(attacker);
+                var resourcesPost = BattleV2.Execution.ResourceSnapshot.FromCombatant(attacker);
+                var judgment = BattleV2.Execution.ActionJudgment.FromSelection(enrichedSelection, attacker, enrichedSelection.CpCharge, judgmentSeed, resourcesPre, resourcesPost);
 
                 var request = new ActionRequest(
                     context.Manager,
@@ -279,8 +286,20 @@ namespace BattleV2.Orchestration.Services
                     return;
                 }
 
+                resourcesPost = BattleV2.Execution.ResourceSnapshot.FromCombatant(attacker);
+                if (resourcesCharged)
+                {
+#if UNITY_EDITOR
+                    Debug.Assert(false, $"[CP/SP] Duplicate charge: action={enrichedSelection.Action?.id ?? "null"} actor={attacker?.name ?? "(null)"}");
+#endif
+                    Debug.LogWarning($"[CP/SP] Duplicate charge detected: action={enrichedSelection.Action?.id ?? "null"} actor={attacker?.name ?? "(null)"}");
+                }
+                resourcesCharged = true;
+                var judgmentWithCosts = judgment.WithPostCost(resourcesPost);
                 var timedGrade = BattleV2.Execution.ActionJudgment.ResolveTimedGrade(result.TimedResult);
-                judgment = judgment.WithTimedGrade(timedGrade);
+                judgment = judgmentWithCosts.WithTimedGrade(timedGrade);
+
+                markProcessor?.Process(enrichedSelection, judgment, resolution.Targets);
 
                 triggeredEffects?.Schedule(
                     attacker,

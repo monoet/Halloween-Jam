@@ -19,17 +19,20 @@ namespace BattleV2.Orchestration.Services
         private readonly ITimedHitResultResolver timedResultResolver;
         private readonly ITriggeredEffectsService triggeredEffects;
         private readonly IBattleEventBus eventBus;
+        private readonly BattleV2.Marks.MarkProcessor markProcessor;
 
         public PlayerActionExecutor(
             IActionPipeline actionPipeline,
             ITimedHitResultResolver timedResultResolver,
             ITriggeredEffectsService triggeredEffects,
-            IBattleEventBus eventBus)
+            IBattleEventBus eventBus,
+            BattleV2.Marks.MarkProcessor markProcessor)
         {
             this.actionPipeline = actionPipeline;
             this.timedResultResolver = timedResultResolver;
             this.triggeredEffects = triggeredEffects;
             this.eventBus = eventBus;
+            this.markProcessor = markProcessor;
         }
 
         public async Task ExecuteAsync(PlayerActionExecutionContext context)
@@ -44,10 +47,20 @@ namespace BattleV2.Orchestration.Services
             {
                 var targets = context.Snapshot.Targets ?? Array.Empty<CombatantState>();
                 var defeatCandidates = CollectDeathCandidates(targets);
+                bool resourcesCharged = false;
+
+                var resourcesPre = context.Judgment.HasValue ? context.Judgment.ResourcesPreCost : ResourceSnapshot.FromCombatant(context.Player);
+                var resourcesPost = context.Judgment.HasValue ? context.Judgment.ResourcesPostCost : resourcesPre;
 
                 var judgment = context.Judgment.HasValue
                     ? context.Judgment
-                    : BattleV2.Execution.ActionJudgment.FromSelection(context.Selection, context.Player, context.Selection.CpCharge, System.HashCode.Combine(context.Player != null ? context.Player.GetInstanceID() : 0, context.Selection.Action != null ? context.Selection.Action.id.GetHashCode() : 0, context.Selection.CpCharge));
+                    : BattleV2.Execution.ActionJudgment.FromSelection(
+                        context.Selection,
+                        context.Player,
+                        context.Selection.CpCharge,
+                        System.HashCode.Combine(context.Player != null ? context.Player.GetInstanceID() : 0, context.Selection.Action != null ? context.Selection.Action.id.GetHashCode() : 0, context.Selection.CpCharge),
+                        resourcesPre,
+                        resourcesPost);
 
                 var request = new ActionRequest(
                     context.Manager,
@@ -69,10 +82,21 @@ namespace BattleV2.Orchestration.Services
                     ? timedResultResolver.Resolve(context.Selection, context.Implementation, result.TimedResult)
                     : result.TimedResult;
 
+                resourcesPost = ResourceSnapshot.FromCombatant(context.Player);
+                if (resourcesCharged)
+                {
+#if UNITY_EDITOR
+                    Debug.Assert(false, $"[CP/SP] Duplicate charge: action={context.Selection.Action?.id ?? "null"} actor={context.Player?.name ?? "(null)"}");
+#endif
+                    Debug.LogWarning($"[CP/SP] Duplicate charge detected: action={context.Selection.Action?.id ?? "null"} actor={context.Player?.name ?? "(null)"}");
+                }
+                resourcesCharged = true;
+                var judgmentWithCosts = judgment.WithPostCost(resourcesPost);
+
                 var timedGrade = ActionJudgment.ResolveTimedGrade(resolvedTimedResult);
                 var finalJudgment = context.Judgment.HasValue
                     ? context.Judgment.WithTimedGrade(timedGrade)
-                    : ActionJudgment.FromSelection(context.Selection, context.Player, context.Selection.CpCharge, request.Judgment.RngSeed).WithTimedGrade(timedGrade);
+                    : judgmentWithCosts.WithTimedGrade(timedGrade);
 
                 int totalComboPointsAwarded = Mathf.Max(0, result.ComboPointsAwarded);
                 if (context.Implementation is LunarChainAction && context.Player != null && context.CombatContext != null && context.CombatContext.Player == context.Player)
@@ -81,8 +105,10 @@ namespace BattleV2.Orchestration.Services
                 }
 
                 BattleV2.Charge.TimedHitResult? finalTimedResult = AdjustTimedResult(resolvedTimedResult, totalComboPointsAwarded);
+                var resolvedSelection = context.Selection.WithTimedResult(finalTimedResult);
 
                 ScheduleTriggeredEffects(context, finalTimedResult);
+                markProcessor?.Process(resolvedSelection, finalJudgment, targets);
                 context.RefreshCombatContext?.Invoke();
 
                 if (context.PlaybackTask != null)
@@ -93,8 +119,6 @@ namespace BattleV2.Orchestration.Services
                 PublishDefeatEvents(defeatCandidates, context.Player);
 
                 int cpAfter = context.Player != null ? context.Player.CurrentCP : 0;
-                var resolvedSelection = context.Selection.WithTimedResult(finalTimedResult);
-
                 context.OnActionResolved?.Invoke(resolvedSelection, context.ComboPointsBefore, cpAfter);
 
                 bool battleEnded = context.TryResolveBattleEnd != null && context.TryResolveBattleEnd();

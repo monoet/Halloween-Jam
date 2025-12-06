@@ -1,13 +1,15 @@
 using System;
+using System.Collections.Generic;
 using BattleV2.Charge;
 using BattleV2.Core;
 using HalloweenJam.Combat;
+using BattleV2.Providers;
 using UnityEngine;
 
 namespace BattleV2.Actions
 {
     [CreateAssetMenu(menuName = "Battle/Actions/Magic Attack")]
-    public class MagicAttackAction : ScriptableObject, IAction, IActionProvider
+    public class MagicAttackAction : ScriptableObject, IAction, IActionProvider, IActionMultiTarget
     {
         [Header("Base Info")]
         [SerializeField] private string actionId = "magic_attack";
@@ -45,6 +47,7 @@ namespace BattleV2.Actions
 
         public void Execute(CombatantState actor, CombatContext context, int cpCharge, TimedHitResult? timedResult, Action onComplete)
         {
+            // Legacy single-target path falls back to enemy.
             if (context?.Enemy == null)
             {
                 BattleLogger.Warn("MagicAttack", "No target for magic attack.");
@@ -85,6 +88,55 @@ namespace BattleV2.Actions
 
             // TODO: context.Services?.SpawnVFX($"{element}SpellFX", context.Enemy.Position);
             // TODO: Add animations or sound hooks
+
+            onComplete?.Invoke();
+        }
+
+        public void ExecuteMulti(
+            CombatantState actor,
+            CombatContext context,
+            IReadOnlyList<CombatantState> targets,
+            BattleSelection selection,
+            Action onComplete)
+        {
+            if (targets == null || targets.Count == 0)
+            {
+                BattleLogger.Warn("MagicAttack", "No targets for magic attack.");
+                onComplete?.Invoke();
+                return;
+            }
+
+            // Note: recursos ya se cobraron una vez en el pipeline.
+            var stats = context != null ? context.PlayerStats : default;
+            float scaledDamageBase = baseDamage;
+            if (magicPowerMultiplier != 0f)
+            {
+                scaledDamageBase += stats.MagicPower * magicPowerMultiplier;
+            }
+
+            float cpMultiplier = ComboPointScaling.GetDamageMultiplier(selection.CpCharge);
+            int totalDamageBase = Mathf.Max(minimumDamage, Mathf.RoundToInt(scaledDamageBase * cpMultiplier));
+            float timedMultiplier = 1f;
+            if (selection.TimedHitResult.HasValue)
+            {
+                timedMultiplier = Mathf.Max(0f, selection.TimedHitResult.Value.DamageMultiplier);
+            }
+
+            int finalDamagePerTarget = Mathf.Max(minimumDamage, Mathf.RoundToInt(totalDamageBase * timedMultiplier));
+
+            for (int i = 0; i < targets.Count; i++)
+            {
+                var target = targets[i];
+                if (target == null || !target.IsAlive)
+                {
+                    continue;
+                }
+
+                BattleLogger.Log(
+                    "MagicAttack",
+                    $"{actor.name} casts {element} dealing {finalDamagePerTarget} damage to {target.name} (Targets All).");
+                target.TakeDamage(finalDamagePerTarget);
+            }
 
             onComplete?.Invoke();
         }

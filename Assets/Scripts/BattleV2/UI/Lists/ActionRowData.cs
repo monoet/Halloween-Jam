@@ -1,4 +1,5 @@
 using UnityEngine;
+using BattleV2.Targeting;
 
 namespace BattleV2.UI.Lists
 {
@@ -15,6 +16,7 @@ namespace BattleV2.UI.Lists
     {
         int SpCost { get; }
         Sprite ElementIcon { get; }
+        TargetShape TargetShape { get; }
     }
 
     public interface IItemRowData : IActionRowData
@@ -31,6 +33,7 @@ namespace BattleV2.UI.Lists
         public string DisabledReason { get; }
         public int SpCost { get; }
         public Sprite ElementIcon { get; }
+        public TargetShape TargetShape { get; }
 
         public SpellRowData(
             string id,
@@ -39,7 +42,8 @@ namespace BattleV2.UI.Lists
             bool isEnabled,
             string disabledReason,
             int spCost,
-            Sprite elementIcon)
+            Sprite elementIcon,
+            TargetShape targetShape)
         {
             Id = id;
             Name = name;
@@ -48,6 +52,7 @@ namespace BattleV2.UI.Lists
             DisabledReason = disabledReason;
             SpCost = Mathf.Max(0, spCost);
             ElementIcon = elementIcon;
+            TargetShape = targetShape;
         }
     }
 

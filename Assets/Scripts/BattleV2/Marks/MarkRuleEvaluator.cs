@@ -42,7 +42,8 @@ namespace BattleV2.Marks
                 return false;
             }
 
-            if (!markService.HasMark(combatant))
+            var markId = ResolveKey(rule.mark);
+            if (!markService.HasMark(combatant, markId))
             {
                 return false;
             }
@@ -59,7 +60,7 @@ namespace BattleV2.Marks
 
             if (rule.consumeOnDetonate)
             {
-                markService.ClearMark(combatant);
+                markService.DetonateMark(combatant, markId, combatant, null);
             }
 
             // Detonation effect resolution is handled elsewhere; evaluator only clears/keeps state.
@@ -86,6 +87,24 @@ namespace BattleV2.Marks
                 }
             }
 
+            var resources = action.ResourcesPostCost.HasValue ? action.ResourcesPostCost : action.ResourcesPreCost;
+
+            if (rule.cpExact >= 0)
+            {
+                if (!resources.HasValue || resources.CpCurrent != rule.cpExact)
+                {
+                    return false;
+                }
+            }
+
+            if (rule.cpMin > 0)
+            {
+                if (!resources.HasValue || resources.CpCurrent < rule.cpMin)
+                {
+                    return false;
+                }
+            }
+
             return true;
         }
 
@@ -99,6 +118,21 @@ namespace BattleV2.Marks
 
             var rng = new System.Random(target.RngSeed);
             return rng.NextDouble() <= chance;
+        }
+
+        private static string ResolveKey(MarkDefinition definition)
+        {
+            if (definition == null)
+            {
+                return null;
+            }
+
+            if (!string.IsNullOrWhiteSpace(definition.id))
+            {
+                return definition.id;
+            }
+
+            return definition.name;
         }
     }
 }

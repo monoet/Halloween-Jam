@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Archetype
   characterID: 7199c119-f43b-4bab-b00e-6d5753793d13
   characterName: Lilia
-  portrait: {fileID: 0}
+  portrait: {fileID: 5182012487475130298, guid: 14343842cf6de03429f017c01c01bc32, type: 3}
   description: 
   classMastery: {fileID: 0}
   affinity: 0
@@ -283,3 +283,4 @@ MonoBehaviour:
   startingEquipment: []
   battlePrefab: {fileID: 0}
   overworldPrefab: {fileID: 0}
+  dropTable: {fileID: 0}

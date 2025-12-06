@@ -52,19 +52,19 @@
 ### Fase 5: Marks (Apply/Detonate) con gates CP+TimedHit
 - [x] Crear MarkService (ApplyMark, HasMark, DetonateMark, ClearOnDeath).
 - [x] Crear MarkDefinition catálogo (SO o diccionario) con efectos de detonate simples al inicio (bonus damage/cc/heal).
-- [ ] Añadir MarkRule en ActionData (lista; default vacío para acciones actuales).
+- [x] Añadir MarkRule en ActionData (lista; default vacío para acciones actuales).
 - [x] Implementar MarkRuleEvaluator (única autoridad para detonar):
   - GatePolicy (requiresCp, requiresTimedSuccess, minGrade)
   - ChanceProfile (singleChance, allChance, rollPerTarget)
   - DetonateProfile (requiresMarkPresent, consumeMark, maxDetonationsPerCast default -1, scopeOverride default)
   - Orden fijo (documentado): Evaluar Apply rules primero; luego Detonate rules.
-- [ ] Evaluar por target usando ActionJudgment + TargetJudgment; aplicar/detonar según gates. Sin cambios para acciones sin MarkRules.
+- [x] Evaluar por target usando ActionJudgment + TargetJudgment; aplicar/detonar según gates. Sin cambios para acciones sin MarkRules.
 
 ### Fase 6: UI (All scope) y recursos
-- [ ] UI: si scope=All, saltar target selection y llamar ConfirmAllTargets (usa TargetResolver + snapshot).
-- [ ] Cobro de CP/SP: asegurar que ocurre una vez por acción antes del loop per-target.
-- [ ] Opcional: icono Single/All basado en scope (sin comportamiento extra).
-- [ ] Exponer Mark en CombatantHudWidget: suscribirse a MarkService (apply/clear), mostrar icono opcional por target, limpiar al cambiar de source (sin lógica de gameplay).
+- [x] UI: si scope=All, saltar target selection y llamar ConfirmAllTargets (usa TargetResolver + snapshot).
+- [x] Cobro de CP/SP: asegurar que ocurre una vez por acción antes del loop per-target (guard/alerta anti doble cobro en player/enemy/triggered).
+- [x] Opcional: icono Single/All basado en scope (sin comportamiento extra) en MagMenu.
+- [x] Exponer Mark en CombatantHudWidget: suscribirse a MarkService (apply/clear/detonated/cleared), mostrar icono opcional por target, limpiar al cambiar de source (sin lógica de gameplay).
 
 ### Fase 7: Verificación y regresión
 - [ ] Regresión: acciones single-target siguen idénticas (daño, selección, recursos).

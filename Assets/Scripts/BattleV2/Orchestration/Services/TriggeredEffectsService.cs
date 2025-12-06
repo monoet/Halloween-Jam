@@ -9,6 +9,7 @@ using BattleV2.Orchestration;
 using BattleV2.Providers;
 using BattleV2.Targeting;
 using BattleV2.Execution;
+using BattleV2.Marks;
 using UnityEngine;
 
 namespace BattleV2.Orchestration.Services
@@ -34,6 +35,7 @@ namespace BattleV2.Orchestration.Services
         private readonly IActionPipeline actionPipeline;
         private readonly ActionCatalog actionCatalog;
         private readonly IBattleEventBus eventBus;
+        private readonly MarkProcessor markProcessor;
         private readonly Queue<TriggeredEffectRequest> queue = new();
         private readonly object gate = new();
         private bool processing;
@@ -43,12 +45,14 @@ namespace BattleV2.Orchestration.Services
             BattleManagerV2 manager,
             IActionPipeline actionPipeline,
             ActionCatalog actionCatalog,
-            IBattleEventBus eventBus)
+            IBattleEventBus eventBus,
+            MarkProcessor markProcessor)
         {
             this.manager = manager;
             this.actionPipeline = actionPipeline;
             this.actionCatalog = actionCatalog;
             this.eventBus = eventBus;
+            this.markProcessor = markProcessor;
         }
 
         public void Schedule(
@@ -194,7 +198,10 @@ namespace BattleV2.Orchestration.Services
 
             var selection = request.Selection;
             int judgmentSeed = System.HashCode.Combine(request.Origin != null ? request.Origin.GetInstanceID() : 0, selection.Action != null ? selection.Action.id.GetHashCode() : 0, targets.Count);
-            var judgment = ActionJudgment.FromSelection(selection, request.Origin, selection.CpCharge, judgmentSeed);
+            var resourcesPre = ResourceSnapshot.FromCombatant(request.Origin);
+            var resourcesPost = ResourceSnapshot.FromCombatant(request.Origin);
+            var judgment = ActionJudgment.FromSelection(selection, request.Origin, selection.CpCharge, judgmentSeed, resourcesPre, resourcesPost);
+            bool resourcesCharged = false;
 
             var actionRequest = new ActionRequest(
                 manager,
@@ -208,8 +215,19 @@ namespace BattleV2.Orchestration.Services
             try
             {
                 var result = await actionPipeline.Run(actionRequest);
+                resourcesPost = ResourceSnapshot.FromCombatant(request.Origin);
+                if (resourcesCharged)
+                {
+#if UNITY_EDITOR
+                    Debug.Assert(false, $"[CP/SP] Duplicate charge: action={selection.Action?.id ?? "null"} actor={request.Origin?.name ?? "(null)"}");
+#endif
+                    Debug.LogWarning($"[CP/SP] Duplicate charge detected: action={selection.Action?.id ?? "null"} actor={request.Origin?.name ?? "(null)"}");
+                }
+                resourcesCharged = true;
+                var judgmentWithCosts = judgment.WithPostCost(resourcesPost);
                 var timedGrade = ActionJudgment.ResolveTimedGrade(result.TimedResult);
-                var finalJudgment = judgment.WithTimedGrade(timedGrade);
+                var finalJudgment = judgmentWithCosts.WithTimedGrade(timedGrade);
+                markProcessor?.Process(selection.WithTimedResult(result.TimedResult), finalJudgment, targets);
                 eventBus?.Publish(new ActionCompletedEvent(request.Origin, selection.WithTimedResult(result.TimedResult), targets, true, finalJudgment));
             }
             catch (Exception ex)

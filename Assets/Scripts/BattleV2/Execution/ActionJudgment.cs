@@ -27,7 +27,9 @@ namespace BattleV2.Execution
             int rngSeed,
             string actionId,
             int sourceActorId,
-            bool hasValue)
+            bool hasValue,
+            ResourceSnapshot resourcesPreCost,
+            ResourceSnapshot resourcesPostCost)
         {
             CpSpent = cpSpent;
             TimedGrade = timedGrade;
@@ -37,6 +39,8 @@ namespace BattleV2.Execution
             ActionId = actionId;
             SourceActorId = sourceActorId;
             HasValue = hasValue;
+            ResourcesPreCost = resourcesPreCost;
+            ResourcesPostCost = resourcesPostCost;
         }
 
         public int CpSpent { get; }
@@ -47,6 +51,13 @@ namespace BattleV2.Execution
         public string ActionId { get; }
         public int SourceActorId { get; }
         public bool HasValue { get; }
+        public ResourceSnapshot ResourcesPreCost { get; }
+        public ResourceSnapshot ResourcesPostCost { get; }
+
+        public ActionJudgment WithPostCost(ResourceSnapshot postCost)
+        {
+            return new ActionJudgment(CpSpent, TimedGrade, Audience, Shape, RngSeed, ActionId, SourceActorId, HasValue, ResourcesPreCost, postCost);
+        }
 
         public ActionJudgment WithTimedGrade(TimedGrade grade)
         {
@@ -56,10 +67,10 @@ namespace BattleV2.Execution
                 return this;
             }
 
-            return new ActionJudgment(CpSpent, grade, Audience, Shape, RngSeed, ActionId, SourceActorId, true);
+            return new ActionJudgment(CpSpent, grade, Audience, Shape, RngSeed, ActionId, SourceActorId, true, ResourcesPreCost, ResourcesPostCost);
         }
 
-        public static ActionJudgment FromSelection(BattleSelection selection, CombatantState actor, int cpSpent, int selectionSeed)
+        public static ActionJudgment FromSelection(BattleSelection selection, CombatantState actor, int cpSpent, int selectionSeed, ResourceSnapshot resourcesPreCost, ResourceSnapshot resourcesPostCost)
         {
             var action = selection.Action;
             return new ActionJudgment(
@@ -70,7 +81,9 @@ namespace BattleV2.Execution
                 selectionSeed,
                 action != null ? action.id : null,
                 actor != null ? actor.GetInstanceID() : 0,
-                true);
+                true,
+                resourcesPreCost,
+                resourcesPostCost);
         }
 
         // Contract: TimedGrade applies to the entire action, not per-target.
@@ -129,6 +142,42 @@ namespace BattleV2.Execution
             int targetId = target != null ? target.GetInstanceID() : 0;
             int seed = actionJudgment.RngSeed ^ targetId ^ index;
             return new TargetJudgment(index, targetId, seed, actionJudgment.HasValue);
+        }
+    }
+
+    /// <summary>
+    /// Snapshot of resource state at judgment time.
+    /// </summary>
+    public readonly struct ResourceSnapshot
+    {
+        public ResourceSnapshot(int cpCurrent, int spCurrent, int cpMax, int spMax, bool hasValue = true)
+        {
+            CpCurrent = cpCurrent;
+            SpCurrent = spCurrent;
+            CpMax = cpMax;
+            SpMax = spMax;
+            HasValue = hasValue;
+        }
+
+        public int CpCurrent { get; }
+        public int SpCurrent { get; }
+        public int CpMax { get; }
+        public int SpMax { get; }
+        public bool HasValue { get; }
+
+        public static ResourceSnapshot FromCombatant(CombatantState combatant)
+        {
+            if (combatant == null)
+            {
+                return default;
+            }
+
+            return new ResourceSnapshot(
+                combatant.CurrentCP,
+                combatant.CurrentSP,
+                combatant.MaxCP,
+                combatant.MaxSP,
+                hasValue: true);
         }
     }
 }

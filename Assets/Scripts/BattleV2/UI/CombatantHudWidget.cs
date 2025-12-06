@@ -2,6 +2,8 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.UI;
+using BattleV2.Marks;
+using BattleV2.Orchestration;
 
 namespace BattleV2.UI
 {
@@ -29,6 +31,9 @@ namespace BattleV2.UI
         [Header("Optional CP Pips")]
         [SerializeField] private GameObject[] cpPips;
 
+        [Header("Marks")]
+        [SerializeField] private Image markIcon;
+
         [Header("Highlight")]
         [SerializeField] private GameObject highlightRoot;
         [SerializeField] private Color highlightNameColor = new Color(1f, 0.85f, 0.2f);
@@ -44,6 +49,8 @@ namespace BattleV2.UI
         private Color originalNameColor = Color.white;
         private bool originalColorCaptured;
         private bool isHighlighted;
+        private MarkService markService;
+        private bool marksSubscribed;
 
         private void Awake()
         {
@@ -77,14 +84,17 @@ namespace BattleV2.UI
         {
             EnsurePortraitReference();
             Subscribe(source);
+            SubscribeMarks();
             ScheduleRefresh();
             SyncAnchorTarget();
             SyncHighlightState();
+            SyncMarks();
         }
 
         private void OnDisable()
         {
             Unsubscribe(source);
+            UnsubscribeMarks();
             if (worldAnchor != null)
             {
                 worldAnchor.Target = null;
@@ -135,6 +145,7 @@ namespace BattleV2.UI
             Unsubscribe(source);
             source = newSource;
             Subscribe(source);
+            SyncMarks();
             EnsurePortraitReference();
             CaptureOriginalNameColor();
             ScheduleRefresh();
@@ -156,6 +167,32 @@ namespace BattleV2.UI
             {
                 target.OnVitalsChanged.RemoveListener(vitalsListener);
             }
+        }
+
+        private void SubscribeMarks()
+        {
+            if (marksSubscribed)
+            {
+                return;
+            }
+
+            markService ??= FindObjectOfType<BattleManagerV2>()?.MarkService;
+            if (markService != null)
+            {
+                markService.OnMarkChanged += HandleMarkChanged;
+                marksSubscribed = true;
+            }
+        }
+
+        private void UnsubscribeMarks()
+        {
+            if (!marksSubscribed || markService == null)
+            {
+                return;
+            }
+
+            markService.OnMarkChanged -= HandleMarkChanged;
+            marksSubscribed = false;
         }
 
         private void LateUpdate()
@@ -383,6 +420,43 @@ namespace BattleV2.UI
         private void SyncHighlightState()
         {
             SetHighlighted(isHighlighted);
+        }
+
+        private void HandleMarkChanged(MarkEvent evt)
+        {
+            if (evt.Target != source)
+            {
+                return;
+            }
+
+            SyncMarks();
+        }
+
+        private void SyncMarks()
+        {
+            if (markIcon == null)
+            {
+                return;
+            }
+
+            if (markService == null)
+            {
+                markIcon.enabled = false;
+                return;
+            }
+
+            var marks = markService.GetMarks(source);
+            if (marks == null || marks.Count == 0)
+            {
+                markIcon.sprite = null;
+                markIcon.enabled = false;
+                return;
+            }
+
+            var def = marks[0];
+            markIcon.sprite = def != null ? def.icon : null;
+            markIcon.color = def != null ? def.tint : Color.white;
+            markIcon.enabled = markIcon.sprite != null;
         }
     }
 }

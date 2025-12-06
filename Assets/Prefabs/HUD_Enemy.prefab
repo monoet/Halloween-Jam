@@ -2038,6 +2038,9 @@ MonoBehaviour:
   - {fileID: 7871715565724602064}
   - {fileID: 2835275084631594991}
   - {fileID: 9199340111290026430}
+  markIcon: {fileID: 0}
+  highlightRoot: {fileID: 0}
+  highlightNameColor: {r: 1, g: 0.85, b: 0.2, a: 1}
   hpFormat: '{0}/{1}'
   spFormat: '{0}/{1}'
   cpFormat: '{0}/{1}'

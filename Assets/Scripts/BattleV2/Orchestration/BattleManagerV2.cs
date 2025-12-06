@@ -20,6 +20,7 @@ using BattleV2.Targeting;
 using BattleV2.UI;
 using HalloweenJam.Combat;
 using BattleV2.Orchestration.Runtime;
+using BattleV2.Marks;
 
 namespace BattleV2.Orchestration
 {
@@ -89,6 +90,8 @@ namespace BattleV2.Orchestration
         private IFallbackActionResolver fallbackActionResolver;
         private ITimedHitResultResolver timedResultResolver;
         private PlayerActionExecutor playerActionExecutor;
+        private BattleV2.Marks.MarkService markService;
+        private BattleV2.Marks.MarkProcessor markProcessor;
         private CancellationTokenSource battleCts;
         private TargetResolutionService targetResolutionService;
         private CombatContextService contextService;
@@ -112,6 +115,7 @@ namespace BattleV2.Orchestration
         public CombatantState Enemy => referenceService?.Enemy ?? enemy;
         public ICpIntentSource CpIntentSource => cpIntent;
         public ICpIntentSink CpIntentSink => cpIntent;
+        public BattleV2.Marks.MarkService MarkService => markService;
         public IReadOnlyList<CombatantState> Allies => ActiveAllies;
         public IReadOnlyList<CombatantState> Enemies => rosterSnapshot.Enemies ?? Array.Empty<CombatantState>();
         public float PreActionDelaySeconds
@@ -308,7 +312,9 @@ namespace BattleV2.Orchestration
                 : (config?.timingConfig != null ? config.timingConfig.ToProfile() : BattleTimingProfile.Default);
 
             ConfigureAnimationOrchestrator(timingProfile);
-            triggeredEffects = new TriggeredEffectsService(this, actionPipeline, actionCatalog, eventBus);
+            markService = new MarkService();
+            markProcessor = new MarkProcessor(markService);
+            triggeredEffects = new TriggeredEffectsService(this, actionPipeline, actionCatalog, eventBus, markProcessor);
             timedResultResolver = new TimedHitResultResolver();
             RebuildPlayerActionExecutor();
             actionValidator = new CombatantActionValidator(actionCatalog);
@@ -322,7 +328,8 @@ namespace BattleV2.Orchestration
                 animOrchestrator,
                 eventBus,
                 sideService,
-                fallbackActionResolver);
+                fallbackActionResolver,
+                markProcessor);
             turnService = new BattleTurnService(eventBus);
             turnService.OnTurnReady += HandleTurnReady;
             battleEndService = new BattleEndService(eventBus);
@@ -628,14 +635,15 @@ namespace BattleV2.Orchestration
                 animOrchestrator,
                 eventBus,
                 sideService,
-                fallbackActionResolver);
+                fallbackActionResolver,
+                markProcessor);
 
             RebuildPlayerActionExecutor();
         }
 
         private void RebuildPlayerActionExecutor()
         {
-            playerActionExecutor = new PlayerActionExecutor(actionPipeline, timedResultResolver, triggeredEffects, eventBus);
+            playerActionExecutor = new PlayerActionExecutor(actionPipeline, timedResultResolver, triggeredEffects, eventBus, markProcessor);
         }
 
         private SelectionDraft currentDraft;
@@ -790,7 +798,9 @@ namespace BattleV2.Orchestration
                 ? animOrchestrator.PlayAsync(new ActionPlaybackRequest(currentPlayer, enrichedSelection, targetsList, CalculateAverageSpeed(), enrichedSelection.AnimationRecipeId))
                 : Task.CompletedTask;
             var judgmentSeed = System.HashCode.Combine(selectionId, currentPlayer != null ? currentPlayer.GetInstanceID() : 0, enrichedSelection.Action != null ? enrichedSelection.Action.id.GetHashCode() : 0);
-            var actionJudgment = ActionJudgment.FromSelection(enrichedSelection, currentPlayer, enrichedSelection.CpCharge, judgmentSeed);
+            var resourcesPre = ResourceSnapshot.FromCombatant(currentPlayer);
+            var resourcesPost = ResourceSnapshot.FromCombatant(currentPlayer);
+            var actionJudgment = ActionJudgment.FromSelection(enrichedSelection, currentPlayer, enrichedSelection.CpCharge, judgmentSeed, resourcesPre, resourcesPost);
             
             if (playerActionExecutor == null)
             {

@@ -88,9 +88,9 @@ namespace BattleV2.Providers
             var catalog = context?.Context?.Catalog;
             var impl = catalog != null ? catalog.Resolve(action) : null;
             chargeProfile = defaultChargeProfile;
-            timedProfile = null;
-            basicProfile = null;
-            runnerKind = TimedHitRunnerKind.Default;
+            timedProfile = action != null ? action.timedHitProfile : null;
+            basicProfile = action != null ? action.basicTimedHitProfile : null;
+            runnerKind = action != null ? action.runnerKind : TimedHitRunnerKind.Default;
 
             if (impl != null)
             {
@@ -99,16 +99,21 @@ namespace BattleV2.Providers
                     chargeProfile = impl.ChargeProfile;
                 }
 
-                if (impl is ITimedHitAction timedHitAction)
+                if (timedProfile == null && impl is ITimedHitAction timedHitAction)
                 {
                     timedProfile = timedHitAction.TimedHitProfile;
                 }
 
-                if (impl is IBasicTimedHitAction basicTimedAction && basicTimedAction.BasicTimedHitProfile != null)
+                if (basicProfile == null && impl is IBasicTimedHitAction basicTimedAction && basicTimedAction.BasicTimedHitProfile != null)
                 {
                     basicProfile = basicTimedAction.BasicTimedHitProfile;
                     runnerKind = TimedHitRunnerKind.Basic;
                 }
+            }
+
+            if (basicProfile != null)
+            {
+                runnerKind = TimedHitRunnerKind.Basic;
             }
 
             if (chargeProfile == null)

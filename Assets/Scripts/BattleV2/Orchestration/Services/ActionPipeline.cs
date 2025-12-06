@@ -86,6 +86,27 @@ namespace BattleV2.Orchestration.Services
                 return Task.FromResult(ActionResult.Failure);
             }
 
+            if (request.Implementation is BattleV2.Actions.IActionMultiTarget multiTarget)
+            {
+                var targets = request.Targets ?? Array.Empty<CombatantState>();
+                if (targets.Count == 0 && request.PrimaryTarget != null)
+                {
+                    targets = new[] { request.PrimaryTarget };
+                }
+
+                try
+                {
+                    multiTarget.ExecuteMulti(request.Actor, request.CombatContext, targets, request.Selection, () => { });
+                }
+                catch (Exception ex)
+                {
+                    UnityEngine.Debug.LogError($"[ActionPipeline] Multi-target action threw exception: {ex}");
+                    return Task.FromResult(ActionResult.Failure);
+                }
+
+                return Task.FromResult(ActionResult.From(null, 0));
+            }
+
             return RunLegacyPipelineAsync(request);
         }
 

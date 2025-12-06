@@ -17,6 +17,9 @@ namespace BattleV2.UI
         [SerializeField] private ActionListPopulator populator;
         [SerializeField] private MonoBehaviour spellSourceBehaviour;
         [SerializeField] private TMP_Text spCostHeader;
+        [SerializeField] private Image scopeIcon;
+        [SerializeField] private Sprite iconSingle;
+        [SerializeField] private Sprite iconAll;
         [SerializeField] private TooltipUI tooltip;
         [SerializeField] private Button backButton;
 
@@ -98,10 +101,30 @@ namespace BattleV2.UI
             if (data == null)
             {
                 spCostHeader.text = string.Empty;
+                UpdateScopeIcon(null);
                 return;
             }
 
             spCostHeader.text = $"{Mathf.Max(0, data.SpCost)}";
+            UpdateScopeIcon(data);
+        }
+
+        private void UpdateScopeIcon(ISpellRowData data)
+        {
+            if (scopeIcon == null)
+            {
+                return;
+            }
+
+            if (data == null)
+            {
+                scopeIcon.enabled = false;
+                return;
+            }
+
+            bool isAll = data.TargetShape == BattleV2.Targeting.TargetShape.All;
+            scopeIcon.sprite = isAll ? iconAll : iconSingle;
+            scopeIcon.enabled = scopeIcon.sprite != null;
         }
     }
 }

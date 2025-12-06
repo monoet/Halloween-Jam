@@ -45,7 +45,8 @@ namespace BattleV2.UI.Lists
                     enabled,
                     disabledReason,
                     spCost,
-                    data.elementIcon));
+                    data.elementIcon,
+                    data.targetShape));
             }
 
             return result;
