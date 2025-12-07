@@ -83,6 +83,10 @@ namespace BattleV2.Orchestration.Services
                     : result.TimedResult;
 
                 resourcesPost = ResourceSnapshot.FromCombatant(context.Player);
+                BattleDiagnostics.Log(
+                    "ActionCharge",
+                    $"actor={(context.Player != null ? context.Player.DisplayName : "(null)")}#{(context.Player != null ? context.Player.GetInstanceID() : 0)} actionId={context.Selection.Action?.id ?? "(null)"} cpPre={resourcesPre.CpCurrent} cpPost={resourcesPost.CpCurrent} spPre={resourcesPre.SpCurrent} spPost={resourcesPost.SpCurrent} cpCharge={context.Selection.CpCharge}",
+                    context.Player);
                 if (resourcesCharged)
                 {
 #if UNITY_EDITOR

@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using BattleV2.AnimationSystem;
+using BattleV2.Core;
+using BattleV2.Orchestration.Events;
 
 namespace BattleV2.Orchestration.Services
 {
@@ -22,6 +24,21 @@ namespace BattleV2.Orchestration.Services
             if (evt == null)
             {
                 return;
+            }
+
+            if (evt is ActionStartedEvent started)
+            {
+                var actor = started.Actor;
+                var selection = started.Selection;
+                var targets = started.Targets ?? Array.Empty<CombatantState>();
+                string actorLabel = actor != null ? $"{actor.DisplayName}#{actor.GetInstanceID()}" : "(null)";
+                string actionId = selection.Action != null ? selection.Action.id : "(null)";
+                string scope = selection.Action != null ? selection.Action.targetShape.ToString() : "(unknown)";
+
+                BattleDiagnostics.Log(
+                    "ActionStartedEvent",
+                    $"actor={actorLabel} side={(actor != null && actor.IsPlayer ? "Player" : "Enemy")} actionId={actionId} scope={scope} targets={targets.Count}",
+                    actor);
             }
 
             var type = typeof(TEvent);

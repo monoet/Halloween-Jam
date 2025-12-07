@@ -974,6 +974,36 @@ namespace BattleV2.Orchestration
             }
 
             var available = actionCatalog?.BuildAvailableFor(currentPlayer, context);
+            var allowedIds = currentPlayer?.AllowedActionIds;
+            if (allowedIds != null && allowedIds.Count > 0 && available != null)
+            {
+                var lookup = new HashSet<string>(allowedIds, StringComparer.OrdinalIgnoreCase);
+                var filtered = new List<BattleActionData>(available.Count);
+                for (int i = 0; i < available.Count; i++)
+                {
+                    var candidate = available[i];
+                    if (candidate == null || string.IsNullOrWhiteSpace(candidate.id))
+                    {
+                        continue;
+                    }
+
+                    if (lookup.Contains(candidate.id))
+                    {
+                        filtered.Add(candidate);
+                    }
+                }
+
+                // Si el filtro deja al menos una acción, usamos la intersección.
+                if (filtered.Count > 0)
+                {
+                    available = filtered;
+                }
+                else
+                {
+                    BattleLogger.Warn("BattleManagerV2", $"Actor '{currentPlayer?.name}' has an action filter but no matching actions in catalog.");
+                    available = Array.Empty<BattleActionData>();
+                }
+            }
             var currentEnemy = Enemy;
             if (available == null || available.Count == 0)
             {

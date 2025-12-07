@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using BattleV2.Audio;
+using BattleV2.Core;
 using BattleV2.Debugging;
 using UnityEngine.Events;
 
@@ -51,7 +52,7 @@ public class CombatantState : MonoBehaviour
     [SerializeField] private bool enableDebugLogs;
 
     [Header("Action Loadout")]
-    [Tooltip("Action ids allowed for this combatant. Empty = inherit from catalog.")]
+    [Tooltip("Filtro de ids permitidos para este combatiente. Empty = catálogo completo; si hay ids, se usa la intersección.")]
     [SerializeField] private List<string> allowedActionIds = new List<string>();
 
     private bool initialized;
@@ -271,6 +272,10 @@ public class CombatantState : MonoBehaviour
 
         currentCP -= amount;
         Log($"{DisplayName} gasta {amount} CP. CP: {currentCP}/{maxCP}");
+        BattleDiagnostics.Log(
+            "ResourceCharge",
+            $"actor={DisplayName}#{GetInstanceID()} side={(IsPlayer ? "Player" : "Enemy")} type=CP delta=-{amount} before={currentCP + amount} after={currentCP}",
+            this);
         OnVitalsChanged.Invoke();
         return true;
     }
@@ -308,6 +313,10 @@ public class CombatantState : MonoBehaviour
 
         currentSP -= amount;
         Log($"{DisplayName} gasta {amount} SP. SP: {currentSP}/{maxSP}");
+        BattleDiagnostics.Log(
+            "ResourceCharge",
+            $"actor={DisplayName}#{GetInstanceID()} side={(IsPlayer ? "Player" : "Enemy")} type=SP delta=-{amount} before={currentSP + amount} after={currentSP}",
+            this);
         RefreshLifeFlags();
         OnVitalsChanged.Invoke();
         return true;

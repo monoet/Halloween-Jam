@@ -230,6 +230,7 @@ MonoBehaviour:
   autoInitializeFromRuntime: 1
   preserveFractionOnRuntimeUpdate: 1
   faction: 1
+  teamId: 2
   maxHP: 15
   currentHP: 0
   maxSP: 10
@@ -237,12 +238,13 @@ MonoBehaviour:
   fallbackMaxHP: 10
   maxCP: 0
   currentCP: 0
+  audioSignatureId: 0
   OnVitalsChanged:
     m_PersistentCalls:
       m_Calls: []
   enableDebugLogs: 1
   allowedActionIds:
-  - basic_attack_enemy
+  - magic_bolt
 --- !u!114 &7435201213487041278
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -316,29 +318,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BattleV2.AnimationSystem.Execution.Runtime.Observers.RecipeTweenObserver
   owner: {fileID: 0}
   tweenTarget: {fileID: 8331349225098597336}
+  globalSpotlight: {fileID: 0}
+  motionAnchor: {fileID: 0}
   logTweenTargets: 1
-  tweens:
-  - enabled: 1
-    recipeId: run_up
-    useLocalSpace: 1
-    absolutePosition: {x: 2, y: -3, z: 0}
-    duration: 0.3
-    ease: 9
-    returnToInitialPosition: 0
-  - enabled: 1
-    recipeId: basic_attack
-    useLocalSpace: 1
-    absolutePosition: {x: 0, y: 0, z: 0}
-    duration: 0.3
-    ease: 9
-    returnToInitialPosition: 0
-  - enabled: 1
-    recipeId: run_back
-    useLocalSpace: 1
-    absolutePosition: {x: 0, y: 0, z: 0}
-    duration: 0.9
-    ease: 4
-    returnToInitialPosition: 1
+  tweenStrategies: []
+  overrideRunUpDuration: 0
+  runUpDuration: 0.3
+  overrideRunBackDuration: 0
+  runBackDuration: 0.9
   frameRate: 60
   forward: 0.1
   minorBack: 0.135

@@ -3099,7 +3099,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0, y: 0.098}
+  m_AnchoredPosition: {x: 0, y: 0.09802246}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &809243200
@@ -7957,7 +7957,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BattleV2.Orchestration.BattleManagerV2
   state: {fileID: 1941987471}
   config: {fileID: 11400000, guid: 0dfe03cf6efe5514a94aad2410c4cf7d, type: 2}
-  actionCatalog: {fileID: 0}
+  actionCatalog: {fileID: 11400000, guid: 10f3a1416429f3047b84a538a793b010, type: 2}
   inputProviderAsset: {fileID: 0}
   inputProviderComponent: {fileID: 216218943}
   hudManager: {fileID: 2028473516}

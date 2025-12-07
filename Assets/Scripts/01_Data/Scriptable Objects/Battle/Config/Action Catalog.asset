@@ -22,6 +22,12 @@ MonoBehaviour:
     elementIcon: {fileID: 0}
     combatEventStaggerStep: 0
     requiresTarget: 1
+    targetAudience: 2
+    targetShape: 0
+    timedHitProfile: {fileID: 0}
+    basicTimedHitProfile: {fileID: 0}
+    runnerKind: 0
+    markRules: []
   - id: basic_attack_enemy
     displayName: Enemy Attack
     costSP: 0
@@ -31,6 +37,12 @@ MonoBehaviour:
     elementIcon: {fileID: 0}
     combatEventStaggerStep: 0
     requiresTarget: 1
+    targetAudience: 2
+    targetShape: 0
+    timedHitProfile: {fileID: 0}
+    basicTimedHitProfile: {fileID: 0}
+    runnerKind: 0
+    markRules: []
   magic:
   - id: magic_bolt
     displayName: Magic Bolt
@@ -41,6 +53,12 @@ MonoBehaviour:
     elementIcon: {fileID: 0}
     combatEventStaggerStep: 0
     requiresTarget: 1
+    targetAudience: 2
+    targetShape: 1
+    timedHitProfile: {fileID: 0}
+    basicTimedHitProfile: {fileID: 0}
+    runnerKind: 0
+    markRules: []
   - id: Testicular_Torsion
     displayName: Testicular T.
     costSP: 3
@@ -50,6 +68,12 @@ MonoBehaviour:
     elementIcon: {fileID: 2977343900413445324, guid: 88e723ccbe534984cad73fdd89bb90c3, type: 3}
     combatEventStaggerStep: 0
     requiresTarget: 1
+    targetAudience: 2
+    targetShape: 0
+    timedHitProfile: {fileID: 0}
+    basicTimedHitProfile: {fileID: 0}
+    runnerKind: 0
+    markRules: []
   - id: Testicular_Torsion
     displayName: Testicular T.
     costSP: 3
@@ -59,6 +83,12 @@ MonoBehaviour:
     elementIcon: {fileID: 2977343900413445324, guid: 88e723ccbe534984cad73fdd89bb90c3, type: 3}
     combatEventStaggerStep: 0
     requiresTarget: 1
+    targetAudience: 2
+    targetShape: 0
+    timedHitProfile: {fileID: 0}
+    basicTimedHitProfile: {fileID: 0}
+    runnerKind: 0
+    markRules: []
   - id: Testicular_Torsion
     displayName: Testicular T.
     costSP: 3
@@ -68,6 +98,12 @@ MonoBehaviour:
     elementIcon: {fileID: 2977343900413445324, guid: 88e723ccbe534984cad73fdd89bb90c3, type: 3}
     combatEventStaggerStep: 0
     requiresTarget: 1
+    targetAudience: 2
+    targetShape: 0
+    timedHitProfile: {fileID: 0}
+    basicTimedHitProfile: {fileID: 0}
+    runnerKind: 0
+    markRules: []
   - id: Testicular_Torsion
     displayName: Testicular T.
     costSP: 3
@@ -77,6 +113,12 @@ MonoBehaviour:
     elementIcon: {fileID: 2977343900413445324, guid: 88e723ccbe534984cad73fdd89bb90c3, type: 3}
     combatEventStaggerStep: 0
     requiresTarget: 1
+    targetAudience: 2
+    targetShape: 0
+    timedHitProfile: {fileID: 0}
+    basicTimedHitProfile: {fileID: 0}
+    runnerKind: 0
+    markRules: []
   - id: Testicular_Torsion
     displayName: Testicular T.
     costSP: 3
@@ -86,6 +128,12 @@ MonoBehaviour:
     elementIcon: {fileID: 2977343900413445324, guid: 88e723ccbe534984cad73fdd89bb90c3, type: 3}
     combatEventStaggerStep: 0
     requiresTarget: 1
+    targetAudience: 2
+    targetShape: 0
+    timedHitProfile: {fileID: 0}
+    basicTimedHitProfile: {fileID: 0}
+    runnerKind: 0
+    markRules: []
   - id: Testicular_Torsion
     displayName: Testicular T.
     costSP: 3
@@ -95,6 +143,12 @@ MonoBehaviour:
     elementIcon: {fileID: 2977343900413445324, guid: 88e723ccbe534984cad73fdd89bb90c3, type: 3}
     combatEventStaggerStep: 0
     requiresTarget: 1
+    targetAudience: 2
+    targetShape: 0
+    timedHitProfile: {fileID: 0}
+    basicTimedHitProfile: {fileID: 0}
+    runnerKind: 0
+    markRules: []
   - id: Testicular_Torsion
     displayName: Testicular T.
     costSP: 3
@@ -104,6 +158,12 @@ MonoBehaviour:
     elementIcon: {fileID: 2977343900413445324, guid: 88e723ccbe534984cad73fdd89bb90c3, type: 3}
     combatEventStaggerStep: 0
     requiresTarget: 1
+    targetAudience: 2
+    targetShape: 0
+    timedHitProfile: {fileID: 0}
+    basicTimedHitProfile: {fileID: 0}
+    runnerKind: 0
+    markRules: []
   - id: Testicular_Torsion
     displayName: Testicular T.
     costSP: 3
@@ -113,6 +173,12 @@ MonoBehaviour:
     elementIcon: {fileID: 2977343900413445324, guid: 88e723ccbe534984cad73fdd89bb90c3, type: 3}
     combatEventStaggerStep: 0
     requiresTarget: 1
+    targetAudience: 2
+    targetShape: 0
+    timedHitProfile: {fileID: 0}
+    basicTimedHitProfile: {fileID: 0}
+    runnerKind: 0
+    markRules: []
   - id: Testicular_Torsion
     displayName: Testicular T.
     costSP: 3
@@ -122,6 +188,12 @@ MonoBehaviour:
     elementIcon: {fileID: 2977343900413445324, guid: 88e723ccbe534984cad73fdd89bb90c3, type: 3}
     combatEventStaggerStep: 0
     requiresTarget: 1
+    targetAudience: 2
+    targetShape: 0
+    timedHitProfile: {fileID: 0}
+    basicTimedHitProfile: {fileID: 0}
+    runnerKind: 0
+    markRules: []
   items:
   - id: item_use
     displayName: Wind Soulstone
@@ -132,6 +204,12 @@ MonoBehaviour:
     elementIcon: {fileID: 0}
     combatEventStaggerStep: 0
     requiresTarget: 1
+    targetAudience: 2
+    targetShape: 0
+    timedHitProfile: {fileID: 0}
+    basicTimedHitProfile: {fileID: 0}
+    runnerKind: 0
+    markRules: []
   - id: item_use
     displayName: Penial Enlargement
     costSP: 0
@@ -141,6 +219,12 @@ MonoBehaviour:
     elementIcon: {fileID: 0}
     combatEventStaggerStep: 0
     requiresTarget: 1
+    targetAudience: 2
+    targetShape: 0
+    timedHitProfile: {fileID: 0}
+    basicTimedHitProfile: {fileID: 0}
+    runnerKind: 0
+    markRules: []
   - id: item_use
     displayName: Extra Minor Health Pot
     costSP: 0
@@ -150,6 +234,12 @@ MonoBehaviour:
     elementIcon: {fileID: 0}
     combatEventStaggerStep: 0
     requiresTarget: 1
+    targetAudience: 2
+    targetShape: 0
+    timedHitProfile: {fileID: 0}
+    basicTimedHitProfile: {fileID: 0}
+    runnerKind: 0
+    markRules: []
   - id: item_use
     displayName: Moon Dust
     costSP: 0
@@ -159,6 +249,12 @@ MonoBehaviour:
     elementIcon: {fileID: 0}
     combatEventStaggerStep: 0
     requiresTarget: 1
+    targetAudience: 2
+    targetShape: 0
+    timedHitProfile: {fileID: 0}
+    basicTimedHitProfile: {fileID: 0}
+    runnerKind: 0
+    markRules: []
   - id: item_use
     displayName: Herb
     costSP: 0
@@ -168,6 +264,12 @@ MonoBehaviour:
     elementIcon: {fileID: 0}
     combatEventStaggerStep: 0
     requiresTarget: 1
+    targetAudience: 2
+    targetShape: 0
+    timedHitProfile: {fileID: 0}
+    basicTimedHitProfile: {fileID: 0}
+    runnerKind: 0
+    markRules: []
   - id: item_use
     displayName: Tree Nut
     costSP: 0
@@ -177,6 +279,12 @@ MonoBehaviour:
     elementIcon: {fileID: 0}
     combatEventStaggerStep: 0
     requiresTarget: 1
+    targetAudience: 2
+    targetShape: 0
+    timedHitProfile: {fileID: 0}
+    basicTimedHitProfile: {fileID: 0}
+    runnerKind: 0
+    markRules: []
   - id: item_use
     displayName: Candy
     costSP: 0
@@ -186,6 +294,12 @@ MonoBehaviour:
     elementIcon: {fileID: 0}
     combatEventStaggerStep: 0
     requiresTarget: 1
+    targetAudience: 2
+    targetShape: 0
+    timedHitProfile: {fileID: 0}
+    basicTimedHitProfile: {fileID: 0}
+    runnerKind: 0
+    markRules: []
   - id: item_use
     displayName: Spiritual Stone
     costSP: 0
@@ -195,6 +309,12 @@ MonoBehaviour:
     elementIcon: {fileID: 0}
     combatEventStaggerStep: 0
     requiresTarget: 1
+    targetAudience: 2
+    targetShape: 0
+    timedHitProfile: {fileID: 0}
+    basicTimedHitProfile: {fileID: 0}
+    runnerKind: 0
+    markRules: []
   - id: item_use
     displayName: E Key
     costSP: 0
@@ -204,6 +324,12 @@ MonoBehaviour:
     elementIcon: {fileID: 0}
     combatEventStaggerStep: 0
     requiresTarget: 1
+    targetAudience: 2
+    targetShape: 0
+    timedHitProfile: {fileID: 0}
+    basicTimedHitProfile: {fileID: 0}
+    runnerKind: 0
+    markRules: []
   - id: item_use
     displayName: How do you turn this on?
     costSP: 0
@@ -213,3 +339,9 @@ MonoBehaviour:
     elementIcon: {fileID: 0}
     combatEventStaggerStep: 0
     requiresTarget: 1
+    targetAudience: 2
+    targetShape: 0
+    timedHitProfile: {fileID: 0}
+    basicTimedHitProfile: {fileID: 0}
+    runnerKind: 0
+    markRules: []

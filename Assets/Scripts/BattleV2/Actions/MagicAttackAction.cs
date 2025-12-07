@@ -106,7 +106,22 @@ namespace BattleV2.Actions
                 return;
             }
 
-            // Note: recursos ya se cobraron una vez en el pipeline.
+            // Cobro único de recursos antes del loop (consistentemente con el path single).
+            if (costSp > 0 && !actor.SpendSP(costSp))
+            {
+                BattleLogger.Warn("MagicAttack", $"{actor.name} tried to cast {element} without enough SP.");
+                onComplete?.Invoke();
+                return;
+            }
+
+            int totalCpCost = costCp + Mathf.Max(0, selection.CpCharge);
+            if (totalCpCost > 0 && !actor.SpendCP(totalCpCost))
+            {
+                BattleLogger.Warn("MagicAttack", $"{actor.name} tried to cast {element} without enough CP.");
+                onComplete?.Invoke();
+                return;
+            }
+
             var stats = context != null ? context.PlayerStats : default;
             float scaledDamageBase = baseDamage;
             if (magicPowerMultiplier != 0f)
