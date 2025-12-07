@@ -21,6 +21,8 @@ namespace BattleV2.Orchestration.Services
 
         public void Publish<TEvent>(TEvent evt)
         {
+            UnityThread.AssertMainThread("BattleEventBus.Publish");
+
             if (evt == null)
             {
                 return;
@@ -58,6 +60,8 @@ namespace BattleV2.Orchestration.Services
 
         public IDisposable Subscribe<TEvent>(Action<TEvent> handler)
         {
+            UnityThread.AssertMainThread("BattleEventBus.Subscribe");
+
             if (handler == null)
             {
                 return Disposable.Empty;

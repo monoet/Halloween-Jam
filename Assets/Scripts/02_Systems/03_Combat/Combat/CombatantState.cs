@@ -136,6 +136,8 @@ public class CombatantState : MonoBehaviour
 
     public void InitializeFrom(CharacterRuntime character, bool preserveCurrentFraction = false)
     {
+        UnityThread.AssertMainThread("CombatantState.InitializeFrom");
+
         AttachRuntime(character);
 
         int providedHP = character != null ? character.Final.HP : 0;
@@ -176,6 +178,8 @@ public class CombatantState : MonoBehaviour
 
     public void EnsureInitialized(CharacterRuntime character)
     {
+        UnityThread.AssertMainThread("CombatantState.EnsureInitialized");
+
         if (!initialized)
         {
             InitializeFrom(character, preserveCurrentFraction: false);
@@ -187,6 +191,8 @@ public class CombatantState : MonoBehaviour
 
     public void SetCharacterRuntime(CharacterRuntime runtime, bool initialize = true, bool preserveVitals = false)
     {
+        UnityThread.AssertMainThread("CombatantState.SetCharacterRuntime");
+
         AttachRuntime(runtime);
 
         if (initialize)
@@ -224,6 +230,8 @@ public class CombatantState : MonoBehaviour
 
     public void Heal(int amount)
     {
+        UnityThread.AssertMainThread("CombatantState.Heal");
+
         if (amount < 0)
         {
             amount = 0;
@@ -243,6 +251,8 @@ public class CombatantState : MonoBehaviour
 
     public void SetDowned(bool value)
     {
+        UnityThread.AssertMainThread("CombatantState.SetDowned");
+
         if (isDowned == value)
         {
             return;
@@ -286,6 +296,8 @@ public class CombatantState : MonoBehaviour
 
     public void AddCP(int amount)
     {
+        UnityThread.AssertMainThread("CombatantState.AddCP");
+
         int before = currentCP;
         if (amount <= 0)
         {
@@ -345,6 +357,8 @@ public class CombatantState : MonoBehaviour
 
     public void RestoreSP(int amount)
     {
+        UnityThread.AssertMainThread("CombatantState.RestoreSP");
+
         if (amount <= 0)
         {
             return;

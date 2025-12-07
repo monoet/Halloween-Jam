@@ -439,6 +439,12 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
 
             void Invoke()
             {
+                BattleDiagnostics.Log(
+                    "Thread.debug00",
+                    $"[Thread.debug00][CombatEventDispatcher.Dispatch] tid={Thread.CurrentThread.ManagedThreadId} isMain={UnityMainThreadGuard.IsMainThread()} flagId={flagId} ctxCount={contexts.Count}",
+                    null);
+                UnityThread.AssertMainThread("CombatEventDispatcher.Dispatch");
+
                 try
                 {
                     DispatchInternal(flagId, contexts);
@@ -501,7 +507,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
                         {
                             try
                             {
-                                await Task.Delay(TimeSpan.FromSeconds(staggerStepSeconds)).ConfigureAwait(false);
+                                await Task.Delay(TimeSpan.FromSeconds(staggerStepSeconds));
                             }
                             catch (TaskCanceledException)
                             {
@@ -524,6 +530,8 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
 
         private void DispatchInternal(string flagId, List<CombatEventContext> contexts)
         {
+            UnityThread.AssertMainThread("CombatEventDispatcher.DispatchInternal");
+
             ICombatEventListener[] snapshot;
             lock (listenerGate)
             {

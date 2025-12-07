@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using BattleV2.Charge;
 using BattleV2.Core;
@@ -24,6 +25,12 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Executors
 
         public async Task ExecuteAsync(StepExecutionContext context)
         {
+            BattleDiagnostics.Log(
+                "Thread.debug00",
+                $"[Thread.debug00][TimedHitStepExecutor.Enter] tid={Thread.CurrentThread.ManagedThreadId} isMain={UnityMainThreadGuard.IsMainThread()} actor={context.Actor?.name ?? "(null)"} actionId={context.Request.Selection.Action?.id ?? "(null)"}",
+                context.Actor);
+            UnityThread.AssertMainThread("TimedHitStepExecutor.Execute");
+
             var selection = context.Request.Selection;
             var handle = selection.TimedHitHandle;
             var profile = selection.TimedHitProfile;
@@ -61,11 +68,11 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Executors
             {
                 if (context.TimedHitService != null)
                 {
-                    result = await context.TimedHitService.RunAsync(request).ConfigureAwait(false);
+                    result = await context.TimedHitService.RunAsync(request);
                 }
                 else
                 {
-                    result = await InstantTimedHitRunner.Shared.RunAsync(request).ConfigureAwait(false);
+                    result = await InstantTimedHitRunner.Shared.RunAsync(request);
                 }
             }
             catch (OperationCanceledException)
