@@ -249,6 +249,7 @@ namespace BattleV2.UI
 
         public void EnterTarget()
         {
+            BattleDiagnostics.Log("PAE.BUITI", $"b=1 phase=UI.TargetUI.Show frame={Time.frameCount}", this);
             PushState(UiState.Target);
         }
 
@@ -270,6 +271,7 @@ namespace BattleV2.UI
             ClearSelection();
 
             SetUIMode(BattleUIMode.SystemHidden);
+            BattleDiagnostics.Log("PAE.BUITI", $"b=1 phase=UI.TargetUI.HideAll frame={Time.frameCount}", this);
         }
 
         private void PushState(UiState newState)

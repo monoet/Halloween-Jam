@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using BattleV2.Targeting;
@@ -16,10 +17,18 @@ namespace BattleV2.UI
         [SerializeField] private BattleUIRoot uiRoot;
         [SerializeField] private BattleUIInputDriver inputDriver;
 
+        private int sessionCounter;
+        private int currentSessionId;
         private TaskCompletionSource<TargetSet> pendingTcs;
         private TargetSet proposed;
         private CombatantState[] lastCandidates = System.Array.Empty<CombatantState>();
         private int currentIndex;
+        private bool confirmInFlight;
+
+        private void LogB1(string phase, string details)
+        {
+            BattleDiagnostics.Log("PAE.BUITI", $"b=1 phase={phase} frame={Time.frameCount} {details}", this);
+        }
 
         private void Awake()
         {
@@ -67,11 +76,14 @@ namespace BattleV2.UI
                 pendingTcs = null;
             }
 
+            currentSessionId = ++sessionCounter;
             BattleDiagnostics.Log("Targeting", "Manual Selection Started", this);
             proposed = proposedSet;
             CacheCandidates(context);
+            LogB1("BUITI.Start", $"sessionId={currentSessionId} mode={(targetPanel == null ? "virtual" : "panel")} audience={context.Query.Audience} shape={context.Query.Shape} proposed={(proposedSet.IsGroup ? "group" : (proposedSet.IsEmpty ? "empty" : "single"))} candidates={lastCandidates.Length}");
             
             pendingTcs = new TaskCompletionSource<TargetSet>();
+            confirmInFlight = false;
 
             if (targetPanel == null)
             {
@@ -136,40 +148,52 @@ namespace BattleV2.UI
 
         private void HandleConfirm()
         {
-            if (pendingTcs == null) return;
-            
-            // If virtual mode, confirm current index
+            // If virtual mode, confirm current index immediately (panel mode confirms via UI events)
             if (targetPanel == null && lastCandidates.Length > 0)
             {
-                HandleSelected(lastCandidates[currentIndex].GetInstanceID());
+                LogB1("BUITI.Confirm.Virtual", $"sessionId={currentSessionId} targetId={lastCandidates[currentIndex].GetInstanceID()} index={currentIndex} candidates={lastCandidates.Length}");
+                ResolveOnce(TargetSet.Single(lastCandidates[currentIndex].GetInstanceID()));
             }
-            // If panel mode, the panel handles selection via OnTargetSelected, 
-            // but if we want to support "Confirm" button on gamepad triggering the current selection in panel:
-            // We might need to know what the panel has selected. 
-            // For now, let's assume panel handles its own confirmation via UI buttons.
-            // But wait, TargetSelectionState calls ConfirmTarget() on Enter/Space/Z.
-            // So we MUST handle it here for panel mode too if we want keyboard support for panel buttons.
-            // However, Unity UI usually handles Enter on selected button.
-            // If we are using Unity UI navigation, the button OnClick fires.
-            // So we might not need to do anything here for panel mode, 
-            // UNLESS the user presses a button that isn't "Submit" but we mapped it to confirm?
-            // But TargetSelectionState uses "AllowConfirm" which checks ConfirmKeys.
-            // If Unity UI handles it, we might double confirm?
-            // TargetSelectionState calls ExecuteEvents.submitHandler in MenuState, but in TargetSelectionState it calls ConfirmTarget().
-            // So we should probably NOT call ConfirmTarget() if we want Unity UI to handle it?
-            // Actually, TargetSelectionState in my previous edit calls ConfirmTarget().
-            // If I want Unity UI to work, I should probably let Unity UI handle it OR manually invoke the selected button.
-            // Let's stick to Virtual Mode support for now in HandleConfirm.
-            // If Panel Mode needs it, we can add it later.
+            // Panel mode confirmation is handled via OnTargetSelected from the panel.
         }
 
-        private void ResolveAndClear(TargetSet result)
+        private void ResolveOnce(TargetSet result)
         {
-            if (pendingTcs != null)
+            var tcs = pendingTcs;
+            if (tcs == null)
             {
-                pendingTcs.TrySetResult(result);
-                pendingTcs = null;
+                LogB1("BUITI.ResolveOnce.Block", $"reason=NoPending sessionId={currentSessionId}");
+                return;
             }
+            if (confirmInFlight)
+            {
+                LogB1("BUITI.ResolveOnce.Block", $"reason=InFlight sessionId={currentSessionId}");
+                return;
+            }
+
+            pendingTcs = null;
+            confirmInFlight = true;
+            try
+            {
+                LogB1("BUITI.ResolveOnce.Ok", $"sessionId={currentSessionId}");
+                ResolveAndClear(result, tcs);
+            }
+            catch (Exception ex)
+            {
+                LogB1("BUITI.ResolveOnce.Block", $"reason=Exception sessionId={currentSessionId} ex={ex.GetType().Name}");
+                throw;
+            }
+            finally
+            {
+                confirmInFlight = false;
+            }
+        }
+
+        private void ResolveAndClear(TargetSet result, TaskCompletionSource<TargetSet> tcs)
+        {
+            LogB1("BUITI.Resolve", $"sessionId={currentSessionId} result={(result.IsEmpty ? "empty" : (result.IsBack ? "back" : (result.IsGroup ? "group" : "single")))}");
+
+            tcs?.TrySetResult(result);
 
             if (targetPanel != null)
             {
@@ -181,7 +205,6 @@ namespace BattleV2.UI
             if (uiRoot != null)
             {
                 uiRoot.OnTargetCancel -= HandleCancel;
-                uiRoot.OnTargetConfirmed -= HandleConfirm;
             }
 
             if (inputDriver != null)
@@ -203,20 +226,20 @@ namespace BattleV2.UI
 
         private void HandleSelected(int targetId)
         {
-
-
             BattleDiagnostics.Log("Targeting", $"Target Selected: {targetId}", this);
             ClearAllHighlights();
-            ResolveAndClear(TargetSet.Single(targetId));
+            BattleDiagnostics.Log("PAE.BUITI", $"phase=BUITI.Selected sessionId={currentSessionId} targetId={targetId}", this);
+            ResolveOnce(TargetSet.Single(targetId));
         }
 
         private void HandleCancel()
         {
             BattleDiagnostics.Log("Targeting", "Selection Cancelled (Back)", this);
             ClearAllHighlights();
+            LogB1("BUITI.Cancel", $"sessionId={currentSessionId}");
             
             // Resolve with Back set to signal return to previous menu
-            ResolveAndClear(TargetSet.Back);
+            ResolveOnce(TargetSet.Back);
 
             // Regresar al estado de menú si el driver existe
             // NOTE: With the new refactor, the Provider/Manager handles the state transition based on the result.

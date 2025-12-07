@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
 using BattleV2.AnimationSystem.Execution.Runtime;
+using BattleV2.Core;
 
 namespace BattleV2.UI
 {
@@ -20,9 +21,13 @@ namespace BattleV2.UI
             Debug.Log("[UIState] Entering Menu State (Input Only)");
             gate.OnEnter(driver);
             // No longer forcing UI Root entry. The UI Manager (BattleUIRoot) handles the visual stack.
+            BattleDiagnostics.Log("PAE.BUITI", $"b=1 phase=UI.State.Enter state=MenuState frame={Time.frameCount}", driver);
         }
 
-        public void Exit(BattleUIInputDriver driver) { }
+        public void Exit(BattleUIInputDriver driver)
+        {
+            BattleDiagnostics.Log("PAE.BUITI", $"b=1 phase=UI.State.Exit state=MenuState frame={Time.frameCount}", driver);
+        }
 
         public void HandleInput(BattleUIInputDriver driver)
         {
@@ -63,6 +68,7 @@ namespace BattleV2.UI
                 GameObject current = EventSystem.current.currentSelectedGameObject;
                 if (current != null)
                 {
+                    BattleDiagnostics.Log("PAE.BUITI", $"phase=UI.Submit state=MenuState frame={Time.frameCount} selected={current.name}", driver);
                     ExecuteEvents.Execute(current, new BaseEventData(EventSystem.current), ExecuteEvents.submitHandler);
                     driver.PlayConfirmAudio();
                 }
@@ -140,6 +146,7 @@ namespace BattleV2.UI
             Debug.Log($"[UIState] Entering Target Selection State (Virtual={isVirtual})");
             gate.OnEnter(driver);
             driver.ResetInputAxes(); // Ensure gate sees a clean state (release)
+            BattleDiagnostics.Log("PAE.BUITI", $"b=1 phase=UI.State.Enter state=TargetSelectionState virtual={isVirtual} frame={Time.frameCount}", driver);
             
             if (isVirtual)
             {
@@ -157,6 +164,7 @@ namespace BattleV2.UI
             // When exiting Target Selection (e.g. to Execution or Menu), 
             // the UI Root might handle hiding, or the next state will.
             // ExecutionState hides all. MenuState might show menu.
+            BattleDiagnostics.Log("PAE.BUITI", $"b=1 phase=UI.State.Exit state=TargetSelectionState virtual={isVirtual} frame={Time.frameCount}", driver);
         }
 
         public void HandleInput(BattleUIInputDriver driver)
@@ -171,6 +179,7 @@ namespace BattleV2.UI
                 if (isVirtual)
                 {
                     Debug.Log("[TargetSelectionState] Virtual Confirm. Calling ConfirmTarget.");
+                    BattleDiagnostics.Log("PAE.BUITI", $"b=1 phase=UI.Submit state=TargetSelectionState(Virtual) frame={Time.frameCount} selected=null", driver);
                     driver.UiRoot?.ConfirmTarget();
                 }
                 else
@@ -179,12 +188,14 @@ namespace BattleV2.UI
                     if (current != null)
                     {
                         Debug.Log($"[TargetSelectionState] Confirm allowed. Executing Submit on {current.name}");
+                        BattleDiagnostics.Log("PAE.BUITI", $"b=1 phase=UI.Submit state=TargetSelectionState frame={Time.frameCount} selected={current.name}", driver);
                         ExecuteEvents.Execute(current, new BaseEventData(EventSystem.current), ExecuteEvents.submitHandler);
                     }
                     else if (driver.UiRoot != null)
                     {
                         // Fallback if no selection even in Panel Mode
                         Debug.Log("[TargetSelectionState] Panel Mode but no selection. Calling ConfirmTarget.");
+                        BattleDiagnostics.Log("PAE.BUITI", $"b=1 phase=UI.Submit state=TargetSelectionState frame={Time.frameCount} selected=null", driver);
                         driver.UiRoot.ConfirmTarget();
                     }
                 }

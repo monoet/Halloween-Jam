@@ -36,7 +36,7 @@ namespace BattleV2.Execution.TimedHits
 
                 if (next != null)
                 {
-                    await next().ConfigureAwait(false);
+                    await next();
                 }
                 return;
             }
@@ -46,7 +46,7 @@ namespace BattleV2.Execution.TimedHits
             {
                 try
                 {
-                    var awaited = await handle.WaitAsync(context.CancellationToken).ConfigureAwait(false);
+                    var awaited = await handle.WaitAsync(context.CancellationToken);
                     if (awaited.HasValue)
                     {
                         context.TimedResult = awaited.Value;
@@ -69,7 +69,7 @@ namespace BattleV2.Execution.TimedHits
 
                 if (next != null)
                 {
-                    await next().ConfigureAwait(false);
+                    await next();
                 }
                 return;
             }
@@ -92,7 +92,7 @@ namespace BattleV2.Execution.TimedHits
             {
                 if (next != null)
                 {
-                    await next().ConfigureAwait(false);
+                    await next();
                 }
                 return;
             }
@@ -114,11 +114,11 @@ namespace BattleV2.Execution.TimedHits
             {
                 if (timedHitService != null)
                 {
-                    result = await timedHitService.RunAsync(request, context.PhaseResultListener).ConfigureAwait(false);
+                    result = await timedHitService.RunAsync(request, context.PhaseResultListener);
                 }
                 else
                 {
-                    result = await RunWithFallbackAsync(request, context.PhaseResultListener).ConfigureAwait(false);
+                    result = await RunWithFallbackAsync(request, context.PhaseResultListener);
                 }
             }
             catch (OperationCanceledException)
@@ -137,7 +137,7 @@ namespace BattleV2.Execution.TimedHits
 
             if (next != null)
             {
-                await next().ConfigureAwait(false);
+                await next();
             }
         }
 
@@ -171,7 +171,7 @@ namespace BattleV2.Execution.TimedHits
         {
             try
             {
-                return await task.ConfigureAwait(false);
+                return await task;
             }
             finally
             {

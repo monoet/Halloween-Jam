@@ -36,11 +36,11 @@ namespace BattleV2.Execution
                 tcs.TrySetException(ex);
             }
 
-            await tcs.Task.ConfigureAwait(false);
+            await tcs.Task;
 
             if (next != null)
             {
-                await next().ConfigureAwait(false);
+                await next();
             }
         }
     }

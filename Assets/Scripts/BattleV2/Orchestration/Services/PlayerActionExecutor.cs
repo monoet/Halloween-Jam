@@ -43,11 +43,20 @@ namespace BattleV2.Orchestration.Services
                 return;
             }
 
+            int spSpent = 0;
+            int cpSpent = 0;
+
             try
             {
+                int spCost = Mathf.Max(0, context.BaseSpCost);
+                int cpBase = Mathf.Max(0, context.BaseCpCost);
+                int cpCharge = Mathf.Max(0, context.Selection.CpCharge);
+                int cpCost = cpBase + cpCharge;
+
                 BattleDiagnostics.Log(
-                    "AddCp.Debugging01",
-                    $"phase=ExecuteAsync actor={context.Player?.DisplayName ?? "(null)"}#{context.Player?.GetInstanceID() ?? 0} actionId={context.Selection.Action?.id ?? "(null)"} cpCharge={context.Selection.CpCharge}",
+                    "PAE.BUITI",
+                    $"b=1 phase=PAE.Enter actor={context.Player?.DisplayName ?? "(null)"}#{context.Player?.GetInstanceID() ?? 0} actionId={context.Selection.Action?.id ?? "(null)"} " +
+                    $"spBase={spCost} cpBase={cpBase} cpCharge={cpCharge} cpTotal={cpCost} cpBefore={context.Player.CurrentCP} spBefore={context.Player.CurrentSP} targets={(context.Snapshot.Targets != null ? context.Snapshot.Targets.Count : 0)}",
                     context.Player);
 
                 var targets = context.Snapshot.Targets ?? Array.Empty<CombatantState>();
@@ -62,10 +71,75 @@ namespace BattleV2.Orchestration.Services
                     : BattleV2.Execution.ActionJudgment.FromSelection(
                         context.Selection,
                         context.Player,
-                        context.Selection.CpCharge,
-                        System.HashCode.Combine(context.Player != null ? context.Player.GetInstanceID() : 0, context.Selection.Action != null ? context.Selection.Action.id.GetHashCode() : 0, context.Selection.CpCharge),
+                        cpCost,
+                        System.HashCode.Combine(context.Player != null ? context.Player.GetInstanceID() : 0, context.Selection.Action != null ? context.Selection.Action.id.GetHashCode() : 0, cpCharge),
                         resourcesPre,
                         resourcesPost);
+
+                // Spend SP (base)
+                if (spCost > 0)
+                {
+                    BattleDiagnostics.Log(
+                        "PAE.BUITI",
+                        $"b=1 phase=PAE.SP.Attempt actor={context.Player.DisplayName}#{context.Player.GetInstanceID()} actionId={context.Selection.Action?.id ?? "(null)"} spCost={spCost} spBefore={context.Player.CurrentSP}",
+                        context.Player);
+
+                    if (!context.Player.SpendSP(spCost))
+                    {
+                        BattleDiagnostics.Log(
+                            "PAE.BUITI",
+                            $"b=1 phase=PAE.SP.Fail actor={context.Player.DisplayName}#{context.Player.GetInstanceID()} actionId={context.Selection.Action?.id ?? "(null)"} spCost={spCost} spBefore={context.Player.CurrentSP}",
+                            context.Player);
+                        context.OnFallback?.Invoke();
+                        return;
+                    }
+
+                    spSpent = spCost;
+                    resourcesCharged = true;
+
+                    BattleDiagnostics.Log(
+                        "PAE.BUITI",
+                        $"b=1 phase=PAE.SP.Charged actor={context.Player.DisplayName}#{context.Player.GetInstanceID()} actionId={context.Selection.Action?.id ?? "(null)"} spCost={spCost} spAfter={context.Player.CurrentSP}",
+                        context.Player);
+                }
+
+                // Charge CP once at commit based on base + charge.
+                if (cpCost > 0)
+                {
+                    BattleDiagnostics.Log(
+                        "PAE.BUITI",
+                        $"b=1 phase=PAE.CP.Attempt actor={context.Player.DisplayName}#{context.Player.GetInstanceID()} actionId={context.Selection.Action?.id ?? "(null)"} cpBase={cpBase} cpCharge={cpCharge} cpTotal={cpCost} cpBefore={context.Player.CurrentCP}",
+                        context.Player);
+
+                    if (!context.Player.SpendCP(cpCost))
+                    {
+                        BattleDiagnostics.Log(
+                            "PAE.BUITI",
+                            $"b=1 phase=PAE.CP.Fail actor={context.Player.DisplayName}#{context.Player.GetInstanceID()} actionId={context.Selection.Action?.id ?? "(null)"} cpTotal={cpCost} cpBefore={context.Player.CurrentCP}",
+                            context.Player);
+
+                        if (spSpent > 0)
+                        {
+                            BattleDiagnostics.Log(
+                                "PAE.BUITI",
+                                $"b=1 phase=PAE.CP.Fail.RollbackSP actor={context.Player.DisplayName}#{context.Player.GetInstanceID()} actionId={context.Selection.Action?.id ?? "(null)"} spRefund={spSpent} spBefore={context.Player.CurrentSP}",
+                                context.Player);
+                            context.Player.RestoreSP(spSpent);
+                            spSpent = 0;
+                        }
+                        context.OnFallback?.Invoke();
+                        return;
+                    }
+
+                    cpSpent = cpCost;
+                    BattleDiagnostics.Log(
+                        "PAE.BUITI",
+                        $"b=1 phase=PAE.CP.Charged actor={context.Player.DisplayName}#{context.Player.GetInstanceID()} actionId={context.Selection.Action?.id ?? "(null)"} cpTotal={cpCost} cpAfter={context.Player.CurrentCP}",
+                        context.Player);
+
+                    resourcesCharged = true;
+                    resourcesPost = ResourceSnapshot.FromCombatant(context.Player);
+                }
 
                 var request = new ActionRequest(
                     context.Manager,
@@ -76,13 +150,41 @@ namespace BattleV2.Orchestration.Services
                     context.CombatContext,
                     judgment);
 
+                BattleDiagnostics.Log(
+                    "PAE.BUITI",
+                    $"b=1 phase=PAE.Pipeline.Start actor={context.Player.DisplayName}#{context.Player.GetInstanceID()} actionId={context.Selection.Action?.id ?? "(null)"} targets={(targets != null ? targets.Count : 0)}",
+                    context.Player);
+
                 var result = await actionPipeline.Run(request);
                 BattleDiagnostics.Log(
                     "AddCp.Debugging01",
                     $"phase=PipelineResult actor={context.Player?.DisplayName ?? "(null)"}#{context.Player?.GetInstanceID() ?? 0} actionId={context.Selection.Action?.id ?? "(null)"} success={result.Success} timedResult={(result.TimedResult.HasValue ? "yes" : "no")}",
                     context.Player);
+                BattleDiagnostics.Log(
+                    "PAE.BUITI",
+                    $"b=1 phase=PAE.Pipeline.End actor={context.Player.DisplayName}#{context.Player.GetInstanceID()} actionId={context.Selection.Action?.id ?? "(null)"} success={result.Success}",
+                    context.Player);
                 if (!result.Success)
                 {
+                    if (cpSpent > 0)
+                    {
+                        BattleDiagnostics.Log(
+                            "PAE.BUITI",
+                            $"b=1 phase=PAE.Fail.RefundCP actor={context.Player.DisplayName}#{context.Player.GetInstanceID()} actionId={context.Selection.Action?.id ?? "(null)"} cpRefund={cpSpent} cpBefore={context.Player.CurrentCP}",
+                            context.Player);
+                        context.Player.AddCP(cpSpent);
+                        cpSpent = 0;
+                    }
+
+                    if (spSpent > 0)
+                    {
+                        BattleDiagnostics.Log(
+                            "PAE.BUITI",
+                            $"b=1 phase=PAE.Fail.RefundSP actor={context.Player.DisplayName}#{context.Player.GetInstanceID()} actionId={context.Selection.Action?.id ?? "(null)"} spRefund={spSpent} spBefore={context.Player.CurrentSP}",
+                            context.Player);
+                        context.Player.RestoreSP(spSpent);
+                        spSpent = 0;
+                    }
                     context.OnFallback?.Invoke();
                     return;
                 }
@@ -96,14 +198,10 @@ namespace BattleV2.Orchestration.Services
                     "ActionCharge",
                     $"actor={(context.Player != null ? context.Player.DisplayName : "(null)")}#{(context.Player != null ? context.Player.GetInstanceID() : 0)} actionId={context.Selection.Action?.id ?? "(null)"} cpPre={resourcesPre.CpCurrent} cpPost={resourcesPost.CpCurrent} spPre={resourcesPre.SpCurrent} spPost={resourcesPost.SpCurrent} cpCharge={context.Selection.CpCharge}",
                     context.Player);
-                if (resourcesCharged)
+                if (!resourcesCharged && cpCost > 0)
                 {
-#if UNITY_EDITOR
-                    Debug.Assert(false, $"[CP/SP] Duplicate charge: action={context.Selection.Action?.id ?? "null"} actor={context.Player?.name ?? "(null)"}");
-#endif
-                    Debug.LogWarning($"[CP/SP] Duplicate charge detected: action={context.Selection.Action?.id ?? "null"} actor={context.Player?.name ?? "(null)"}");
+                    Debug.LogWarning($"[CP/SP] Expected CP charge but none occurred: action={context.Selection.Action?.id ?? "null"} actor={context.Player?.name ?? "(null)"}");
                 }
-                resourcesCharged = true;
                 var judgmentWithCosts = judgment.WithPostCost(resourcesPost);
 
                 var timedGrade = ActionJudgment.ResolveTimedGrade(resolvedTimedResult);
@@ -147,6 +245,41 @@ namespace BattleV2.Orchestration.Services
             }
             catch (Exception ex)
             {
+                var actorName = context.Player?.DisplayName ?? "(null)";
+                int actorId = context.Player != null ? context.Player.GetInstanceID() : 0;
+                var actionId = context.Selection.Action?.id ?? "(null)";
+
+                BattleDiagnostics.Log(
+                    "PAE.BUITI",
+                    $"b=1 phase=PAE.Exception actor={actorName}#{actorId} actionId={actionId} cpSpent={cpSpent} spSpent={spSpent}",
+                    context.Player);
+                BattleDiagnostics.Log(
+                    "PAE.BUITI",
+                    $"b=1 phase=PAE.Exception.Detail actor={actorName}#{actorId} actionId={actionId} exType={(ex != null ? ex.GetType().Name : "(null)")} exMsg={(ex != null ? ex.Message : "(null)")}",
+                    context.Player);
+                // If execution failed after spending CP, refund to avoid silent loss.
+                if (context.Player != null)
+                {
+                    int refundCp = Mathf.Max(0, cpSpent);
+                    if (refundCp > 0)
+                    {
+                        BattleDiagnostics.Log(
+                            "PAE.BUITI",
+                            $"b=1 phase=PAE.Exception.RefundCP actor={actorName}#{actorId} actionId={actionId} cpRefund={refundCp} cpBefore={context.Player.CurrentCP}",
+                            context.Player);
+                        context.Player.AddCP(refundCp);
+                    }
+
+                    int refundSp = Mathf.Max(0, spSpent);
+                    if (refundSp > 0)
+                    {
+                        BattleDiagnostics.Log(
+                            "PAE.BUITI",
+                            $"b=1 phase=PAE.Exception.RefundSP actor={actorName}#{actorId} actionId={actionId} spRefund={refundSp} spBefore={context.Player.CurrentSP}",
+                            context.Player);
+                        context.Player.RestoreSP(refundSp);
+                    }
+                }
                 Debug.LogError($"[BattleManagerV2] Player action threw exception: {ex}");
                 context.OnFallback?.Invoke();
             }
@@ -182,8 +315,17 @@ namespace BattleV2.Orchestration.Services
                 int overflow = totalComboPointsAwarded - refundCap;
                 if (overflow > 0 && player != null)
                 {
-                    player.SpendCP(overflow);
-                    totalComboPointsAwarded -= overflow;
+                    if (player.SpendCP(overflow))
+                    {
+                        totalComboPointsAwarded -= overflow;
+                    }
+                    else
+                    {
+                        BattleDiagnostics.Log(
+                            "AddCp.Debugging01",
+                            $"phase=ApplyLunarChainRefunds overflow_spend_failed actor={player.DisplayName}#{player.GetInstanceID()} overflow={overflow}",
+                            player);
+                    }
                 }
             }
 
@@ -312,21 +454,23 @@ namespace BattleV2.Orchestration.Services
         }
     }
 
-        public readonly struct PlayerActionExecutionContext
-        {
-            public BattleManagerV2 Manager { get; init; }
-            public CombatantState Player { get; init; }
-            public BattleSelection Selection { get; init; }
-            public IAction Implementation { get; init; }
-            public CombatContext CombatContext { get; init; }
-            public ExecutionSnapshot Snapshot { get; init; }
-            public Task PlaybackTask { get; init; }
-            public int ComboPointsBefore { get; init; }
-            public BattleV2.Execution.ActionJudgment Judgment { get; init; }
-            public Func<bool> TryResolveBattleEnd { get; init; }
-            public Action RefreshCombatContext { get; init; }
-            public Action<BattleSelection, int, int> OnActionResolved { get; init; }
-            public Action OnFallback { get; init; }
-            public Action<BattleState> SetState { get; init; }
+    public readonly struct PlayerActionExecutionContext
+    {
+        public BattleManagerV2 Manager { get; init; }
+        public CombatantState Player { get; init; }
+        public BattleSelection Selection { get; init; }
+        public IAction Implementation { get; init; }
+        public CombatContext CombatContext { get; init; }
+        public ExecutionSnapshot Snapshot { get; init; }
+        public Task PlaybackTask { get; init; }
+        public int ComboPointsBefore { get; init; }
+        public BattleV2.Execution.ActionJudgment Judgment { get; init; }
+        public Func<bool> TryResolveBattleEnd { get; init; }
+        public Action RefreshCombatContext { get; init; }
+        public Action<BattleSelection, int, int> OnActionResolved { get; init; }
+        public Action OnFallback { get; init; }
+        public Action<BattleState> SetState { get; init; }
+        public int BaseSpCost { get; init; }
+        public int BaseCpCost { get; init; }
     }
 }

@@ -65,7 +65,7 @@ namespace BattleV2.Execution.TimedHits
         {
             using (cancellationToken.Register(() => completionSource.TrySetCanceled(cancellationToken), useSynchronizationContext: false))
             {
-                return await completionSource.Task.ConfigureAwait(false);
+                return await completionSource.Task;
             }
         }
     }

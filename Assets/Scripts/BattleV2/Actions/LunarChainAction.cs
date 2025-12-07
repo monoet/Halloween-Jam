@@ -131,21 +131,6 @@ namespace BattleV2.Actions
                 return;
             }
 
-            if (costSp > 0 && !actor.SpendSP(costSp))
-            {
-                BattleLogger.Warn("KS1", "Not enough SP to cast KS1 Lunar Chain.");
-                onComplete?.Invoke();
-                return;
-            }
-
-            int totalCpCost = costCp + Mathf.Max(0, cpCharge);
-            if (totalCpCost > 0 && !actor.SpendCP(totalCpCost))
-            {
-                BattleLogger.Warn("KS1", "Not enough CP to cast KS1 Lunar Chain.");
-                onComplete?.Invoke();
-                return;
-            }
-
             if (!TryBuildDamageSnapshot(actor, context, cpCharge, out var snapshot))
             {
                 BattleLogger.Warn("KS1", "Lunar Chain executed without a valid timed-hit profile; no damage applied.");

@@ -25,7 +25,7 @@ namespace BattleV2.Execution.TimedHits
             {
                 if (next != null)
                 {
-                    await next().ConfigureAwait(false);
+                    await next();
                 }
                 return;
             }
@@ -34,7 +34,7 @@ namespace BattleV2.Execution.TimedHits
             {
                 if (next != null)
                 {
-                    await next().ConfigureAwait(false);
+                    await next();
                 }
                 return;
             }
@@ -104,7 +104,7 @@ namespace BattleV2.Execution.TimedHits
             {
                 if (next != null)
                 {
-                    await next().ConfigureAwait(false);
+                    await next();
                 }
             }
             finally

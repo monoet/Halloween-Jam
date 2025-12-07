@@ -807,6 +807,21 @@ namespace BattleV2.Orchestration
             var resourcesPre = ResourceSnapshot.FromCombatant(currentPlayer);
             var resourcesPost = ResourceSnapshot.FromCombatant(currentPlayer);
             var actionJudgment = ActionJudgment.FromSelection(enrichedSelection, currentPlayer, enrichedSelection.CpCharge, judgmentSeed, resourcesPre, resourcesPost);
+
+            int baseSpCost = 0;
+            int baseCpCost = 0;
+            if (implementation is IAction costedAction)
+            {
+                baseSpCost = Mathf.Max(0, costedAction.CostSP);
+                baseCpCost = Mathf.Max(0, costedAction.CostCP);
+            }
+            int cpCharge = Mathf.Max(0, enrichedSelection.CpCharge);
+            int totalCpCost = baseCpCost + cpCharge;
+
+            BattleDiagnostics.Log(
+                "PAE.BUITI",
+                $"b=1 phase=BM.Commit actor={(currentPlayer != null ? currentPlayer.DisplayName : "(null)")}#{(currentPlayer != null ? currentPlayer.GetInstanceID() : 0)} actionId={enrichedSelection.Action?.id ?? "(null)"} spBase={baseSpCost} cpBase={baseCpCost} cpCharge={cpCharge} cpTotal={totalCpCost} cpBefore={cpBefore} targets={(targetsList != null ? targetsList.Count : 0)}",
+                currentPlayer);
             
             if (playerActionExecutor == null)
             {
@@ -826,6 +841,8 @@ namespace BattleV2.Orchestration
                 PlaybackTask = playbackTask,
                 ComboPointsBefore = cpBefore,
                 Judgment = actionJudgment,
+                BaseSpCost = baseSpCost,
+                BaseCpCost = baseCpCost,
                 TryResolveBattleEnd = () => battleEndService != null && battleEndService.TryResolve(rosterSnapshot, currentPlayer, state),
                 RefreshCombatContext = RefreshCombatContext,
                 OnActionResolved = (resolved, before, after) => OnPlayerActionResolved?.Invoke(resolved, before, after),
