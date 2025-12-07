@@ -28,7 +28,25 @@ namespace BattleV2.UI
     {
         // IBattleUIInput Implementation
         public bool ConfirmHeld => IsAnyKeyHeld(confirmKeys);
-        public bool ConfirmPressedThisFrame => IsAnyKeyPressed(confirmKeys);
+        public bool ConfirmPressedThisFrame
+        {
+            get
+            {
+                if (!IsAnyKeyPressed(confirmKeys))
+                {
+                    return false;
+                }
+
+                int frame = Time.frameCount;
+                if (frame == lastSubmitFrame)
+                {
+                    return false;
+                }
+
+                lastSubmitFrame = frame;
+                return true;
+            }
+        }
         public bool CancelHeld => IsAnyKeyHeld(cancelKeys);
         public bool CancelPressedThisFrame => IsAnyKeyPressed(cancelKeys);
         public Vector2 NavigationDirection => new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
@@ -68,6 +86,7 @@ namespace BattleV2.UI
         private ICpIntentSink cpIntentSink;
         private ICpIntentSource cpIntentSource;
         private bool suppressNavigateSfx;
+        private int lastSubmitFrame = -1;
 
         public BattleUIRoot UiRoot => uiRoot;
         public ITimedHitService TimedHitService { get; private set; }
@@ -373,6 +392,7 @@ namespace BattleV2.UI
             Input.ResetInputAxes();
             lastDirection = Vector2.zero;
             nextMoveTime = 0;
+            lastSubmitFrame = -1;
             Debug.Log("[InputDriver] Input Axes Reset.");
         }
     }

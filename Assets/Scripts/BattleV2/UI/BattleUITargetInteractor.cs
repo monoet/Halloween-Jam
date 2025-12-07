@@ -24,6 +24,7 @@ namespace BattleV2.UI
         private CombatantState[] lastCandidates = System.Array.Empty<CombatantState>();
         private int currentIndex;
         private bool confirmInFlight;
+        private bool virtualSubscribed;
 
         private void LogB1(string phase, string details)
         {
@@ -94,7 +95,7 @@ namespace BattleV2.UI
                 {
                     Debug.Log("[BattleUITargetInteractor] Virtual Mode: Setting InputDriver state to TargetSelectionState(true)");
                     inputDriver.SetState(new TargetSelectionState(true));
-                    inputDriver.OnNavigate += HandleNavigate;
+                    SubscribeVirtual();
                 }
                 
                 if (lastCandidates.Length > 0)
@@ -115,24 +116,10 @@ namespace BattleV2.UI
                     Debug.LogError("[BattleUITargetInteractor] InputDriver is NULL! Cannot set state.");
                 }
 
-                if (uiRoot != null)
-                {
-                    // El estado TargetSelectionState ya hace EnterTarget; evitar doble push en el stack
-                }
-                else
-                {
-                    targetPanel.gameObject.SetActive(true);
-                }
-
-                targetPanel.OnTargetSelected += HandleSelected;
-                targetPanel.OnCancelRequested += HandleCancel;
+                SubscribePanel();
             }
 
-            if (uiRoot != null)
-            {
-                uiRoot.OnTargetCancel += HandleCancel;
-                uiRoot.OnTargetConfirmed += HandleConfirm;
-            }
+            SubscribeUiRoot(subscribeConfirm: targetPanel == null);
 
             return pendingTcs.Task;
         }
@@ -183,10 +170,6 @@ namespace BattleV2.UI
                 LogB1("BUITI.ResolveOnce.Block", $"reason=Exception sessionId={currentSessionId} ex={ex.GetType().Name}");
                 throw;
             }
-            finally
-            {
-                confirmInFlight = false;
-            }
         }
 
         private void ResolveAndClear(TargetSet result, TaskCompletionSource<TargetSet> tcs)
@@ -195,23 +178,10 @@ namespace BattleV2.UI
 
             tcs?.TrySetResult(result);
 
-            if (targetPanel != null)
-            {
-                targetPanel.OnTargetSelected -= HandleSelected;
-                targetPanel.OnCancelRequested -= HandleCancel;
-                targetPanel.gameObject.SetActive(false);
-            }
-
-            if (uiRoot != null)
-            {
-                uiRoot.OnTargetCancel -= HandleCancel;
-            }
-
-            if (inputDriver != null)
-            {
-                inputDriver.OnNavigate -= HandleNavigate;
-            }
-
+            UnsubscribePanel();
+            UnsubscribeVirtual();
+            UnsubscribeUiRoot();
+            confirmInFlight = false;
             ClearAllHighlights();
         }
 
@@ -344,6 +314,91 @@ namespace BattleV2.UI
             {
                 widget.SetHighlighted(highlighted);
             }
+        }
+
+        private void SubscribePanel()
+        {
+            if (targetPanel == null)
+            {
+                return;
+            }
+
+            targetPanel.OnTargetSelected -= HandleSelected;
+            targetPanel.OnTargetSelected += HandleSelected;
+            targetPanel.OnCancelRequested -= HandleCancel;
+            targetPanel.OnCancelRequested += HandleCancel;
+
+            if (uiRoot == null)
+            {
+                targetPanel.gameObject.SetActive(true);
+            }
+        }
+
+        private void UnsubscribePanel()
+        {
+            if (targetPanel == null)
+            {
+                return;
+            }
+
+            targetPanel.OnTargetSelected -= HandleSelected;
+            targetPanel.OnCancelRequested -= HandleCancel;
+            if (uiRoot == null)
+            {
+                targetPanel.gameObject.SetActive(false);
+            }
+        }
+
+        private void SubscribeVirtual()
+        {
+            if (inputDriver == null || targetPanel != null || virtualSubscribed)
+            {
+                return;
+            }
+
+            inputDriver.OnNavigate -= HandleNavigate;
+            inputDriver.OnNavigate += HandleNavigate;
+            virtualSubscribed = true;
+        }
+
+        private void UnsubscribeVirtual()
+        {
+            if (inputDriver == null || !virtualSubscribed)
+            {
+                virtualSubscribed = false;
+                return;
+            }
+
+            inputDriver.OnNavigate -= HandleNavigate;
+            virtualSubscribed = false;
+        }
+
+        private void SubscribeUiRoot(bool subscribeConfirm)
+        {
+            if (uiRoot == null)
+            {
+                return;
+            }
+
+            uiRoot.OnTargetCancel -= HandleCancel;
+            uiRoot.OnTargetCancel += HandleCancel;
+
+            if (subscribeConfirm)
+            {
+                uiRoot.OnTargetConfirmed -= HandleConfirm;
+                uiRoot.OnTargetConfirmed += HandleConfirm;
+            }
+        }
+
+        private void UnsubscribeUiRoot()
+        {
+            if (uiRoot == null)
+            {
+                return;
+            }
+
+            uiRoot.OnTargetCancel -= HandleCancel;
+            uiRoot.OnTargetConfirmed -= HandleConfirm;
         }
     }
 }

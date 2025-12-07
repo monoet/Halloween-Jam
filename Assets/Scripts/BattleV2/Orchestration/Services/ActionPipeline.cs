@@ -45,21 +45,23 @@ namespace BattleV2.Orchestration.Services
 
     public readonly struct ActionResult
     {
-        private ActionResult(bool success, TimedHitResult? timedResult, int comboPointsAwarded)
+        private ActionResult(bool success, TimedHitResult? timedResult, int comboPointsAwarded, bool effectsApplied)
         {
             Success = success;
             TimedResult = timedResult;
             ComboPointsAwarded = comboPointsAwarded;
+            EffectsApplied = effectsApplied;
         }
 
         public bool Success { get; }
         public TimedHitResult? TimedResult { get; }
         public int ComboPointsAwarded { get; }
+        public bool EffectsApplied { get; }
 
-        public static ActionResult From(TimedHitResult? timedResult, int comboPointsAwarded) =>
-            new(true, timedResult, comboPointsAwarded);
+        public static ActionResult From(TimedHitResult? timedResult, int comboPointsAwarded, bool effectsApplied = false) =>
+            new(true, timedResult, comboPointsAwarded, effectsApplied);
 
-        public static ActionResult Failure => new(false, null, 0);
+        public static ActionResult Failure(bool effectsApplied = false) => new(false, null, 0, effectsApplied);
     }
 
     public interface IActionPipeline
@@ -79,39 +81,59 @@ namespace BattleV2.Orchestration.Services
             this.eventBus = eventBus;
         }
 
-        public Task<ActionResult> Run(ActionRequest request)
+        public async Task<ActionResult> Run(ActionRequest request)
         {
             if (request.Manager == null || request.Actor == null || request.Selection.Action == null || request.Implementation == null)
             {
-                return Task.FromResult(ActionResult.Failure);
+                return ActionResult.Failure();
             }
 
             if (request.Implementation is BattleV2.Actions.IActionMultiTarget multiTarget)
             {
-                var targets = request.Targets ?? Array.Empty<CombatantState>();
-                if (targets.Count == 0 && request.PrimaryTarget != null)
-                {
-                    targets = new[] { request.PrimaryTarget };
-                }
-
-                try
-                {
-                    multiTarget.ExecuteMulti(request.Actor, request.CombatContext, targets, request.Selection, () => { });
-                }
-                catch (Exception ex)
-                {
-                    UnityEngine.Debug.LogError($"[ActionPipeline] Multi-target action threw exception: {ex}");
-                    return Task.FromResult(ActionResult.Failure);
-                }
-
-                return Task.FromResult(ActionResult.From(null, 0));
+                return await RunMultiTargetAsync(request, multiTarget);
             }
 
-            return RunLegacyPipelineAsync(request);
+            return await RunLegacyPipelineAsync(request);
+        }
+
+        private static async Task<ActionResult> RunMultiTargetAsync(ActionRequest request, BattleV2.Actions.IActionMultiTarget multiTarget)
+        {
+            await UnityThread.SwitchToMainThread();
+            UnityThread.AssertMainThread("RunMultiTargetAsync.Enter");
+            BattleDiagnostics.Log(
+                "Thread.debug00",
+                $"[Thread.debug00][PipeLegacy.Multi.Enter] tid={System.Threading.Thread.CurrentThread.ManagedThreadId} mainTid={UnityMainThreadGuard.MainThreadId} isMain={UnityMainThreadGuard.IsMainThread()} actor={request.Actor?.DisplayName ?? "(null)"}#{request.Actor?.GetInstanceID() ?? 0} actionId={request.Selection.Action?.id ?? "(null)"}",
+                request.Actor);
+
+            var targets = request.Targets ?? Array.Empty<CombatantState>();
+            if (targets.Count == 0 && request.PrimaryTarget != null)
+            {
+                targets = new[] { request.PrimaryTarget };
+            }
+
+            try
+            {
+                multiTarget.ExecuteMulti(request.Actor, request.CombatContext, targets, request.Selection, () => { });
+            }
+            catch (Exception ex)
+            {
+                UnityEngine.Debug.LogError($"[ActionPipeline] Multi-target action threw exception: {ex}");
+                return ActionResult.Failure(true);
+            }
+
+            return ActionResult.From(null, 0, true);
         }
 
         private async Task<ActionResult> RunLegacyPipelineAsync(ActionRequest request)
         {
+            await UnityThread.SwitchToMainThread();
+            UnityThread.AssertMainThread("RunLegacyPipelineAsync.Enter");
+
+            BattleDiagnostics.Log(
+                "Thread.debug00",
+                $"[Thread.debug00][PipeLegacy.Enter] tid={System.Threading.Thread.CurrentThread.ManagedThreadId} mainTid={UnityMainThreadGuard.MainThreadId} isMain={UnityMainThreadGuard.IsMainThread()} actor={request.Actor?.DisplayName ?? "(null)"}#{request.Actor?.GetInstanceID() ?? 0} actionId={request.Selection.Action?.id ?? "(null)"}",
+                request.Actor);
+
             var pipelineFactory = new DefaultActionPipelineFactory(request.Manager);
             var pipeline = pipelineFactory.CreatePipeline(request.Selection.Action, request.Implementation);
 
@@ -128,8 +150,43 @@ namespace BattleV2.Orchestration.Services
                 request.Selection,
                 request.Judgment);
 
-            await pipeline.ExecuteAsync(actionContext);
-            return ActionResult.From(actionContext.TimedResult, actionContext.ComboPointsAwarded);
+            await UnityThread.SwitchToMainThread();
+            UnityThread.AssertMainThread("RunLegacyPipelineAsync.BeforeExecute");
+
+            BattleDiagnostics.Log(
+                "Thread.debug00",
+                $"[Thread.debug00][PipeLegacy.AwaitExecute.Before] tid={System.Threading.Thread.CurrentThread.ManagedThreadId} mainTid={UnityMainThreadGuard.MainThreadId} isMain={UnityMainThreadGuard.IsMainThread()}",
+                request.Actor);
+
+            try
+            {
+                await pipeline.ExecuteAsync(actionContext);
+            }
+            catch (Exception ex)
+            {
+                BattleDiagnostics.Log(
+                    "Thread.debug00",
+                    $"[Thread.debug00][PipeLegacy.Exception] tid={System.Threading.Thread.CurrentThread.ManagedThreadId} isMain={UnityMainThreadGuard.IsMainThread()} mainTid={UnityMainThreadGuard.MainThreadId} ex={ex.GetType().Name} msg={ex.Message}",
+                    request.Actor);
+                await UnityThread.SwitchToMainThread();
+                UnityThread.AssertMainThread("RunLegacyPipelineAsync.ExceptionExit");
+                return ActionResult.Failure(actionContext.EffectsApplied);
+            }
+
+            await UnityThread.SwitchToMainThread();
+            UnityThread.AssertMainThread("RunLegacyPipelineAsync.Exit");
+
+            BattleDiagnostics.Log(
+                "Thread.debug00",
+                $"[Thread.debug00][PipeLegacy.AwaitExecute.After] tid={System.Threading.Thread.CurrentThread.ManagedThreadId} mainTid={UnityMainThreadGuard.MainThreadId} isMain={UnityMainThreadGuard.IsMainThread()}",
+                request.Actor);
+
+            BattleDiagnostics.Log(
+                "Thread.debug00",
+                $"[Thread.debug00][PipeLegacy.Exit] tid={System.Threading.Thread.CurrentThread.ManagedThreadId} mainTid={UnityMainThreadGuard.MainThreadId} isMain={UnityMainThreadGuard.IsMainThread()}",
+                request.Actor);
+
+            return ActionResult.From(actionContext.TimedResult, actionContext.ComboPointsAwarded, actionContext.EffectsApplied);
         }
 
         private static CombatContext EnsureTargetContext(CombatContext context, CombatantState target)

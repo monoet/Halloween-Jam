@@ -197,6 +197,8 @@ public class CombatantState : MonoBehaviour
 
     public void TakeDamage(int amount)
     {
+        UnityThread.AssertMainThread("CombatantState.TakeDamage");
+
         if (amount < 0)
         {
             amount = 0;
@@ -259,6 +261,8 @@ public class CombatantState : MonoBehaviour
 
     public bool SpendCP(int amount)
     {
+        UnityThread.AssertMainThread("CombatantState.SpendCP");
+
         if (amount <= 0)
         {
             return true;
@@ -315,6 +319,8 @@ public class CombatantState : MonoBehaviour
 
     public bool SpendSP(int amount)
     {
+        UnityThread.AssertMainThread("CombatantState.SpendSP");
+
         if (amount <= 0)
         {
             return true;

@@ -53,6 +53,12 @@ namespace BattleV2.Execution
         public int TotalDamageApplied { get; set; }
         public int ComboPointsAwarded { get; set; }
         public Action<TimedHitPhaseResult> PhaseResultListener { get; set; }
+        public bool EffectsApplied { get; private set; }
+
+        public void MarkEffectsApplied(string reason = null)
+        {
+            EffectsApplied = true;
+        }
     }
 }
 

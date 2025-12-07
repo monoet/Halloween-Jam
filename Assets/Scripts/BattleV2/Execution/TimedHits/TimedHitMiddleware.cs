@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using BattleV2.Actions;
 using BattleV2.AnimationSystem.Execution.Runtime;
@@ -22,6 +23,11 @@ namespace BattleV2.Execution.TimedHits
 
         public async Task InvokeAsync(ActionContext context, Func<Task> next)
         {
+            BattleDiagnostics.Log(
+                "Thread.debug00",
+                $"[Thread.debug00][MW.{nameof(TimedHitMiddleware)}.Enter] tid={Thread.CurrentThread.ManagedThreadId} isMain={UnityMainThreadGuard.IsMainThread()}",
+                context?.Attacker);
+
             var selection = context.Selection;
             if (selection.TimedHitResult.HasValue)
             {
@@ -36,7 +42,15 @@ namespace BattleV2.Execution.TimedHits
 
                 if (next != null)
                 {
+                    BattleDiagnostics.Log(
+                        "Thread.debug00",
+                        $"[Thread.debug00][MW.{nameof(TimedHitMiddleware)}.AwaitNext.Before] tid={Thread.CurrentThread.ManagedThreadId} isMain={UnityMainThreadGuard.IsMainThread()}",
+                        context.Attacker);
                     await next();
+                    BattleDiagnostics.Log(
+                        "Thread.debug00",
+                        $"[Thread.debug00][MW.{nameof(TimedHitMiddleware)}.AwaitNext.After] tid={Thread.CurrentThread.ManagedThreadId} isMain={UnityMainThreadGuard.IsMainThread()}",
+                        context.Attacker);
                 }
                 return;
             }
@@ -46,7 +60,15 @@ namespace BattleV2.Execution.TimedHits
             {
                 try
                 {
+                    BattleDiagnostics.Log(
+                        "Thread.debug00",
+                        $"[Thread.debug00][MW.{nameof(TimedHitMiddleware)}.Handle.Wait.Before] tid={Thread.CurrentThread.ManagedThreadId} isMain={UnityMainThreadGuard.IsMainThread()}",
+                        context.Attacker);
                     var awaited = await handle.WaitAsync(context.CancellationToken);
+                    BattleDiagnostics.Log(
+                        "Thread.debug00",
+                        $"[Thread.debug00][MW.{nameof(TimedHitMiddleware)}.Handle.Wait.After] tid={Thread.CurrentThread.ManagedThreadId} isMain={UnityMainThreadGuard.IsMainThread()}",
+                        context.Attacker);
                     if (awaited.HasValue)
                     {
                         context.TimedResult = awaited.Value;
@@ -69,7 +91,15 @@ namespace BattleV2.Execution.TimedHits
 
                 if (next != null)
                 {
+                    BattleDiagnostics.Log(
+                        "Thread.debug00",
+                        $"[Thread.debug00][MW.{nameof(TimedHitMiddleware)}.AwaitNext.Before] tid={Thread.CurrentThread.ManagedThreadId} isMain={UnityMainThreadGuard.IsMainThread()}",
+                        context.Attacker);
                     await next();
+                    BattleDiagnostics.Log(
+                        "Thread.debug00",
+                        $"[Thread.debug00][MW.{nameof(TimedHitMiddleware)}.AwaitNext.After] tid={Thread.CurrentThread.ManagedThreadId} isMain={UnityMainThreadGuard.IsMainThread()}",
+                        context.Attacker);
                 }
                 return;
             }
@@ -114,11 +144,27 @@ namespace BattleV2.Execution.TimedHits
             {
                 if (timedHitService != null)
                 {
+                    BattleDiagnostics.Log(
+                        "Thread.debug00",
+                        $"[Thread.debug00][MW.{nameof(TimedHitMiddleware)}.RunAsync.Before] tid={Thread.CurrentThread.ManagedThreadId} isMain={UnityMainThreadGuard.IsMainThread()}",
+                        context.Attacker);
                     result = await timedHitService.RunAsync(request, context.PhaseResultListener);
+                    BattleDiagnostics.Log(
+                        "Thread.debug00",
+                        $"[Thread.debug00][MW.{nameof(TimedHitMiddleware)}.RunAsync.After] tid={Thread.CurrentThread.ManagedThreadId} isMain={UnityMainThreadGuard.IsMainThread()}",
+                        context.Attacker);
                 }
                 else
                 {
+                    BattleDiagnostics.Log(
+                        "Thread.debug00",
+                        $"[Thread.debug00][MW.{nameof(TimedHitMiddleware)}.RunFallback.Before] tid={Thread.CurrentThread.ManagedThreadId} isMain={UnityMainThreadGuard.IsMainThread()}",
+                        context.Attacker);
                     result = await RunWithFallbackAsync(request, context.PhaseResultListener);
+                    BattleDiagnostics.Log(
+                        "Thread.debug00",
+                        $"[Thread.debug00][MW.{nameof(TimedHitMiddleware)}.RunFallback.After] tid={Thread.CurrentThread.ManagedThreadId} isMain={UnityMainThreadGuard.IsMainThread()}",
+                        context.Attacker);
                 }
             }
             catch (OperationCanceledException)
@@ -137,7 +183,15 @@ namespace BattleV2.Execution.TimedHits
 
             if (next != null)
             {
+                BattleDiagnostics.Log(
+                    "Thread.debug00",
+                    $"[Thread.debug00][MW.{nameof(TimedHitMiddleware)}.AwaitNext.Before] tid={Thread.CurrentThread.ManagedThreadId} isMain={UnityMainThreadGuard.IsMainThread()}",
+                    context.Attacker);
                 await next();
+                BattleDiagnostics.Log(
+                    "Thread.debug00",
+                    $"[Thread.debug00][MW.{nameof(TimedHitMiddleware)}.AwaitNext.After] tid={Thread.CurrentThread.ManagedThreadId} isMain={UnityMainThreadGuard.IsMainThread()}",
+                    context.Attacker);
             }
         }
 

@@ -1,3 +1,4 @@
+using System.Threading;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using BattleV2.AnimationSystem.Execution.Runtime;
@@ -169,6 +170,15 @@ namespace BattleV2.UI
 
         public void HandleInput(BattleUIInputDriver driver)
         {
+            if (!isVirtual && driver.UiRoot != null && !driver.UiRoot.IsTargeting)
+            {
+                BattleDiagnostics.Log(
+                    "Thread.debug00",
+                    $"[Thread.debug00][Target.NoPending] tid={Thread.CurrentThread.ManagedThreadId} isMain={UnityMainThreadGuard.IsMainThread()} reason=NotTargetMode",
+                    driver);
+                return;
+            }
+
             driver.HandleNavigation();
             driver.HandleCpIntentHotkeys();
 

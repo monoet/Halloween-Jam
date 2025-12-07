@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using BattleV2.Charge;
+using BattleV2.Core;
 
 namespace BattleV2.Execution.TimedHits
 {
@@ -65,7 +66,19 @@ namespace BattleV2.Execution.TimedHits
         {
             using (cancellationToken.Register(() => completionSource.TrySetCanceled(cancellationToken), useSynchronizationContext: false))
             {
-                return await completionSource.Task;
+                BattleDiagnostics.Log(
+                    "Thread.debug00",
+                    $"[Thread.debug00][TimedWait.Enter] tid={Thread.CurrentThread.ManagedThreadId} isMain={UnityMainThreadGuard.IsMainThread()} cancelable={cancellationToken.CanBeCanceled}",
+                    null);
+
+                var result = await completionSource.Task;
+
+                BattleDiagnostics.Log(
+                    "Thread.debug00",
+                    $"[Thread.debug00][TimedWait.AfterAwait] tid={Thread.CurrentThread.ManagedThreadId} isMain={UnityMainThreadGuard.IsMainThread()}",
+                    null);
+
+                return result;
             }
         }
     }

@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using BattleV2.Actions;
 using BattleV2.Anim;
@@ -88,6 +89,7 @@ namespace BattleV2.Execution.TimedHits
 
                 TryAwardComboPoint(phase);
 
+                context.MarkEffectsApplied("PhaseDamageMiddleware.HandlePhaseResolved");
                 context.Target.TakeDamage(damageValue);
                 totalDamage += damageValue;
                 appliedAny = true;
@@ -102,9 +104,22 @@ namespace BattleV2.Execution.TimedHits
             };
             try
             {
+                BattleDiagnostics.Log(
+                    "Thread.debug00",
+                    $"[Thread.debug00][MW.{nameof(PhaseDamageMiddleware)}.Enter] tid={Thread.CurrentThread.ManagedThreadId} isMain={UnityMainThreadGuard.IsMainThread()}",
+                    context.Attacker);
+
                 if (next != null)
                 {
+                    BattleDiagnostics.Log(
+                        "Thread.debug00",
+                        $"[Thread.debug00][MW.{nameof(PhaseDamageMiddleware)}.AwaitNext.Before] tid={Thread.CurrentThread.ManagedThreadId} isMain={UnityMainThreadGuard.IsMainThread()}",
+                        context.Attacker);
                     await next();
+                    BattleDiagnostics.Log(
+                        "Thread.debug00",
+                        $"[Thread.debug00][MW.{nameof(PhaseDamageMiddleware)}.AwaitNext.After] tid={Thread.CurrentThread.ManagedThreadId} isMain={UnityMainThreadGuard.IsMainThread()}",
+                        context.Attacker);
                 }
             }
             finally

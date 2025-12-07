@@ -822,6 +822,13 @@ namespace BattleV2.Orchestration
                 "PAE.BUITI",
                 $"b=1 phase=BM.Commit actor={(currentPlayer != null ? currentPlayer.DisplayName : "(null)")}#{(currentPlayer != null ? currentPlayer.GetInstanceID() : 0)} actionId={enrichedSelection.Action?.id ?? "(null)"} spBase={baseSpCost} cpBase={baseCpCost} cpCharge={cpCharge} cpTotal={totalCpCost} cpBefore={cpBefore} targets={(targetsList != null ? targetsList.Count : 0)}",
                 currentPlayer);
+            if (baseCpCost > 0 && cpCharge >= baseCpCost)
+            {
+                BattleDiagnostics.Log(
+                    "PAE.BUITI",
+                    $"b=1 phase=BM.Commit.Warn cpCharge_suspicious baseCp={baseCpCost} cpCharge={cpCharge} totalCp={totalCpCost} actor={(currentPlayer != null ? currentPlayer.DisplayName : "(null)")}#{(currentPlayer != null ? currentPlayer.GetInstanceID() : 0)}",
+                    currentPlayer);
+            }
             
             if (playerActionExecutor == null)
             {
