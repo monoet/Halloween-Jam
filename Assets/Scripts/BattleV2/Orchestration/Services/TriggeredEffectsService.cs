@@ -17,6 +17,7 @@ namespace BattleV2.Orchestration.Services
     public interface ITriggeredEffectsService
     {
         void Schedule(
+            int executionId,
             CombatantState origin,
             BattleSelection selection,
             TimedHitResult? timedResult,
@@ -56,6 +57,7 @@ namespace BattleV2.Orchestration.Services
         }
 
         public void Schedule(
+            int executionId,
             CombatantState origin,
             BattleSelection selection,
             TimedHitResult? timedResult,
@@ -70,6 +72,7 @@ namespace BattleV2.Orchestration.Services
             var snapshotTargets = snapshot.Targets ?? Array.Empty<CombatantState>();
             var effectSelection = selection.WithTimedResult(timedResult);
             var request = new TriggeredEffectRequest(
+                executionId,
                 origin,
                 selection.Action,
                 effectSelection,
@@ -228,7 +231,7 @@ namespace BattleV2.Orchestration.Services
                 var timedGrade = ActionJudgment.ResolveTimedGrade(result.TimedResult);
                 var finalJudgment = judgmentWithCosts.WithTimedGrade(timedGrade);
                 markProcessor?.Process(selection.WithTimedResult(result.TimedResult), finalJudgment, targets);
-                eventBus?.Publish(new ActionCompletedEvent(request.Origin, selection.WithTimedResult(result.TimedResult), targets, true, finalJudgment));
+                eventBus?.Publish(new ActionCompletedEvent(request.ExecutionId, request.Origin, selection.WithTimedResult(result.TimedResult), targets, true, finalJudgment));
             }
             catch (Exception ex)
             {
@@ -260,12 +263,14 @@ namespace BattleV2.Orchestration.Services
     public readonly struct TriggeredEffectRequest
     {
         public TriggeredEffectRequest(
+            int executionId,
             CombatantState origin,
             BattleActionData action,
             BattleSelection selection,
             ExecutionSnapshot snapshot,
             CombatContext context)
         {
+            ExecutionId = executionId;
             Origin = origin;
             Action = action;
             Selection = selection;
@@ -273,6 +278,7 @@ namespace BattleV2.Orchestration.Services
             Context = context;
         }
 
+        public int ExecutionId { get; }
         public CombatantState Origin { get; }
         public BattleActionData Action { get; }
         public BattleSelection Selection { get; }

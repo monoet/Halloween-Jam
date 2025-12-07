@@ -213,7 +213,7 @@ namespace BattleV2.Orchestration.Services
 
                 bool battleEnded = context.TryResolveBattleEnd != null && context.TryResolveBattleEnd();
                 var completedTargets = context.Snapshot.Targets ?? Array.Empty<CombatantState>();
-                eventBus?.Publish(new ActionCompletedEvent(context.Player, resolvedSelection, completedTargets, isTriggered: false, judgment: finalJudgment));
+                eventBus?.Publish(new ActionCompletedEvent(context.ExecutionId, context.Player, resolvedSelection, completedTargets, isTriggered: false, judgment: finalJudgment));
 
                 if (battleEnded)
                 {
@@ -532,7 +532,7 @@ namespace BattleV2.Orchestration.Services
 
             try
             {
-                triggeredEffects.Schedule(context.Player, context.Selection, timedResult, context.Snapshot, context.CombatContext);
+                triggeredEffects.Schedule(context.ExecutionId, context.Player, context.Selection, timedResult, context.Snapshot, context.CombatContext);
             }
             catch (Exception ex)
             {
@@ -555,6 +555,7 @@ namespace BattleV2.Orchestration.Services
 
     public readonly struct PlayerActionExecutionContext
     {
+        public int ExecutionId { get; init; }
         public BattleManagerV2 Manager { get; init; }
         public CombatantState Player { get; init; }
         public BattleSelection Selection { get; init; }

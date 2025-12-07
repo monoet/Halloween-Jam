@@ -138,7 +138,7 @@ namespace BattleV2.Orchestration.Services
             var pipeline = pipelineFactory.CreatePipeline(request.Selection.Action, request.Implementation);
 
             CombatantState effectiveTarget = request.PrimaryTarget ?? request.CombatContext?.Enemy;
-            var combatContext = EnsureTargetContext(request.CombatContext, effectiveTarget);
+            var combatContext = FreezeContext(request.CombatContext, effectiveTarget);
 
             var actionContext = new Execution.ActionContext(
                 request.Manager,
@@ -189,15 +189,23 @@ namespace BattleV2.Orchestration.Services
             return ActionResult.From(actionContext.TimedResult, actionContext.ComboPointsAwarded, actionContext.EffectsApplied);
         }
 
-        private static CombatContext EnsureTargetContext(CombatContext context, CombatantState target)
+        private static CombatContext FreezeContext(CombatContext context, CombatantState target)
         {
-            if (context == null || target == null || context.Enemy == target)
+            if (context == null)
             {
-                return context;
+                return null;
             }
 
-            var runtime = ResolveRuntime(target);
-            return context.WithEnemy(target, runtime);
+            var enemy = target ?? context.Enemy;
+            var enemyRuntime = ResolveRuntime(enemy) ?? context.EnemyRuntime;
+
+            return new CombatContext(
+                context.Player,
+                enemy,
+                context.PlayerRuntime,
+                enemyRuntime,
+                context.Services,
+                context.Catalog);
         }
 
         private static CharacterRuntime ResolveRuntime(CombatantState combatant)

@@ -53,6 +53,8 @@ namespace BattleV2.Core
 
         public static Task SwitchToMainThread()
         {
+            UnityMainThreadGuard.RefreshIfStale();
+
             if (IsMainThread)
             {
                 return Task.CompletedTask;

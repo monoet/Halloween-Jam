@@ -35,8 +35,10 @@ namespace BattleV2.Orchestration.Services
             Action stopTurnService,
             Func<bool> tryResolveBattleEnd,
             Action refreshCombatContext,
-            CancellationToken token)
+            CancellationToken token,
+            int executionId)
         {
+            ExecutionId = executionId;
             Manager = manager;
             Attacker = attacker;
             Player = player;
@@ -52,6 +54,7 @@ namespace BattleV2.Orchestration.Services
             Token = token;
         }
 
+        public int ExecutionId { get; }
         public BattleManagerV2 Manager { get; }
         public CombatantState Attacker { get; }
         public CombatantState Player { get; }
@@ -302,6 +305,7 @@ namespace BattleV2.Orchestration.Services
                 markProcessor?.Process(enrichedSelection, judgment, resolution.Targets);
 
                 triggeredEffects?.Schedule(
+                    context.ExecutionId,
                     attacker,
                     enrichedSelection,
                     result.TimedResult,
@@ -325,7 +329,7 @@ namespace BattleV2.Orchestration.Services
                 PublishDefeatEvents(defeatCandidates, attacker);
 
                 bool battleEnded = context.TryResolveBattleEnd();
-                eventBus?.Publish(new ActionCompletedEvent(attacker, enrichedSelection.WithTimedResult(result.TimedResult), resolution.Targets, isTriggered: false, judgment: judgment));
+                eventBus?.Publish(new ActionCompletedEvent(context.ExecutionId, attacker, enrichedSelection.WithTimedResult(result.TimedResult), resolution.Targets, isTriggered: false, judgment: judgment));
 
                 if (battleEnded)
                 {

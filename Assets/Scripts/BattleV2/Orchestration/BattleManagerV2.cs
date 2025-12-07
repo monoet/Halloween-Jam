@@ -101,6 +101,7 @@ namespace BattleV2.Orchestration
         private PendingPlayerRequest pendingPlayerRequest;
         private IDisposable combatantDefeatedSubscription;
         private int cpSelectionCounter;
+        private int executionCounter;
         private CombatantState currentTurnActor;
 
         public event Action<BattleSelection, int> OnPlayerActionSelected;
@@ -549,6 +550,7 @@ namespace BattleV2.Orchestration
         public void ResetBattle()
         {
             ResetBattleCts();
+            executionCounter = 0;
             ComboPointScaling.Configure(config != null ? config.comboPointScaling : null);
             triggeredEffects?.Clear();
             ClearPendingPlayerRequest();
@@ -736,6 +738,7 @@ namespace BattleV2.Orchestration
             
             var currentPlayer = draft.Actor;
             int selectionId = ++cpSelectionCounter;
+            int executionId = NextExecutionId();
 
             // 1) Validate before consuming or ending turn
             if (!actionValidator.TryValidate(selection.Action, currentPlayer, context, selection.CpCharge, out var implementation))
@@ -803,7 +806,7 @@ namespace BattleV2.Orchestration
             var playbackTask = animOrchestrator != null
                 ? animOrchestrator.PlayAsync(new ActionPlaybackRequest(currentPlayer, enrichedSelection, targetsList, CalculateAverageSpeed(), enrichedSelection.AnimationRecipeId))
                 : Task.CompletedTask;
-            var judgmentSeed = System.HashCode.Combine(selectionId, currentPlayer != null ? currentPlayer.GetInstanceID() : 0, enrichedSelection.Action != null ? enrichedSelection.Action.id.GetHashCode() : 0);
+            var judgmentSeed = System.HashCode.Combine(executionId, currentPlayer != null ? currentPlayer.GetInstanceID() : 0, enrichedSelection.Action != null ? enrichedSelection.Action.id.GetHashCode() : 0);
             var resourcesPre = ResourceSnapshot.FromCombatant(currentPlayer);
             var resourcesPost = ResourceSnapshot.FromCombatant(currentPlayer);
             var actionJudgment = ActionJudgment.FromSelection(enrichedSelection, currentPlayer, enrichedSelection.CpCharge, judgmentSeed, resourcesPre, resourcesPost);
@@ -839,6 +842,7 @@ namespace BattleV2.Orchestration
 
             await playerActionExecutor.ExecuteAsync(new PlayerActionExecutionContext
             {
+                ExecutionId = executionId,
                 Manager = this,
                 Player = currentPlayer,
                 Selection = enrichedSelection,
@@ -1103,6 +1107,7 @@ namespace BattleV2.Orchestration
         {
             var target = Player;
             var combatContext = CreateEnemyCombatContext(attacker, target);
+            int executionId = NextExecutionId();
 
             return new EnemyTurnContext(
                 this,
@@ -1117,7 +1122,8 @@ namespace BattleV2.Orchestration
                 () => turnService?.Stop(),
                 () => battleEndService != null && battleEndService.TryResolve(rosterSnapshot, Player, state),
                 RefreshCombatContext,
-                battleCts != null ? battleCts.Token : CancellationToken.None);
+                battleCts != null ? battleCts.Token : CancellationToken.None,
+                executionId);
         }
 
         private CombatContext CreateEnemyCombatContext(CombatantState attacker, CombatantState target)
@@ -1257,6 +1263,11 @@ namespace BattleV2.Orchestration
 
             battleCts.Dispose();
             battleCts = null;
+        }
+
+        private int NextExecutionId()
+        {
+            return System.Threading.Interlocked.Increment(ref executionCounter);
         }
     }
 

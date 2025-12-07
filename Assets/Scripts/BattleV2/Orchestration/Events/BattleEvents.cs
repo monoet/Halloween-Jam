@@ -22,10 +22,15 @@ namespace BattleV2.Orchestration.Events
         public IReadOnlyList<CombatantState> Targets { get; }
     }
 
+    /// <summary>
+    /// Identifica una ejecución completa de acción (incluye efectos disparados).
+    /// ExecutionId se genera al commit y permanece estable durante toda la cadena.
+    /// </summary>
     public readonly struct ActionCompletedEvent
     {
-        public ActionCompletedEvent(CombatantState actor, BattleSelection selection, IReadOnlyList<CombatantState> targets, bool isTriggered = false, ActionJudgment? judgment = null)
+        public ActionCompletedEvent(int executionId, CombatantState actor, BattleSelection selection, IReadOnlyList<CombatantState> targets, bool isTriggered = false, ActionJudgment? judgment = null)
         {
+            ExecutionId = executionId;
             Actor = actor;
             Selection = selection;
             Targets = targets;
@@ -33,6 +38,7 @@ namespace BattleV2.Orchestration.Events
             Judgment = judgment;
         }
 
+        public int ExecutionId { get; }
         public CombatantState Actor { get; }
         public BattleSelection Selection { get; }
         public IReadOnlyList<CombatantState> Targets { get; }
