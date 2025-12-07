@@ -37,6 +37,9 @@ namespace BattleV2.UI
         [Header("Highlight")]
         [SerializeField] private GameObject highlightRoot;
         [SerializeField] private Color highlightNameColor = new Color(1f, 0.85f, 0.2f);
+        [SerializeField] private bool pulseHighlight = true;
+        [SerializeField, Min(0f)] private float pulseSpeed = 2f;
+        [SerializeField, Range(0f, 1f)] private float pulseScaleAmount = 0.05f;
 
         [Header("Formatting")]
         [SerializeField] private string hpFormat = "{0}/{1}";
@@ -51,6 +54,7 @@ namespace BattleV2.UI
         private bool isHighlighted;
         private MarkService markService;
         private bool marksSubscribed;
+        private Vector3 originalHighlightScale = Vector3.one;
 
         private void Awake()
         {
@@ -89,6 +93,7 @@ namespace BattleV2.UI
             SyncAnchorTarget();
             SyncHighlightState();
             SyncMarks();
+            CacheHighlightScale();
         }
 
         private void OnDisable()
@@ -199,6 +204,11 @@ namespace BattleV2.UI
         {
             if (!pendingRefresh)
             {
+                // Still allow highlight pulse to run
+                if (isHighlighted)
+                {
+                    UpdateHighlightPulse();
+                }
                 return;
             }
 
@@ -209,6 +219,11 @@ namespace BattleV2.UI
 
             pendingRefresh = false;
             ApplyVisuals();
+
+            if (isHighlighted)
+            {
+                UpdateHighlightPulse();
+            }
         }
 
         private void ScheduleRefresh()
@@ -404,6 +419,11 @@ namespace BattleV2.UI
             {
                 nameText.color = highlighted ? highlightNameColor : originalNameColor;
             }
+
+            if (!highlighted && highlightRoot != null)
+            {
+                highlightRoot.transform.localScale = originalHighlightScale;
+            }
         }
 
         private void CaptureOriginalNameColor()
@@ -420,6 +440,29 @@ namespace BattleV2.UI
         private void SyncHighlightState()
         {
             SetHighlighted(isHighlighted);
+        }
+
+        private void CacheHighlightScale()
+        {
+            if (highlightRoot == null)
+            {
+                originalHighlightScale = Vector3.one;
+                return;
+            }
+
+            originalHighlightScale = highlightRoot.transform.localScale;
+        }
+
+        private void UpdateHighlightPulse()
+        {
+            if (!pulseHighlight || highlightRoot == null)
+            {
+                return;
+            }
+
+            float t = Mathf.PingPong(Time.unscaledTime * pulseSpeed, 1f);
+            float scale = 1f + Mathf.Lerp(-pulseScaleAmount, pulseScaleAmount, t);
+            highlightRoot.transform.localScale = originalHighlightScale * scale;
         }
 
         private void HandleMarkChanged(MarkEvent evt)

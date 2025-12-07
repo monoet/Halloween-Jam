@@ -283,7 +283,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CharacterRuntime
   archetype: {fileID: 11400000, guid: c539e972a7dc87c4dba21fc6e6340f12, type: 2}
   core:
-    characterName: Halloboy
+    characterName: Ciro
     portrait: {fileID: 5404585191308233458, guid: 88e723ccbe534984cad73fdd89bb90c3, type: 3}
     Level: 10
     CurrentEXP: 0
@@ -336,6 +336,7 @@ MonoBehaviour:
   autoInitializeFromRuntime: 1
   preserveFractionOnRuntimeUpdate: 1
   faction: 0
+  teamId: 1
   maxHP: 50
   currentHP: 0
   maxSP: 10
@@ -343,6 +344,7 @@ MonoBehaviour:
   fallbackMaxHP: 10
   maxCP: 5
   currentCP: 0
+  audioSignatureId: 0
   OnVitalsChanged:
     m_PersistentCalls:
       m_Calls: []
@@ -610,7 +612,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 3.3, y: 3.3, z: 3.3}
+  m_LocalScale: {x: 2.24, y: 2.24, z: 2.24}
   m_ConstrainProportionsScale: 1
   m_Children:
   - {fileID: 3016881785340004471}

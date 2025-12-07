@@ -18,6 +18,7 @@ namespace BattleV2.UI
         [SerializeField] private Transform enemyContainer;
 
         private readonly Dictionary<CombatantState, CombatantHudWidget> widgets = new();
+        private CombatantHudWidget lastHighlighted;
 
         public void RegisterCombatants(IEnumerable<CombatantState> combatants, bool isEnemy)
         {
@@ -154,6 +155,28 @@ namespace BattleV2.UI
         public bool TryGetWidget(CombatantState combatant, out CombatantHudWidget widget)
         {
             return widgets.TryGetValue(combatant, out widget);
+        }
+
+        public void HighlightCombatant(CombatantState combatant)
+        {
+            CombatantHudWidget highlighted = null;
+            foreach (var pair in widgets)
+            {
+                var widget = pair.Value;
+                if (widget == null)
+                {
+                    continue;
+                }
+
+                bool isTarget = pair.Key == combatant;
+                widget.SetHighlighted(isTarget);
+                if (isTarget)
+                {
+                    highlighted = widget;
+                }
+            }
+
+            lastHighlighted = highlighted;
         }
 
         private void BindAllyWidgets(IEnumerable<CombatantState> combatants)

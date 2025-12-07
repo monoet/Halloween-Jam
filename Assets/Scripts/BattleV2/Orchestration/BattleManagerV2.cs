@@ -101,6 +101,7 @@ namespace BattleV2.Orchestration
         private PendingPlayerRequest pendingPlayerRequest;
         private IDisposable combatantDefeatedSubscription;
         private int cpSelectionCounter;
+        private CombatantState currentTurnActor;
 
         public event Action<BattleSelection, int> OnPlayerActionSelected;
         public event Action<BattleSelection, int, int> OnPlayerActionResolved;
@@ -184,6 +185,8 @@ namespace BattleV2.Orchestration
             DestroySpawnedPrefabs();
             rosterCoordinator?.Cleanup();
             rosterSnapshot = RosterSnapshot.Empty;
+            currentTurnActor = null;
+            hudManager?.HighlightCombatant(null);
             UpdatePlayerReference(null, null);
             UpdateEnemyReference(null, null);
             referenceService?.Reset();
@@ -549,6 +552,8 @@ namespace BattleV2.Orchestration
             ComboPointScaling.Configure(config != null ? config.comboPointScaling : null);
             triggeredEffects?.Clear();
             ClearPendingPlayerRequest();
+            currentTurnActor = null;
+            hudManager?.HighlightCombatant(null);
             RebuildRoster(preservePlayerVitals: false, preserveEnemyVitals: false);
             PrepareContext();
             TrySwitchToAnimationInstaller();
@@ -651,7 +656,8 @@ namespace BattleV2.Orchestration
         private void HandlePlayerSelection(BattleSelection selection)
         {
             // Start the draft process
-            currentDraft = SelectionDraft.Create(Player, selection.Action, 0, "Root"); // TODO: OriginMenu
+            var actor = currentTurnActor ?? Player;
+            currentDraft = SelectionDraft.Create(actor, selection.Action, 0, "Root"); // TODO: OriginMenu
             _ = ResolveDraftAsync(currentDraft, selection);
         }
 
@@ -832,12 +838,13 @@ namespace BattleV2.Orchestration
 
         private void ExecuteFallback()
         {
-            if (fallbackActionResolver == null || Player == null)
+            var actor = currentTurnActor ?? Player;
+            if (fallbackActionResolver == null || actor == null)
             {
                 return;
             }
 
-            if (fallbackActionResolver.TryResolve(Player, context, out var selection))
+            if (fallbackActionResolver.TryResolve(actor, context, out var selection))
             {
                 HandlePlayerSelection(selection);
             }
@@ -890,6 +897,8 @@ namespace BattleV2.Orchestration
 
                 if (actor == null)
                 {
+                    currentTurnActor = null;
+                    hudManager?.HighlightCombatant(null);
                     battleEndService?.TryResolve(rosterSnapshot, Player, state);
                     return;
                 }
@@ -901,7 +910,10 @@ namespace BattleV2.Orchestration
 
                 if (IsAlly(actor))
                 {
+                    currentTurnActor = actor;
+                    cpIntent.SetDefaultActor(actor);
                     TriggerTurnPhase(actor);
+                    hudManager?.HighlightCombatant(actor);
                     state?.Set(BattleState.AwaitingAction);
                     
                     if (inputDriver != null)
@@ -910,10 +922,12 @@ namespace BattleV2.Orchestration
                         inputDriver.SetActiveActor(actor);
                     }
 
-                    RequestPlayerAction();
+                    RequestPlayerAction(actor);
                 }
                 else
                 {
+                    currentTurnActor = actor;
+                    hudManager?.HighlightCombatant(null);
                     cpIntent.EndTurn("EnemyTurn");
                     if (enemyTurnCoordinator != null)
                     {
@@ -963,10 +977,10 @@ namespace BattleV2.Orchestration
             }
         }
 
-        private void RequestPlayerAction()
+        private void RequestPlayerAction(CombatantState actor)
         {
             state?.Set(BattleState.AwaitingAction);
-            var currentPlayer = Player;
+            var currentPlayer = actor ?? currentTurnActor ?? Player;
             if (currentPlayer == null || currentPlayer.IsDead())
             {
                 state?.Set(BattleState.Defeat);
@@ -1028,11 +1042,13 @@ namespace BattleV2.Orchestration
 
             if (inputProvider == null)
             {
+                cpIntent.SetDefaultActor(currentPlayer);
                 cpIntent.BeginTurn(currentPlayer.CurrentCP);
                 QueuePendingPlayerRequest(actionContext, HandlePlayerSelection, ExecuteFallback);
                 return;
             }
 
+            cpIntent.SetDefaultActor(currentPlayer);
             cpIntent.BeginTurn(currentPlayer.CurrentCP);
             DispatchToInputProvider(actionContext, HandlePlayerSelection, ExecuteFallback);
         }

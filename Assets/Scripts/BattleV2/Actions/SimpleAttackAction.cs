@@ -96,6 +96,20 @@ namespace BattleV2.Actions
             {
                 actor.AddCP(cpGain);
             }
+            else if (cpGain > 0)
+            {
+                BattleDiagnostics.Log(
+                    "AddCp.debugging",
+                    $"skip_simple_attack_cp actor={actor?.DisplayName ?? "(null)"}#{actor?.GetInstanceID() ?? 0} cpGain={cpGain} costCp={costCp} cpCharge={cpCharge} reason={(costCp > 0 ? "costCp>0" : "cpCharge>0")}",
+                    actor);
+            }
+            else if (cpGain <= 0)
+            {
+                BattleDiagnostics.Log(
+                    "AddCp.Debugging01",
+                    $"skip_simple_attack_cp actor={actor?.DisplayName ?? "(null)"}#{actor?.GetInstanceID() ?? 0} cpGain={cpGain} reason=cpGain<=0",
+                    actor);
+            }
 
             // TODO: integrate animations via context.Services.GetAnimatorFor(actor)
             onComplete?.Invoke();

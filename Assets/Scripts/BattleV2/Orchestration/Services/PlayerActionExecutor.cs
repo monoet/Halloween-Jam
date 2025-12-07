@@ -45,6 +45,11 @@ namespace BattleV2.Orchestration.Services
 
             try
             {
+                BattleDiagnostics.Log(
+                    "AddCp.Debugging01",
+                    $"phase=ExecuteAsync actor={context.Player?.DisplayName ?? "(null)"}#{context.Player?.GetInstanceID() ?? 0} actionId={context.Selection.Action?.id ?? "(null)"} cpCharge={context.Selection.CpCharge}",
+                    context.Player);
+
                 var targets = context.Snapshot.Targets ?? Array.Empty<CombatantState>();
                 var defeatCandidates = CollectDeathCandidates(targets);
                 bool resourcesCharged = false;
@@ -72,6 +77,10 @@ namespace BattleV2.Orchestration.Services
                     judgment);
 
                 var result = await actionPipeline.Run(request);
+                BattleDiagnostics.Log(
+                    "AddCp.Debugging01",
+                    $"phase=PipelineResult actor={context.Player?.DisplayName ?? "(null)"}#{context.Player?.GetInstanceID() ?? 0} actionId={context.Selection.Action?.id ?? "(null)"} success={result.Success} timedResult={(result.TimedResult.HasValue ? "yes" : "no")}",
+                    context.Player);
                 if (!result.Success)
                 {
                     context.OnFallback?.Invoke();
@@ -103,7 +112,7 @@ namespace BattleV2.Orchestration.Services
                     : judgmentWithCosts.WithTimedGrade(timedGrade);
 
                 int totalComboPointsAwarded = Mathf.Max(0, result.ComboPointsAwarded);
-                if (context.Implementation is LunarChainAction && context.Player != null && context.CombatContext != null && context.CombatContext.Player == context.Player)
+                if (context.Implementation is LunarChainAction && context.Player != null && context.Player.IsPlayer)
                 {
                     ApplyLunarChainRefunds(context, ref totalComboPointsAwarded);
                 }
@@ -147,6 +156,20 @@ namespace BattleV2.Orchestration.Services
         {
             var selection = context.Selection;
             var player = context.Player;
+
+            if (player != null && !player.IsPlayer)
+            {
+                BattleDiagnostics.Log(
+                    "AddCp.Debugging01",
+                    $"phase=ApplyLunarChainRefunds actor={player.DisplayName}#{player.GetInstanceID()} reason=not_player",
+                    player);
+                return;
+            }
+
+            BattleDiagnostics.Log(
+                "AddCp.Debugging01",
+                $"phase=ApplyLunarChainRefunds actor={player?.DisplayName ?? "(null)"}#{player?.GetInstanceID() ?? 0} cpCharge={selection.CpCharge} awarded={totalComboPointsAwarded}",
+                player);
 
             var tier = selection.TimedHitProfile != null
                 ? selection.TimedHitProfile.GetTierForCharge(selection.CpCharge)

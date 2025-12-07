@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using BattleV2.Actions;
 using BattleV2.Anim;
 using BattleV2.Charge;
+using BattleV2.Core;
 using UnityEngine;
 
 namespace BattleV2.Execution.TimedHits
@@ -143,10 +144,13 @@ namespace BattleV2.Execution.TimedHits
                     return;
                 }
 
-                var manager = context.Manager;
                 var attacker = context.Attacker;
-                if (manager == null || attacker == null || manager.Player != attacker)
+                if (attacker == null || !attacker.IsPlayer)
                 {
+                    BattleDiagnostics.Log(
+                        "AddCp.debugging",
+                        $"skip_timed_cp actor={(attacker != null ? attacker.DisplayName : "(null)")}#{(attacker != null ? attacker.GetInstanceID() : 0)} reason={(attacker == null ? "attacker_null" : "not_player")}",
+                        attacker);
                     return;
                 }
 
@@ -162,6 +166,10 @@ namespace BattleV2.Execution.TimedHits
 
                 if (refundCap > 0 && context.ComboPointsAwarded >= refundCap)
                 {
+                    BattleDiagnostics.Log(
+                        "AddCp.debugging",
+                        $"skip_timed_cp actor={attacker.DisplayName}#{attacker.GetInstanceID()} reason=cap_reached cap={refundCap} awarded={context.ComboPointsAwarded}",
+                        attacker);
                     return;
                 }
 

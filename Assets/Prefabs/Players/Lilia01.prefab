@@ -281,10 +281,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4b2c30c3d31825140a9192b375e5f1d2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CharacterRuntime
-  archetype: {fileID: 11400000, guid: c539e972a7dc87c4dba21fc6e6340f12, type: 2}
+  archetype: {fileID: 11400000, guid: af4c5ff2b9f775b4790830c9fd58144f, type: 2}
   core:
-    characterName: Halloboy
-    portrait: {fileID: 5404585191308233458, guid: 88e723ccbe534984cad73fdd89bb90c3, type: 3}
+    characterName: Lilia
+    portrait: {fileID: 5182012487475130298, guid: 14343842cf6de03429f017c01c01bc32, type: 3}
     Level: 10
     CurrentEXP: 0
     MaxEXP: 0

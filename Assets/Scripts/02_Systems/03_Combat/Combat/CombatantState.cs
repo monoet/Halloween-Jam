@@ -282,20 +282,35 @@ public class CombatantState : MonoBehaviour
 
     public void AddCP(int amount)
     {
+        int before = currentCP;
         if (amount <= 0)
         {
+            BattleDiagnostics.Log(
+                "AddCp.Debugging01",
+                $"actor={DisplayName}#{GetInstanceID()} side={(IsPlayer ? "Player" : "Enemy")} delta=+0 before={before} after={currentCP} reason=amount<=0",
+                this);
             return;
         }
 
-        int before = currentCP;
         currentCP = Mathf.Min(maxCP, currentCP + amount);
         int gained = currentCP - before;
 
         if (gained > 0)
         {
             Log($"{DisplayName} gana {gained} CP. CP: {currentCP}/{maxCP}");
+            BattleDiagnostics.Log(
+                "AddCp.Debugging01",
+                $"actor={DisplayName}#{GetInstanceID()} side={(IsPlayer ? "Player" : "Enemy")} delta=+{gained} before={before} after={currentCP}",
+                this);
             OnVitalsChanged.Invoke();
+            return;
         }
+
+        // No gain (already at cap or maxCP <= 0) – log for diagnostics.
+        BattleDiagnostics.Log(
+            "AddCp.Debugging01",
+            $"actor={DisplayName}#{GetInstanceID()} side={(IsPlayer ? "Player" : "Enemy")} delta=+0 before={before} after={currentCP} reason={(maxCP <= 0 ? "maxCP<=0" : "capped")}",
+            this);
     }
 
     public bool SpendSP(int amount)
