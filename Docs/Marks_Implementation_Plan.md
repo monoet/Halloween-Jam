@@ -7,10 +7,10 @@
 ## Checklist de implementación (progreso)
 
 - [x] Funciones puras listas (`QualifiesForMarks_Single/AoE_Target`, `ResolveInteraction` con `canBeAppliedAsMark`)
-- [ ] Applier/middleware único conectado al pipeline (solo enemigos, gates + interacción + reacción)
-- [ ] Hook de expiración al inicio del turno de `AppliedBy` (MVP RemainingTurns=1)
+- [x] Applier/middleware único conectado al pipeline (solo enemigos, gates + interacción + reacción) con orden: pipeline → triggered effects → playback → marks → refresh context
+- [x] Hook de expiración al inicio del turno de `AppliedBy` (MVP RemainingTurns=1) usando turn counter real (prune counters en roster activo; listener OnTurnReady llama TryExpireMarkForOwnerTurn)
 - [x] `CombatantState.ActiveMark` como única fuente de verdad; `MarkService` solo como hub de eventos (sin estado duplicado)
-- [ ] ReactionResolver recibe `ReactionKey` (+ `axisSubtype` desde AttackContext si Axis)
+- [x] ReactionResolver recibe `ReactionKey` (+ `axisSubtype` desde AttackContext si Axis) con TryResolveId/Execute (NoOp por ahora)
 - [ ] RNG AoE con seed (opcional) y gatea toda interacción por target
 - [ ] UI/FX escucha `OnMarkChanged` y refleja Apply/Refresh/BlowUp/Expire/Clear
 - [ ] Tests manuales: Single KS/Magic, AoE con RNG, Axis detona pero no aplica, None no interactúa

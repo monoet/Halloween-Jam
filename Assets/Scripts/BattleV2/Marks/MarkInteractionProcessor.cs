@@ -12,11 +12,13 @@ namespace BattleV2.Marks
     {
         private readonly MarkService markService;
         private readonly float aoePerCpBonus;
+        private readonly IMarkReactionResolver reactionResolver;
 
-        public MarkInteractionProcessor(MarkService markService, float aoePerCpBonus = 0.1f)
+        public MarkInteractionProcessor(MarkService markService, float aoePerCpBonus = 0.1f, IMarkReactionResolver reactionResolver = null)
         {
             this.markService = markService;
             this.aoePerCpBonus = aoePerCpBonus;
+            this.reactionResolver = reactionResolver;
         }
 
         public void Process(
@@ -25,7 +27,8 @@ namespace BattleV2.Marks
             ActionJudgment judgment,
             IReadOnlyList<CombatantState> targets,
             int executionId,
-            int attackerTurnCounter = 0)
+            int attackerTurnCounter = 0,
+            string axisSubtype = "")
         {
             if (markService == null || selection.Action == null || targets == null)
             {
@@ -76,6 +79,14 @@ namespace BattleV2.Marks
                     }
 
                     var interaction = MarkRulesEngine.ResolveInteraction(target.ActiveMark, incoming);
+                    string reactionId = null;
+                    ReactionKey reactionKey = ReactionKey.None;
+                    if (interaction == MarkInteractionKind.BlowUp)
+                    {
+                        reactionKey = ReactionKey.From(target.ActiveMark, incoming, axisSubtype);
+                        reactionResolver?.TryResolveId(reactionKey, out reactionId);
+                    }
+
                     switch (interaction)
                     {
                         case MarkInteractionKind.Apply:
@@ -83,7 +94,11 @@ namespace BattleV2.Marks
                             markService.ApplyMark(target, rule.mark, attackerId, attackerTurnCounter, rule.mark.baseDurationTurns, executionId);
                             break;
                         case MarkInteractionKind.BlowUp:
-                            markService.DetonateMark(target, target.ActiveMark.MarkId, attackerId, null, executionId);
+                            markService.DetonateMark(target, target.ActiveMark.MarkId, attackerId, reactionId, executionId);
+                            if (!string.IsNullOrEmpty(reactionId))
+                            {
+                                reactionResolver?.Execute(new MarkReactionContext(attacker, target, reactionKey, executionId), reactionId);
+                            }
                             break;
                         case MarkInteractionKind.None:
                         default:

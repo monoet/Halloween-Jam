@@ -102,6 +102,7 @@ namespace BattleV2.Orchestration
         private IDisposable combatantDefeatedSubscription;
         private int cpSelectionCounter;
         private int executionCounter;
+        private int markSweepCounter;
         private CombatantState currentTurnActor;
 
         public event Action<BattleSelection, int> OnPlayerActionSelected;
@@ -157,12 +158,12 @@ namespace BattleV2.Orchestration
         private void Awake()
         {
             ResetBattleCts();
+            timedHitOverlay = FindObjectOfType<TimedHitOverlay>();
             BootstrapServices();
             InitializeCombatants();
             PrepareContext();
             timedHitInputRelay ??= FindTimedHitInputRelay();
             inputDriver = FindObjectOfType<BattleUIInputDriver>();
-            timedHitOverlay = FindObjectOfType<TimedHitOverlay>();
         }
 
         private void Start()
@@ -317,7 +318,7 @@ namespace BattleV2.Orchestration
 
             ConfigureAnimationOrchestrator(timingProfile);
             markService = new MarkService();
-            markProcessor = new MarkInteractionProcessor(markService);
+            markProcessor = new MarkInteractionProcessor(markService, reactionResolver: new NoOpMarkReactionResolver());
             triggeredEffects = new TriggeredEffectsService(this, actionPipeline, actionCatalog, eventBus, markProcessor);
             timedResultResolver = new TimedHitResultResolver();
             RebuildPlayerActionExecutor();
@@ -551,6 +552,7 @@ namespace BattleV2.Orchestration
         {
             ResetBattleCts();
             executionCounter = 0;
+            markSweepCounter = 0;
             ComboPointScaling.Configure(config != null ? config.comboPointScaling : null);
             triggeredEffects?.Clear();
             ClearPendingPlayerRequest();
@@ -932,6 +934,8 @@ namespace BattleV2.Orchestration
                     return;
                 }
 
+                ExpireMarksForOwnerTurn(actor);
+
                 if (battleEndService != null && battleEndService.TryResolve(rosterSnapshot, Player, state))
                 {
                     return;
@@ -972,6 +976,35 @@ namespace BattleV2.Orchestration
             catch (Exception ex)
             {
                 Debug.LogError($"[BattleManagerV2] HandleTurnReady exception: {ex}");
+            }
+        }
+
+        private void ExpireMarksForOwnerTurn(CombatantState owner)
+        {
+            if (markService == null || owner == null)
+            {
+                return;
+            }
+
+            int turnCounter = turnService != null ? turnService.GetTurnCounter(owner) : 0;
+            if (turnCounter <= 0)
+            {
+                return;
+            }
+
+            int execId = NextMarkSweepId();
+
+            // v1: marks viven en enemigos; si el owner es enemy o player no importa, expira por AppliedById.
+            var enemies = EnemiesList;
+            for (int i = 0; i < enemies.Count; i++)
+            {
+                var target = enemies[i];
+                if (target == null || !target.IsAlive)
+                {
+                    continue;
+                }
+
+                markService.TryExpireMarkForOwnerTurn(target, owner.StableId, turnCounter, execId);
             }
         }
 
@@ -1271,6 +1304,11 @@ namespace BattleV2.Orchestration
         private int NextExecutionId()
         {
             return System.Threading.Interlocked.Increment(ref executionCounter);
+        }
+
+        private int NextMarkSweepId()
+        {
+            return System.Threading.Interlocked.Increment(ref markSweepCounter);
         }
     }
 

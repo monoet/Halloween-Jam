@@ -44,9 +44,39 @@ namespace BattleV2.Orchestration.Services
             allies = snapshot.Allies ?? Array.Empty<CombatantState>();
             enemies = snapshot.Enemies ?? Array.Empty<CombatantState>();
 
+            // TODO(v2 Validation): Rebuild() during an active battle preserves turn order today
+            // because TurnController.Rebuild keeps the current actor stable. If future changes
+            // alter that behavior (e.g., index reset/queue rebuild), you'll see turn-order jumps
+            // after deaths/spawns. If that ever happens: capture current actor StableId, call
+            // Rebuild, then restore current via SetCurrent(actorId) or skip Rebuild while active.
             turnController.Rebuild(allies, enemies);
-            turnController.Reset();
-            turnCounters.Clear();
+
+            if (!active)
+            {
+                turnController.Reset();
+                turnCounters.Clear();
+                return;
+            }
+
+            // Prune counters for combatants no longer in roster (no reset during active battle).
+            var aliveIds = new HashSet<int>();
+            for (int i = 0; i < allies.Count; i++)
+            {
+                if (allies[i] != null) aliveIds.Add(allies[i].StableId);
+            }
+            for (int i = 0; i < enemies.Count; i++)
+            {
+                if (enemies[i] != null) aliveIds.Add(enemies[i].StableId);
+            }
+
+            var keys = new List<int>(turnCounters.Keys);
+            for (int i = 0; i < keys.Count; i++)
+            {
+                if (!aliveIds.Contains(keys[i]))
+                {
+                    turnCounters.Remove(keys[i]);
+                }
+            }
         }
 
         public void Begin()
