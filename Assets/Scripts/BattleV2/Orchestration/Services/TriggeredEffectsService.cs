@@ -36,7 +36,7 @@ namespace BattleV2.Orchestration.Services
         private readonly IActionPipeline actionPipeline;
         private readonly ActionCatalog actionCatalog;
         private readonly IBattleEventBus eventBus;
-        private readonly MarkProcessor markProcessor;
+        private readonly MarkInteractionProcessor markProcessor;
         private readonly Queue<TriggeredEffectRequest> queue = new();
         private readonly object gate = new();
         private bool processing;
@@ -47,7 +47,7 @@ namespace BattleV2.Orchestration.Services
             IActionPipeline actionPipeline,
             ActionCatalog actionCatalog,
             IBattleEventBus eventBus,
-            MarkProcessor markProcessor)
+            MarkInteractionProcessor markProcessor)
         {
             this.manager = manager;
             this.actionPipeline = actionPipeline;
@@ -230,8 +230,9 @@ namespace BattleV2.Orchestration.Services
                 var judgmentWithCosts = judgment.WithPostCost(resourcesPost);
                 var timedGrade = ActionJudgment.ResolveTimedGrade(result.TimedResult);
                 var finalJudgment = judgmentWithCosts.WithTimedGrade(timedGrade);
-                markProcessor?.Process(selection.WithTimedResult(result.TimedResult), finalJudgment, targets);
-                eventBus?.Publish(new ActionCompletedEvent(request.ExecutionId, request.Origin, selection.WithTimedResult(result.TimedResult), targets, true, finalJudgment));
+                var selectionWithResult = selection.WithTimedResult(result.TimedResult);
+                markProcessor?.Process(request.Origin, selectionWithResult, finalJudgment, targets, request.ExecutionId);
+                eventBus?.Publish(new ActionCompletedEvent(request.ExecutionId, request.Origin, selectionWithResult, targets, true, finalJudgment));
             }
             catch (Exception ex)
             {

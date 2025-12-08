@@ -91,7 +91,7 @@ namespace BattleV2.Orchestration
         private ITimedHitResultResolver timedResultResolver;
         private PlayerActionExecutor playerActionExecutor;
         private BattleV2.Marks.MarkService markService;
-        private BattleV2.Marks.MarkProcessor markProcessor;
+        private BattleV2.Marks.MarkInteractionProcessor markProcessor;
         private CancellationTokenSource battleCts;
         private TargetResolutionService targetResolutionService;
         private CombatContextService contextService;
@@ -317,7 +317,7 @@ namespace BattleV2.Orchestration
 
             ConfigureAnimationOrchestrator(timingProfile);
             markService = new MarkService();
-            markProcessor = new MarkProcessor(markService);
+            markProcessor = new MarkInteractionProcessor(markService);
             triggeredEffects = new TriggeredEffectsService(this, actionPipeline, actionCatalog, eventBus, markProcessor);
             timedResultResolver = new TimedHitResultResolver();
             RebuildPlayerActionExecutor();
@@ -845,6 +845,7 @@ namespace BattleV2.Orchestration
                 ExecutionId = executionId,
                 Manager = this,
                 Player = currentPlayer,
+                PlayerTurnCounter = turnService != null ? turnService.GetTurnCounter(currentPlayer) : 0,
                 Selection = enrichedSelection,
                 Implementation = implementation,
                 CombatContext = context,
@@ -1108,6 +1109,7 @@ namespace BattleV2.Orchestration
             var target = Player;
             var combatContext = CreateEnemyCombatContext(attacker, target);
             int executionId = NextExecutionId();
+            int turnCounter = turnService != null ? turnService.GetTurnCounter(attacker) : 0;
 
             return new EnemyTurnContext(
                 this,
@@ -1123,7 +1125,8 @@ namespace BattleV2.Orchestration
                 () => battleEndService != null && battleEndService.TryResolve(rosterSnapshot, Player, state),
                 RefreshCombatContext,
                 battleCts != null ? battleCts.Token : CancellationToken.None,
-                executionId);
+                executionId,
+                turnCounter);
         }
 
         private CombatContext CreateEnemyCombatContext(CombatantState attacker, CombatantState target)

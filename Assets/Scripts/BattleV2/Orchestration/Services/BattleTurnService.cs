@@ -12,6 +12,7 @@ namespace BattleV2.Orchestration.Services
         void Begin();
         void Advance(CombatantState actor);
         void Stop();
+        int GetTurnCounter(CombatantState actor);
     }
 
     public sealed class BattleTurnService : IBattleTurnService
@@ -22,6 +23,7 @@ namespace BattleV2.Orchestration.Services
         private IReadOnlyList<CombatantState> allies = Array.Empty<CombatantState>();
         private IReadOnlyList<CombatantState> enemies = Array.Empty<CombatantState>();
         private bool active;
+        private readonly Dictionary<int, int> turnCounters = new();
 
         public BattleTurnService(IBattleEventBus eventBus)
             : this(new TurnController(eventBus), eventBus)
@@ -44,6 +46,7 @@ namespace BattleV2.Orchestration.Services
 
             turnController.Rebuild(allies, enemies);
             turnController.Reset();
+            turnCounters.Clear();
         }
 
         public void Begin()
@@ -62,6 +65,17 @@ namespace BattleV2.Orchestration.Services
         public void Stop()
         {
             active = false;
+        }
+
+        public int GetTurnCounter(CombatantState actor)
+        {
+            if (actor == null)
+            {
+                return 0;
+            }
+
+            int id = actor.StableId;
+            return turnCounters.TryGetValue(id, out var count) ? count : 0;
         }
 
         public void Advance(CombatantState actor)
@@ -100,6 +114,8 @@ namespace BattleV2.Orchestration.Services
                 return;
             }
 
+            int id = next.StableId;
+            turnCounters[id] = turnCounters.TryGetValue(id, out var count) ? count + 1 : 1;
             OnTurnReady?.Invoke(next);
         }
 

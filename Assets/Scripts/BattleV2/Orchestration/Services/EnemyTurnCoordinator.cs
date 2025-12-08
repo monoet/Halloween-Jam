@@ -36,9 +36,11 @@ namespace BattleV2.Orchestration.Services
             Func<bool> tryResolveBattleEnd,
             Action refreshCombatContext,
             CancellationToken token,
-            int executionId)
+            int executionId,
+            int attackerTurnCounter)
         {
             ExecutionId = executionId;
+            AttackerTurnCounter = attackerTurnCounter;
             Manager = manager;
             Attacker = attacker;
             Player = player;
@@ -55,6 +57,7 @@ namespace BattleV2.Orchestration.Services
         }
 
         public int ExecutionId { get; }
+        public int AttackerTurnCounter { get; }
         public BattleManagerV2 Manager { get; }
         public CombatantState Attacker { get; }
         public CombatantState Player { get; }
@@ -81,7 +84,7 @@ namespace BattleV2.Orchestration.Services
         private readonly IBattleEventBus eventBus;
         private readonly BattleV2.Core.Services.ICombatSideService sideService;
         private readonly IFallbackActionResolver fallbackActionResolver;
-        private readonly BattleV2.Marks.MarkProcessor markProcessor;
+        private readonly BattleV2.Marks.MarkInteractionProcessor markProcessor;
 
         public EnemyTurnCoordinator(
             ActionCatalog actionCatalog,
@@ -93,7 +96,7 @@ namespace BattleV2.Orchestration.Services
             IBattleEventBus eventBus,
             BattleV2.Core.Services.ICombatSideService sideService,
             IFallbackActionResolver fallbackActionResolver = null,
-            BattleV2.Marks.MarkProcessor markProcessor = null)
+            BattleV2.Marks.MarkInteractionProcessor markProcessor = null)
         {
             this.actionCatalog = actionCatalog;
             this.actionValidator = actionValidator;
@@ -302,8 +305,6 @@ namespace BattleV2.Orchestration.Services
                 var timedGrade = BattleV2.Execution.ActionJudgment.ResolveTimedGrade(result.TimedResult);
                 judgment = judgmentWithCosts.WithTimedGrade(timedGrade);
 
-                markProcessor?.Process(enrichedSelection, judgment, resolution.Targets);
-
                 triggeredEffects?.Schedule(
                     context.ExecutionId,
                     attacker,
@@ -324,6 +325,7 @@ namespace BattleV2.Orchestration.Services
                     }
                 }
 
+                markProcessor?.Process(attacker, enrichedSelection, judgment, resolution.Targets, context.ExecutionId, context.AttackerTurnCounter);
                 context.RefreshCombatContext();
 
                 PublishDefeatEvents(defeatCandidates, attacker);

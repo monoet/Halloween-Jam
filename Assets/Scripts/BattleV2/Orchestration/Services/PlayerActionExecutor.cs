@@ -20,14 +20,14 @@ namespace BattleV2.Orchestration.Services
         private readonly ITimedHitResultResolver timedResultResolver;
         private readonly ITriggeredEffectsService triggeredEffects;
         private readonly IBattleEventBus eventBus;
-        private readonly BattleV2.Marks.MarkProcessor markProcessor;
+        private readonly BattleV2.Marks.MarkInteractionProcessor markProcessor;
 
         public PlayerActionExecutor(
             IActionPipeline actionPipeline,
             ITimedHitResultResolver timedResultResolver,
             ITriggeredEffectsService triggeredEffects,
             IBattleEventBus eventBus,
-            BattleV2.Marks.MarkProcessor markProcessor)
+            BattleV2.Marks.MarkInteractionProcessor markProcessor)
         {
             this.actionPipeline = actionPipeline;
             this.timedResultResolver = timedResultResolver;
@@ -198,13 +198,12 @@ namespace BattleV2.Orchestration.Services
                 var resolvedSelection = context.Selection.WithTimedResult(finalTimedResult);
 
                 ScheduleTriggeredEffects(context, finalTimedResult);
-                markProcessor?.Process(resolvedSelection, finalJudgment, targets);
-                context.RefreshCombatContext?.Invoke();
-
                 if (context.PlaybackTask != null)
                 {
                     await AwaitPlayback(context.PlaybackTask);
                 }
+                markProcessor?.Process(context.Player, resolvedSelection, finalJudgment, targets, context.ExecutionId, context.PlayerTurnCounter);
+                context.RefreshCombatContext?.Invoke();
 
                 PublishDefeatEvents(defeatCandidates, context.Player);
 
@@ -572,5 +571,6 @@ namespace BattleV2.Orchestration.Services
         public Action<BattleState> SetState { get; init; }
         public int BaseSpCost { get; init; }
         public int BaseCpCost { get; init; }
+        public int PlayerTurnCounter { get; init; }
     }
 }

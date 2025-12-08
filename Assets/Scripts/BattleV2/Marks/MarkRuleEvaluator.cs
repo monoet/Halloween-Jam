@@ -32,7 +32,8 @@ namespace BattleV2.Marks
                 return false;
             }
 
-            return markService.ApplyMark(combatant, rule.mark);
+            int appliedById = combatant != null ? combatant.StableId : 0;
+            return markService.ApplyMark(combatant, rule.mark, appliedById);
         }
 
         public bool TryDetonateMark(MarkRule rule, ActionJudgment action, TargetJudgment target, CombatantState combatant)
@@ -60,7 +61,8 @@ namespace BattleV2.Marks
 
             if (rule.consumeOnDetonate)
             {
-                markService.DetonateMark(combatant, markId, combatant != null ? combatant.GetInstanceID() : 0, null);
+                int detonatorId = combatant != null ? combatant.StableId : 0;
+                markService.DetonateMark(combatant, markId, detonatorId, null);
             }
 
             // Detonation effect resolution is handled elsewhere; evaluator only clears/keeps state.
