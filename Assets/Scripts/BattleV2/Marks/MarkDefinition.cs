@@ -22,5 +22,15 @@ namespace BattleV2.Marks
         [Header("UI")]
         public Sprite icon;
         public Color tint = Color.white;
+
+#if UNITY_EDITOR
+        private void OnValidate()
+        {
+            if ((canBeAppliedAsMark || canDetonateMarks) && string.IsNullOrWhiteSpace(elementId))
+            {
+                Debug.LogError($"[MarkDefinition] elementId is required for mark '{name}' when it can be applied/detonated. Please set elementId.", this);
+            }
+        }
+#endif
     }
 }

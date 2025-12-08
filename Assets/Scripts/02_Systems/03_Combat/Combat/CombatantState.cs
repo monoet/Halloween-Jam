@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Threading;
 using UnityEngine;
 using BattleV2.Audio;
 using BattleV2.Core;
@@ -61,6 +62,8 @@ public class CombatantState : MonoBehaviour
 
     private bool initialized;
     private UnityAction runtimeStatsListener;
+    private static int nextStableId;
+    private int stableCombatantId;
     private string displayName;
     private bool isDowned;
     private bool isAlive = true;
@@ -85,6 +88,7 @@ public class CombatantState : MonoBehaviour
     public MarkSlot ActiveMark => activeMark;
     public IReadOnlyList<string> AllowedActionIds => allowedActionIds;
     public AudioSignatureId AudioSignatureId => audioSignatureId;
+    public int StableId => stableCombatantId;
 
     private void Awake()
     {
@@ -103,6 +107,11 @@ public class CombatantState : MonoBehaviour
         }
 
         RefreshLifeFlags();
+
+        if (stableCombatantId == 0)
+        {
+            stableCombatantId = AllocateStableId();
+        }
     }
 
     private void OnEnable()
@@ -475,6 +484,12 @@ public class CombatantState : MonoBehaviour
         }
 
         displayName = gameObject.name;
+    }
+
+    private static int AllocateStableId()
+    {
+        // Thread-safe and monotonic per runtime; more stable than GetInstanceID for pooling/repro.
+        return Interlocked.Increment(ref nextStableId);
     }
 
     private void Log(string message)

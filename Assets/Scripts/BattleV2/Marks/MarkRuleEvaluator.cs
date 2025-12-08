@@ -60,7 +60,7 @@ namespace BattleV2.Marks
 
             if (rule.consumeOnDetonate)
             {
-                markService.DetonateMark(combatant, markId, combatant, null);
+                markService.DetonateMark(combatant, markId, combatant != null ? combatant.GetInstanceID() : 0, null);
             }
 
             // Detonation effect resolution is handled elsewhere; evaluator only clears/keeps state.

@@ -5,17 +5,16 @@ namespace BattleV2.Marks
     /// <summary>
     /// Single mark slot stored on the combatant. Source of truth for active mark state.
     /// </summary>
-    [System.Serializable]
     public struct MarkSlot
     {
         public MarkSlot(
             MarkDefinition definition,
-            CombatantState appliedBy,
+            int appliedById,
             int appliedAtOwnerTurnCounter,
             int remainingTurns)
         {
             Definition = definition;
-            AppliedBy = appliedBy;
+            AppliedById = appliedById;
             AppliedAtOwnerTurnCounter = appliedAtOwnerTurnCounter;
             RemainingTurns = remainingTurns;
             MarkId = ResolveKey(definition);
@@ -24,7 +23,7 @@ namespace BattleV2.Marks
         public static MarkSlot Empty => default;
 
         public MarkDefinition Definition { get; }
-        public CombatantState AppliedBy { get; }
+        public int AppliedById { get; }
         public int AppliedAtOwnerTurnCounter { get; }
         public int RemainingTurns { get; }
         public string MarkId { get; }
@@ -33,7 +32,7 @@ namespace BattleV2.Marks
 
         public MarkSlot WithRemainingTurns(int turns)
         {
-            return new MarkSlot(Definition, AppliedBy, AppliedAtOwnerTurnCounter, turns);
+            return new MarkSlot(Definition, AppliedById, AppliedAtOwnerTurnCounter, turns);
         }
 
         private static string ResolveKey(MarkDefinition definition)

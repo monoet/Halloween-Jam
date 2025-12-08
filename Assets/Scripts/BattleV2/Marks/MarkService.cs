@@ -15,9 +15,10 @@ namespace BattleV2.Marks
         public bool ApplyMark(
             CombatantState target,
             MarkDefinition definition,
-            CombatantState appliedBy = null,
+            int appliedById = 0,
             int appliedAtOwnerTurnCounter = 0,
-            int remainingTurns = 1)
+            int remainingTurns = 1,
+            int executionId = 0)
         {
             UnityThread.AssertMainThread("MarkService.ApplyMark");
 
@@ -46,17 +47,23 @@ namespace BattleV2.Marks
                 }
                 else
                 {
-                    reason = MarkChangeReason.Overwritten;
+                    Debug.LogWarning($"[MarkService] Attempted to apply mark '{key}' on occupied slot '{current.MarkId}'. Overwrite disallowed. target={target?.name}");
+                    return false;
                 }
             }
 
-            var slot = new MarkSlot(definition, appliedBy, appliedAtOwnerTurnCounter, remainingTurns);
+            if (appliedById == 0 || appliedAtOwnerTurnCounter == 0)
+            {
+                Debug.LogWarning($"[MarkService] ApplyMark missing appliedBy/turn info. appliedById={appliedById} turn={appliedAtOwnerTurnCounter} target={target?.name}");
+            }
+
+            var slot = new MarkSlot(definition, appliedById, appliedAtOwnerTurnCounter, remainingTurns);
             target.SetMarkSlot(slot);
-            RaiseEvent(target, definition, reason, appliedBy, null, slot);
+            RaiseEvent(target, definition, reason, appliedById, null, slot, executionId);
             return true;
         }
 
-        public bool ClearMark(CombatantState target, string markId = null, MarkChangeReason reason = MarkChangeReason.Cleared)
+        public bool ClearMark(CombatantState target, string markId = null, MarkChangeReason reason = MarkChangeReason.Cleared, int executionId = 0)
         {
             UnityThread.AssertMainThread("MarkService.ClearMark");
 
@@ -77,11 +84,11 @@ namespace BattleV2.Marks
             }
 
             target.ClearMarkSlot();
-            RaiseEvent(target, slot.Definition, reason, slot.AppliedBy, null, slot);
+            RaiseEvent(target, slot.Definition, reason, slot.AppliedById, null, slot, executionId);
             return true;
         }
 
-        public bool DetonateMark(CombatantState target, string markId, CombatantState detonator = null, string reactionId = null)
+        public bool DetonateMark(CombatantState target, string markId, int detonatorId = 0, string reactionId = null, int executionId = 0)
         {
             UnityThread.AssertMainThread("MarkService.DetonateMark");
 
@@ -102,7 +109,8 @@ namespace BattleV2.Marks
             }
 
             target.ClearMarkSlot();
-            RaiseEvent(target, slot.Definition, MarkChangeReason.Detonated, detonator ?? slot.AppliedBy, reactionId, slot);
+            int resolvedDetonator = detonatorId != 0 ? detonatorId : slot.AppliedById;
+            RaiseEvent(target, slot.Definition, MarkChangeReason.Detonated, resolvedDetonator, reactionId, slot, executionId);
             return true;
         }
 
@@ -166,9 +174,31 @@ namespace BattleV2.Marks
             return new[] { slot.Definition };
         }
 
-        public bool TryExpireMark(CombatantState target)
+        public bool TryExpireMarkForOwnerTurn(CombatantState target, int ownerId, int ownerTurnCounter, int executionId = 0)
         {
-            return ClearMark(target, null, MarkChangeReason.Expired);
+            if (target == null)
+            {
+                return false;
+            }
+
+            var slot = target.ActiveMark;
+            if (!slot.HasValue)
+            {
+                return false;
+            }
+
+            if (slot.AppliedById != ownerId)
+            {
+                return false;
+            }
+
+            // MVP: expira cuando el owner vuelve a tomar turno (turnCounter mayor al de aplicación).
+            if (ownerTurnCounter <= slot.AppliedAtOwnerTurnCounter)
+            {
+                return false;
+            }
+
+            return ClearMark(target, null, MarkChangeReason.Expired, executionId);
         }
 
         private static string ResolveKey(MarkDefinition definition)
@@ -190,9 +220,10 @@ namespace BattleV2.Marks
             CombatantState target,
             MarkDefinition def,
             MarkChangeReason reason,
-            CombatantState detonator,
+            int detonatorId,
             string reactionId,
-            MarkSlot slot)
+            MarkSlot slot,
+            int executionId)
         {
             if (OnMarkChanged == null)
             {
@@ -204,10 +235,11 @@ namespace BattleV2.Marks
                 slot.MarkId,
                 def,
                 reason,
-                detonator,
+                detonatorId,
                 reactionId,
-                slot.AppliedBy,
-                slot.RemainingTurns);
+                slot.AppliedById,
+                slot.RemainingTurns,
+                executionId);
             OnMarkChanged.Invoke(evt);
         }
     }
@@ -229,28 +261,31 @@ namespace BattleV2.Marks
             string markId,
             MarkDefinition definition,
             MarkChangeReason reason,
-            CombatantState detonator,
+            int detonatorId,
             string reactionId,
-            CombatantState appliedBy,
-            int remainingTurns)
+            int appliedById,
+            int remainingTurns,
+            int executionId)
         {
             Target = target;
             MarkId = markId;
             Definition = definition;
             Reason = reason;
-            Detonator = detonator;
+            DetonatorId = detonatorId;
             ReactionId = reactionId;
-            AppliedBy = appliedBy;
+            AppliedById = appliedById;
             RemainingTurns = remainingTurns;
+            ExecutionId = executionId;
         }
 
         public CombatantState Target { get; }
         public string MarkId { get; }
         public MarkDefinition Definition { get; }
         public MarkChangeReason Reason { get; }
-        public CombatantState Detonator { get; }
+        public int DetonatorId { get; }
         public string ReactionId { get; }
-        public CombatantState AppliedBy { get; }
+        public int AppliedById { get; }
         public int RemainingTurns { get; }
+        public int ExecutionId { get; }
     }
 }

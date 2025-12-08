@@ -33,7 +33,8 @@ namespace BattleV2.Marks
                 return new MarkElementView(null, false, false);
             }
 
-            var elementId = !string.IsNullOrWhiteSpace(def.elementId) ? def.elementId : def.id;
+            // elementId es requerido para marks; sin él no participa (IsNone).
+            var elementId = string.IsNullOrWhiteSpace(def.elementId) ? null : def.elementId;
             return new MarkElementView(elementId, def.canBeAppliedAsMark, def.canDetonateMarks);
         }
     }
