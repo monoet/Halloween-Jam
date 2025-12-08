@@ -1,21 +1,26 @@
 using System;
 using System.Collections.Generic;
 using BattleV2.Core;
+using UnityEngine;
 
 namespace BattleV2.Marks
 {
     /// <summary>
-    /// Maintains marks per combatant keyed by mark id and raises events on changes.
-    /// No gameplay logic beyond storage/notifications.
+    /// Hub de eventos y helpers para marks. La fuente de verdad es el slot en CombatantState.
     /// </summary>
     public sealed class MarkService
     {
-        private readonly Dictionary<CombatantState, Dictionary<string, MarkState>> marks = new();
-
         public event Action<MarkEvent> OnMarkChanged;
 
-        public bool ApplyMark(CombatantState target, MarkDefinition definition)
+        public bool ApplyMark(
+            CombatantState target,
+            MarkDefinition definition,
+            CombatantState appliedBy = null,
+            int appliedAtOwnerTurnCounter = 0,
+            int remainingTurns = 1)
         {
+            UnityThread.AssertMainThread("MarkService.ApplyMark");
+
             if (target == null || definition == null)
             {
                 return false;
@@ -27,66 +32,89 @@ namespace BattleV2.Marks
                 return false;
             }
 
-            var bucket = EnsureBucket(target);
-            var reason = bucket.ContainsKey(key) ? MarkChangeReason.Refreshed : MarkChangeReason.Applied;
-            bucket[key] = new MarkState(definition);
-            RaiseEvent(target, definition, reason);
+            int duration = remainingTurns > 0 ? remainingTurns : (definition.baseDurationTurns > 0 ? definition.baseDurationTurns : 1);
+            remainingTurns = Mathf.Max(1, duration);
+
+            var current = target.ActiveMark;
+            var reason = MarkChangeReason.Applied;
+
+            if (current.HasValue)
+            {
+                if (string.Equals(current.MarkId, key, StringComparison.Ordinal))
+                {
+                    reason = MarkChangeReason.Refreshed;
+                }
+                else
+                {
+                    reason = MarkChangeReason.Overwritten;
+                }
+            }
+
+            var slot = new MarkSlot(definition, appliedBy, appliedAtOwnerTurnCounter, remainingTurns);
+            target.SetMarkSlot(slot);
+            RaiseEvent(target, definition, reason, appliedBy, null, slot);
             return true;
         }
 
-        public bool ClearMark(CombatantState target, string markId = null)
+        public bool ClearMark(CombatantState target, string markId = null, MarkChangeReason reason = MarkChangeReason.Cleared)
+        {
+            UnityThread.AssertMainThread("MarkService.ClearMark");
+
+            if (target == null)
+            {
+                return false;
+            }
+
+            var slot = target.ActiveMark;
+            if (!slot.HasValue)
+            {
+                return false;
+            }
+
+            if (!string.IsNullOrEmpty(markId) && !string.Equals(markId, slot.MarkId, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            target.ClearMarkSlot();
+            RaiseEvent(target, slot.Definition, reason, slot.AppliedBy, null, slot);
+            return true;
+        }
+
+        public bool DetonateMark(CombatantState target, string markId, CombatantState detonator = null, string reactionId = null)
+        {
+            UnityThread.AssertMainThread("MarkService.DetonateMark");
+
+            if (target == null)
+            {
+                return false;
+            }
+
+            var slot = target.ActiveMark;
+            if (!slot.HasValue)
+            {
+                return false;
+            }
+
+            if (!string.IsNullOrEmpty(markId) && !string.Equals(markId, slot.MarkId, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            target.ClearMarkSlot();
+            RaiseEvent(target, slot.Definition, MarkChangeReason.Detonated, detonator ?? slot.AppliedBy, reactionId, slot);
+            return true;
+        }
+
+        public bool HasMark(CombatantState target)
         {
             if (target == null)
             {
                 return false;
             }
 
-            if (!marks.TryGetValue(target, out var bucket) || bucket == null || bucket.Count == 0)
-            {
-                return false;
-            }
-
-            if (string.IsNullOrEmpty(markId))
-            {
-                var removedAny = bucket.Count > 0;
-                if (removedAny)
-                {
-                    foreach (var kvp in bucket)
-                    {
-                        RaiseEvent(target, kvp.Value.Definition, MarkChangeReason.Cleared);
-                    }
-                    bucket.Clear();
-                }
-                return removedAny;
-            }
-
-            if (bucket.Remove(markId, out var state))
-            {
-                RaiseEvent(target, state.Definition, MarkChangeReason.Cleared);
-                return true;
-            }
-
-            return false;
+            return target.ActiveMark.HasValue;
         }
-
-        public bool DetonateMark(CombatantState target, string markId, CombatantState detonator = null, string reactionId = null)
-        {
-            if (target == null || string.IsNullOrEmpty(markId))
-            {
-                return false;
-            }
-
-            if (marks.TryGetValue(target, out var bucket) && bucket != null && bucket.Remove(markId, out var state))
-            {
-                RaiseEvent(target, state.Definition, MarkChangeReason.Detonated, detonator, reactionId);
-                return true;
-            }
-
-            return false;
-        }
-
-        public bool HasMark(CombatantState target) =>
-            target != null && marks.TryGetValue(target, out var bucket) && bucket != null && bucket.Count > 0;
 
         public bool HasMark(CombatantState target, string markId)
         {
@@ -95,63 +123,52 @@ namespace BattleV2.Marks
                 return false;
             }
 
-            return marks.TryGetValue(target, out var bucket) && bucket != null && bucket.ContainsKey(markId);
+            var slot = target.ActiveMark;
+            return slot.HasValue && string.Equals(slot.MarkId, markId, StringComparison.Ordinal);
         }
 
         public bool TryGetMark(CombatantState target, string markId, out MarkDefinition definition)
         {
             definition = null;
-            if (target == null || string.IsNullOrEmpty(markId))
+            if (target == null)
             {
                 return false;
             }
 
-            if (marks.TryGetValue(target, out var bucket) && bucket != null && bucket.TryGetValue(markId, out var state))
+            var slot = target.ActiveMark;
+            if (!slot.HasValue)
             {
-                definition = state.Definition;
-                return true;
+                return false;
             }
 
-            return false;
+            if (!string.IsNullOrEmpty(markId) && !string.Equals(markId, slot.MarkId, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            definition = slot.Definition;
+            return definition != null;
         }
 
         public IReadOnlyList<MarkDefinition> GetMarks(CombatantState target)
         {
             if (target == null)
             {
-                return System.Array.Empty<MarkDefinition>();
+                return Array.Empty<MarkDefinition>();
             }
 
-            if (!marks.TryGetValue(target, out var bucket) || bucket == null || bucket.Count == 0)
+            var slot = target.ActiveMark;
+            if (!slot.HasValue || slot.Definition == null)
             {
-                return System.Array.Empty<MarkDefinition>();
+                return Array.Empty<MarkDefinition>();
             }
 
-            var keys = new List<string>(bucket.Keys);
-            keys.Sort(System.StringComparer.Ordinal);
-
-            var list = new List<MarkDefinition>(keys.Count);
-            for (int i = 0; i < keys.Count; i++)
-            {
-                var key = keys[i];
-                if (bucket.TryGetValue(key, out var state) && state.Definition != null)
-                {
-                    list.Add(state.Definition);
-                }
-            }
-
-            return list;
+            return new[] { slot.Definition };
         }
 
-        private Dictionary<string, MarkState> EnsureBucket(CombatantState target)
+        public bool TryExpireMark(CombatantState target)
         {
-            if (!marks.TryGetValue(target, out var bucket) || bucket == null)
-            {
-                bucket = new Dictionary<string, MarkState>();
-                marks[target] = bucket;
-            }
-
-            return bucket;
+            return ClearMark(target, null, MarkChangeReason.Expired);
         }
 
         private static string ResolveKey(MarkDefinition definition)
@@ -169,31 +186,28 @@ namespace BattleV2.Marks
             return definition.name;
         }
 
-        private readonly struct MarkState
-        {
-            public MarkState(MarkDefinition definition)
-            {
-                Definition = definition;
-            }
-
-            public MarkDefinition Definition { get; }
-        }
-
-        private void RaiseEvent(CombatantState target, MarkDefinition def, MarkChangeReason reason, CombatantState detonator = null, string reactionId = null)
+        private void RaiseEvent(
+            CombatantState target,
+            MarkDefinition def,
+            MarkChangeReason reason,
+            CombatantState detonator,
+            string reactionId,
+            MarkSlot slot)
         {
             if (OnMarkChanged == null)
             {
                 return;
             }
 
-            string markId = ResolveKey(def);
             var evt = new MarkEvent(
                 target,
-                markId,
+                slot.MarkId,
                 def,
                 reason,
                 detonator,
-                reactionId);
+                reactionId,
+                slot.AppliedBy,
+                slot.RemainingTurns);
             OnMarkChanged.Invoke(evt);
         }
     }
@@ -216,7 +230,9 @@ namespace BattleV2.Marks
             MarkDefinition definition,
             MarkChangeReason reason,
             CombatantState detonator,
-            string reactionId)
+            string reactionId,
+            CombatantState appliedBy,
+            int remainingTurns)
         {
             Target = target;
             MarkId = markId;
@@ -224,6 +240,8 @@ namespace BattleV2.Marks
             Reason = reason;
             Detonator = detonator;
             ReactionId = reactionId;
+            AppliedBy = appliedBy;
+            RemainingTurns = remainingTurns;
         }
 
         public CombatantState Target { get; }
@@ -232,5 +250,7 @@ namespace BattleV2.Marks
         public MarkChangeReason Reason { get; }
         public CombatantState Detonator { get; }
         public string ReactionId { get; }
+        public CombatantState AppliedBy { get; }
+        public int RemainingTurns { get; }
     }
 }

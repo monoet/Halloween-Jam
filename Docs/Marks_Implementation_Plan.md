@@ -6,10 +6,10 @@
 
 ## Checklist de implementación (progreso)
 
-- [ ] Funciones puras listas (`QualifiesForMarks_Single/AoE_Target`, `ResolveInteraction` con `canBeAppliedAsMark`)
+- [x] Funciones puras listas (`QualifiesForMarks_Single/AoE_Target`, `ResolveInteraction` con `canBeAppliedAsMark`)
 - [ ] Applier/middleware único conectado al pipeline (solo enemigos, gates + interacción + reacción)
 - [ ] Hook de expiración al inicio del turno de `AppliedBy` (MVP RemainingTurns=1)
-- [ ] `CombatantState.ActiveMark` como única fuente de verdad; `MarkService` solo como hub de eventos (sin estado duplicado)
+- [x] `CombatantState.ActiveMark` como única fuente de verdad; `MarkService` solo como hub de eventos (sin estado duplicado)
 - [ ] ReactionResolver recibe `ReactionKey` (+ `axisSubtype` desde AttackContext si Axis)
 - [ ] RNG AoE con seed (opcional) y gatea toda interacción por target
 - [ ] UI/FX escucha `OnMarkChanged` y refleja Apply/Refresh/BlowUp/Expire/Clear

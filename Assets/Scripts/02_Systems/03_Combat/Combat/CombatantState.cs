@@ -3,6 +3,7 @@ using UnityEngine;
 using BattleV2.Audio;
 using BattleV2.Core;
 using BattleV2.Debugging;
+using BattleV2.Marks;
 using UnityEngine.Events;
 
 public enum CombatantFaction
@@ -42,6 +43,9 @@ public class CombatantState : MonoBehaviour
     [SerializeField, Range(0, 10)] private int maxCP = 5;
     [SerializeField, Range(0, 10)] private int currentCP = 0;
 
+    [Header("Marks (slot único)")]
+    [SerializeField] private MarkSlot activeMark;
+
     [Header("Audio / Identity")]
     [SerializeField] private AudioSignatureId audioSignatureId = AudioSignatureId.None;
 
@@ -78,6 +82,7 @@ public class CombatantState : MonoBehaviour
     public int TeamId => teamId != 0 ? teamId : (int)faction + 1;
     public string DisplayName => string.IsNullOrWhiteSpace(displayName) ? name : displayName;
     public Sprite Portrait => characterRuntime?.Core.portrait ?? characterRuntime?.Archetype?.portrait;
+    public MarkSlot ActiveMark => activeMark;
     public IReadOnlyList<string> AllowedActionIds => allowedActionIds;
     public AudioSignatureId AudioSignatureId => audioSignatureId;
 
@@ -327,6 +332,18 @@ public class CombatantState : MonoBehaviour
             "AddCp.Debugging01",
             $"actor={DisplayName}#{GetInstanceID()} side={(IsPlayer ? "Player" : "Enemy")} delta=+0 before={before} after={currentCP} reason={(maxCP <= 0 ? "maxCP<=0" : "capped")}",
             this);
+    }
+
+    internal void SetMarkSlot(MarkSlot slot)
+    {
+        UnityThread.AssertMainThread("CombatantState.SetMarkSlot");
+        activeMark = slot;
+    }
+
+    internal void ClearMarkSlot()
+    {
+        UnityThread.AssertMainThread("CombatantState.ClearMarkSlot");
+        activeMark = MarkSlot.Empty;
     }
 
     public bool SpendSP(int amount)
