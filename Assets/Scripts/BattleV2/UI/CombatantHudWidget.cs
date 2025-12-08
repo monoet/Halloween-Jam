@@ -33,6 +33,10 @@ namespace BattleV2.UI
 
         [Header("Marks")]
         [SerializeField] private Image markIcon;
+        [SerializeField] private bool markFxEnabled = true;
+        [SerializeField, Min(0f)] private float markFlashDuration = 0.3f;
+        [SerializeField] private Color detonateFlashColor = Color.white;
+        [SerializeField] private Vector3 markApplyPunch = new Vector3(0.05f, 0.05f, 0f);
 
         [Header("Highlight")]
         [SerializeField] private GameObject highlightRoot;
@@ -55,6 +59,8 @@ namespace BattleV2.UI
         private MarkService markService;
         private bool marksSubscribed;
         private Vector3 originalHighlightScale = Vector3.one;
+        private Coroutine markFxRoutine;
+        private Vector3 markIconOriginalScale = Vector3.one;
 
         private void Awake()
         {
@@ -451,6 +457,10 @@ namespace BattleV2.UI
             }
 
             originalHighlightScale = highlightRoot.transform.localScale;
+            if (markIcon != null)
+            {
+                markIconOriginalScale = markIcon.transform.localScale;
+            }
         }
 
         private void UpdateHighlightPulse()
@@ -472,7 +482,37 @@ namespace BattleV2.UI
                 return;
             }
 
-            SyncMarks();
+            if (markIcon == null)
+            {
+                return;
+            }
+
+            switch (evt.Reason)
+            {
+                case MarkChangeReason.Applied:
+                case MarkChangeReason.Refreshed:
+                    ApplyMarkVisual(evt.Definition);
+                    break;
+                case MarkChangeReason.Detonated:
+                case MarkChangeReason.Cleared:
+                case MarkChangeReason.Expired:
+                    if (markFxEnabled)
+                    {
+                        if (markFxRoutine != null)
+                        {
+                            StopCoroutine(markFxRoutine);
+                        }
+                        markFxRoutine = StartCoroutine(FlashAndClearMark());
+                    }
+                    else
+                    {
+                        ClearMarkIcon();
+                    }
+                    break;
+                default:
+                    SyncMarks();
+                    break;
+            }
         }
 
         private void SyncMarks()
@@ -491,15 +531,79 @@ namespace BattleV2.UI
             var marks = markService.GetMarks(source);
             if (marks == null || marks.Count == 0)
             {
-                markIcon.sprite = null;
-                markIcon.enabled = false;
+                ClearMarkIcon();
                 return;
             }
 
             var def = marks[0];
+            ApplyMarkVisual(def);
+        }
+
+        private void ApplyMarkVisual(MarkDefinition def)
+        {
+            if (markIcon == null)
+            {
+                return;
+            }
+
             markIcon.sprite = def != null ? def.icon : null;
             markIcon.color = def != null ? def.tint : Color.white;
             markIcon.enabled = markIcon.sprite != null;
+
+            // Pequeño punch para feedback al aplicar/refresh.
+            if (markFxEnabled && markIcon.enabled)
+            {
+                if (markFxRoutine != null)
+                {
+                    StopCoroutine(markFxRoutine);
+                }
+                markIcon.transform.localScale = markIconOriginalScale;
+                markIcon.transform.localScale += markApplyPunch;
+                markFxRoutine = StartCoroutine(ResetMarkScale());
+            }
+        }
+
+        private void ClearMarkIcon()
+        {
+            if (markIcon == null)
+            {
+                return;
+            }
+
+            markIcon.sprite = null;
+            markIcon.enabled = false;
+            markIcon.color = Color.white;
+        }
+
+        private System.Collections.IEnumerator ResetMarkScale()
+        {
+            yield return null;
+            if (markIcon != null)
+            {
+                markIcon.transform.localScale = markIconOriginalScale;
+            }
+            markFxRoutine = null;
+        }
+
+        private System.Collections.IEnumerator FlashAndClearMark()
+        {
+            if (markIcon == null)
+            {
+                yield break;
+            }
+
+            var originalColor = markIcon.color;
+            float t = 0f;
+            while (t < markFlashDuration)
+            {
+                t += Time.deltaTime;
+                float lerp = Mathf.Clamp01(t / markFlashDuration);
+                markIcon.color = Color.Lerp(originalColor, detonateFlashColor, lerp);
+                yield return null;
+            }
+
+            ClearMarkIcon();
+            markFxRoutine = null;
         }
     }
 }

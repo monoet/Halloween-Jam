@@ -139,7 +139,8 @@ namespace BattleV2.Execution
 
         public static TargetJudgment From(ActionJudgment actionJudgment, int index, CombatantState target)
         {
-            int targetId = target != null ? target.GetInstanceID() : 0;
+            int targetId = target != null ? target.StableId : 0;
+            // Seed por target determinista: ExecutionSeed ^ StableId ^ index
             int seed = actionJudgment.RngSeed ^ targetId ^ index;
             return new TargetJudgment(index, targetId, seed, actionJudgment.HasValue);
         }

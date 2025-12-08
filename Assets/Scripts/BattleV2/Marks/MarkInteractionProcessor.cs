@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using BattleV2.Core;
 using BattleV2.Execution;
 using BattleV2.Providers;
 using BattleV2.Targeting;
@@ -69,9 +70,20 @@ namespace BattleV2.Marks
                         continue;
                     }
 
+                    float chance = 0f;
+                    float roll = 0f;
                     bool qualifies = isAoE
-                        ? MarkRulesEngine.QualifiesForMarksAoETarget(judgment.CpSpent, incoming, aoePerCpBonus, targetJudgment.RngSeed, out _, out _)
+                        ? MarkRulesEngine.QualifiesForMarksAoETarget(judgment.CpSpent, incoming, aoePerCpBonus, targetJudgment.RngSeed, out chance, out roll)
                         : MarkRulesEngine.QualifiesForMarksSingle(judgment.CpSpent, timedGrade, incoming);
+
+                    if (isAoE)
+                    {
+                        // Traza para reproducibilidad: seed por target + chance/roll
+                        BattleDiagnostics.Log(
+                            "Marks.RNG",
+                            $"exec={executionId} attacker={attackerId} target={target?.StableId ?? 0} seed={targetJudgment.RngSeed} chance={chance:F3} roll={roll:F3} qualifies={qualifies}",
+                            attacker);
+                    }
 
                     if (!qualifies)
                     {
