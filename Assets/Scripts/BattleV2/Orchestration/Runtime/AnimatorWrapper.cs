@@ -854,7 +854,8 @@ namespace BattleV2.Orchestration.Runtime
                 return;
             }
 
-            // Detect duplicates within the set
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            // Detect duplicates within the set and collisions with existing resolver entries
             var seenIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var binding in animationSet.ClipBindings)
             {
@@ -878,6 +879,7 @@ namespace BattleV2.Orchestration.Runtime
                     Debug.Log($"[DEBUG-AW01] Clip id collision '{binding.Id}' registering set '{animationSet.name}' on '{name}'. Existing='{existingClip.name}' New='{binding.Clip.name}'", this);
                 }
             }
+#endif
 
             installer.ClipResolver.RegisterBindings(animationSet.ClipBindings);
         }
