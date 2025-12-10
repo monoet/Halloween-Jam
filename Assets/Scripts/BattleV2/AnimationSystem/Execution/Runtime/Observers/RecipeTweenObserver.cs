@@ -5,6 +5,7 @@ using UnityEngine;
 using BattleV2.AnimationSystem.Execution.Runtime;
 using BattleV2.AnimationSystem.Runtime;
 using BattleV2.Core;
+using BattleV2.Orchestration.Runtime;
 
 namespace BattleV2.AnimationSystem.Execution.Runtime.Observers
 {
@@ -146,6 +147,34 @@ private bool anchorMarkedThisTurn;
             if (recipe == null || tweenTarget == null || !MatchesOwner(context))
                 return;
 
+            if (AnimatorRegistry.Instance.TryGetWrapper(owner, out var resetWrapper))
+            {
+                if (resetWrapper is BattleV2.Orchestration.Runtime.AnimatorWrapper rw)
+                {
+                    rw.ResetVariantScope("RecipeStarted", recipe.Id);
+                }
+            }
+
+            if (AnimatorRegistry.Instance.TryGetWrapper(owner, out var wrapper))
+            {
+                var runtimeWrapper = wrapper as BattleV2.Orchestration.Runtime.AnimatorWrapper;
+                if (runtimeWrapper != null)
+                {
+                    var selection = context.Request.Selection;
+                    var actionId = selection.Action != null ? selection.Action.id : "(null)";
+                    var recipeOverride = selection.AnimationRecipeId ?? "(null)";
+                    var ctx = $"recipe={recipe.Id} action={actionId} override={recipeOverride}";
+                    switch (recipe.Id)
+                    {
+                        case "run_up":
+                        case "run_back":
+                        case "basic_attack":
+                            _ = runtimeWrapper.ConsumeCommand(recipe.Id, "RecipeTweenObserver", ctx, System.Threading.CancellationToken.None);
+                            break;
+                    }
+                }
+            }
+
             if (activeTween != null && activeTween.IsActive() && activeTween.IsPlaying())
             {
 #if false
@@ -162,6 +191,10 @@ private bool anchorMarkedThisTurn;
 
             if (!lookup.TryGetValue(recipe.Id, out var def) || def == null)
                 return;
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            DebugNotifyWrapper(recipe.Id, context);
+#endif
 
             KillTween(false);
 
@@ -459,5 +492,34 @@ private bool anchorMarkedThisTurn;
 
             animator.applyRootMotion = originalRootMotion.Value;
         }
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        private void DebugNotifyWrapper(string commandId, StepSchedulerContext context)
+        {
+            if (string.IsNullOrWhiteSpace(commandId) || owner == null)
+            {
+                return;
+            }
+
+            if (!MatchesOwner(context))
+            {
+                return;
+            }
+
+            if (!AnimatorRegistry.Instance.TryGetWrapper(owner, out var wrapper))
+            {
+                return;
+            }
+
+            if (wrapper is BattleV2.Orchestration.Runtime.AnimatorWrapper runtimeWrapper)
+            {
+                var selection = context.Request.Selection;
+                var actionId = selection.Action?.id ?? "(null)";
+                var recipeOverride = selection.AnimationRecipeId ?? "(null)";
+                var ctx = $"recipe={commandId} action={actionId} override={recipeOverride}";
+                runtimeWrapper.DebugReceiveCommand(commandId, "RecipeTweenObserver", ctx);
+            }
+        }
+#endif
     }
 }

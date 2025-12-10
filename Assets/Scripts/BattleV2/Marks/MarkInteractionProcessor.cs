@@ -46,9 +46,41 @@ namespace BattleV2.Marks
             var timedGrade = judgment.HasValue ? judgment.TimedGrade : TimedGrade.None;
             bool isAoE = selection.Action.targetShape == TargetShape.All;
 
-            for (int i = 0; i < targets.Count; i++)
+            IReadOnlyList<CombatantState> orderedTargets = targets;
+            if (isAoE && targets.Count > 1)
             {
-                var target = targets[i];
+                var list = new List<CombatantState>(targets.Count);
+                var seen = new HashSet<int>();
+                for (int t = 0; t < targets.Count; t++)
+                {
+                    var target = targets[t];
+                    if (target != null)
+                    {
+                        if (!seen.Add(target.StableId))
+                        {
+                            BattleDiagnostics.Log(
+                                "Marks.RNG",
+                                $"Duplicate StableId detected in AoE targets. stableId={target.StableId} exec={executionId}",
+                                attacker);
+                        }
+
+                        list.Add(target);
+                    }
+                }
+                list.Sort((a, b) =>
+                {
+                    if (a == null && b == null) return 0;
+                    if (a == null) return 1;
+                    if (b == null) return -1;
+                    int cmp = a.StableId.CompareTo(b.StableId);
+                    return cmp;
+                });
+                orderedTargets = list;
+            }
+
+            for (int i = 0; i < orderedTargets.Count; i++)
+            {
+                var target = orderedTargets[i];
                 if (target == null || !target.IsAlive || !target.IsEnemy) // v1: solo enemigos (usa side, no IsPlayer)
                 {
                     continue;

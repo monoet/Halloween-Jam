@@ -381,16 +381,39 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4409179532fc584458b64fc9601c0511, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BattleV2.Orchestration.Runtime.AnimatorWrapper
-  animator: {fileID: 0}
-  spriteRenderer: {fileID: 0}
+  animator: {fileID: 3491907178126880437}
+  spriteRenderer: {fileID: 1106669051043226952}
   animatedRoot: {fileID: 5914491807628125836}
-  animationSet: {fileID: 11400000, guid: ab87af0db41fc8642ad2869694052716, type: 2}
+  animationSet: {fileID: 11400000, guid: c489eddcb5062494189f856017f295e0, type: 2}
   combatantIdOverride: 
   autoRegister: 1
   logPlayback: 0
+  registerToGlobalResolver: 0
+  commandVariants:
+  - baseCommandId: basic_attack
+    variants:
+    - LC1
+    - LC2
+    - LC3
+    strategy: 3
+    fallbackToBaseIfMissing: 0
+    advanceGuardSameFrame: 0
+  debugAw01Enabled: 1
   onAnimationEvent:
     m_PersistentCalls:
-      m_Calls: []
+      m_Calls:
+      - m_Target: {fileID: 0}
+        m_TargetAssemblyTypeName: 
+        m_MethodName: 
+        m_Mode: 0
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: 
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
 --- !u!114 &4281670992362887343
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -405,9 +428,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BattleV2.AnimationSystem.Runtime.Bindings.CharacterAnimationSetProvider
   actor: {fileID: 4547551006955442222}
   animator: {fileID: 0}
-  fallbackClip: {fileID: 7400000, guid: eec0b9eac2ed6e24f95f3511ce421f6e, type: 2}
+  fallbackClip: {fileID: 7400000, guid: 3c3ae5aedfd8c2644b4ed09f551a84a2, type: 2}
   sockets: []
-  animationSet: {fileID: 11400000, guid: ab87af0db41fc8642ad2869694052716, type: 2}
+  animationSet: {fileID: 11400000, guid: c489eddcb5062494189f856017f295e0, type: 2}
 --- !u!114 &5693036501611744944
 MonoBehaviour:
   m_ObjectHideFlags: 0

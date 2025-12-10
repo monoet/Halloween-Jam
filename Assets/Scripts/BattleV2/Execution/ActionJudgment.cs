@@ -80,7 +80,7 @@ namespace BattleV2.Execution
                 action != null ? action.targetShape : TargetShape.Single,
                 selectionSeed,
                 action != null ? action.id : null,
-                actor != null ? actor.GetInstanceID() : 0,
+                actor != null ? actor.StableId : 0,
                 true,
                 resourcesPreCost,
                 resourcesPostCost);
@@ -140,9 +140,23 @@ namespace BattleV2.Execution
         public static TargetJudgment From(ActionJudgment actionJudgment, int index, CombatantState target)
         {
             int targetId = target != null ? target.StableId : 0;
-            // Seed por target determinista: ExecutionSeed ^ StableId ^ index
-            int seed = actionJudgment.RngSeed ^ targetId ^ index;
+            // Seed por target determinista y mezclado para reducir colisiones
+            int seed = unchecked((int)MixSeed((uint)actionJudgment.RngSeed, (uint)targetId, (uint)index));
             return new TargetJudgment(index, targetId, seed, actionJudgment.HasValue);
+        }
+
+        private static uint MixSeed(uint baseSeed, uint stableId, uint index)
+        {
+            // Mezcla simple y determinista (inspired by Murmur-ish constants)
+            uint x = baseSeed;
+            x ^= stableId * 0x9E3779B9u;
+            x ^= index * 0x85EBCA6Bu;
+            x ^= x >> 16;
+            x *= 0x7FEB352Du;
+            x ^= x >> 15;
+            x *= 0x846CA68Bu;
+            x ^= x >> 16;
+            return x;
         }
     }
 

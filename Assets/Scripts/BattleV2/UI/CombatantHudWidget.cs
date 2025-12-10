@@ -33,6 +33,7 @@ namespace BattleV2.UI
 
         [Header("Marks")]
         [SerializeField] private Image markIcon;
+        [SerializeField] private MarkService markService;
         [SerializeField] private bool markFxEnabled = true;
         [SerializeField, Min(0f)] private float markFlashDuration = 0.3f;
         [SerializeField] private Color detonateFlashColor = Color.white;
@@ -56,10 +57,10 @@ namespace BattleV2.UI
         private Color originalNameColor = Color.white;
         private bool originalColorCaptured;
         private bool isHighlighted;
-        private MarkService markService;
         private bool marksSubscribed;
         private Vector3 originalHighlightScale = Vector3.one;
-        private Coroutine markFxRoutine;
+        private Coroutine markScaleRoutine;
+        private Coroutine markFlashRoutine;
         private Vector3 markIconOriginalScale = Vector3.one;
 
         private void Awake()
@@ -93,13 +94,13 @@ namespace BattleV2.UI
         private void OnEnable()
         {
             EnsurePortraitReference();
+            CacheHighlightScale();
             Subscribe(source);
             SubscribeMarks();
             ScheduleRefresh();
             SyncAnchorTarget();
             SyncHighlightState();
             SyncMarks();
-            CacheHighlightScale();
         }
 
         private void OnDisable()
@@ -187,11 +188,14 @@ namespace BattleV2.UI
                 return;
             }
 
-            markService ??= FindObjectOfType<BattleManagerV2>()?.MarkService;
             if (markService != null)
             {
                 markService.OnMarkChanged += HandleMarkChanged;
                 marksSubscribed = true;
+            }
+            else
+            {
+                Debug.LogError($"[CombatantHudWidget] MarkService not assigned on '{name}'. Marks UI will be disabled for this widget.");
             }
         }
 
@@ -498,11 +502,11 @@ namespace BattleV2.UI
                 case MarkChangeReason.Expired:
                     if (markFxEnabled)
                     {
-                        if (markFxRoutine != null)
+                        if (markFlashRoutine != null)
                         {
-                            StopCoroutine(markFxRoutine);
+                            StopCoroutine(markFlashRoutine);
                         }
-                        markFxRoutine = StartCoroutine(FlashAndClearMark());
+                        markFlashRoutine = StartCoroutine(FlashAndClearMark());
                     }
                     else
                     {
@@ -522,21 +526,13 @@ namespace BattleV2.UI
                 return;
             }
 
-            if (markService == null)
-            {
-                markIcon.enabled = false;
-                return;
-            }
-
-            var marks = markService.GetMarks(source);
-            if (marks == null || marks.Count == 0)
+            if (source == null || !source.ActiveMark.HasValue)
             {
                 ClearMarkIcon();
                 return;
             }
 
-            var def = marks[0];
-            ApplyMarkVisual(def);
+            ApplyMarkVisual(source.ActiveMark.Definition);
         }
 
         private void ApplyMarkVisual(MarkDefinition def)
@@ -553,13 +549,13 @@ namespace BattleV2.UI
             // Pequeño punch para feedback al aplicar/refresh.
             if (markFxEnabled && markIcon.enabled)
             {
-                if (markFxRoutine != null)
+                if (markScaleRoutine != null)
                 {
-                    StopCoroutine(markFxRoutine);
+                    StopCoroutine(markScaleRoutine);
                 }
                 markIcon.transform.localScale = markIconOriginalScale;
                 markIcon.transform.localScale += markApplyPunch;
-                markFxRoutine = StartCoroutine(ResetMarkScale());
+                markScaleRoutine = StartCoroutine(ResetMarkScale());
             }
         }
 
@@ -570,9 +566,21 @@ namespace BattleV2.UI
                 return;
             }
 
+            if (markScaleRoutine != null)
+            {
+                StopCoroutine(markScaleRoutine);
+                markScaleRoutine = null;
+            }
+            if (markFlashRoutine != null)
+            {
+                StopCoroutine(markFlashRoutine);
+                markFlashRoutine = null;
+            }
+
             markIcon.sprite = null;
             markIcon.enabled = false;
             markIcon.color = Color.white;
+            markIcon.transform.localScale = markIconOriginalScale;
         }
 
         private System.Collections.IEnumerator ResetMarkScale()
@@ -582,7 +590,7 @@ namespace BattleV2.UI
             {
                 markIcon.transform.localScale = markIconOriginalScale;
             }
-            markFxRoutine = null;
+            markScaleRoutine = null;
         }
 
         private System.Collections.IEnumerator FlashAndClearMark()
@@ -603,7 +611,26 @@ namespace BattleV2.UI
             }
 
             ClearMarkIcon();
-            markFxRoutine = null;
+            markFlashRoutine = null;
+        }
+
+        /// <summary>
+        /// Inyección explícita del servicio de marks. Debe llamarse desde el orquestador/HUD manager.
+        /// </summary>
+        public void SetMarkService(MarkService service)
+        {
+            if (marksSubscribed)
+            {
+                UnsubscribeMarks();
+            }
+
+            markService = service;
+
+            if (isActiveAndEnabled)
+            {
+                SubscribeMarks();
+                SyncMarks();
+            }
         }
     }
 }
