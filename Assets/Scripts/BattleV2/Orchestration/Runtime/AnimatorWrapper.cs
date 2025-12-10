@@ -83,6 +83,7 @@ namespace BattleV2.Orchestration.Runtime
         private readonly Dictionary<string, int> variantIndex = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, int> variantLastFrame = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         private readonly SemaphoreSlim consumeGate = new SemaphoreSlim(1, 1);
+        private bool destroyed;
 
         private void Awake()
         {
@@ -128,6 +129,7 @@ namespace BattleV2.Orchestration.Runtime
 
         private void OnDestroy()
         {
+            destroyed = true;
             Stop();
             if (graphInitialized && playableGraph.IsValid())
             {
@@ -337,7 +339,7 @@ namespace BattleV2.Orchestration.Runtime
 
         private string BuildExecKey(string commandId, string context)
         {
-            var actorKey = owner != null ? owner.GetHashCode().ToString() : "(nullActor)";
+            var actorKey = owner != null ? owner.GetInstanceID().ToString() : "(nullActor)";
             return $"{actorKey}|{commandId}|{context ?? "(nullCtx)"}";
         }
 
@@ -669,10 +671,6 @@ namespace BattleV2.Orchestration.Runtime
             {
                 float speedAbs = Math.Max(0.01f, Math.Abs(request.Speed));
                 float remainingSeconds = Math.Max(0f, (clipLength - startTime)) / speedAbs;
-                if (hasHold)
-                {
-                    remainingSeconds = Math.Max(0f, remainingSeconds - holdSeconds);
-                }
                 await Task.Delay(TimeSpan.FromSeconds(remainingSeconds), token);
             }
         }
@@ -795,6 +793,11 @@ namespace BattleV2.Orchestration.Runtime
 
         private CancellationToken GetDestroyCancellationToken()
         {
+            if (destroyed)
+            {
+                return new CancellationToken(true);
+            }
+
             if (destroyCts == null)
             {
                 destroyCts = new CancellationTokenSource();

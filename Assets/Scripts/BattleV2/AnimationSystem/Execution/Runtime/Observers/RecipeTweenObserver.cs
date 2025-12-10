@@ -102,6 +102,7 @@ private bool anchorMarkedThisTurn;
             }
 
             RebuildLookup();
+            CaptureHomePosition(force: true);
         }
 
         private void OnEnable() { RebuildLookup(); Register(); }
@@ -135,11 +136,11 @@ private bool anchorMarkedThisTurn;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             if (recipe != null && recipe.Id == "run_up")
             {
-                var selection = context.Request.Selection;
-                var actionId = selection.Action?.id ?? "(null)";
-                var recipeOverride = selection.AnimationRecipeId ?? "(null)";
+                var dbgSelection = context.Request.Selection;
+                var dbgActionId = dbgSelection.Action?.id ?? "(null)";
+                var dbgRecipeOverride = dbgSelection.AnimationRecipeId ?? "(null)";
 #if false
-                Debug.Log($"TTDebug04 [RUN_UP_TRIGGER] actor={context.Actor?.name ?? "(null)"} action={actionId} animRecipe={recipeOverride}", this);
+                Debug.Log($"TTDebug04 [RUN_UP_TRIGGER] actor={context.Actor?.name ?? "(null)"} action={dbgActionId} animRecipe={dbgRecipeOverride}", this);
 #endif
             }
 #endif
@@ -147,31 +148,28 @@ private bool anchorMarkedThisTurn;
             if (recipe == null || tweenTarget == null || !MatchesOwner(context))
                 return;
 
-            if (AnimatorRegistry.Instance.TryGetWrapper(owner, out var resetWrapper))
+            var selection = context.Request.Selection;
+            var actionId = selection.Action != null ? selection.Action.id : "(null)";
+            var recipeOverride = selection.AnimationRecipeId ?? "(null)";
+            if (AnimatorRegistry.Instance.TryGetWrapper(owner, out var wrapper) && wrapper is BattleV2.Orchestration.Runtime.AnimatorWrapper aw)
             {
-                if (resetWrapper is BattleV2.Orchestration.Runtime.AnimatorWrapper rw)
+                if (recipe.Id == "run_up")
                 {
-                    rw.ResetVariantScope("RecipeStarted", recipe.Id);
+                    aw.ResetVariantScope("ActionBoundary", $"{owner.GetInstanceID()}|{actionId}|frame={Time.frameCount}");
                 }
-            }
 
-            if (AnimatorRegistry.Instance.TryGetWrapper(owner, out var wrapper))
-            {
-                var runtimeWrapper = wrapper as BattleV2.Orchestration.Runtime.AnimatorWrapper;
-                if (runtimeWrapper != null)
+                var ctx = $"recipe={recipe.Id} action={actionId} override={recipeOverride}";
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                aw.DebugReceiveCommand(recipe.Id, "RecipeTweenObserver", ctx);
+#endif
+
+                switch (recipe.Id)
                 {
-                    var selection = context.Request.Selection;
-                    var actionId = selection.Action != null ? selection.Action.id : "(null)";
-                    var recipeOverride = selection.AnimationRecipeId ?? "(null)";
-                    var ctx = $"recipe={recipe.Id} action={actionId} override={recipeOverride}";
-                    switch (recipe.Id)
-                    {
-                        case "run_up":
-                        case "run_back":
-                        case "basic_attack":
-                            _ = runtimeWrapper.ConsumeCommand(recipe.Id, "RecipeTweenObserver", ctx, System.Threading.CancellationToken.None);
-                            break;
-                    }
+                    case "run_up":
+                    case "run_back":
+                    case "basic_attack":
+                        _ = aw.ConsumeCommand(recipe.Id, "RecipeTweenObserver", ctx, System.Threading.CancellationToken.None);
+                        break;
                 }
             }
 
@@ -192,10 +190,6 @@ private bool anchorMarkedThisTurn;
             if (!lookup.TryGetValue(recipe.Id, out var def) || def == null)
                 return;
 
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            DebugNotifyWrapper(recipe.Id, context);
-#endif
-
             KillTween(false);
 
             if (recipe.Id == "basic_attack")
@@ -206,6 +200,15 @@ private bool anchorMarkedThisTurn;
 
             if (recipe.Id == "run_back")
             {
+                if (!homeCaptured)
+                {
+                    CaptureHomePosition(force: true);
+                    if (!homeCaptured)
+                    {
+                        Debug.LogWarning("[RecipeTweenObserver] RUN_BACK aborted: home position not captured.", this);
+                        return;
+                    }
+                }
                 suppressRunUp = true;
                 SetRootMotion(false);
                 float duration = overrideRunBackDuration ? runBackDuration : def.duration;
@@ -493,33 +496,5 @@ private bool anchorMarkedThisTurn;
             animator.applyRootMotion = originalRootMotion.Value;
         }
 
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-        private void DebugNotifyWrapper(string commandId, StepSchedulerContext context)
-        {
-            if (string.IsNullOrWhiteSpace(commandId) || owner == null)
-            {
-                return;
-            }
-
-            if (!MatchesOwner(context))
-            {
-                return;
-            }
-
-            if (!AnimatorRegistry.Instance.TryGetWrapper(owner, out var wrapper))
-            {
-                return;
-            }
-
-            if (wrapper is BattleV2.Orchestration.Runtime.AnimatorWrapper runtimeWrapper)
-            {
-                var selection = context.Request.Selection;
-                var actionId = selection.Action?.id ?? "(null)";
-                var recipeOverride = selection.AnimationRecipeId ?? "(null)";
-                var ctx = $"recipe={commandId} action={actionId} override={recipeOverride}";
-                runtimeWrapper.DebugReceiveCommand(commandId, "RecipeTweenObserver", ctx);
-            }
-        }
-#endif
     }
 }
