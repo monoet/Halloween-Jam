@@ -1,3 +1,5 @@
+using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using DG.Tweening;
@@ -43,6 +45,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Observers
         private readonly List<CombatTweenStrategy> runtimeFallbackStrategies = new();
 // Suprime run_up mientras run_back está activo
 private bool suppressRunUp = false;
+private string lastVariantResetKey;
 private Animator cachedAnimator;
 private bool? originalRootMotion;
 private bool anchorMarkedThisTurn;
@@ -106,7 +109,7 @@ private bool anchorMarkedThisTurn;
         }
 
         private void OnEnable() { RebuildLookup(); Register(); }
-        private void OnDisable() { Unregister(); KillTween(true); RestoreRootMotion(); anchorMarkedThisTurn = false; }
+        private void OnDisable() { Unregister(); KillTween(true); RestoreRootMotion(); anchorMarkedThisTurn = false; lastVariantResetKey = null; }
 
         private void Register()
         {
@@ -153,9 +156,11 @@ private bool anchorMarkedThisTurn;
             var recipeOverride = selection.AnimationRecipeId ?? "(null)";
             if (AnimatorRegistry.Instance.TryGetWrapper(owner, out var wrapper) && wrapper is BattleV2.Orchestration.Runtime.AnimatorWrapper aw)
             {
-                if (recipe.Id == "run_up")
+                var resetKey = $"{owner.GetInstanceID()}|{actionId}|{recipeOverride}|{context.Request.GetHashCode()}";
+                if (!string.Equals(resetKey, lastVariantResetKey, StringComparison.Ordinal))
                 {
-                    aw.ResetVariantScope("ActionBoundary", $"{owner.GetInstanceID()}|{actionId}|frame={Time.frameCount}");
+                    lastVariantResetKey = resetKey;
+                    aw.ResetVariantScope("ActionBoundary", resetKey);
                 }
 
                 var ctx = $"recipe={recipe.Id} action={actionId} override={recipeOverride}";

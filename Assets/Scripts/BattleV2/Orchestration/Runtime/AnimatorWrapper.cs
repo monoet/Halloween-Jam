@@ -214,11 +214,21 @@ namespace BattleV2.Orchestration.Runtime
 
             await UnityMainThread.SwitchAsync();
 
+            if (destroyed || !this || !isActiveAndEnabled)
+            {
+                return;
+            }
+
             AnimationPlaybackRequest playbackRequest = default;
             bool shouldPlay = false;
             await consumeGate.WaitAsync(ct);
             try
             {
+                if (destroyed || !this || !isActiveAndEnabled)
+                {
+                    return;
+                }
+
                 string execKey = BuildExecKey(commandId, context);
                 int frame = Time.frameCount;
                 if (execKey == lastExecKey && frame == lastExecFrame)
@@ -467,6 +477,11 @@ namespace BattleV2.Orchestration.Runtime
             await UnityMainThread.SwitchAsync();
 
             if (!enabled)
+            {
+                return;
+            }
+
+            if (destroyed || !this || !isActiveAndEnabled)
             {
                 return;
             }
@@ -832,6 +847,36 @@ namespace BattleV2.Orchestration.Runtime
             if (!registerToGlobalResolver || installer?.ClipResolver == null)
             {
                 return;
+            }
+
+            if (animationSet.ClipBindings == null || animationSet.ClipBindings.Count == 0)
+            {
+                return;
+            }
+
+            // Detect duplicates within the set
+            var seenIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var binding in animationSet.ClipBindings)
+            {
+                if (binding == null)
+                {
+                    continue;
+                }
+
+                if (string.IsNullOrWhiteSpace(binding.Id) || binding.Clip == null)
+                {
+                    continue;
+                }
+
+                if (!seenIds.Add(binding.Id) && debugAw01Enabled)
+                {
+                    Debug.Log($"[DEBUG-AW01] Duplicate clip id '{binding.Id}' in CharacterAnimationSet '{animationSet.name}' on '{name}'. Last wins.", this);
+                }
+
+                if (installer.ClipResolver.TryGetClip(binding.Id, out var existingClip) && existingClip != null && existingClip != binding.Clip && debugAw01Enabled)
+                {
+                    Debug.Log($"[DEBUG-AW01] Clip id collision '{binding.Id}' registering set '{animationSet.name}' on '{name}'. Existing='{existingClip.name}' New='{binding.Clip.name}'", this);
+                }
             }
 
             installer.ClipResolver.RegisterBindings(animationSet.ClipBindings);

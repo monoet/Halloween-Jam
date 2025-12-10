@@ -22,5 +22,14 @@
 - `AnimationSystemInstaller` + `AnimatorRegistry`: 4/5 — registro global opcional puede colisionar IDs si se habilita; auto-scan puede inflar resolver.
 - `CombatEventDispatcher/Router`: 3/5 — puede spamear missing presets y crecer en triggers.
 - `QA/Diagnostics Harnesses`: 2/5 — bajo riesgo, salvo registros duplicados si conviven con installer.
+
 ## Severity (1–5)
 - Current wrapper bloat/risk: **2/5** (lean enough after recent safeguards).
+
+## Progreso (checklist)
+- [x] Integrar comandos → variantes → clips via Playables con guardas de hilo/CTS.
+- [x] Reset simple de variantes al inicio de receta (actualmente por run_up).
+- [x] Hold offsets por comando en CharacterAnimationSet; aplicación en AnimatorWrapper (freeze primer frame).
+- [x] Reset de variantes por ejecución/turno con key estable (evitar persistencia entre acciones iguales).
+- [x] Guard de teardown post SwitchAsync (destroyed/isActiveAndEnabled) para abortar consumos tardíos.
+- [x] Detección/log de colisiones de IDs al registrar clips (global resolver opt-in).
