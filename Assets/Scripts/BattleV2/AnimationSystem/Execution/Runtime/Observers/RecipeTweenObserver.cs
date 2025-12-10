@@ -1,13 +1,16 @@
 using System;
 using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using DG.Tweening;
 using UnityEngine;
 using BattleV2.AnimationSystem.Execution.Runtime;
 using BattleV2.AnimationSystem.Runtime;
 using BattleV2.Core;
 using BattleV2.Orchestration.Runtime;
+using BattleV2.Providers;
 
 namespace BattleV2.AnimationSystem.Execution.Runtime.Observers
 {
@@ -175,6 +178,10 @@ private bool anchorMarkedThisTurn;
                     case "basic_attack":
                         _ = aw.ConsumeCommand(recipe.Id, "RecipeTweenObserver", ctx, System.Threading.CancellationToken.None);
                         break;
+                    case "run_up_target":
+                        // Opcional: solo comando si quieres consumir anim/clip asociado
+                        _ = aw.ConsumeCommand(recipe.Id, "RecipeTweenObserver", ctx, System.Threading.CancellationToken.None);
+                        break;
                 }
             }
 
@@ -200,6 +207,12 @@ private bool anchorMarkedThisTurn;
             if (recipe.Id == "basic_attack")
             {
                 PlayWindup();
+                return;
+            }
+
+            if (recipe.Id == "run_up_target")
+            {
+                PlayRunUpTarget(selection, context.Request.Targets);
                 return;
             }
 
@@ -292,6 +305,73 @@ private bool anchorMarkedThisTurn;
 
             activeTween = seq;
             seq.Play();
+        }
+
+        private void PlayRunUpTarget(BattleSelection selection, IReadOnlyList<CombatantState> resolvedTargets)
+        {
+            var targetTransform = ResolveTargetTransform(selection, resolvedTargets);
+            if (targetTransform == null)
+            {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                Debug.LogWarning($"[RecipeTweenObserver] run_up_target skipped: target transform not found for actor={owner?.name ?? "(null)"} action={selection.Action?.id ?? "(null)"}", this);
+#endif
+                return;
+            }
+
+            var spotlight = FindSpotlightDestination(targetTransform);
+            var worldTarget = spotlight != null ? spotlight.position : targetTransform.position;
+            var targetPos = tweenTarget.parent != null
+                ? tweenTarget.parent.InverseTransformPoint(worldTarget)
+                : worldTarget;
+
+            float duration = overrideRunUpDuration ? runUpDuration : (lookup.TryGetValue("run_up", out var def) && def != null ? def.duration : runUpDuration);
+            activeTween = tweenTarget.DOLocalMove(targetPos, duration).SetEase(Ease.OutCubic);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (logTweenTargets)
+            {
+                Debug.Log($"TTDebug13 [RUN_UP_TARGET] actor={owner?.name ?? "(null)"} target={(spotlight != null ? spotlight.name : targetTransform.name)} world={worldTarget} local={targetPos} duration={duration}", this);
+            }
+#endif
+        }
+
+        private Transform ResolveTargetTransform(BattleSelection selection, IReadOnlyList<CombatantState> resolvedTargets)
+        {
+            if (selection.TargetTransform != null)
+            {
+                return selection.TargetTransform;
+            }
+
+            if (selection.Targets.HasValue && selection.Targets.Value.TryGetSingle(out var targetId) && resolvedTargets != null)
+            {
+                var match = resolvedTargets.FirstOrDefault(t => t != null && t.GetInstanceID() == targetId);
+                if (match != null)
+                {
+                    return match.transform;
+                }
+            }
+
+            if (resolvedTargets != null && resolvedTargets.Count > 0 && resolvedTargets[0] != null)
+            {
+                return resolvedTargets[0].transform;
+            }
+
+            return null;
+        }
+
+        private Transform FindSpotlightDestination(Transform root)
+        {
+            if (root == null)
+            {
+                return null;
+            }
+
+            var direct = root.Find("SpotlightDestination");
+            if (direct != null)
+            {
+                return direct;
+            }
+
+            return root.GetComponentsInChildren<Transform>(true).FirstOrDefault(t => t.name == "SpotlightDestination") ?? root;
         }
 
         private void KillTween(bool forceComplete)
@@ -412,7 +492,20 @@ private bool anchorMarkedThisTurn;
                 RestoreRootMotion();
             }
         }
-        public void OnGroupStarted(ActionStepGroup group, StepSchedulerContext context) { }
+        public void OnGroupStarted(ActionStepGroup group, StepSchedulerContext context)
+        {
+            if (group == null || tweenTarget == null || !MatchesOwner(context))
+            {
+                return;
+            }
+
+            // Permite disparar el acercamiento al objetivo cuando el GroupId es run_up_target (dentro de basic_attack)
+            if (string.Equals(group.Id, "run_up_target", StringComparison.OrdinalIgnoreCase))
+            {
+                PlayRunUpTarget(context.Request.Selection, context.Request.Targets);
+            }
+        }
+
         public void OnGroupCompleted(StepGroupExecutionReport report, StepSchedulerContext context) { }
         public void OnBranchTaken(string sourceId, string targetId, StepSchedulerContext context) { }
         public void OnStepStarted(ActionStep step, StepSchedulerContext context) { }

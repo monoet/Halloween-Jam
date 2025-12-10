@@ -859,11 +859,6 @@ namespace BattleV2.Orchestration.Runtime
             var seenIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var binding in animationSet.ClipBindings)
             {
-                if (binding == null)
-                {
-                    continue;
-                }
-
                 if (string.IsNullOrWhiteSpace(binding.Id) || binding.Clip == null)
                 {
                     continue;
