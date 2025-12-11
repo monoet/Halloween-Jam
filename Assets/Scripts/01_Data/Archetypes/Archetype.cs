@@ -1,8 +1,9 @@
 using System.Collections.Generic;
 using UnityEngine;
+using BattleV2.Core.Services;
 
 [CreateAssetMenu(menuName = "JRPG/Archetype")]
-public class Archetype : ScriptableObject
+public class Archetype : ScriptableObject, IStartingCpSource
 {
     [Header("Identidad del Personaje")]
     [Tooltip("ID unico para guardado y referencia")]
@@ -51,6 +52,10 @@ public class Archetype : ScriptableObject
         new Keyframe(50, 0.4f)
     );
 
+    [Header("CP")]
+    [Tooltip("-1 = sin override (usa CurrentCP del prefab). >=0 fuerza CP inicial en spawn fresco.")]
+    [SerializeField] private int startingCpOverride = -1;
+
     [Header("Inicializacion")]
     public List<AbilityData> startingAbilities = new();
     public List<EquipmentData> startingEquipment = new();
@@ -80,4 +85,6 @@ public class Archetype : ScriptableObject
     }
 
     public ScriptableObject DropTable => dropTable;
+
+    public int StartingCpOverride => startingCpOverride;
 }

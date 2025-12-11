@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 using BattleV2.AnimationSystem;
 using BattleV2.AnimationSystem.Catalog;
 using BattleV2.AnimationSystem.Execution;
@@ -102,6 +103,9 @@ namespace BattleV2.AnimationSystem.Runtime
                 : new List<IRecipeExecutor>();
             this.sessionController = sessionController ?? new OrchestratorSessionController();
             this.pacingSettings = pacingSettings;
+
+            // Ensure noop executor is available for synthetic recipes (e.g., auto run_back fallback).
+            stepScheduler.RegisterExecutor(new NoOpStepExecutor());
         }
 
         public BattlePhase CurrentPhase => sessionController.GetPhase(AnimationContext.Default);
@@ -500,6 +504,10 @@ namespace BattleV2.AnimationSystem.Runtime
             private readonly BattlePacingSettings pacingSettings;
             private readonly bool useLifecycle;
             private readonly bool isEnemyActor;
+            private const string RunUpGroupId = "run_up";
+            private const string RunUpTargetGroupId = "run_up_target";
+            private const string RunBackGroupId = "run_back";
+            private const bool EnableAutoReturnEnvelope = true;
 
             private CancellationTokenSource linkedCts;
             private Task executionTask;
@@ -561,17 +569,16 @@ namespace BattleV2.AnimationSystem.Runtime
                 Debug.Log($"[AnimAdapter] Executing recipe '{recipe.Id}' for action '{request.Selection.Action?.id ?? "(null)"}'.");
 #endif
 
+                var plan = BuildExecutionPlan(recipe);
+
                 try
                 {
                     if (useLifecycle)
                     {
                         await BattlePacingUtility.DelayTrackedAsync(pacingSettings != null ? pacingSettings.playerPreDelay : 0f, "PlayerPreDelay", request.Actor, linkedCts.Token, waitForIdle: false);
-                        executionTask = scheduler.ExecuteLifecycleAsync(recipe, context, linkedCts.Token);
                     }
-                    else
-                    {
-                        executionTask = scheduler.ExecuteAsync(recipe, context, linkedCts.Token);
-                    }
+
+                    executionTask = ExecutePlanAsync(plan, context, linkedCts.Token);
 
                     await executionTask;
                     await StepSchedulerIdleUtility.WaitUntilActorIdleAsync(request.Actor, linkedCts.Token);
@@ -603,6 +610,142 @@ namespace BattleV2.AnimationSystem.Runtime
                         actorRegistered = false;
                     }
                 }
+            }
+
+            private sealed class ExecutionPlan
+            {
+                public readonly List<ActionRecipe> Main = new List<ActionRecipe>();
+                public readonly List<ActionRecipe> Finally = new List<ActionRecipe>();
+            }
+
+            private ExecutionPlan BuildExecutionPlan(ActionRecipe baseRecipe)
+            {
+                var plan = new ExecutionPlan();
+                if (baseRecipe != null && !baseRecipe.IsEmpty)
+                {
+                    plan.Main.Add(baseRecipe);
+                }
+
+                if (EnableAutoReturnEnvelope && baseRecipe != null && !ContainsRunBack(baseRecipe) && TryResolveRunBack(out var runBack))
+                {
+                    plan.Finally.Add(runBack);
+                }
+
+                return plan;
+            }
+
+            private async Task ExecutePlanAsync(ExecutionPlan plan, StepSchedulerContext context, CancellationToken mainToken)
+            {
+                try
+                {
+                    for (int i = 0; i < plan.Main.Count; i++)
+                    {
+                        await ExecuteSingleAsync(plan.Main[i], context, mainToken);
+                    }
+                }
+                finally
+                {
+                    if (plan.Finally.Count > 0)
+                    {
+                        for (int i = 0; i < plan.Finally.Count; i++)
+                        {
+                            var recipeToRun = plan.Finally[i];
+                            if (recipeToRun == null || recipeToRun.IsEmpty)
+                            {
+                                continue;
+                            }
+
+                            try
+                            {
+                                // Ejecuta retorno sin lifecycle para evitar run_up implícitos en fases.
+                                var finalContext = context.WithSkipReset(true);
+                                await scheduler.ExecuteAsync(recipeToRun, finalContext, CancellationToken.None);
+                            }
+                            catch (OperationCanceledException)
+                            {
+                                // swallow: return attempt was cancelled
+                            }
+                            catch (Exception ex)
+                            {
+                                BattleLogger.Warn("AnimAdapter", $"Finally recipe '{recipeToRun.Id}' failed: {ex.Message}");
+                            }
+                        }
+                    }
+                }
+            }
+
+            private Task ExecuteSingleAsync(ActionRecipe actionRecipe, StepSchedulerContext context, CancellationToken token)
+            {
+                return useLifecycle
+                    ? scheduler.ExecuteLifecycleAsync(actionRecipe, context, token)
+                    : scheduler.ExecuteAsync(actionRecipe, context, token);
+            }
+
+            private bool ContainsMovementWithoutReturn(ActionRecipe actionRecipe)
+            {
+                if (actionRecipe == null || actionRecipe.Groups == null || actionRecipe.Groups.Count == 0)
+                {
+                    return false;
+                }
+
+                bool hasApproach = actionRecipe.Groups.Any(g =>
+                    MatchesGroupId(g, RunUpGroupId) || MatchesGroupId(g, RunUpTargetGroupId));
+                if (!hasApproach)
+                {
+                    return false;
+                }
+
+                bool hasReturn = actionRecipe.Groups.Any(g => MatchesGroupId(g, RunBackGroupId));
+                return !hasReturn;
+            }
+
+            private bool ContainsRunBack(ActionRecipe actionRecipe)
+            {
+                if (actionRecipe == null || actionRecipe.Groups == null || actionRecipe.Groups.Count == 0)
+                {
+                    return false;
+                }
+
+                return actionRecipe.Groups.Any(g => MatchesGroupId(g, RunBackGroupId));
+            }
+
+            private bool TryResolveRunBack(out ActionRecipe runBackRecipe)
+            {
+                runBackRecipe = null;
+                if (scheduler.TryGetRecipe(RunBackGroupId, out var registered) && registered != null && !registered.IsEmpty)
+                {
+                    runBackRecipe = registered;
+                    return true;
+                }
+
+                // Fallback sintético: si no hay asset registrado, emitimos un recipe mínimo (noop) para que los observers
+                // reciban RunBack y ejecuten el tween de retorno.
+                var steps = new List<ActionStep>
+                {
+                    new ActionStep(
+                        executorId: NoOpStepExecutor.ExecutorId,
+                        bindingId: null,
+                        parameters: new ActionStepParameters(null),
+                        conflictPolicy: StepConflictPolicy.WaitForCompletion,
+                        id: "noop")
+                };
+                var group = new ActionStepGroup(
+                    RunBackGroupId,
+                    steps,
+                    StepGroupExecutionMode.Sequential,
+                    StepGroupJoinPolicy.Any);
+                runBackRecipe = new ActionRecipe(RunBackGroupId, new[] { group });
+                return true;
+            }
+
+            private static bool MatchesGroupId(ActionStepGroup group, string id)
+            {
+                if (group == null || string.IsNullOrWhiteSpace(group.Id) || string.IsNullOrWhiteSpace(id))
+                {
+                    return false;
+                }
+
+                return string.Equals(group.Id, id, StringComparison.OrdinalIgnoreCase);
             }
 
             public async Task CancelAsync()

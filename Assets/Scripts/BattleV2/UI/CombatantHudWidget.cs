@@ -33,7 +33,8 @@ namespace BattleV2.UI
 
         [Header("Marks")]
         [SerializeField] private Image markIcon;
-        [SerializeField] private MarkService markService;
+        // MarkService is injected at runtime; not serializable.
+        private MarkService markService;
         [SerializeField] private bool markFxEnabled = true;
         [SerializeField, Min(0f)] private float markFlashDuration = 0.3f;
         [SerializeField] private Color detonateFlashColor = Color.white;
@@ -58,9 +59,12 @@ namespace BattleV2.UI
         private bool originalColorCaptured;
         private bool isHighlighted;
         private bool marksSubscribed;
+        private bool marksInitialized;
+        private bool loggedMissingMarksWiring;
         private Vector3 originalHighlightScale = Vector3.one;
         private Coroutine markScaleRoutine;
         private Coroutine markFlashRoutine;
+        private Coroutine markAnimRoutine;
         private Vector3 markIconOriginalScale = Vector3.one;
 
         private void Awake()
@@ -96,11 +100,23 @@ namespace BattleV2.UI
             EnsurePortraitReference();
             CacheHighlightScale();
             Subscribe(source);
-            SubscribeMarks();
+            if (marksInitialized && markService != null)
+            {
+                SubscribeMarks();
+            }
             ScheduleRefresh();
             SyncAnchorTarget();
             SyncHighlightState();
             SyncMarks();
+        }
+
+        private void Start()
+        {
+            if ((markService == null || !marksInitialized) && !loggedMissingMarksWiring)
+            {
+                loggedMissingMarksWiring = true;
+                Debug.LogError($"[CombatantHudWidget] MarkService not injected on '{name}'. Ensure HUDManager calls InitializeMarks(markService) before enabling the widget. Marks UI disabled.", this);
+            }
         }
 
         private void OnDisable()
@@ -110,6 +126,26 @@ namespace BattleV2.UI
             if (worldAnchor != null)
             {
                 worldAnchor.Target = null;
+            }
+        }
+
+        /// <summary>
+        /// Must be called by HUDManager immediately after Instantiate to provide MarkService.
+        /// </summary>
+        public void InitializeMarks(MarkService service)
+        {
+            if (marksSubscribed)
+            {
+                UnsubscribeMarks();
+            }
+
+            markService = service;
+            marksInitialized = true;
+
+            if (isActiveAndEnabled)
+            {
+                SubscribeMarks();
+                SyncMarks();
             }
         }
 
@@ -183,30 +219,26 @@ namespace BattleV2.UI
 
         private void SubscribeMarks()
         {
-            if (marksSubscribed)
+            if (!marksInitialized || markService == null || marksSubscribed)
+            {
+                return;
+            }
+
+            markService.OnMarkChanged += HandleMarkChanged;
+            marksSubscribed = true;
+        }
+
+        private void UnsubscribeMarks()
+        {
+            if (!marksSubscribed)
             {
                 return;
             }
 
             if (markService != null)
             {
-                markService.OnMarkChanged += HandleMarkChanged;
-                marksSubscribed = true;
+                markService.OnMarkChanged -= HandleMarkChanged;
             }
-            else
-            {
-                Debug.LogError($"[CombatantHudWidget] MarkService not assigned on '{name}'. Marks UI will be disabled for this widget.");
-            }
-        }
-
-        private void UnsubscribeMarks()
-        {
-            if (!marksSubscribed || markService == null)
-            {
-                return;
-            }
-
-            markService.OnMarkChanged -= HandleMarkChanged;
             marksSubscribed = false;
         }
 
@@ -542,9 +574,24 @@ namespace BattleV2.UI
                 return;
             }
 
-            markIcon.sprite = def != null ? def.icon : null;
-            markIcon.color = def != null ? def.tint : Color.white;
-            markIcon.enabled = markIcon.sprite != null;
+            if (markAnimRoutine != null)
+            {
+                StopCoroutine(markAnimRoutine);
+                markAnimRoutine = null;
+            }
+
+            var hasAnim = def != null && def.animatedFrames != null && def.animatedFrames.Length > 0;
+            if (hasAnim)
+            {
+                markIcon.color = def.tint;
+                markAnimRoutine = StartCoroutine(AnimateMarkIcon(def.animatedFrames, def.animatedFrameRate, def.animatedLoop));
+            }
+            else
+            {
+                markIcon.sprite = def != null ? def.icon : null;
+                markIcon.color = def != null ? def.tint : Color.white;
+                markIcon.enabled = markIcon.sprite != null;
+            }
 
             // Pequeño punch para feedback al aplicar/refresh.
             if (markFxEnabled && markIcon.enabled)
@@ -566,6 +613,11 @@ namespace BattleV2.UI
                 return;
             }
 
+            if (markAnimRoutine != null)
+            {
+                StopCoroutine(markAnimRoutine);
+                markAnimRoutine = null;
+            }
             if (markScaleRoutine != null)
             {
                 StopCoroutine(markScaleRoutine);
@@ -591,6 +643,34 @@ namespace BattleV2.UI
                 markIcon.transform.localScale = markIconOriginalScale;
             }
             markScaleRoutine = null;
+        }
+
+        private System.Collections.IEnumerator AnimateMarkIcon(System.Collections.Generic.IReadOnlyList<Sprite> frames, float frameRate, bool loop)
+        {
+            if (markIcon == null || frames == null || frames.Count == 0)
+            {
+                markIcon.enabled = false;
+                yield break;
+            }
+
+            markIcon.enabled = true;
+            var wait = new WaitForSeconds(1f / Mathf.Max(1f, frameRate));
+
+            do
+            {
+                for (int i = 0; i < frames.Count; i++)
+                {
+                    var frame = frames[i];
+                    if (frame != null)
+                    {
+                        markIcon.sprite = frame;
+                    }
+                    yield return wait;
+                }
+            }
+            while (loop);
+
+            markAnimRoutine = null;
         }
 
         private System.Collections.IEnumerator FlashAndClearMark()

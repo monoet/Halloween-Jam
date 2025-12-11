@@ -27,7 +27,16 @@ MonoBehaviour:
     timedHitProfile: {fileID: 0}
     basicTimedHitProfile: {fileID: 0}
     runnerKind: 0
-    markRules: []
+    markRules:
+    - mark: {fileID: 11400000, guid: b1a7b57e61055c4499b587e6c61dc7cc, type: 2}
+      kind: 0
+      requiresCp: 1
+      requiresTimedSuccess: 1
+      minTimedGrade: 2
+      cpMin: 0
+      cpExact: 0
+      chance: 25
+      consumeOnDetonate: 1
   - id: basic_attack_enemy
     displayName: Enemy Attack
     costSP: 0

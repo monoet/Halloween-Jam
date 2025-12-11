@@ -22,6 +22,11 @@ namespace BattleV2.Marks
         [Header("UI")]
         public Sprite icon;
         public Color tint = Color.white;
+        [Tooltip("Optional animated frames for the mark icon. If provided, overrides 'icon'.")]
+        public Sprite[] animatedFrames;
+        [Min(1f), Tooltip("Frame rate for animated mark icons.")]
+        public float animatedFrameRate = 12f;
+        public bool animatedLoop = true;
 
 #if UNITY_EDITOR
         private void OnValidate()

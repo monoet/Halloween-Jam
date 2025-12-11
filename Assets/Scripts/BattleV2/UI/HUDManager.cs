@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using BattleV2.Marks;
 
 namespace BattleV2.UI
 {
@@ -8,6 +9,8 @@ namespace BattleV2.UI
     /// </summary>
     public class HUDManager : MonoBehaviour
     {
+        private MarkService markService;
+
         [Header("Ally HUD")]
         [SerializeField] private CombatantHudWidget allyWidgetPrefab;
         [SerializeField] private Transform allyContainer;
@@ -19,6 +22,32 @@ namespace BattleV2.UI
 
         private readonly Dictionary<CombatantState, CombatantHudWidget> widgets = new();
         private CombatantHudWidget lastHighlighted;
+
+        public void SetMarkService(MarkService service)
+        {
+            markService = service;
+            // Initialize preset ally widgets immediately when wiring the service.
+            if (HasPresetAllyWidgets())
+            {
+                for (int i = 0; i < allyWidgets.Count; i++)
+                {
+                    var widget = allyWidgets[i];
+                    if (widget != null)
+                    {
+                        widget.InitializeMarks(markService);
+                    }
+                }
+            }
+
+            // Initialize any already-instantiated widgets in the dictionary.
+            foreach (var pair in widgets)
+            {
+                if (pair.Value != null)
+                {
+                    pair.Value.InitializeMarks(markService);
+                }
+            }
+        }
 
         public void RegisterCombatants(IEnumerable<CombatantState> combatants, bool isEnemy)
         {
@@ -78,6 +107,7 @@ namespace BattleV2.UI
             }
 
             var widget = Instantiate(prefab, container);
+            widget.InitializeMarks(markService);
             widget.Bind(combatant);
             widgets[combatant] = widget;
         }
@@ -217,6 +247,7 @@ namespace BattleV2.UI
                     }
 
                     widget.gameObject.SetActive(true);
+                    widget.InitializeMarks(markService);
                     widget.Bind(combatant);
                     widgets[combatant] = widget;
                     activeSet.Add(combatant);

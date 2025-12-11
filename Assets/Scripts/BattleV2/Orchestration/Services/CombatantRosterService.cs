@@ -87,6 +87,16 @@ namespace BattleV2.Orchestration.Services
 
             var (player, playerRuntime, enemy, enemyRuntime) = BindCombatants(preservePlayerVitals, preserveEnemyVitals);
 
+            if (!preservePlayerVitals)
+            {
+                ApplyStartingCp(allies);
+            }
+
+            if (!preserveEnemyVitals)
+            {
+                ApplyStartingCp(enemies);
+            }
+
             hudManager?.RegisterCombatants(allies, isEnemy: false);
             hudManager?.RegisterCombatants(enemies, isEnemy: true);
 
@@ -640,6 +650,20 @@ namespace BattleV2.Orchestration.Services
 
             dropTable = resolvedDrop;
             return combatant;
+        }
+
+        private static void ApplyStartingCp(IReadOnlyList<CombatantState> combatants)
+        {
+            if (combatants == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < combatants.Count; i++)
+            {
+                var combatant = combatants[i];
+                combatant?.ApplyStartingCpFromArchetype();
+            }
         }
 
         private static float ComputeAverageSpeed(IReadOnlyList<CombatantState> allies, IReadOnlyList<CombatantState> enemies)

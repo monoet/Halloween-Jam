@@ -318,6 +318,7 @@ namespace BattleV2.Orchestration
 
             ConfigureAnimationOrchestrator(timingProfile);
             markService = new MarkService();
+            hudManager?.SetMarkService(markService);
             markProcessor = new MarkInteractionProcessor(markService, reactionResolver: new NoOpMarkReactionResolver());
             triggeredEffects = new TriggeredEffectsService(this, actionPipeline, actionCatalog, eventBus, markProcessor);
             timedResultResolver = new TimedHitResultResolver();

@@ -3,6 +3,7 @@ using System.Threading;
 using UnityEngine;
 using BattleV2.Audio;
 using BattleV2.Core;
+using BattleV2.Core.Services;
 using BattleV2.Debugging;
 using BattleV2.Marks;
 using UnityEngine.Events;
@@ -341,6 +342,29 @@ public class CombatantState : MonoBehaviour
             "AddCp.Debugging01",
             $"actor={DisplayName}#{GetInstanceID()} side={(IsPlayer ? "Player" : "Enemy")} delta=+0 before={before} after={currentCP} reason={(maxCP <= 0 ? "maxCP<=0" : "capped")}",
             this);
+    }
+
+    /// <summary>
+    /// Applies archetype-defined starting CP if provided.
+    /// Intended for fresh spawns only (preserveVitals=false).
+    /// </summary>
+    public void ApplyStartingCpFromArchetype()
+    {
+        var runtime = characterRuntime != null ? characterRuntime : GetComponent<CharacterRuntime>();
+        var archetype = runtime != null ? runtime.Archetype : null;
+        if (archetype is not IStartingCpSource source)
+        {
+            return;
+        }
+
+        int overrideCp = source.StartingCpOverride;
+        if (overrideCp < 0)
+        {
+            return;
+        }
+
+        currentCP = Mathf.Clamp(overrideCp, 0, maxCP);
+        OnVitalsChanged.Invoke();
     }
 
     internal void SetMarkSlot(MarkSlot slot)

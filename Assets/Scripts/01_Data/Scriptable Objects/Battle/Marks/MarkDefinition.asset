@@ -12,6 +12,21 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4a92e5b6e7c4e7b4d8d7c5d6c4b3a2f1, type: 3}
   m_Name: MarkDefinition
   m_EditorClassIdentifier: Assembly-CSharp::BattleV2.Marks.MarkDefinition
-  id: 
-  icon: {fileID: 0}
+  id: Solar
+  elementId: Solar_Mark
+  canBeAppliedAsMark: 1
+  canDetonateMarks: 1
+  baseDurationTurns: 1
+  icon: {fileID: 2504461236383077340, guid: 9e1d50f0682b544459098b323bec16c0, type: 3}
   tint: {r: 1, g: 1, b: 1, a: 1}
+  animatedFrames:
+  - {fileID: 2504461236383077340, guid: 9e1d50f0682b544459098b323bec16c0, type: 3}
+  - {fileID: 3641135350753050596, guid: 9e1d50f0682b544459098b323bec16c0, type: 3}
+  - {fileID: 4597536347032261386, guid: 9e1d50f0682b544459098b323bec16c0, type: 3}
+  - {fileID: 5920478253051422700, guid: 9e1d50f0682b544459098b323bec16c0, type: 3}
+  - {fileID: 749284956731173423, guid: 9e1d50f0682b544459098b323bec16c0, type: 3}
+  - {fileID: -543809060326538353, guid: 9e1d50f0682b544459098b323bec16c0, type: 3}
+  - {fileID: 5023556266183845485, guid: 9e1d50f0682b544459098b323bec16c0, type: 3}
+  - {fileID: 1199389166687958355, guid: 9e1d50f0682b544459098b323bec16c0, type: 3}
+  animatedFrameRate: 12
+  animatedLoop: 1
