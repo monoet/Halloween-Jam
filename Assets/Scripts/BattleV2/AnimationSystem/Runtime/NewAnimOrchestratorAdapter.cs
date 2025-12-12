@@ -563,7 +563,7 @@ namespace BattleV2.AnimationSystem.Runtime
                 actorRegistered = true;
 
                 linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                var context = new StepSchedulerContext(request, timeline, wrapper, bindingResolver, routerBundle, eventBus, timedHitService);
+                var context = new StepSchedulerContext(request, timeline, wrapper, bindingResolver, routerBundle, eventBus, timedHitService, skipResetToFallback: false, gate: new BattleV2.AnimationSystem.Execution.Runtime.Core.ExternalBarrierGate());
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
                 Debug.Log($"[AnimAdapter] Executing recipe '{recipe.Id}' for action '{request.Selection.Action?.id ?? "(null)"}'.");
@@ -616,6 +616,7 @@ namespace BattleV2.AnimationSystem.Runtime
             {
                 public readonly List<ActionRecipe> Main = new List<ActionRecipe>();
                 public readonly List<ActionRecipe> Finally = new List<ActionRecipe>();
+                public bool HasInjectedMoveToTarget;
             }
 
             private ExecutionPlan BuildExecutionPlan(ActionRecipe baseRecipe)
@@ -623,6 +624,14 @@ namespace BattleV2.AnimationSystem.Runtime
                 var plan = new ExecutionPlan();
                 if (baseRecipe != null && !baseRecipe.IsEmpty)
                 {
+                    // NOTE: this is a feature flag (not just logging). Keep separate from AP logging.
+                    if (BattleV2.Diagnostics.BattleDebug.IsEnabled("APF") &&
+                        string.Equals(baseRecipe.Id, "basic_attack", StringComparison.OrdinalIgnoreCase) &&
+                        TryResolveMoveToTarget(out var moveToTarget))
+                    {
+                        plan.Main.Add(moveToTarget);
+                        plan.HasInjectedMoveToTarget = true;
+                    }
                     plan.Main.Add(baseRecipe);
                 }
 
@@ -640,7 +649,7 @@ namespace BattleV2.AnimationSystem.Runtime
                 {
                     for (int i = 0; i < plan.Main.Count; i++)
                     {
-                        await ExecuteSingleAsync(plan.Main[i], context, mainToken);
+                        await ExecutePlanNodeAsync(plan, plan.Main[i], context, mainToken);
                     }
                 }
                 finally
@@ -672,6 +681,30 @@ namespace BattleV2.AnimationSystem.Runtime
                         }
                     }
                 }
+            }
+
+            private Task ExecutePlanNodeAsync(ExecutionPlan plan, ActionRecipe actionRecipe, StepSchedulerContext context, CancellationToken token)
+            {
+                if (actionRecipe == null || actionRecipe.IsEmpty)
+                {
+                    return Task.CompletedTask;
+                }
+
+                // Chunk 4.5: injected locomotion-only recipes must NOT run with lifecycle,
+                // otherwise they will get auto run_up/run_back around them (chaos).
+                if (string.Equals(actionRecipe.Id, "move_to_target", StringComparison.OrdinalIgnoreCase))
+                {
+                    return scheduler.ExecuteAsync(actionRecipe, context.WithSkipReset(true), token);
+                }
+
+                // Chunk 4.5: if we injected move_to_target, we must not run the payload recipe with lifecycle,
+                // otherwise lifecycle pre-action will run run_up (spotlight) and yank the actor away from target.
+                if (plan != null && plan.HasInjectedMoveToTarget && string.Equals(actionRecipe.Id, "basic_attack", StringComparison.OrdinalIgnoreCase))
+                {
+                    return scheduler.ExecuteAsync(actionRecipe, context.WithSkipReset(true), token);
+                }
+
+                return ExecuteSingleAsync(actionRecipe, context, token);
             }
 
             private Task ExecuteSingleAsync(ActionRecipe actionRecipe, StepSchedulerContext context, CancellationToken token)
@@ -735,6 +768,35 @@ namespace BattleV2.AnimationSystem.Runtime
                     StepGroupExecutionMode.Sequential,
                     StepGroupJoinPolicy.Any);
                 runBackRecipe = new ActionRecipe(RunBackGroupId, new[] { group });
+                return true;
+            }
+
+            private bool TryResolveMoveToTarget(out ActionRecipe moveToTargetRecipe)
+            {
+                const string moveToTargetId = "move_to_target";
+                moveToTargetRecipe = null;
+
+                if (scheduler.TryGetRecipe(moveToTargetId, out var registered) && registered != null && !registered.IsEmpty)
+                {
+                    moveToTargetRecipe = registered;
+                    return true;
+                }
+
+                var steps = new List<ActionStep>
+                {
+                    new ActionStep(
+                        executorId: NoOpStepExecutor.ExecutorId,
+                        bindingId: null,
+                        parameters: new ActionStepParameters(null),
+                        conflictPolicy: StepConflictPolicy.WaitForCompletion,
+                        id: "noop")
+                };
+                var group = new ActionStepGroup(
+                    moveToTargetId,
+                    steps,
+                    StepGroupExecutionMode.Sequential,
+                    StepGroupJoinPolicy.Any);
+                moveToTargetRecipe = new ActionRecipe(moveToTargetId, new[] { group });
                 return true;
             }
 

@@ -5,6 +5,7 @@ using System.Threading;
 using BattleV2.AnimationSystem;
 using BattleV2.AnimationSystem.Runtime.Internal;
 using BattleV2.AnimationSystem.Timelines;
+using BattleV2.AnimationSystem.Execution.Runtime.Core;
 using BattleV2.Core;
 using BattleV2.Orchestration.Runtime;
 using BattleV2.Execution.TimedHits;
@@ -254,7 +255,8 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
             AnimationRouterBundle routerBundle,
             IAnimationEventBus eventBus,
             ITimedHitService timedHitService,
-            bool skipResetToFallback = false)
+            bool skipResetToFallback = false,
+            ExternalBarrierGate gate = null)
         {
             Request = request;
             Timeline = timeline;
@@ -264,6 +266,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
             EventBus = eventBus;
             TimedHitService = timedHitService;
             SkipResetToFallback = skipResetToFallback;
+            Gate = gate;
         }
 
         public AnimationRequest Request { get; }
@@ -274,6 +277,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
         public IAnimationEventBus EventBus { get; }
         public ITimedHitService TimedHitService { get; }
         public bool SkipResetToFallback { get; }
+        public ExternalBarrierGate Gate { get; }
 
         public CombatantState Actor => Request.Actor;
 
@@ -287,7 +291,8 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
                 RouterBundle,
                 EventBus,
                 TimedHitService,
-                skipResetToFallback);
+                skipResetToFallback,
+                Gate);
         }
     }
 

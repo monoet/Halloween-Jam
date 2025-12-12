@@ -26,6 +26,7 @@ Opciones de estrategia:
 - Toda ejecución Unity-touching es **main thread** (regla absoluta).
 - Toda locomoción/timeline es **trackeable**: devuelve `IMotionHandle`/`Task` cancelable + completion.
 - **Commit points:** la “posición verdad” vive en `MotionState`, no en `transform.localPosition` durante tránsito.
+- **Action/Turn envelope (determinismo):** el “ReturnHome/run_back” no debe depender de cada acción. La orquestación debe garantizar un “post-step” (finally) que regrese a home salvo override explícito.
 
 ### 1.2 Módulos (limpio y debuggable)
 
@@ -35,6 +36,14 @@ Opciones de estrategia:
   - `MotionService`, `MotionStateStore`, `MotionHandle`, `MotionIntents`, `MotionTargetsResolver`
 - `BattleV2.Diagnostics`
   - toggles + logger con tags `[DEBUG-XX###]`
+
+### 1.3 Tres capas (fronteras estrictas, no se mezclan)
+
+Para no volver al soup, mantenemos 3 capas separadas:
+
+1) **StepScheduler (core):** orquesta + lifecycle + observers. No sabe de `run_up`.
+2) **Motion (backend):** `MotionService` + lock + commit + kill total. Aqui vive la verdad del movimiento.
+3) **Orchestration (arriba del scheduler):** ActionEnvelope/RecipeChain = "1 accion -> N recipes secuenciales".
 
 ---
 
@@ -155,6 +164,39 @@ Acceptance (Chunk 3):
 
 ---
 
+## 5.5 Action/Turn Envelope: ReturnHome garantizado — Chunk 3.5 (ROI alto, sin escena)
+
+Problema que resuelve:
+
+- Hoy “run_back” vive como detalle de cada action/spell. Si una acción (p.ej. spell) no lo incluye, el actor nunca regresa → se percibe como bug en escena.
+
+Objetivo v2:
+
+- Mover la responsabilidad de “volver a home” al orquestador (envoltura de acción/turno), no a cada acción.
+- El payload de la acción solo declara intención (ApproachTarget / CastFromHome / ReturnHome override), no “cómo” volver.
+
+Implementación mínima (backend, compatible con Ruta A):
+
+- Introducir un **ActionEnvelope** (o “plan maestro”) que encapsula:
+  1) (si aplica) `MoveToSpotlight`
+  2) (si aplica) `MoveToTarget`
+  3) `Payload` (spell/melee/timed hit/etc.)
+  4) `ReturnHome` **SIEMPRE**, como post-step garantizado (finally), salvo override explícito
+- Con `MotionService`:
+  - API sugerida: `Task EnsureReturnHomeAsync(ResourceKey key, MotionTarget home, CancellationToken ct)`
+  - Regla: si el actor no está en home y no está en tránsito, adquirir lock de Locomotion y ejecutar return determinista.
+
+Acceptance (Chunk 3.5):
+
+- Spells y acciones sin run_back explícito igual regresan a home.
+- “ReturnHome” no genera overlaps (pasa por lock + kill total + commit points).
+
+Test Unity:
+
+- Ejecutar spells repetidos (sin modificar recipes) y verificar retorno consistente a home.
+
+---
+
 ## 6) Migrar RecipeTweenObserver sin tocar escena — Chunk 4 (testeable)
 
 Meta: cero cambios en prefabs/escenas; solo cambiar código.
@@ -227,3 +269,163 @@ Solo si en el futuro quieres un `HomeAnchor` explícito:
   - GameObject: `MotionRoot/HomeAnchor`
   - Campo: `RecipeTweenObserver.homeAnchor = ...`
 
+---
+
+## Insert (sin reordenar): Chunk 4.5 — ActionEnvelope / RecipeChain (1 accion -> N recipes)
+
+Para mantener las 3 capas separadas, este chunk vive **arriba** del `StepScheduler` (orchestration) y se inserta **entre**:
+
+- `## 5.5 Action/Turn Envelope: ReturnHome garantizado — Chunk 3.5`
+- `## 6) Migrar RecipeTweenObserver sin tocar escena — Chunk 4`
+
+Entrega:
+
+- `ActionPlanRunner` / `RecipeChainRunner` (backend) que ejecuta **N recipes secuenciales** por accion con `await scheduler.ExecuteAsync(...)`.
+- Logs `DEBUG-AP###` para ver el plan y la duracion por node.
+
+Primer punto donde se puede probar `run_to_target` como recipe separado:
+
+- En este chunk: Node A `move_to_target` (inline recipe en codigo, locomotion-only) -> Node B `attack_payload` -> Node C `return_home`.
+- Este es el primer punto porque ya existe "1 accion -> N recipes"; antes solo se puede probar `run_to_target` como group dentro de un recipe.
+
+---
+
+## Chunk Checklist (auditable)
+
+Regla: no se considera "cerrado" un chunk hasta que pase sus gates en Unity y se vea el set de logs esperado.
+
+Formato:
+- **Estado:** ✅ / 🚧 / ⛔
+- **Feature flags:** lista de canales/toggles relevantes
+- **Acceptance gates (Unity):** 3–6 condiciones verificables
+- **Logs esperados:** tags `[DEBUG-XX###]` que deben aparecer (en orden si aplica)
+- **Commits/PR:** hash(s) o "uncommitted"
+- **Repro harness:** pasos exactos para repro
+
+### Chunk 0 — Debug logs / toggles
+- **Estado:** 🚧
+- **Feature flags:** `EG`, `MS`, `RTO`, `SS`, `AP` (logs), `APF` (feature)
+- **Acceptance gates (Unity):**
+  - No crashea por `PlayerPrefs` off-main-thread al leer toggles.
+  - Activar/desactivar un channel cambia el volumen de logs de ese channel.
+  - Logs no generan exceptions ni allocations absurdas en spam (observación cualitativa).
+- **Logs esperados:**
+  - `EG`: `[DEBUG-EG###]` register/await/complete/timeout
+  - `MS`: `[DEBUG-MS###]` start/cancel/commit
+  - `SS`: `[DEBUG-SS###]` thread info de callbacks (si está habilitado)
+- **Commits/PR:** uncommitted (validado en Unity con toggles ON/OFF)
+- **Repro harness:**
+  - En runtime: `BattleDebug.SetEnabled("EG", true)` y confirmar que aparecen logs.
+
+### Chunk 1 — Main-thread determinism
+- **Estado:** 🚧
+- **Feature flags:** `SS`, `EG`
+- **Acceptance gates (Unity):**
+  - Ningún callback que toque Unity (observers/executors relevantes) corre off-thread.
+  - No aparece error de Unity tipo "can only be called from the main thread".
+  - `ExternalBarrierGate` no introduce crashes por continuations off-thread.
+- **Logs esperados:**
+  - `[DEBUG-SS001]` (o equivalente) reporta main thread.
+  - Si hay violación: debe verse error + channel/context.
+- **Commits/PR:** `828ef8b` (working tree con cambios sin commit)
+- **Repro harness:**
+  - Repro Case 1 (ver Chunk 4) con spam de input durante 30–50 iteraciones.
+
+### Chunk 2 — ResourceKey / base de conflictos por recurso (back-compat)
+- **Estado:** 🚧
+- **Feature flags:** `AR` (si aplica), `EG`
+- **Acceptance gates (EditMode):**
+  - `ResourceKey` serializa/comparea estable (Equals/GetHashCode) y no colisiona trivialmente.
+  - `ExternalBarrierGate` tests pasan (bloqueo hasta completar tasks).
+- **Logs esperados:**
+  - `[DEBUG-EG001]` register count incrementa
+  - `[DEBUG-EG011]` scope complete despues de completar tasks
+- **Commits/PR:** `828ef8b` (working tree con cambios sin commit)
+- **Repro harness:**
+  - Ejecutar tests EditMode: `ExternalBarrierGateTests`, `StepSchedulerBarrierGateTests`.
+
+### Chunk 3 — MotionService (Route A backend)
+- **Estado:** 🚧
+- **Feature flags:** `MS`, `EG`
+- **Acceptance gates (Unity):**
+  - Por actor/binding: nunca hay >1 locomotion "dueño" activo (single-owner).
+  - Cancel/restart no deja el actor "in transit" colgado.
+  - Commit points: al terminar/cancelar, el estado se consolida (no teleports al iniciar el siguiente move).
+- **Logs esperados:**
+  - `[DEBUG-MS001]` start intent/key
+  - `[DEBUG-MS002]` cancel/replaced (si ocurre)
+  - `[DEBUG-MS003]` commit
+  - `[DEBUG-EG010]` awaiting N y `[DEBUG-EG011]` complete
+- **Commits/PR:** `828ef8b` (working tree con cambios sin commit)
+- **Repro harness:**
+  - Turn start (run_up) y luego cancelar/relanzar rapido (spam) y observar commits.
+
+### Chunk 4 — Gate + RecipeTweenObserver (sin escenas)
+- **Estado:** 🚧
+- **Feature flags:** `EG`, `MS`, `RTO`
+- **Acceptance gates (Unity):**
+  - Si un movimiento se dispara, se registra barrera (no "gate bonito pero inutil").
+  - `StepScheduler` no avanza al siguiente group hasta que termine la barrera (o timeout DEV logueado).
+  - No hay deadlocks: si algo queda vivo, aparece dump de pendientes.
+  - `Animator.applyRootMotion` set/restore no crashea por off-thread (hardening).
+- **Logs esperados (orden típico):**
+  - `[DEBUG-EG001]` register barrier
+  - `[DEBUG-EG010]` awaiting ...
+  - `[DEBUG-MS003]` commit ...
+  - `[DEBUG-EG011]` scope complete ...
+- **Commits/PR:** `828ef8b` (working tree con cambios sin commit)
+- **Repro harness (Repro Case 1):**
+  1. Turn → `run_up` (spotlight)
+  2. Confirm action (`basic_attack`)
+  3. Verificar que no hay overlaps/teleports evidentes
+
+### Chunk 4.5 — Multi-recipes por acción (RecipeChain / "move_to_target" separado)
+- **Estado:** 🚧
+- **Feature flags:** `APF`, `EG`, `MS`, `RTO` (`AP` opcional para logs)
+- **Acceptance gates (Unity):**
+  - Con `AP` ON y `basic_attack`: se ejecuta `move_to_target` antes del payload.
+  - `move_to_target` registra barrera y el scheduler espera (no arranca payload en tránsito).
+  - Con `AP` OFF: no cambia el flujo actual.
+- **Logs esperados (orden mínimo):**
+  - `[DEBUG-AP###]` (si existe) plan/node start/end (opcional)
+  - `[DEBUG-EG001]` register reason=`move_to_target`
+  - `[DEBUG-EG010]` awaiting ...
+  - `[DEBUG-MS003]` commit ...
+  - `[DEBUG-EG011]` complete ...
+- **Commits/PR:** `828ef8b` (working tree con cambios sin commit)
+- **Repro harness:**
+  1. `BattleDebug.SetEnabled("APF", true)`
+  2. Ejecutar `basic_attack` contra target
+  3. Confirmar logs `move_to_target` + ausencia de soup entre approach/payload
+
+### Chunk 5 — Authoring real (assets) (pendiente)
+- **Estado:** ⛔
+- **Feature flags:** n/a
+- **Acceptance gates (Unity):**
+  - `move_to_target` existe como recipe asset registrado (sin inline).
+  - `attack_payload` no toca locomotion (MotionRoot).
+  - `return_home` garantizado por envelope (sin depender del action).
+- **Logs esperados:** mismos que 4.5 pero sin "inline".
+- **Commits/PR:** pendiente
+- **Repro harness:** Repro Case 1 usando assets reales.
+
+---
+
+## Checklist (Quick Close)
+
+Marca un chunk como **cerrado** solo cuando:
+
+- [ ] Pasan los **Acceptance gates** del chunk (Unity/EditMode).
+- [ ] Se ven los **logs esperados** (tags correctos y orden si aplica).
+- [ ] No hay errores Unity off-main-thread.
+- [ ] Queda linkeado a **commit(s)/PR**.
+
+### Estado por chunk
+
+- [x] **Chunk 0 - Debug logs/toggles** (flags: `EG/MS/RTO/SS/AP`)
+- [x] **Chunk 1 - Main-thread determinism** (flags: `SS/EG`)
+- [ ] **Chunk 2 - ResourceKey / base back-compat** (flags: `EG` + tests EditMode)
+- [ ] **Chunk 3 - MotionService (Route A backend)** (flags: `MS/EG`)
+- [ ] **Chunk 4 - Gate + RecipeTweenObserver (sin escenas)** (flags: `EG/MS/RTO`)
+- [ ] **Chunk 4.5 - Multi-recipes por accion (move_to_target separado)** (flags: `APF/EG/MS/RTO`)
+- [ ] **Chunk 5 - Authoring real (assets)** (sin inline)

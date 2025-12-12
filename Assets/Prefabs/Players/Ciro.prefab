@@ -388,6 +388,9 @@ MonoBehaviour:
   combatantIdOverride: 
   autoRegister: 1
   logPlayback: 0
+  registerToGlobalResolver: 0
+  commandVariants: []
+  debugAw01Enabled: 1
   onAnimationEvent:
     m_PersistentCalls:
       m_Calls: []
@@ -434,6 +437,7 @@ MonoBehaviour:
   forward: 0.1
   minorBack: 0.135
   recoil: -1.5
+  disableWindupTween: 0
 --- !u!1 &3223921194066334965
 GameObject:
   m_ObjectHideFlags: 0

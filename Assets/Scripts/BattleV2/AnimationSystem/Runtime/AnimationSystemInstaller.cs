@@ -9,6 +9,7 @@ using BattleV2.AnimationSystem.Execution.Runtime.CombatEvents;
 using BattleV2.AnimationSystem.Execution.Runtime.Telemetry;
 using BattleV2.AnimationSystem.Execution.Routers;
 using BattleV2.AnimationSystem.Execution.Runtime.Tweens;
+using BattleV2.AnimationSystem.Motion;
 using BattleV2.AnimationSystem.Runtime.Internal;
 using BattleV2.AnimationSystem.Timelines;
 using BattleV2.Core;
@@ -73,6 +74,7 @@ namespace BattleV2.AnimationSystem.Runtime
         private StepScheduler stepScheduler;
         private StepSchedulerHooks schedulerHooks;
         private StepSchedulerMetricsObserver schedulerMetrics;
+        private MotionService motionService;
         private CombatEventDispatcher combatEventDispatcher;
         private ActionRecipeCatalog recipeCatalog;
         private IReadOnlyDictionary<BattlePhase, IPhaseStrategy> phaseStrategyMap;
@@ -92,6 +94,7 @@ namespace BattleV2.AnimationSystem.Runtime
         public StepScheduler StepScheduler => stepScheduler;
         public StepSchedulerHooks SchedulerHooks => schedulerHooks;
         public StepSchedulerMetricsObserver SchedulerMetrics => schedulerMetrics;
+        public MotionService MotionService => motionService;
         public ActionRecipeCatalog RecipeCatalog => recipeCatalog;
         public CombatEventDispatcher CombatEvents => combatEventDispatcher;
         public BattlePacingSettings PacingSettings => pacingSettings;
@@ -170,6 +173,7 @@ namespace BattleV2.AnimationSystem.Runtime
             mainThreadInvoker = MainThreadInvoker.Instance;
             tweenBindingResolver = new DefaultTweenBindingResolver();
             tweenBridge = new DefaultTweenBridge(mainThreadInvoker);
+            motionService = new MotionService(mainThreadInvoker);
             stepScheduler = BuildStepScheduler(mainThreadInvoker, tweenBindingResolver, tweenBridge);
             schedulerHooks = new StepSchedulerHooks(stepScheduler);
             combatEventDispatcher = new CombatEventDispatcher(mainThreadInvoker);
@@ -470,6 +474,7 @@ namespace BattleV2.AnimationSystem.Runtime
             ITweenBridge tweenBridge)
         {
             var scheduler = new StepScheduler();
+            scheduler.ConfigureObserverInvoker(mainThreadInvoker);
             scheduler.ConfigureLifecycle(new ActionLifecycleConfig());
             scheduler.RegisterExecutor(new AnimatorClipExecutor());
             scheduler.RegisterExecutor(new FlipbookExecutor());

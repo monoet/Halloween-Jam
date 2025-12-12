@@ -5,6 +5,7 @@ using BattleV2.Actions;
 using BattleV2.AnimationSystem;
 using BattleV2.AnimationSystem.Execution;
 using BattleV2.AnimationSystem.Execution.Runtime;
+using BattleV2.AnimationSystem.Execution.Runtime.Core;
 using BattleV2.AnimationSystem.Execution.Runtime.Recipes;
 using BattleV2.AnimationSystem.Runtime;
 using BattleV2.AnimationSystem.Runtime.Internal;
@@ -110,7 +111,9 @@ namespace BattleV2.AnimationSystem.Strategies
                     wrapper,
                     routerBundle,
                     eventBus,
-                    timedHitService);
+                    timedHitService,
+                    skipResetToFallback: false,
+                    gate: new ExternalBarrierGate());
 
                 LogSchedulerExecution(actor, recipe.Id, context);
                 await scheduler.ExecuteAsync(recipe, schedulerContext, token).ConfigureAwait(false);

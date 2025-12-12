@@ -9,6 +9,7 @@ using BattleV2.AnimationSystem.Execution.Runtime.Core.Conflict;
 using BattleV2.AnimationSystem.Execution.Runtime.Core.GroupRunners;
 using BattleV2.AnimationSystem.Execution.Runtime.SystemSteps;
 using BattleV2.Core;
+using BattleV2.Diagnostics;
 using UnityEngine;
 
 namespace BattleV2.AnimationSystem.Execution.Runtime
@@ -24,6 +25,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
         private readonly Dictionary<string, ActionRecipe> recipeRegistry = new Dictionary<string, ActionRecipe>(StringComparer.OrdinalIgnoreCase);
         private readonly List<IStepSchedulerObserver> observers = new List<IStepSchedulerObserver>();
         private readonly object executionGate = new object();
+        private IMainThreadInvoker observerInvoker;
         private readonly SystemStepRunner systemStepRunner;
         private readonly SequentialGroupRunner sequentialRunner;
         private readonly ParallelGroupRunner parallelRunner;
@@ -41,6 +43,11 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
         }
 
         public ActionLifecycleConfig LifecycleConfig => lifecycleConfig;
+
+        public void ConfigureObserverInvoker(IMainThreadInvoker invoker)
+        {
+            observerInvoker = invoker;
+        }
 
         public void ConfigureLifecycle(ActionLifecycleConfig config)
         {
@@ -157,6 +164,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
                 return;
             }
 
+            var gate = context.Gate;
             var skipByMotion = ShouldSkipReset(recipe);
             try
             {
@@ -175,6 +183,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
                     cancellationToken.ThrowIfCancellationRequested();
 
                     var group = recipe.Groups[groupIndex];
+                    gate?.BeginGroup(group.Id);
                     NotifyObservers(o => o.OnGroupStarted(group, context));
                     var groupWatch = Stopwatch.StartNew();
                     StepGroupResult groupResult = StepGroupResult.Completed();
@@ -193,6 +202,11 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
                     {
                         groupWatch.Stop();
                         NotifyObservers(o => o.OnGroupCompleted(new StepGroupExecutionReport(group, groupWatch.Elapsed, groupResult.Status == StepGroupResultStatus.Abort), context));
+                    }
+
+                    if (gate != null)
+                    {
+                        await gate.AwaitGroupAsync(cancellationToken);
                     }
 
                     if (groupResult.Status == StepGroupResultStatus.Branch)
@@ -223,6 +237,10 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
                 }
 
                 recipeWatch.Stop();
+                if (gate != null)
+                {
+                    await gate.AwaitAllAsync(cancellationToken);
+                }
                 NotifyObservers(o => o.OnRecipeCompleted(new RecipeExecutionReport(recipe, recipeWatch.Elapsed, recipeCancelled || state.AbortRequested), context));
                 LogPoseSnapshot(context.Actor, recipe.Id ?? "(null)", false);
             }
@@ -545,6 +563,19 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
                 return;
             }
 
+            if (BattleDebug.IsEnabled("SS"))
+            {
+                BattleDebug.Log(
+                    "SS",
+                    1,
+                    $"NotifyObservers threadId={Thread.CurrentThread.ManagedThreadId} isMain={BattleDebug.IsMainThread}",
+                    context: null);
+                if (!BattleDebug.IsMainThread)
+                {
+                    BattleDebug.Warn("SS", 2, "Observer notification running off-main-thread (risk: Unity/DOTween non-determinism).");
+                }
+            }
+
             IStepSchedulerObserver[] snapshot;
             lock (executionGate)
             {
@@ -556,6 +587,21 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
                 snapshot = observers.ToArray();
             }
 
+            if (observerInvoker != null && !BattleDebug.IsMainThread)
+            {
+                observerInvoker.RunAsync(() =>
+                {
+                    NotifyObserverSnapshot(snapshot, notify);
+                    return Task.CompletedTask;
+                }).GetAwaiter().GetResult();
+                return;
+            }
+
+            NotifyObserverSnapshot(snapshot, notify);
+        }
+
+        private static void NotifyObserverSnapshot(IStepSchedulerObserver[] snapshot, Action<IStepSchedulerObserver> notify)
+        {
             for (int i = 0; i < snapshot.Length; i++)
             {
                 try
@@ -631,5 +677,3 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
     }
 
 }
-
-

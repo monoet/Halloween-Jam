@@ -4382,6 +4382,7 @@ GameObject:
   - component: {fileID: 1144566323}
   - component: {fileID: 1144566326}
   - component: {fileID: 1144566327}
+  - component: {fileID: 1144566328}
   m_Layer: 0
   m_Name: AnimationSystemRuntime
   m_TagString: Untagged
@@ -4490,6 +4491,25 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BattleV2.Audio.TimedHitAudioBridge
   installer: {fileID: 1144566323}
+--- !u!114 &1144566328
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1144566322}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 54f26f4c89996bb45afa944642fdb3ba, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BattleV2.Diagnostics.BattleDebugTogglesBehaviour
+  enableEG: 1
+  enableMS: 1
+  enableRTO: 0
+  enableSS: 1
+  enableAPLogs: 0
+  enableAPFeature: 1
+  persistToPlayerPrefs: 1
 --- !u!1 &1176880391
 GameObject:
   m_ObjectHideFlags: 0

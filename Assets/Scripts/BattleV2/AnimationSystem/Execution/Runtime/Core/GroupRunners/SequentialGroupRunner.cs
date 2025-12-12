@@ -25,7 +25,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Core.GroupRunners
                 cancellationToken.ThrowIfCancellationRequested();
                 var step = group.Steps[i];
 
-                var result = await scheduler.ExecuteStepInternalAsync(step, context, state, cancellationToken, swallowCancellation: false).ConfigureAwait(false);
+                var result = await scheduler.ExecuteStepInternalAsync(step, context, state, cancellationToken, swallowCancellation: false);
 
                 if (result.Status == StepRunStatus.Branch)
                 {
