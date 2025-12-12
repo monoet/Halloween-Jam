@@ -508,6 +508,8 @@ namespace BattleV2.AnimationSystem.Runtime
             private const string RunUpTargetGroupId = "run_up_target";
             private const string RunBackGroupId = "run_back";
             private const bool EnableAutoReturnEnvelope = true;
+            private const bool EnableMeleeApproachEnvelope = true;
+            private const string ReturnHomeRecipeId = "return_home";
 
             private CancellationTokenSource linkedCts;
             private Task executionTask;
@@ -624,8 +626,7 @@ namespace BattleV2.AnimationSystem.Runtime
                 var plan = new ExecutionPlan();
                 if (baseRecipe != null && !baseRecipe.IsEmpty)
                 {
-                    // NOTE: this is a feature flag (not just logging). Keep separate from AP logging.
-                    if (BattleV2.Diagnostics.BattleDebug.IsEnabled("APF") &&
+                    if (EnableMeleeApproachEnvelope &&
                         string.Equals(baseRecipe.Id, "basic_attack", StringComparison.OrdinalIgnoreCase) &&
                         TryResolveMoveToTarget(out var moveToTarget))
                     {
@@ -729,6 +730,10 @@ namespace BattleV2.AnimationSystem.Runtime
                 }
 
                 bool hasReturn = actionRecipe.Groups.Any(g => MatchesGroupId(g, RunBackGroupId));
+                if (!hasReturn)
+                {
+                    hasReturn = actionRecipe.Groups.Any(g => MatchesGroupId(g, ReturnHomeRecipeId));
+                }
                 return !hasReturn;
             }
 
@@ -739,12 +744,19 @@ namespace BattleV2.AnimationSystem.Runtime
                     return false;
                 }
 
-                return actionRecipe.Groups.Any(g => MatchesGroupId(g, RunBackGroupId));
+                return actionRecipe.Groups.Any(g => MatchesGroupId(g, RunBackGroupId)) ||
+                       actionRecipe.Groups.Any(g => MatchesGroupId(g, ReturnHomeRecipeId));
             }
 
             private bool TryResolveRunBack(out ActionRecipe runBackRecipe)
             {
                 runBackRecipe = null;
+                if (scheduler.TryGetRecipe(ReturnHomeRecipeId, out var returnHome) && returnHome != null && !returnHome.IsEmpty)
+                {
+                    runBackRecipe = returnHome;
+                    return true;
+                }
+
                 if (scheduler.TryGetRecipe(RunBackGroupId, out var registered) && registered != null && !registered.IsEmpty)
                 {
                     runBackRecipe = registered;
@@ -763,11 +775,11 @@ namespace BattleV2.AnimationSystem.Runtime
                         id: "noop")
                 };
                 var group = new ActionStepGroup(
-                    RunBackGroupId,
+                    ReturnHomeRecipeId,
                     steps,
                     StepGroupExecutionMode.Sequential,
                     StepGroupJoinPolicy.Any);
-                runBackRecipe = new ActionRecipe(RunBackGroupId, new[] { group });
+                runBackRecipe = new ActionRecipe(ReturnHomeRecipeId, new[] { group });
                 return true;
             }
 

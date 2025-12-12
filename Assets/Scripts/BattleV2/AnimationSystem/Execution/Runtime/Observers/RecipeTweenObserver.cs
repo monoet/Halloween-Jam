@@ -590,16 +590,16 @@ private bool anchorMarkedThisTurn;
             // If MotionService is null, locomotion remains handled by legacy OnRecipeStarted code.
             if (motionService != null && !string.IsNullOrWhiteSpace(group.Id))
             {
-                if (string.Equals(group.Id, "run_up", StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(group.Id, "run_up", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(group.Id, "move_to_spotlight", StringComparison.OrdinalIgnoreCase))
                 {
                     // Chunk 4.5: when move_to_target is injected before basic_attack, we must not run the
                     // basic_attack "run_up" group (spotlight) or it will yank the actor away from the target.
-                    if (BattleDebug.IsEnabled("APF") &&
-                        string.Equals(context.Request.Selection.Action?.id, "basic_attack", StringComparison.OrdinalIgnoreCase))
+                    if (string.Equals(context.Request.Selection.Action?.id, "basic_attack", StringComparison.OrdinalIgnoreCase))
                     {
                         if (BattleDebug.IsEnabled("RTO"))
                         {
-                            BattleDebug.Log("RTO", 41, "Skipped run_up (spotlight) during basic_attack because APF is enabled.", this);
+                            BattleDebug.Log("RTO", 41, "Skipped run_up (spotlight) during basic_attack (spotlight is turn-staging, not attack-staging).", this);
                         }
                         return;
                     }
@@ -616,9 +616,12 @@ private bool anchorMarkedThisTurn;
                     }
 
                     SetRootMotion(false);
-                    context.Gate?.ExpectBarrier("Locomotion", "run_up");
-                    var task = RunUpAsync(def, "run_up", targetPos);
-                    context.Gate?.Register(task, locomotionKey, "Locomotion", "run_up");
+                    var reason = string.Equals(group.Id, "move_to_spotlight", StringComparison.OrdinalIgnoreCase)
+                        ? "move_to_spotlight"
+                        : "run_up";
+                    context.Gate?.ExpectBarrier("Locomotion", reason);
+                    var task = RunUpAsync(def, group.Id, targetPos);
+                    context.Gate?.Register(task, locomotionKey, "Locomotion", reason);
                     return;
                 }
 
@@ -650,16 +653,20 @@ private bool anchorMarkedThisTurn;
                     return;
                 }
 
-                if (string.Equals(group.Id, "run_back", StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(group.Id, "run_back", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(group.Id, "return_home", StringComparison.OrdinalIgnoreCase))
                 {
                     if (!lookup.TryGetValue("run_back", out var def) || def == null)
                     {
                         return;
                     }
 
-                    context.Gate?.ExpectBarrier("Locomotion", "run_back");
+                    var reason = string.Equals(group.Id, "return_home", StringComparison.OrdinalIgnoreCase)
+                        ? "return_home"
+                        : "run_back";
+                    context.Gate?.ExpectBarrier("Locomotion", reason);
                     var task = RunBackAsync(def);
-                    context.Gate?.Register(task, locomotionKey, "Locomotion", "run_back");
+                    context.Gate?.Register(task, locomotionKey, "Locomotion", reason);
                     return;
                 }
             }

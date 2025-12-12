@@ -58,7 +58,10 @@ namespace BattleV2.AnimationSystem.Runtime
         [Tooltip("Register the built-in PilotActionRecipes (turn_intro, run_up, etc.) for legacy scenes.")]
         [SerializeField] private bool includePilotRecipes = true;
         [Header("Step Scheduler Recipes")]
+        [Tooltip("Auto-load StepRecipeAsset assets from Resources/Battle/StepRecipesV2 at runtime (no scene wiring required).")]
+        [SerializeField] private bool autoLoadStepRecipesFromResources = true;
         [SerializeField] private StepRecipeAsset[] stepRecipeAssets = Array.Empty<StepRecipeAsset>();
+        private static readonly string StepRecipeResourcesPath = "Battle/StepRecipesV2";
 
         private AnimationEventBus eventBus;
         private ActionLockManager lockManager;
@@ -179,6 +182,10 @@ namespace BattleV2.AnimationSystem.Runtime
             combatEventDispatcher = new CombatEventDispatcher(mainThreadInvoker);
             stepScheduler.RegisterObserver(combatEventDispatcher);
             recipeCatalog = BuildRecipeCatalog(stepScheduler);
+            if (autoLoadStepRecipesFromResources)
+            {
+                RegisterResourcesRecipes();
+            }
             RegisterInspectorRecipes();
             phaseStrategyMap = BuildPhaseStrategyMap();
             sessionController = new OrchestratorSessionController();
@@ -567,6 +574,38 @@ namespace BattleV2.AnimationSystem.Runtime
                 if (!asset.TryBuild(out var recipe) || recipe == null || recipe.IsEmpty)
                 {
                     Debug.LogWarning($"[AnimationSystemInstaller] Recipe asset '{asset.name}' is empty or invalid. Skipping registration.", asset);
+                    continue;
+                }
+
+                recipeCatalog.Register(recipe);
+                stepScheduler.RegisterRecipe(recipe);
+            }
+        }
+
+        private void RegisterResourcesRecipes()
+        {
+            if (recipeCatalog == null || stepScheduler == null)
+            {
+                return;
+            }
+
+            var assets = Resources.LoadAll<StepRecipeAsset>(StepRecipeResourcesPath);
+            if (assets == null || assets.Length == 0)
+            {
+                return;
+            }
+
+            for (int i = 0; i < assets.Length; i++)
+            {
+                var asset = assets[i];
+                if (asset == null)
+                {
+                    continue;
+                }
+
+                if (!asset.TryBuild(out var recipe) || recipe == null || recipe.IsEmpty)
+                {
+                    Debug.LogWarning($"[AnimationSystemInstaller] Resources recipe asset '{asset.name}' is empty or invalid. Skipping registration.", asset);
                     continue;
                 }
 

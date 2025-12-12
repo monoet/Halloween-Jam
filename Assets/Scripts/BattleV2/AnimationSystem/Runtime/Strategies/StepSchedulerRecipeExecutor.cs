@@ -116,7 +116,7 @@ namespace BattleV2.AnimationSystem.Strategies
                     gate: new ExternalBarrierGate());
 
                 LogSchedulerExecution(actor, recipe.Id, context);
-                await scheduler.ExecuteAsync(recipe, schedulerContext, token).ConfigureAwait(false);
+                await scheduler.ExecuteAsync(recipe, schedulerContext, token);
             }
             finally
             {

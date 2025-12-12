@@ -258,6 +258,65 @@ Gates:
 
 ---
 
+## Estado real (auditable) + checklists por chunk
+
+> Esta secciA3n es la fuente de verdad para "en quAc chunk vamos" y quAc falta.
+
+### Chunk 0 — Debug logs / interruptor (✅)
+
+- [x] Existe un switch inspector (`BattleDebugTogglesBehaviour`) para encender canales `EG/MS/RTO/SS` sin tocar cA3digo.
+- [x] `BattleDebug` no llama `PlayerPrefs.GetInt` off-main-thread (cache en memoria; persist solo en main thread).
+
+**Logs a capturar para cerrar Chunk 0:**
+- [x] `SS`: `[DEBUG-SS001] NotifyObservers threadId=1 isMain=True`
+- [x] `EG`: `[DEBUG-EG010] awaiting ...` y `[DEBUG-EG011] scope complete ...`
+- [x] `MS`: `[DEBUG-MS004] Start ...` y `[DEBUG-MS003] Commit ...`
+
+### Chunk 1 — Main-thread determinism (✅)
+
+- [x] Removido `ConfigureAwait(false)` de group runners (evitar continuations off-thread dentro del scheduler).
+- [x] Observers que tocan Unity (p.ej. root motion) se ejecutan en main thread via invoker.
+
+### Chunk 2/3/4 — Ruta A (Motion + Gate + wiring) (✅)
+
+- [x] `MotionService` (DOTween) con kill total + commit points + single-owner por `ResourceKey`.
+- [x] `ExternalBarrierGate` (BeginGroup + Register + AwaitGroup/All) evita que payload arranque mientras la locomociA3n sigue viva.
+- [x] Fix del bug real del "soup": **registrar barreras en `OnGroupStarted`** (no en `OnRecipeStarted`) para que el scope no quede vacAcO y no se borre al entrar al group.
+
+### Chunk 5 — Authoring real (assets) + envelope formal (🚧)
+
+**Objetivo:** dejar de depender de recipes inline/fallbacks y de la feature flag `APF`.
+
+#### 5.1 Recipes v2 en Resources (locomociA3n-only)
+
+- [ ] Generar assets en `Assets/Resources/Battle/StepRecipesV2/`:
+  - [ ] `move_to_spotlight.asset`
+  - [ ] `move_to_target.asset`
+  - [ ] `return_home.asset`
+- [x] Runtime auto-registra recipes desde `Resources/Battle/StepRecipesV2` (sin scene wiring) en `AnimationSystemInstaller`.
+
+**C3mo generar (Editor):**
+- Menu: `Battle/Animation/StepScheduler v2/Generate Locomotion Recipes (Resources)`
+
+#### 5.2 Envelope (sin APF / reglas claras)
+
+- [x] `basic_attack` inyecta `move_to_target` (melee approach) sin depender de `BattleDebug.IsEnabled("APF")`.
+- [x] `ReturnHome` se garantiza en `finally` (prefiere recipe `return_home`, fallback a `run_back`).
+
+#### 5.3 Observer compat (ids nuevos)
+
+- [x] `RecipeTweenObserver` reconoce groups `move_to_spotlight` y `return_home` (ademAs de `run_up/run_back/move_to_target`).
+
+---
+
+## Path B (a futuro, no v2.1)
+
+**Meta:** locomociA3n como step oficial (executor), no como side-effect del observer.
+
+- [ ] Crear `MotionExecutor` (StepScheduler executor) que consume params/intent y llama `MotionService` devolviendo `Task` trackeable.
+- [ ] Mover locomociA3n de `RecipeTweenObserver` a steps `executorId="motion"` dentro de recipes.
+- [ ] Reducir `RecipeTweenObserver` a: AnimatorWrapper commands + (opcional) debug/telemetry.
+
 ## 10) Documentación de cableado (mínima)
 
 Meta: cero escena.
