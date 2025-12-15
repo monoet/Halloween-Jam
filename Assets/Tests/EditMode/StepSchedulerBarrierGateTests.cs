@@ -36,7 +36,7 @@ public class StepSchedulerBarrierGateTests
             routerBundle: null,
             eventBus: null,
             timedHitService: null,
-            skipResetToFallback: true,
+            resetPolicy: ResetPolicy.DeferUntilPlanFinally,
             gate: gate);
 
         DateTime? barrierCompletedAt = null;
@@ -94,4 +94,3 @@ public class StepSchedulerBarrierGateTests
         public void OnRecipeCompleted(RecipeExecutionReport report, StepSchedulerContext context) { }
     }
 }
-

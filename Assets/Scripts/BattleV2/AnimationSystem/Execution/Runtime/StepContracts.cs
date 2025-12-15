@@ -201,7 +201,8 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
             IReadOnlyList<ActionStep> steps,
             StepGroupExecutionMode executionMode = StepGroupExecutionMode.Sequential,
             StepGroupJoinPolicy joinPolicy = StepGroupJoinPolicy.Any,
-            float timeoutSeconds = 0f)
+            float timeoutSeconds = 0f,
+            string kind = null)
         {
             if (steps == null || steps.Count == 0)
             {
@@ -209,6 +210,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
             }
 
             Id = id;
+            Kind = string.IsNullOrWhiteSpace(kind) ? null : kind;
             Steps = steps;
             ExecutionMode = executionMode;
             JoinPolicy = joinPolicy;
@@ -216,6 +218,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
         }
 
         public string Id { get; }
+        public string Kind { get; }
         public IReadOnlyList<ActionStep> Steps { get; }
         public StepGroupExecutionMode ExecutionMode { get; }
         public StepGroupJoinPolicy JoinPolicy { get; }
@@ -245,6 +248,18 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
     /// <summary>
     /// Shared environment passed to the scheduler that contains actor-specific services.
     /// </summary>
+    public enum ResetPolicy
+    {
+        /// <summary>
+        /// Scheduler may reset the wrapper back to fallback automatically at the end of a recipe.
+        /// </summary>
+        Default = 0,
+        /// <summary>
+        /// Scheduler must not auto-reset; caller is responsible for executing an explicit reset step at the end of an envelope.
+        /// </summary>
+        DeferUntilPlanFinally = 1
+    }
+
     public readonly struct StepSchedulerContext
     {
         public StepSchedulerContext(
@@ -255,7 +270,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
             AnimationRouterBundle routerBundle,
             IAnimationEventBus eventBus,
             ITimedHitService timedHitService,
-            bool skipResetToFallback = false,
+            ResetPolicy resetPolicy = ResetPolicy.Default,
             ExternalBarrierGate gate = null)
         {
             Request = request;
@@ -265,7 +280,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
             RouterBundle = routerBundle;
             EventBus = eventBus;
             TimedHitService = timedHitService;
-            SkipResetToFallback = skipResetToFallback;
+            ResetPolicy = resetPolicy;
             Gate = gate;
         }
 
@@ -276,12 +291,19 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
         public AnimationRouterBundle RouterBundle { get; }
         public IAnimationEventBus EventBus { get; }
         public ITimedHitService TimedHitService { get; }
-        public bool SkipResetToFallback { get; }
+        public ResetPolicy ResetPolicy { get; }
         public ExternalBarrierGate Gate { get; }
 
         public CombatantState Actor => Request.Actor;
 
+        public bool SkipResetToFallback => ResetPolicy != ResetPolicy.Default;
+
         public StepSchedulerContext WithSkipReset(bool skipResetToFallback)
+        {
+            return WithResetPolicy(skipResetToFallback ? ResetPolicy.DeferUntilPlanFinally : ResetPolicy.Default);
+        }
+
+        public StepSchedulerContext WithResetPolicy(ResetPolicy resetPolicy)
         {
             return new StepSchedulerContext(
                 Request,
@@ -291,7 +313,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
                 RouterBundle,
                 EventBus,
                 TimedHitService,
-                skipResetToFallback,
+                resetPolicy,
                 Gate);
         }
     }

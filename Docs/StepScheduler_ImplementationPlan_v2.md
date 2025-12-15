@@ -309,6 +309,17 @@ Gates:
 
 ---
 
+## Spells/Items v2 (Scheduler bridge) ƒ?" Estado actual
+
+- [x] `LegacyPlaybackExecutor` integrado al scheduler con completion real (await) + logs `DEBUG-EX###`.
+- [x] Fallback legacy por capability: si no hay `StepRecipeAsset` pero hay timeline ƒ+' ejecuta recipe inline con executor `legacy_playback`.
+- [x] `ResetPolicy` explAcito: `LegacyBridge` difiere reset hasta `finally` y ejecuta `reset/fallback` al final (corta teleports).
+- [x] Telemetria dev-only: `SS030 LegacyBridge used actionId=...` para identificar quAc falta migrar.
+- [x] Recipes reales confirmados en escena (sin `SS030`): `magic_bolt`, `item_use`.
+- [x] Validator dev-only (warning) activo para payload: `SS900/SS901/SS902` + dump corto del plan.
+
+---
+
 ## Path B (a futuro, no v2.1)
 
 **Meta:** locomociA3n como step oficial (executor), no como side-effect del observer.

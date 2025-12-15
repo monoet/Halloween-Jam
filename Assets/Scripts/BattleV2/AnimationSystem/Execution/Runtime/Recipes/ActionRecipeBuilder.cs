@@ -47,7 +47,8 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Recipes
                     steps,
                     groupDefinition.ExecutionMode,
                     groupDefinition.JoinPolicy,
-                    Math.Max(0f, groupDefinition.TimeoutSeconds)));
+                    Math.Max(0f, groupDefinition.TimeoutSeconds),
+                    groupDefinition.Kind));
             }
 
             if (groups.Count == 0)
@@ -177,6 +178,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Recipes
             }
 
             public string Id { get; set; }
+            public string Kind { get; set; }
             public StepGroupExecutionMode ExecutionMode { get; set; } = StepGroupExecutionMode.Sequential;
             public StepGroupJoinPolicy JoinPolicy { get; set; } = StepGroupJoinPolicy.All;
             public float TimeoutSeconds { get; set; }

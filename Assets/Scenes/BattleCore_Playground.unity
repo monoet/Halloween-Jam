@@ -4427,11 +4427,13 @@ MonoBehaviour:
   basicTimedHitRunner: {fileID: 0}
   inputBufferRetention: 2
   includePilotRecipes: 0
+  autoLoadStepRecipesFromResources: 1
   stepRecipeAssets:
   - {fileID: 11400000, guid: 9d96cc054202bd4479e318c183fdb140, type: 2}
   - {fileID: 11400000, guid: 73dafe6e06c05a44291574e4b3642922, type: 2}
   - {fileID: 11400000, guid: 1a48e671e62619a4f942d0bdeb9d0be9, type: 2}
   - {fileID: 11400000, guid: 0942d5f8f8b65224196187b87d8e2430, type: 2}
+  - {fileID: 11400000, guid: 13b6a054256860d4b82962da7d197e33, type: 2}
 --- !u!114 &1144566324
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4503,11 +4505,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 54f26f4c89996bb45afa944642fdb3ba, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BattleV2.Diagnostics.BattleDebugTogglesBehaviour
-  enableEG: 1
-  enableMS: 1
+  enableEG: 0
+  enableMS: 0
   enableRTO: 0
   enableSS: 1
-  enableAPLogs: 0
+  enableEX: 1
+  enableAPLogs: 1
   enableAPFeature: 1
   persistToPlayerPrefs: 1
 --- !u!1 &1176880391
@@ -6942,7 +6945,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BattleV2.UI.Lists.ActionListPopulator
   content: {fileID: 214680423}
   spellRowPrefab: {fileID: 0}
-  itemRowPrefab: {fileID: 5561207968775434130, guid: 8ad3c4758f75a804dac395bf415d486a, type: 3}
+  itemRowPrefab: {fileID: 8741363661671023342, guid: 4ad2e53c6c1fb704f9e96ae354825555, type: 3}
 --- !u!1 &1755573945
 GameObject:
   m_ObjectHideFlags: 0

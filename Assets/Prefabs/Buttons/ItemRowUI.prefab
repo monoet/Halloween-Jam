@@ -10,6 +10,9 @@ GameObject:
   m_Component:
   - component: {fileID: 1231167124902659874}
   - component: {fileID: 1667592696537267363}
+  - component: {fileID: 8741363661671023342}
+  - component: {fileID: 5098745322277702836}
+  - component: {fileID: 1728789551179563784}
   m_Layer: 5
   m_Name: ItemRowUI
   m_TagString: Untagged
@@ -24,7 +27,7 @@ RectTransform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 979266951480965064}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -0, y: 0.0058184955, z: -0, w: 0.9999831}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -32,7 +35,7 @@ RectTransform:
   - {fileID: 8776812441703415124}
   - {fileID: 8389142171542324155}
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0.667, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
   m_AnchoredPosition: {x: 0, y: 0}
@@ -64,6 +67,56 @@ MonoBehaviour:
   m_ChildScaleWidth: 0
   m_ChildScaleHeight: 0
   m_ReverseArrangement: 0
+--- !u!114 &8741363661671023342
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 979266951480965064}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 01bef51c9d8000240832f5428c5cbf42, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BattleV2.UI.Lists.ItemRowUI
+  selectable: {fileID: 6695132663788866518}
+  nameText: {fileID: 9080198882590459151}
+  quantityText: {fileID: 3849779161229590157}
+  canvasGroup: {fileID: 5098745322277702836}
+  disabledAlpha: 0.5
+  selectionFeedback: {fileID: 1728789551179563784}
+  useHighlightColor: 1
+  normalColor: {r: 1, g: 1, b: 1, a: 1}
+  highlightedColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
+--- !u!225 &5098745322277702836
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 979266951480965064}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
+--- !u!114 &1728789551179563784
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 979266951480965064}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b9b14660c6fe9841b829c789716db66, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BattleV2.UI.UISelectionFeedback
+  scaleTarget: {fileID: 0}
+  selectedScaleMultiplier: 1.08
+  duration: 0.1
+  ease: 6
+  logEvents: 0
 --- !u!1 &1252467784421170062
 GameObject:
   m_ObjectHideFlags: 0

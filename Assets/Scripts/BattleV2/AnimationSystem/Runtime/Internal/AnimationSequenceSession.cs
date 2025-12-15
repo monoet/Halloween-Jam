@@ -371,7 +371,7 @@ namespace BattleV2.AnimationSystem.Runtime.Internal
                 return false;
             }
 
-            context = new StepSchedulerContext(request, timeline, wrapper, bindingResolver, routerBundle, eventBus, timedHitService, skipResetToFallback: false, gate: new BattleV2.AnimationSystem.Execution.Runtime.Core.ExternalBarrierGate());
+            context = new StepSchedulerContext(request, timeline, wrapper, bindingResolver, routerBundle, eventBus, timedHitService, resetPolicy: ResetPolicy.Default, gate: new BattleV2.AnimationSystem.Execution.Runtime.Core.ExternalBarrierGate());
             cachedSchedulerContext = context;
             hasSchedulerContext = true;
             return true;

@@ -301,9 +301,10 @@ private bool anchorMarkedThisTurn;
                 suppressRunUp = true;
                 SetRootMotion(false);
                 float duration = overrideRunBackDuration ? runBackDuration : def.duration;
-                Vector3 startLocal = (anchorMarkedThisTurn && motionAnchor != null)
-                    ? motionAnchor.localPosition
-                    : tweenTarget.localPosition;
+                bool allowAnchor = anchorMarkedThisTurn &&
+                                   motionAnchor != null &&
+                                   string.Equals(context.Request.Selection.Action?.id, "basic_attack", StringComparison.OrdinalIgnoreCase);
+                Vector3 startLocal = allowAnchor ? motionAnchor.localPosition : tweenTarget.localPosition;
                 tweenTarget.localPosition = startLocal;
                 anchorMarkedThisTurn = false;
 
@@ -665,7 +666,7 @@ private bool anchorMarkedThisTurn;
                         ? "return_home"
                         : "run_back";
                     context.Gate?.ExpectBarrier("Locomotion", reason);
-                    var task = RunBackAsync(def);
+                    var task = RunBackAsync(def, context);
                     context.Gate?.Register(task, locomotionKey, "Locomotion", reason);
                     return;
                 }
@@ -761,7 +762,7 @@ private bool anchorMarkedThisTurn;
             }
         }
 
-        private async System.Threading.Tasks.Task RunBackAsync(CombatTweenStrategy def)
+        private async System.Threading.Tasks.Task RunBackAsync(CombatTweenStrategy def, StepSchedulerContext context)
         {
             if (motionService == null || tweenTarget == null)
             {
@@ -772,9 +773,10 @@ private bool anchorMarkedThisTurn;
             SetRootMotion(false);
 
             float duration = overrideRunBackDuration ? runBackDuration : def.duration;
-            Vector3? overrideStart = (anchorMarkedThisTurn && motionAnchor != null)
-                ? motionAnchor.localPosition
-                : null;
+            bool allowAnchor = anchorMarkedThisTurn &&
+                               motionAnchor != null &&
+                               string.Equals(context.Request.Selection.Action?.id, "basic_attack", StringComparison.OrdinalIgnoreCase);
+            Vector3? overrideStart = allowAnchor ? motionAnchor.localPosition : null;
             anchorMarkedThisTurn = false;
 
             try

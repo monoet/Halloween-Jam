@@ -10,15 +10,15 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0a42e3a4e9dd89240ad33cca07a701f6, type: 3}
-  m_Name: Enemy_Attack
+  m_Name: Spell
   m_EditorClassIdentifier: Assembly-CSharp::HalloweenJam.Combat.Animations.StepScheduler.StepRecipeAsset
-  recipeId: basic_attack_enemy
+  recipeId: magic_bolt
   groups:
-  - groupId: attack/windup
-    executionMode: 1
-    joinPolicy: 1
-    timeoutSeconds: 0
+  - groupId: spell/payload
     kind: payload
+    executionMode: 0
+    joinPolicy: 0
+    timeoutSeconds: 0
     steps:
     - stepId: 
       executorId: animatorClip
@@ -26,25 +26,4 @@ MonoBehaviour:
       conflictPolicy: 0
       overrideConflictPolicy: 0
       delaySeconds: 1
-      parameters: []
-    - stepId: windup_wait
-      executorId: wait_seconds
-      bindingId: 
-      conflictPolicy: 0
-      overrideConflictPolicy: 0
-      delaySeconds: 0
-      parameters:
-      - key: duration
-        value: 0.2
-  - groupId: basic_attack_end
-    executionMode: 0
-    joinPolicy: 0
-    timeoutSeconds: 0
-    steps:
-    - stepId: end_wait
-      executorId: wait_seconds
-      bindingId: 
-      conflictPolicy: 0
-      overrideConflictPolicy: 0
-      delaySeconds: 2
       parameters: []

@@ -18,6 +18,7 @@ MonoBehaviour:
     executionMode: 1
     joinPolicy: 1
     timeoutSeconds: 0
+    kind: payload
     steps:
     - stepId: 
       executorId: animatorClip

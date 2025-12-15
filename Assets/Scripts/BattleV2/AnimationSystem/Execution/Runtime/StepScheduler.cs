@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BattleV2.AnimationSystem;
@@ -164,6 +165,10 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
                 return;
             }
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            ValidateRecipeDevOnly(recipe, context);
+#endif
+
             var gate = context.Gate;
             var skipByMotion = ShouldSkipReset(recipe);
             try
@@ -258,6 +263,163 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
 #endif
             }
         }
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        private static readonly HashSet<string> LocomotionGroupIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "run_up",
+            "run_up_target",
+            "run_back",
+            "move_to_target",
+            "move_to_spotlight",
+            "return_home"
+        };
+
+        private static readonly HashSet<string> ForbiddenPayloadExecutors = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "reset.fallback"
+        };
+
+        private static string BuildRecipeDump(ActionRecipe recipe, int maxGroups = 12, int maxExecutors = 4)
+        {
+            if (recipe == null || recipe.IsEmpty)
+            {
+                return "Plan: <empty>";
+            }
+
+            var groups = recipe.Groups;
+            if (groups == null || groups.Count == 0)
+            {
+                return $"Plan: <no groups> recipeId={recipe.Id ?? "(null)"}";
+            }
+
+            var sb = new StringBuilder(capacity: 256);
+            sb.AppendLine($"Plan recipeId={recipe.Id ?? "(null)"} groups={groups.Count}");
+
+            var count = Math.Min(groups.Count, maxGroups);
+            for (int i = 0; i < count; i++)
+            {
+                var group = groups[i];
+                if (group == null)
+                {
+                    sb.AppendLine($"- [{i}] <null group>");
+                    continue;
+                }
+
+                sb.Append($"- [{i}] groupId={group.Id ?? "(null)"} kind={group.Kind ?? "(null)"} mode={group.ExecutionMode} join={group.JoinPolicy}");
+
+                if (group.Steps == null || group.Steps.Count == 0)
+                {
+                    sb.AppendLine(" steps=[]");
+                    continue;
+                }
+
+                sb.Append(" exec=[");
+                var stepsToPrint = Math.Min(group.Steps.Count, maxExecutors);
+                for (int j = 0; j < stepsToPrint; j++)
+                {
+                    if (j > 0)
+                    {
+                        sb.Append(",");
+                    }
+
+                    sb.Append(group.Steps[j].ExecutorId ?? "(null)");
+                }
+
+                if (group.Steps.Count > stepsToPrint)
+                {
+                    sb.Append($",...(+{group.Steps.Count - stepsToPrint})");
+                }
+
+                sb.AppendLine("]");
+            }
+
+            if (groups.Count > count)
+            {
+                sb.AppendLine($"...(+{groups.Count - count} groups)");
+            }
+
+            return sb.ToString();
+        }
+
+        private static void ValidateRecipeDevOnly(ActionRecipe recipe, StepSchedulerContext context)
+        {
+            if (recipe == null || recipe.IsEmpty)
+            {
+                return;
+            }
+
+            bool hasLegacyBridgeStep = false;
+            for (int i = 0; i < recipe.Groups.Count; i++)
+            {
+                var group = recipe.Groups[i];
+                if (group == null || group.Steps == null)
+                {
+                    continue;
+                }
+
+                for (int j = 0; j < group.Steps.Count; j++)
+                {
+                    var step = group.Steps[j];
+                    if (string.Equals(step.ExecutorId, BattleV2.AnimationSystem.Execution.Runtime.Executors.LegacyPlaybackExecutor.ExecutorId, StringComparison.OrdinalIgnoreCase))
+                    {
+                        hasLegacyBridgeStep = true;
+                        break;
+                    }
+                }
+
+                if (hasLegacyBridgeStep)
+                {
+                    break;
+                }
+            }
+
+            if (hasLegacyBridgeStep && context.ResetPolicy != ResetPolicy.DeferUntilPlanFinally)
+            {
+                var dump = BattleDebug.IsEnabled("SS") ? "\n" + BuildRecipeDump(recipe) : string.Empty;
+                BattleDebug.Warn("SS", 902, $"INVALID legacy bridge requires ResetPolicy=DeferUntilPlanFinally recipeId={recipe.Id}{dump}", context.Actor);
+            }
+
+            for (int i = 0; i < recipe.Groups.Count; i++)
+            {
+                var group = recipe.Groups[i];
+                if (group == null)
+                {
+                    continue;
+                }
+
+                if (!string.Equals(group.Kind, "payload", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                if (group.JoinPolicy == StepGroupJoinPolicy.Any)
+                {
+                    var dump = BattleDebug.IsEnabled("SS") ? "\n" + BuildRecipeDump(recipe) : string.Empty;
+                    BattleDebug.Warn("SS", 900, $"INVALID payload joinPolicy=Any recipeId={recipe.Id} groupId={group.Id ?? "(null)"}{dump}", context.Actor);
+                }
+
+                if (!string.IsNullOrWhiteSpace(group.Id) && LocomotionGroupIds.Contains(group.Id))
+                {
+                    var dump = BattleDebug.IsEnabled("SS") ? "\n" + BuildRecipeDump(recipe) : string.Empty;
+                    BattleDebug.Warn("SS", 901, $"INVALID payload touches locomotion recipeId={recipe.Id} groupId={group.Id}{dump}", context.Actor);
+                }
+
+                if (group.Steps != null)
+                {
+                    for (int j = 0; j < group.Steps.Count; j++)
+                    {
+                        var step = group.Steps[j];
+                        if (ForbiddenPayloadExecutors.Contains(step.ExecutorId))
+                        {
+                            var dump = BattleDebug.IsEnabled("SS") ? "\n" + BuildRecipeDump(recipe) : string.Empty;
+                            BattleDebug.Warn("SS", 901, $"INVALID payload touches locomotion recipeId={recipe.Id} groupId={group.Id ?? "(null)"} executorId={step.ExecutorId}{dump}", context.Actor);
+                        }
+                    }
+                }
+            }
+        }
+#endif
 
         public async Task ExecuteLifecycleAsync(ActionRecipe recipe, StepSchedulerContext context, CancellationToken cancellationToken = default)
         {

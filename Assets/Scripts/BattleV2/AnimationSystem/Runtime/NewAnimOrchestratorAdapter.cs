@@ -12,6 +12,7 @@ using BattleV2.AnimationSystem.Execution.Runtime.Recipes;
 using BattleV2.AnimationSystem.Runtime.Internal;
 using BattleV2.AnimationSystem.Timelines;
 using BattleV2.Core;
+using BattleV2.Diagnostics;
 using UnityEngine;
 using BattleV2.Orchestration.Runtime;
 using BattleV2.AnimationSystem.Strategies;
@@ -51,6 +52,12 @@ namespace BattleV2.AnimationSystem.Runtime
             PilotActionRecipes.IdleId,
             PilotActionRecipes.TurnIntroId
         };
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        private static readonly object LegacyBridgeTelemetryLock = new object();
+        private static readonly Dictionary<string, int> LegacyBridgeCountsByActionId = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        private const int LegacyBridgeTelemetryLogEvery = 25;
+#endif
 
         private bool disposed;
 
@@ -303,7 +310,25 @@ namespace BattleV2.AnimationSystem.Runtime
                 return;
             }
 
+            bool usingLegacyBridgeRecipe = false;
+            if (!hasRecipe && timeline != null)
+            {
+                recipe = BuildLegacyBridgeRecipe(actionId);
+                hasRecipe = recipe != null && !recipe.IsEmpty;
+                usingLegacyBridgeRecipe = hasRecipe;
+            }
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (usingLegacyBridgeRecipe)
+            {
+                TrackLegacyBridgeUsage(actionId, request.Actor);
+            }
+#endif
+
             var bindingResolver = wrapper as IAnimationBindingResolver;
+            if (bindingResolver == null && usingLegacyBridgeRecipe)
+            {
+                bindingResolver = NullBindingResolver.Instance;
+            }
             if (hasRecipe && bindingResolver == null)
             {
                 BattleLogger.Warn("AnimAdapter", $"Wrapper for actorId '{actorLabel}' does not expose binding resolver. Falling back to legacy timeline.");
@@ -362,7 +387,7 @@ namespace BattleV2.AnimationSystem.Runtime
             if (hasRecipe)
             {
                 var isEnemy = actor != null && actor.IsEnemy;
-                var useLifecycle = actor != null && actor.IsPlayer && ShouldUseLifecycle(recipe);
+                var useLifecycle = actor != null && actor.IsPlayer && ShouldUseLifecycle(recipe) && !usingLegacyBridgeRecipe;
                 session = new RecipePlaybackSession(
                     request,
                     timeline,
@@ -515,6 +540,7 @@ namespace BattleV2.AnimationSystem.Runtime
             private Task executionTask;
             private bool actorRegistered;
             private bool disposed;
+            private bool needsResetFallback;
 
             public RecipePlaybackSession(
                 AnimationRequest request,
@@ -565,7 +591,7 @@ namespace BattleV2.AnimationSystem.Runtime
                 actorRegistered = true;
 
                 linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                var context = new StepSchedulerContext(request, timeline, wrapper, bindingResolver, routerBundle, eventBus, timedHitService, skipResetToFallback: false, gate: new BattleV2.AnimationSystem.Execution.Runtime.Core.ExternalBarrierGate());
+                var context = new StepSchedulerContext(request, timeline, wrapper, bindingResolver, routerBundle, eventBus, timedHitService, resetPolicy: ResetPolicy.Default, gate: new BattleV2.AnimationSystem.Execution.Runtime.Core.ExternalBarrierGate());
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
                 Debug.Log($"[AnimAdapter] Executing recipe '{recipe.Id}' for action '{request.Selection.Action?.id ?? "(null)"}'.");
@@ -624,6 +650,7 @@ namespace BattleV2.AnimationSystem.Runtime
             private ExecutionPlan BuildExecutionPlan(ActionRecipe baseRecipe)
             {
                 var plan = new ExecutionPlan();
+                bool debugPlan = BattleDebug.MainThreadId >= 0 && BattleDebug.IsEnabled("AP");
                 if (baseRecipe != null && !baseRecipe.IsEmpty)
                 {
                     if (EnableMeleeApproachEnvelope &&
@@ -639,6 +666,24 @@ namespace BattleV2.AnimationSystem.Runtime
                 if (EnableAutoReturnEnvelope && baseRecipe != null && !ContainsRunBack(baseRecipe) && TryResolveRunBack(out var runBack))
                 {
                     plan.Finally.Add(runBack);
+                    if (debugPlan)
+                    {
+                        BattleDebug.Log("AP", 900, $"injected {runBack.Id} (reason=auto-return-envelope) actionId={baseRecipe.Id}", request.Actor);
+                    }
+                }
+
+                if (debugPlan)
+                {
+                    string Describe(List<ActionRecipe> list) =>
+                        list == null || list.Count == 0
+                            ? "[]"
+                            : "[" + string.Join(",", list.Where(r => r != null && !r.IsEmpty).Select(r => r.Id ?? "(null)")) + "]";
+
+                    BattleDebug.Log(
+                        "AP",
+                        1,
+                        $"plan built actionId={baseRecipe?.Id ?? "(null)"} nodes={Describe(plan.Main)} finally={Describe(plan.Finally)} useLifecycle={useLifecycle}",
+                        request.Actor);
                 }
 
                 return plan;
@@ -646,15 +691,42 @@ namespace BattleV2.AnimationSystem.Runtime
 
             private async Task ExecutePlanAsync(ExecutionPlan plan, StepSchedulerContext context, CancellationToken mainToken)
             {
+                bool debugPlan = BattleDebug.MainThreadId >= 0 && BattleDebug.IsEnabled("AP");
+                needsResetFallback |= context.ResetPolicy == ResetPolicy.DeferUntilPlanFinally;
                 try
                 {
                     for (int i = 0; i < plan.Main.Count; i++)
                     {
-                        await ExecutePlanNodeAsync(plan, plan.Main[i], context, mainToken);
+                        var nodeRecipe = plan.Main[i];
+                        if (debugPlan)
+                        {
+                            BattleDebug.Log("AP", 10, $"node start id={nodeRecipe?.Id ?? "(null)"} skipReset={context.SkipResetToFallback}", request.Actor);
+                        }
+
+                        var started = DateTime.UtcNow;
+                        await ExecutePlanNodeAsync(plan, nodeRecipe, context, mainToken);
+                        if (debugPlan)
+                        {
+                            var elapsed = DateTime.UtcNow - started;
+                            BattleDebug.Log("AP", 11, $"node end id={nodeRecipe?.Id ?? "(null)"} elapsedMs={(int)elapsed.TotalMilliseconds}", request.Actor);
+                        }
+
+                        if (!needsResetFallback && IsLegacyBridgeRecipe(nodeRecipe))
+                        {
+                            needsResetFallback = true;
+                        }
                     }
                 }
                 finally
                 {
+                    if (needsResetFallback)
+                    {
+                        EnsureResetFallbackInFinally(plan);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                        ValidateFinallyDevOnly(plan);
+#endif
+                    }
+
                     if (plan.Finally.Count > 0)
                     {
                         for (int i = 0; i < plan.Finally.Count; i++)
@@ -668,8 +740,21 @@ namespace BattleV2.AnimationSystem.Runtime
                             try
                             {
                                 // Ejecuta retorno sin lifecycle para evitar run_up implícitos en fases.
-                                var finalContext = context.WithSkipReset(true);
+                                if (debugPlan)
+                                {
+                                    BattleDebug.Log("AP", 10, $"finally start id={recipeToRun.Id} skipReset=true", request.Actor);
+                                }
+
+                                var finalStarted = DateTime.UtcNow;
+                                var finalContext = needsResetFallback
+                                    ? context.WithResetPolicy(ResetPolicy.DeferUntilPlanFinally)
+                                    : context.WithResetPolicy(ResetPolicy.Default);
                                 await scheduler.ExecuteAsync(recipeToRun, finalContext, CancellationToken.None);
+                                if (debugPlan)
+                                {
+                                    var elapsed = DateTime.UtcNow - finalStarted;
+                                    BattleDebug.Log("AP", 11, $"finally end id={recipeToRun.Id} elapsedMs={(int)elapsed.TotalMilliseconds}", request.Actor);
+                                }
                             }
                             catch (OperationCanceledException)
                             {
@@ -691,21 +776,142 @@ namespace BattleV2.AnimationSystem.Runtime
                     return Task.CompletedTask;
                 }
 
+                // Bridge recipes that route legacy timeline playback through the scheduler must not reset the wrapper to
+                // fallback between payload and return, otherwise ResetToFallback() can snap transforms (teleport).
+                if (IsLegacyBridgeRecipe(actionRecipe))
+                {
+                    needsResetFallback = true;
+                    return scheduler.ExecuteAsync(actionRecipe, context.WithResetPolicy(ResetPolicy.DeferUntilPlanFinally), token);
+                }
+
                 // Chunk 4.5: injected locomotion-only recipes must NOT run with lifecycle,
                 // otherwise they will get auto run_up/run_back around them (chaos).
                 if (string.Equals(actionRecipe.Id, "move_to_target", StringComparison.OrdinalIgnoreCase))
                 {
-                    return scheduler.ExecuteAsync(actionRecipe, context.WithSkipReset(true), token);
+                    needsResetFallback = true;
+                    return scheduler.ExecuteAsync(actionRecipe, context.WithResetPolicy(ResetPolicy.DeferUntilPlanFinally), token);
                 }
 
                 // Chunk 4.5: if we injected move_to_target, we must not run the payload recipe with lifecycle,
                 // otherwise lifecycle pre-action will run run_up (spotlight) and yank the actor away from target.
                 if (plan != null && plan.HasInjectedMoveToTarget && string.Equals(actionRecipe.Id, "basic_attack", StringComparison.OrdinalIgnoreCase))
                 {
-                    return scheduler.ExecuteAsync(actionRecipe, context.WithSkipReset(true), token);
+                    needsResetFallback = true;
+                    return scheduler.ExecuteAsync(actionRecipe, context.WithResetPolicy(ResetPolicy.DeferUntilPlanFinally), token);
                 }
 
                 return ExecuteSingleAsync(actionRecipe, context, token);
+            }
+
+            private static ActionRecipe BuildResetFallbackRecipe()
+            {
+                var steps = new List<ActionStep>
+                {
+                    new ActionStep(
+                        executorId: "reset.fallback",
+                        bindingId: null,
+                        parameters: new ActionStepParameters(null),
+                        conflictPolicy: StepConflictPolicy.WaitForCompletion,
+                        id: "reset_fallback")
+                };
+
+                var group = new ActionStepGroup(
+                    "reset/fallback",
+                    steps,
+                    StepGroupExecutionMode.Sequential,
+                    StepGroupJoinPolicy.All,
+                    timeoutSeconds: 0f,
+                    kind: "system");
+
+                return new ActionRecipe("reset/fallback", new[] { group });
+            }
+
+            private static void EnsureResetFallbackInFinally(ExecutionPlan plan)
+            {
+                if (plan == null)
+                {
+                    return;
+                }
+
+                var resetRecipe = BuildResetFallbackRecipe();
+                if (resetRecipe == null || resetRecipe.IsEmpty)
+                {
+                    return;
+                }
+
+                for (int i = 0; i < plan.Finally.Count; i++)
+                {
+                    if (string.Equals(plan.Finally[i]?.Id, resetRecipe.Id, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return;
+                    }
+                }
+
+                plan.Finally.Add(resetRecipe);
+            }
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            private static void ValidateFinallyDevOnly(ExecutionPlan plan)
+            {
+                if (plan == null)
+                {
+                    return;
+                }
+
+                int returnCount = 0;
+                int resetCount = 0;
+                for (int i = 0; i < plan.Finally.Count; i++)
+                {
+                    var recipe = plan.Finally[i];
+                    if (recipe == null || recipe.IsEmpty)
+                    {
+                        continue;
+                    }
+
+                    if (string.Equals(recipe.Id, "run_back", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(recipe.Id, "return_home", StringComparison.OrdinalIgnoreCase))
+                    {
+                        returnCount++;
+                    }
+                    else if (string.Equals(recipe.Id, "reset/fallback", StringComparison.OrdinalIgnoreCase))
+                    {
+                        resetCount++;
+                    }
+                }
+
+                if (returnCount != 1 || resetCount != 1)
+                {
+                    throw new InvalidOperationException($"Invalid envelope finally: returnCount={returnCount} resetCount={resetCount}");
+                }
+            }
+#endif
+
+            private static bool IsLegacyBridgeRecipe(ActionRecipe recipe)
+            {
+                if (recipe == null || recipe.Groups == null || recipe.Groups.Count == 0)
+                {
+                    return false;
+                }
+
+                for (int groupIndex = 0; groupIndex < recipe.Groups.Count; groupIndex++)
+                {
+                    var group = recipe.Groups[groupIndex];
+                    if (group == null || group.Steps == null || group.Steps.Count == 0)
+                    {
+                        continue;
+                    }
+
+                    for (int stepIndex = 0; stepIndex < group.Steps.Count; stepIndex++)
+                    {
+                        var step = group.Steps[stepIndex];
+                        if (string.Equals(step.ExecutorId, BattleV2.AnimationSystem.Execution.Runtime.Executors.LegacyPlaybackExecutor.ExecutorId, StringComparison.OrdinalIgnoreCase))
+                        {
+                            return true;
+                        }
+                    }
+                }
+
+                return false;
             }
 
             private Task ExecuteSingleAsync(ActionRecipe actionRecipe, StepSchedulerContext context, CancellationToken token)
@@ -874,6 +1080,80 @@ namespace BattleV2.AnimationSystem.Runtime
             }
 
             public bool IsDisposed => disposed;
+        }
+
+        private static ActionRecipe BuildLegacyBridgeRecipe(string actionId)
+        {
+            if (string.IsNullOrWhiteSpace(actionId))
+            {
+                return null;
+            }
+
+            var steps = new List<ActionStep>
+            {
+                new ActionStep(
+                    executorId: BattleV2.AnimationSystem.Execution.Runtime.Executors.LegacyPlaybackExecutor.ExecutorId,
+                    bindingId: null,
+                    parameters: new ActionStepParameters(null),
+                    conflictPolicy: StepConflictPolicy.WaitForCompletion,
+                    id: "legacy_playback")
+            };
+
+            var group = new ActionStepGroup(
+                "legacy/payload",
+                steps,
+                StepGroupExecutionMode.Sequential,
+                StepGroupJoinPolicy.All,
+                timeoutSeconds: 0f,
+                kind: "payload");
+
+            return new ActionRecipe(actionId, new[] { group });
+        }
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        private static void TrackLegacyBridgeUsage(string actionId, UnityEngine.Object context)
+        {
+            if (string.IsNullOrWhiteSpace(actionId) || !BattleDebug.IsEnabled("SS"))
+            {
+                return;
+            }
+
+            int count;
+            lock (LegacyBridgeTelemetryLock)
+            {
+                LegacyBridgeCountsByActionId.TryGetValue(actionId, out count);
+                count++;
+                LegacyBridgeCountsByActionId[actionId] = count;
+            }
+
+            if (count == 1 || count % LegacyBridgeTelemetryLogEvery == 0)
+            {
+                BattleDebug.Log("SS", 30, $"LegacyBridge used actionId={actionId} count={count}", context);
+            }
+        }
+#endif
+
+        private sealed class NullBindingResolver : IAnimationBindingResolver
+        {
+            public static readonly NullBindingResolver Instance = new NullBindingResolver();
+
+            public bool TryGetClip(string id, out AnimationClip clip)
+            {
+                clip = null;
+                return false;
+            }
+
+            public bool TryGetFlipbook(string id, out FlipbookBinding binding)
+            {
+                binding = default;
+                return false;
+            }
+
+            public bool TryGetTween(string id, out TransformTween tween)
+            {
+                tween = default;
+                return false;
+            }
         }
     }
 }

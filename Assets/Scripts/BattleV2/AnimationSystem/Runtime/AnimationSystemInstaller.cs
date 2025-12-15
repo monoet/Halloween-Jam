@@ -178,6 +178,11 @@ namespace BattleV2.AnimationSystem.Runtime
             tweenBridge = new DefaultTweenBridge(mainThreadInvoker);
             motionService = new MotionService(mainThreadInvoker);
             stepScheduler = BuildStepScheduler(mainThreadInvoker, tweenBindingResolver, tweenBridge);
+            stepScheduler.RegisterExecutor(new BattleV2.AnimationSystem.Execution.Runtime.Executors.LegacyPlaybackExecutor(
+                sequencerDriver,
+                runtimeBuilder,
+                clipResolver,
+                mainThreadInvoker));
             schedulerHooks = new StepSchedulerHooks(stepScheduler);
             combatEventDispatcher = new CombatEventDispatcher(mainThreadInvoker);
             stepScheduler.RegisterObserver(combatEventDispatcher);

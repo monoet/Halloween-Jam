@@ -13,6 +13,7 @@ namespace BattleV2.Diagnostics
         [SerializeField] private bool enableMS = false;
         [SerializeField] private bool enableRTO = false;
         [SerializeField] private bool enableSS = false;
+        [SerializeField] private bool enableEX = false;
         [Tooltip("AP logging channel (plan/recipe-chain instrumentation).")]
         [SerializeField] private bool enableAPLogs = false;
 
@@ -46,6 +47,7 @@ namespace BattleV2.Diagnostics
             ApplyChannel("MS", enableMS);
             ApplyChannel("RTO", enableRTO);
             ApplyChannel("SS", enableSS);
+            ApplyChannel("EX", enableEX);
             ApplyChannel("AP", enableAPLogs);
             ApplyChannel("APF", enableAPFeature);
         }

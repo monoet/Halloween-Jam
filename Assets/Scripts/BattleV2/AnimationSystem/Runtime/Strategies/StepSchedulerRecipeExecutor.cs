@@ -112,7 +112,7 @@ namespace BattleV2.AnimationSystem.Strategies
                     routerBundle,
                     eventBus,
                     timedHitService,
-                    skipResetToFallback: false,
+                    resetPolicy: ResetPolicy.Default,
                     gate: new ExternalBarrierGate());
 
                 LogSchedulerExecution(actor, recipe.Id, context);

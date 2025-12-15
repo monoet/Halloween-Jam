@@ -20,6 +20,11 @@ namespace BattleV2.UI.Lists
         [SerializeField] private ActionCatalog catalog;
         [SerializeField] private List<ItemStock> inventory = new List<ItemStock>();
         [SerializeField] private string outOfStockReason = "Sin existencias";
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        [Header("Dev Helpers")]
+        [SerializeField] private bool devForceMinimumQuantity = true;
+        [SerializeField, Min(0)] private int devMinimumQuantity = 3;
+#endif
 
         public IReadOnlyList<IItemRowData> GetItemsFor(CombatantState actor, CombatContext context)
         {
@@ -65,14 +70,29 @@ namespace BattleV2.UI.Lists
                 return 0;
             }
 
+            bool hasAnyStockEntry = inventory.Count > 0;
             for (int i = 0; i < inventory.Count; i++)
             {
                 var stock = inventory[i];
                 if (string.Equals(stock.itemId, itemId))
                 {
-                    return Mathf.Max(0, stock.quantity);
+                    var resolved = Mathf.Max(0, stock.quantity);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                    if (devForceMinimumQuantity)
+                    {
+                        return Mathf.Max(resolved, devMinimumQuantity);
+                    }
+#endif
+                    return resolved;
                 }
             }
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (devForceMinimumQuantity && !hasAnyStockEntry)
+            {
+                return Mathf.Max(0, devMinimumQuantity);
+            }
+#endif
 
             return 0;
         }

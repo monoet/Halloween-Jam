@@ -61,6 +61,8 @@ namespace HalloweenJam.Combat.Animations.StepScheduler
         private class StepGroup
         {
             [SerializeField] private string groupId;
+            [Tooltip("Optional group tag for dev-only validation (e.g. 'payload', 'locomotion').")]
+            [SerializeField] private string kind;
             [SerializeField] private StepGroupExecutionMode executionMode = StepGroupExecutionMode.Sequential;
             [SerializeField] private StepGroupJoinPolicy joinPolicy = StepGroupJoinPolicy.Any;
             [SerializeField] private float timeoutSeconds;
@@ -98,7 +100,8 @@ namespace HalloweenJam.Combat.Animations.StepScheduler
                     runtimeSteps,
                     executionMode,
                     joinPolicy,
-                    Mathf.Max(0f, timeoutSeconds));
+                    Mathf.Max(0f, timeoutSeconds),
+                    kind);
                 return true;
             }
         }

@@ -37,7 +37,7 @@ namespace BattleV2.AnimationSystem.Runtime
                     continue;
                 }
 
-                if (BattleDebug.IsEnabled("AP"))
+                if (BattleDebug.MainThreadId >= 0 && BattleDebug.IsEnabled("AP"))
                 {
                     BattleDebug.Log("AP", 10, $"start node[{i}] label={node.Label} recipeId={node.RecipeId ?? "(inline)"}");
                 }
@@ -45,7 +45,7 @@ namespace BattleV2.AnimationSystem.Runtime
                 var started = DateTime.UtcNow;
                 if (node.InlineRecipe != null)
                 {
-                    await scheduler.ExecuteAsync(node.InlineRecipe, context, token).ConfigureAwait(false);
+                    await scheduler.ExecuteAsync(node.InlineRecipe, context, token);
                 }
                 else if (!string.IsNullOrWhiteSpace(node.RecipeId))
                 {
@@ -55,10 +55,10 @@ namespace BattleV2.AnimationSystem.Runtime
                         continue;
                     }
 
-                    await scheduler.ExecuteAsync(recipe, context, token).ConfigureAwait(false);
+                    await scheduler.ExecuteAsync(recipe, context, token);
                 }
 
-                if (BattleDebug.IsEnabled("AP"))
+                if (BattleDebug.MainThreadId >= 0 && BattleDebug.IsEnabled("AP"))
                 {
                     var elapsed = DateTime.UtcNow - started;
                     BattleDebug.Log("AP", 11, $"end node[{i}] ms={(int)elapsed.TotalMilliseconds} label={node.Label}");
@@ -90,4 +90,3 @@ namespace BattleV2.AnimationSystem.Runtime
         public bool IsEmpty => string.IsNullOrWhiteSpace(RecipeId) && InlineRecipe == null;
     }
 }
-

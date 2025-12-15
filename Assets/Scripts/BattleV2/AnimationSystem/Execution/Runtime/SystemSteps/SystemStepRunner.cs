@@ -16,6 +16,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.SystemSteps
         private const string SystemStepGate = "gate.on";
         private const string SystemStepDamage = "damage.apply";
         private const string SystemStepFallback = "fallback";
+        private const string SystemStepResetFallback = "reset.fallback";
         private const string SystemStepPhaseLock = "phase.lock";
         private const string SystemStepPhaseUnlock = "phase.unlock";
 
@@ -74,6 +75,11 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.SystemSteps
 
                 case SystemStepFallback:
                     result = HandleFallback(step, context);
+                    return true;
+
+                case SystemStepResetFallback:
+                    HandleResetFallback(context);
+                    result = StepResult.Completed;
                     return true;
 
                 default:
@@ -216,6 +222,18 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.SystemSteps
             return StepResult.Abort(reason);
         }
 
+        private void HandleResetFallback(StepSchedulerContext context)
+        {
+            try
+            {
+                context.Wrapper?.ResetToFallback(0f);
+            }
+            catch (Exception ex)
+            {
+                BattleLogger.Warn(logTag, $"reset.fallback failed: {ex.Message}");
+            }
+        }
+
         private void HandlePhaseLock(ActionStep step, StepSchedulerContext context, ExecutionState state, bool locked)
         {
             string reason = step.Parameters.TryGetString("reason", out var value) ? value : step.Id ?? "timeline";
@@ -308,5 +326,4 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.SystemSteps
         }
     }
 }
-
 
