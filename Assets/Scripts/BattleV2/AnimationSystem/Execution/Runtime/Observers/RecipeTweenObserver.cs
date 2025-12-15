@@ -1,10 +1,19 @@
+using System;
+using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using DG.Tweening;
 using UnityEngine;
 using BattleV2.AnimationSystem.Execution.Runtime;
+using BattleV2.AnimationSystem.Execution.Runtime.Core;
+using BattleV2.AnimationSystem.Motion;
 using BattleV2.AnimationSystem.Runtime;
 using BattleV2.Core;
+using BattleV2.Diagnostics;
+using BattleV2.Orchestration.Runtime;
+using BattleV2.Providers;
 
 namespace BattleV2.AnimationSystem.Execution.Runtime.Observers
 {
@@ -35,13 +44,19 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Observers
         [SerializeField] private float forward = 0.10f;
         [SerializeField] private float minorBack = 0.135f;
         [SerializeField] private float recoil = -0.177f;
+        [Tooltip("A/B switch: disables windup DOTween to isolate locomotion overlap issues.")]
+        [SerializeField] private bool disableWindupTween = false;
 
         private StepScheduler scheduler;
         private Tween activeTween;
+        private MotionService motionService;
+        private ResourceKey locomotionKey;
+        private IMainThreadInvoker mainThreadInvoker;
         private readonly Dictionary<string, CombatTweenStrategy> lookup = new();
         private readonly List<CombatTweenStrategy> runtimeFallbackStrategies = new();
 // Suprime run_up mientras run_back está activo
 private bool suppressRunUp = false;
+private string lastVariantResetKey;
 private Animator cachedAnimator;
 private bool? originalRootMotion;
 private bool anchorMarkedThisTurn;
@@ -101,15 +116,23 @@ private bool anchorMarkedThisTurn;
             }
 
             RebuildLookup();
+            CaptureHomePosition(force: true);
         }
 
         private void OnEnable() { RebuildLookup(); Register(); }
-        private void OnDisable() { Unregister(); KillTween(true); RestoreRootMotion(); anchorMarkedThisTurn = false; }
+        private void OnDisable() { Unregister(); KillTween(true); RestoreRootMotion(); anchorMarkedThisTurn = false; lastVariantResetKey = null; }
 
         private void Register()
         {
             var installer = AnimationSystemInstaller.Current;
             scheduler = installer != null ? installer.StepScheduler : null;
+            motionService = installer != null ? installer.MotionService : null;
+            mainThreadInvoker = MainThreadInvoker.Instance;
+            if (motionService != null)
+            {
+                locomotionKey = motionService.BuildLocomotionKey(owner, tweenTarget);
+                motionService.EnsureHomeSnapshot(locomotionKey, tweenTarget);
+            }
 
             if (scheduler == null)
             {
@@ -124,6 +147,8 @@ private bool anchorMarkedThisTurn;
         {
             scheduler?.UnregisterObserver(this);
             scheduler = null;
+            motionService = null;
+            mainThreadInvoker = null;
         }
 
         public void OnRecipeStarted(ActionRecipe recipe, StepSchedulerContext context)
@@ -134,17 +159,49 @@ private bool anchorMarkedThisTurn;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             if (recipe != null && recipe.Id == "run_up")
             {
-                var selection = context.Request.Selection;
-                var actionId = selection.Action?.id ?? "(null)";
-                var recipeOverride = selection.AnimationRecipeId ?? "(null)";
+                var dbgSelection = context.Request.Selection;
+                var dbgActionId = dbgSelection.Action?.id ?? "(null)";
+                var dbgRecipeOverride = dbgSelection.AnimationRecipeId ?? "(null)";
 #if false
-                Debug.Log($"TTDebug04 [RUN_UP_TRIGGER] actor={context.Actor?.name ?? "(null)"} action={actionId} animRecipe={recipeOverride}", this);
+                Debug.Log($"TTDebug04 [RUN_UP_TRIGGER] actor={context.Actor?.name ?? "(null)"} action={dbgActionId} animRecipe={dbgRecipeOverride}", this);
 #endif
             }
 #endif
 
             if (recipe == null || tweenTarget == null || !MatchesOwner(context))
                 return;
+
+            var selection = context.Request.Selection;
+            var actionId = selection.Action != null ? selection.Action.id : "(null)";
+            var recipeOverride = selection.AnimationRecipeId ?? "(null)";
+            if (AnimatorRegistry.Instance.TryGetWrapper(owner, out var wrapper) && wrapper is BattleV2.Orchestration.Runtime.AnimatorWrapper aw)
+            {
+                var resetKey = $"{owner.GetInstanceID()}|{actionId}|{recipeOverride}|{context.Request.GetHashCode()}";
+                if (!string.Equals(resetKey, lastVariantResetKey, StringComparison.Ordinal))
+                {
+                    lastVariantResetKey = resetKey;
+                    aw.ResetVariantScope("ActionBoundary", resetKey);
+                }
+
+                var ctx = $"recipe={recipe.Id} action={actionId} override={recipeOverride}";
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                aw.DebugReceiveCommand(recipe.Id, "RecipeTweenObserver", ctx);
+#endif
+
+                switch (recipe.Id)
+                {
+                    case "run_up":
+                    case "run_back":
+                    case "basic_attack":
+                    case "move_to_target":
+                        _ = aw.ConsumeCommand(recipe.Id, "RecipeTweenObserver", ctx, System.Threading.CancellationToken.None);
+                        break;
+                    case "run_up_target":
+                        // Opcional: solo comando si quieres consumir anim/clip asociado
+                        _ = aw.ConsumeCommand(recipe.Id, "RecipeTweenObserver", ctx, System.Threading.CancellationToken.None);
+                        break;
+                }
+            }
 
             if (activeTween != null && activeTween.IsActive() && activeTween.IsPlaying())
             {
@@ -160,25 +217,94 @@ private bool anchorMarkedThisTurn;
                 return;
             }
 
+            if (string.Equals(recipe.Id, "move_to_target", StringComparison.OrdinalIgnoreCase))
+            {
+                var targetTransform = ResolveTargetTransform(selection, context.Request.Targets);
+                if (targetTransform == null)
+                {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                    Debug.LogWarning($"[RecipeTweenObserver] move_to_target skipped: target transform not found for actor={owner?.name ?? "(null)"} action={selection.Action?.id ?? "(null)"}", this);
+#endif
+                    return;
+                }
+
+                var spotlight = FindSpotlightDestination(targetTransform);
+                var worldTarget = spotlight != null ? spotlight.position : targetTransform.position;
+                var moveToTargetPos = tweenTarget.parent != null
+                    ? tweenTarget.parent.InverseTransformPoint(worldTarget)
+                    : worldTarget;
+
+                if (!lookup.TryGetValue("run_up", out var runUpDef) || runUpDef == null)
+                {
+                    return;
+                }
+
+                SetRootMotion(false);
+
+                if (motionService != null)
+                {
+                    // Route A: locomotion is fired in OnGroupStarted so ExternalBarrierGate has the correct group scope.
+                    return;
+                }
+
+                KillTween(false);
+                float duration = overrideRunUpDuration ? runUpDuration : runUpDef.duration;
+                activeTween = tweenTarget.DOLocalMove(moveToTargetPos, duration).SetEase(Ease.OutCubic);
+                return;
+            }
+
             if (!lookup.TryGetValue(recipe.Id, out var def) || def == null)
                 return;
 
-            KillTween(false);
+            // Locomotion tweens are handled via MotionService (Route A).
 
             if (recipe.Id == "basic_attack")
             {
+                KillTween(false);
+                if (disableWindupTween)
+                {
+                    if (BattleDebug.IsEnabled("RTO"))
+                    {
+                        BattleDebug.Log("RTO", 40, "basic_attack windup skipped (disableWindupTween=true).", this);
+                    }
+                    return;
+                }
                 PlayWindup();
+                return;
+            }
+
+            if (recipe.Id == "run_up_target")
+            {
+                if (BattleDebug.IsEnabled("RTO"))
+                {
+                    BattleDebug.Warn("RTO", 2, "run_up_target skipped (waiting for Chunk 4.5 RecipeChain / multi-recipes).", this);
+                }
                 return;
             }
 
             if (recipe.Id == "run_back")
             {
+                if (motionService != null)
+                {
+                    // Route A: locomotion is fired in OnGroupStarted so ExternalBarrierGate has the correct group scope.
+                    return;
+                }
+                if (!homeCaptured)
+                {
+                    CaptureHomePosition(force: true);
+                    if (!homeCaptured)
+                    {
+                        Debug.LogWarning("[RecipeTweenObserver] RUN_BACK aborted: home position not captured.", this);
+                        return;
+                    }
+                }
                 suppressRunUp = true;
                 SetRootMotion(false);
                 float duration = overrideRunBackDuration ? runBackDuration : def.duration;
-                Vector3 startLocal = (anchorMarkedThisTurn && motionAnchor != null)
-                    ? motionAnchor.localPosition
-                    : tweenTarget.localPosition;
+                bool allowAnchor = anchorMarkedThisTurn &&
+                                   motionAnchor != null &&
+                                   string.Equals(context.Request.Selection.Action?.id, "basic_attack", StringComparison.OrdinalIgnoreCase);
+                Vector3 startLocal = allowAnchor ? motionAnchor.localPosition : tweenTarget.localPosition;
                 tweenTarget.localPosition = startLocal;
                 anchorMarkedThisTurn = false;
 
@@ -228,6 +354,11 @@ private bool anchorMarkedThisTurn;
                 SetRootMotion(false);
             }
 
+            if (motionService != null)
+            {
+                return;
+            }
+
             float durationOverride = recipe.Id == "run_up" && overrideRunUpDuration
                 ? runUpDuration
                 : def.duration;
@@ -251,6 +382,73 @@ private bool anchorMarkedThisTurn;
 
             activeTween = seq;
             seq.Play();
+        }
+
+        private void PlayRunUpTarget(BattleSelection selection, IReadOnlyList<CombatantState> resolvedTargets)
+        {
+            var targetTransform = ResolveTargetTransform(selection, resolvedTargets);
+            if (targetTransform == null)
+            {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                Debug.LogWarning($"[RecipeTweenObserver] run_up_target skipped: target transform not found for actor={owner?.name ?? "(null)"} action={selection.Action?.id ?? "(null)"}", this);
+#endif
+                return;
+            }
+
+            var spotlight = FindSpotlightDestination(targetTransform);
+            var worldTarget = spotlight != null ? spotlight.position : targetTransform.position;
+            var targetPos = tweenTarget.parent != null
+                ? tweenTarget.parent.InverseTransformPoint(worldTarget)
+                : worldTarget;
+
+            float duration = overrideRunUpDuration ? runUpDuration : (lookup.TryGetValue("run_up", out var def) && def != null ? def.duration : runUpDuration);
+            activeTween = tweenTarget.DOLocalMove(targetPos, duration).SetEase(Ease.OutCubic);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (logTweenTargets)
+            {
+                Debug.Log($"TTDebug13 [RUN_UP_TARGET] actor={owner?.name ?? "(null)"} target={(spotlight != null ? spotlight.name : targetTransform.name)} world={worldTarget} local={targetPos} duration={duration}", this);
+            }
+#endif
+        }
+
+        private Transform ResolveTargetTransform(BattleSelection selection, IReadOnlyList<CombatantState> resolvedTargets)
+        {
+            if (selection.TargetTransform != null)
+            {
+                return selection.TargetTransform;
+            }
+
+            if (selection.Targets.HasValue && selection.Targets.Value.TryGetSingle(out var targetId) && resolvedTargets != null)
+            {
+                var match = resolvedTargets.FirstOrDefault(t => t != null && t.GetInstanceID() == targetId);
+                if (match != null)
+                {
+                    return match.transform;
+                }
+            }
+
+            if (resolvedTargets != null && resolvedTargets.Count > 0 && resolvedTargets[0] != null)
+            {
+                return resolvedTargets[0].transform;
+            }
+
+            return null;
+        }
+
+        private Transform FindSpotlightDestination(Transform root)
+        {
+            if (root == null)
+            {
+                return null;
+            }
+
+            var direct = root.Find("SpotlightDestination");
+            if (direct != null)
+            {
+                return direct;
+            }
+
+            return root.GetComponentsInChildren<Transform>(true).FirstOrDefault(t => t.name == "SpotlightDestination") ?? root;
         }
 
         private void KillTween(bool forceComplete)
@@ -344,21 +542,32 @@ private bool anchorMarkedThisTurn;
 
             if (recipeId == "basic_attack_windup" && motionAnchor != null && MatchesOwner(context))
             {
-                motionAnchor.localPosition = tweenTarget.localPosition;
-                anchorMarkedThisTurn = true;
+                RunOnMainThread(() =>
+                {
+                    motionAnchor.localPosition = tweenTarget.localPosition;
+                    anchorMarkedThisTurn = true;
+                });
             }
 
             if (recipeId == "run_back" && homeCaptured)
             {
+                if (motionService != null)
+                {
+                    // When using MotionService (Route A), avoid snapping based on activeTween (it won't represent locomotion).
+                    return;
+                }
 #if false
                 Debug.Log($"TTDebug01 [COMPLETE] [{TS()}] actor={owner?.name} recipe={report.Recipe.Id}", this);
 #endif
                 // Snap solo si no hay tween activo o ya se completó; evita teleports in-flight
                 if (tweenTarget != null && (activeTween == null || !activeTween.IsActive() || activeTween.IsComplete()))
                 {
-                    tweenTarget.localPosition = homeLocalPos;
-                    tweenTarget.localRotation = homeLocalRot;
-                    tweenTarget.localScale = homeLocalScale;
+                    RunOnMainThread(() =>
+                    {
+                        tweenTarget.localPosition = homeLocalPos;
+                        tweenTarget.localRotation = homeLocalRot;
+                        tweenTarget.localScale = homeLocalScale;
+                    });
                 }
 
                 suppressRunUp = false;
@@ -371,7 +580,109 @@ private bool anchorMarkedThisTurn;
                 RestoreRootMotion();
             }
         }
-        public void OnGroupStarted(ActionStepGroup group, StepSchedulerContext context) { }
+        public void OnGroupStarted(ActionStepGroup group, StepSchedulerContext context)
+        {
+            if (group == null || tweenTarget == null || !MatchesOwner(context))
+            {
+                return;
+            }
+
+            // Route A: fire locomotion here so ExternalBarrierGate has the correct group scope.
+            // If MotionService is null, locomotion remains handled by legacy OnRecipeStarted code.
+            if (motionService != null && !string.IsNullOrWhiteSpace(group.Id))
+            {
+                if (string.Equals(group.Id, "run_up", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(group.Id, "move_to_spotlight", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Chunk 4.5: when move_to_target is injected before basic_attack, we must not run the
+                    // basic_attack "run_up" group (spotlight) or it will yank the actor away from the target.
+                    if (string.Equals(context.Request.Selection.Action?.id, "basic_attack", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (BattleDebug.IsEnabled("RTO"))
+                        {
+                            BattleDebug.Log("RTO", 41, "Skipped run_up (spotlight) during basic_attack (spotlight is turn-staging, not attack-staging).", this);
+                        }
+                        return;
+                    }
+
+                    if (!lookup.TryGetValue("run_up", out var def) || def == null)
+                    {
+                        return;
+                    }
+
+                    var targetPos = def.target;
+                    if (globalSpotlight != null)
+                    {
+                        targetPos = motionService.WorldToLocal(tweenTarget, globalSpotlight.position);
+                    }
+
+                    SetRootMotion(false);
+                    var reason = string.Equals(group.Id, "move_to_spotlight", StringComparison.OrdinalIgnoreCase)
+                        ? "move_to_spotlight"
+                        : "run_up";
+                    context.Gate?.ExpectBarrier("Locomotion", reason);
+                    var task = RunUpAsync(def, group.Id, targetPos);
+                    context.Gate?.Register(task, locomotionKey, "Locomotion", reason);
+                    return;
+                }
+
+                if (string.Equals(group.Id, "move_to_target", StringComparison.OrdinalIgnoreCase))
+                {
+                    var selection = context.Request.Selection;
+                    var targetTransform = ResolveTargetTransform(selection, context.Request.Targets);
+                    if (targetTransform == null)
+                    {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                        Debug.LogWarning($"[RecipeTweenObserver] move_to_target skipped: target transform not found for actor={owner?.name ?? "(null)"} action={selection.Action?.id ?? "(null)"}", this);
+#endif
+                        return;
+                    }
+
+                    var spotlight = FindSpotlightDestination(targetTransform);
+                    var worldTarget = spotlight != null ? spotlight.position : targetTransform.position;
+                    var targetPos = motionService.WorldToLocal(tweenTarget, worldTarget);
+
+                    if (!lookup.TryGetValue("run_up", out var def) || def == null)
+                    {
+                        return;
+                    }
+
+                    SetRootMotion(false);
+                    context.Gate?.ExpectBarrier("Locomotion", "move_to_target");
+                    var task = RunUpAsync(def, "move_to_target", targetPos);
+                    context.Gate?.Register(task, locomotionKey, "Locomotion", "move_to_target");
+                    return;
+                }
+
+                if (string.Equals(group.Id, "run_back", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(group.Id, "return_home", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!lookup.TryGetValue("run_back", out var def) || def == null)
+                    {
+                        return;
+                    }
+
+                    var reason = string.Equals(group.Id, "return_home", StringComparison.OrdinalIgnoreCase)
+                        ? "return_home"
+                        : "run_back";
+                    context.Gate?.ExpectBarrier("Locomotion", reason);
+                    var task = RunBackAsync(def, context);
+                    context.Gate?.Register(task, locomotionKey, "Locomotion", reason);
+                    return;
+                }
+            }
+
+            // Permite disparar el acercamiento al objetivo cuando el GroupId es run_up_target (dentro de basic_attack)
+            if (string.Equals(group.Id, "run_up_target", StringComparison.OrdinalIgnoreCase))
+            {
+                if (BattleDebug.IsEnabled("RTO"))
+                {
+                    BattleDebug.Warn("RTO", 30, "run_up_target skipped (waiting for Chunk 4.5 RecipeChain / multi-recipes).");
+                }
+                return;
+            }
+        }
+
         public void OnGroupCompleted(StepGroupExecutionReport report, StepSchedulerContext context) { }
         public void OnBranchTaken(string sourceId, string targetId, StepSchedulerContext context) { }
         public void OnStepStarted(ActionStep step, StepSchedulerContext context) { }
@@ -422,6 +733,114 @@ private bool anchorMarkedThisTurn;
             tweenTarget.localScale = homeLocalScale;
         }
 
+        private async System.Threading.Tasks.Task RunUpAsync(CombatTweenStrategy def, string recipeId, Vector3 targetLocalPos)
+        {
+            if (motionService == null || tweenTarget == null)
+            {
+                return;
+            }
+
+            float durationOverride = recipeId == "run_up" && overrideRunUpDuration
+                ? runUpDuration
+                : def.duration;
+
+            try
+            {
+                await motionService.MoveToLocalAsync(
+                        locomotionKey,
+                        tweenTarget,
+                        targetLocalPos,
+                        durationOverride,
+                        def.ease,
+                        StepConflictPolicy.CancelRunning,
+                        System.Threading.CancellationToken.None,
+                        reason: recipeId)
+                    .ConfigureAwait(false);
+            }
+            catch
+            {
+            }
+        }
+
+        private async System.Threading.Tasks.Task RunBackAsync(CombatTweenStrategy def, StepSchedulerContext context)
+        {
+            if (motionService == null || tweenTarget == null)
+            {
+                return;
+            }
+
+            suppressRunUp = true;
+            SetRootMotion(false);
+
+            float duration = overrideRunBackDuration ? runBackDuration : def.duration;
+            bool allowAnchor = anchorMarkedThisTurn &&
+                               motionAnchor != null &&
+                               string.Equals(context.Request.Selection.Action?.id, "basic_attack", StringComparison.OrdinalIgnoreCase);
+            Vector3? overrideStart = allowAnchor ? motionAnchor.localPosition : null;
+            anchorMarkedThisTurn = false;
+
+            try
+            {
+                await motionService.ReturnHomeAsync(
+                        locomotionKey,
+                        tweenTarget,
+                        duration,
+                        Ease.OutExpo,
+                        StepConflictPolicy.CancelRunning,
+                        System.Threading.CancellationToken.None,
+                        overrideStartLocalPos: overrideStart,
+                        reason: "run_back")
+                    .ConfigureAwait(false);
+            }
+            catch
+            {
+            }
+            finally
+            {
+                suppressRunUp = false;
+                RestoreRootMotion();
+            }
+        }
+
+        private async System.Threading.Tasks.Task RunUpTargetAsync(BattleSelection selection, IReadOnlyList<CombatantState> resolvedTargets)
+        {
+            if (motionService == null || tweenTarget == null)
+            {
+                return;
+            }
+
+            var targetTransform = ResolveTargetTransform(selection, resolvedTargets);
+            if (targetTransform == null)
+            {
+                return;
+            }
+
+            var spotlight = FindSpotlightDestination(targetTransform);
+            var worldTarget = spotlight != null ? spotlight.position : targetTransform.position;
+            var targetPos = motionService.WorldToLocal(tweenTarget, worldTarget);
+
+            float duration = overrideRunUpDuration
+                ? runUpDuration
+                : (lookup.TryGetValue("run_up", out var def) && def != null ? def.duration : runUpDuration);
+
+            try
+            {
+                await motionService.MoveToLocalAsync(
+                        locomotionKey,
+                        tweenTarget,
+                        targetPos,
+                        duration,
+                        Ease.OutCubic,
+                        StepConflictPolicy.CancelRunning,
+                        System.Threading.CancellationToken.None,
+                        reason: "run_up_target")
+                    .ConfigureAwait(false);
+            }
+            catch
+            {
+            }
+        }
+
         private Animator GetAnimator()
         {
             if (cachedAnimator != null)
@@ -437,27 +856,50 @@ private bool anchorMarkedThisTurn;
             return cachedAnimator;
         }
 
-        private void SetRootMotion(bool enabled)
+        private void RunOnMainThread(Action action)
         {
-            var animator = GetAnimator();
-            if (animator == null)
+            if (action == null)
             {
                 return;
             }
 
-            originalRootMotion ??= animator.applyRootMotion;
-            animator.applyRootMotion = enabled;
+            if (BattleDebug.IsMainThread)
+            {
+                action();
+                return;
+            }
+
+            (mainThreadInvoker ?? MainThreadInvoker.Instance).Run(action);
+        }
+
+        private void SetRootMotion(bool enabled)
+        {
+            RunOnMainThread(() =>
+            {
+                var animator = GetAnimator();
+                if (animator == null)
+                {
+                    return;
+                }
+
+                originalRootMotion ??= animator.applyRootMotion;
+                animator.applyRootMotion = enabled;
+            });
         }
 
         private void RestoreRootMotion()
         {
-            var animator = GetAnimator();
-            if (animator == null || !originalRootMotion.HasValue)
+            RunOnMainThread(() =>
             {
-                return;
-            }
+                var animator = GetAnimator();
+                if (animator == null || !originalRootMotion.HasValue)
+                {
+                    return;
+                }
 
-            animator.applyRootMotion = originalRootMotion.Value;
+                animator.applyRootMotion = originalRootMotion.Value;
+            });
         }
+
     }
 }

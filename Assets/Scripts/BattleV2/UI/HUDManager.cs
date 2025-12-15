@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using BattleV2.Marks;
 
 namespace BattleV2.UI
 {
@@ -8,6 +9,8 @@ namespace BattleV2.UI
     /// </summary>
     public class HUDManager : MonoBehaviour
     {
+        private MarkService markService;
+
         [Header("Ally HUD")]
         [SerializeField] private CombatantHudWidget allyWidgetPrefab;
         [SerializeField] private Transform allyContainer;
@@ -18,6 +21,33 @@ namespace BattleV2.UI
         [SerializeField] private Transform enemyContainer;
 
         private readonly Dictionary<CombatantState, CombatantHudWidget> widgets = new();
+        private CombatantHudWidget lastHighlighted;
+
+        public void SetMarkService(MarkService service)
+        {
+            markService = service;
+            // Initialize preset ally widgets immediately when wiring the service.
+            if (HasPresetAllyWidgets())
+            {
+                for (int i = 0; i < allyWidgets.Count; i++)
+                {
+                    var widget = allyWidgets[i];
+                    if (widget != null)
+                    {
+                        widget.InitializeMarks(markService);
+                    }
+                }
+            }
+
+            // Initialize any already-instantiated widgets in the dictionary.
+            foreach (var pair in widgets)
+            {
+                if (pair.Value != null)
+                {
+                    pair.Value.InitializeMarks(markService);
+                }
+            }
+        }
 
         public void RegisterCombatants(IEnumerable<CombatantState> combatants, bool isEnemy)
         {
@@ -77,6 +107,7 @@ namespace BattleV2.UI
             }
 
             var widget = Instantiate(prefab, container);
+            widget.InitializeMarks(markService);
             widget.Bind(combatant);
             widgets[combatant] = widget;
         }
@@ -156,6 +187,28 @@ namespace BattleV2.UI
             return widgets.TryGetValue(combatant, out widget);
         }
 
+        public void HighlightCombatant(CombatantState combatant)
+        {
+            CombatantHudWidget highlighted = null;
+            foreach (var pair in widgets)
+            {
+                var widget = pair.Value;
+                if (widget == null)
+                {
+                    continue;
+                }
+
+                bool isTarget = pair.Key == combatant;
+                widget.SetHighlighted(isTarget);
+                if (isTarget)
+                {
+                    highlighted = widget;
+                }
+            }
+
+            lastHighlighted = highlighted;
+        }
+
         private void BindAllyWidgets(IEnumerable<CombatantState> combatants)
         {
             if (!HasPresetAllyWidgets())
@@ -194,6 +247,7 @@ namespace BattleV2.UI
                     }
 
                     widget.gameObject.SetActive(true);
+                    widget.InitializeMarks(markService);
                     widget.Bind(combatant);
                     widgets[combatant] = widget;
                     activeSet.Add(combatant);

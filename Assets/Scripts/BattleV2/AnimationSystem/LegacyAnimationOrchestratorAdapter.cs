@@ -57,7 +57,6 @@ namespace BattleV2.AnimationSystem
                 request.Selection,
                 request.Targets,
                 request.AverageSpeed,
-                request.TimedHitRunner,
                 request.RecipeOverride);
 
             // Legacy orchestrator does not support cancellation; best-effort no-op.

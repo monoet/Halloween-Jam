@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
+using BattleV2.Diagnostics;
 using UnityEngine;
 
 namespace BattleV2.Core
@@ -20,7 +21,9 @@ namespace BattleV2.Core
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void Bootstrap()
         {
-            EnsureInstance();
+            BattleDebug.CaptureMainThread();
+            var ensured = EnsureInstance();
+            BattleDebug.ConfigureInvoker(ensured);
         }
 
         private static MainThreadInvoker EnsureInstance()

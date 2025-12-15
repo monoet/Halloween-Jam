@@ -1,0 +1,637 @@
+fileFormatVersion: 2
+guid: 7653b83555e0d79499178310f3cc44b5
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -2510153939195518607
+    second: New_idleCombatanim_0
+  - first:
+      213: 444544508733422034
+    second: New_idleCombatanim_1
+  - first:
+      213: -8455642940129750264
+    second: New_idleCombatanim_2
+  - first:
+      213: -8957084272662843043
+    second: New_idleCombatanim_3
+  - first:
+      213: 8975322569920424205
+    second: New_idleCombatanim_4
+  - first:
+      213: 5904718390870563254
+    second: New_idleCombatanim_5
+  - first:
+      213: 3680632094524430749
+    second: New_idleCombatanim_6
+  - first:
+      213: -7771703963244641750
+    second: New_idleCombatanim_7
+  - first:
+      213: -7016253741452950662
+    second: New_idleCombatanim_8
+  - first:
+      213: -1222099060443440394
+    second: New_idleCombatanim_9
+  - first:
+      213: -2716286126543676147
+    second: New_idleCombatanim_10
+  - first:
+      213: -6491489790658121316
+    second: New_idleCombatanim_11
+  - first:
+      213: 3504956461535098662
+    second: New_idleCombatanim_12
+  - first:
+      213: -2639083600378811323
+    second: New_idleCombatanim_13
+  - first:
+      213: 7307596863973426850
+    second: New_idleCombatanim_14
+  - first:
+      213: 3657643853248965420
+    second: New_idleCombatanim_15
+  - first:
+      213: 8368187415431662592
+    second: New_idleCombatanim_16
+  - first:
+      213: 3468398403700283702
+    second: New_idleCombatanim_17
+  - first:
+      213: -780660914350248961
+    second: New_idleCombatanim_18
+  - first:
+      213: 5370067755018829210
+    second: New_idleCombatanim_19
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 0
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 0
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: New_idleCombatanim_0
+      rect:
+        serializedVersion: 2
+        x: 10
+        y: 0
+        width: 36
+        height: 49
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 17124baaa442a2dd0800000000000000
+      internalID: -2510153939195518607
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: New_idleCombatanim_1
+      rect:
+        serializedVersion: 2
+        x: 66
+        y: 0
+        width: 36
+        height: 49
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2d9f7e910e65b2600800000000000000
+      internalID: 444544508733422034
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: New_idleCombatanim_2
+      rect:
+        serializedVersion: 2
+        x: 122
+        y: 0
+        width: 36
+        height: 49
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 803d60ebb8587aa80800000000000000
+      internalID: -8455642940129750264
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: New_idleCombatanim_3
+      rect:
+        serializedVersion: 2
+        x: 178
+        y: 0
+        width: 36
+        height: 49
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d5171b88f4b02b380800000000000000
+      internalID: -8957084272662843043
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: New_idleCombatanim_4
+      rect:
+        serializedVersion: 2
+        x: 234
+        y: 0
+        width: 36
+        height: 49
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d0927a4f250ce8c70800000000000000
+      internalID: 8975322569920424205
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: New_idleCombatanim_5
+      rect:
+        serializedVersion: 2
+        x: 290
+        y: 0
+        width: 36
+        height: 49
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6b95e8a8716c1f150800000000000000
+      internalID: 5904718390870563254
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: New_idleCombatanim_6
+      rect:
+        serializedVersion: 2
+        x: 346
+        y: 0
+        width: 36
+        height: 49
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d99d70f936b341330800000000000000
+      internalID: 3680632094524430749
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: New_idleCombatanim_7
+      rect:
+        serializedVersion: 2
+        x: 402
+        y: 0
+        width: 36
+        height: 49
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a22ce43fb6c552490800000000000000
+      internalID: -7771703963244641750
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: New_idleCombatanim_8
+      rect:
+        serializedVersion: 2
+        x: 458
+        y: 0
+        width: 36
+        height: 49
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a7301b6556241ae90800000000000000
+      internalID: -7016253741452950662
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: New_idleCombatanim_9
+      rect:
+        serializedVersion: 2
+        x: 514
+        y: 0
+        width: 36
+        height: 49
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6fa1ee5216b3a0fe0800000000000000
+      internalID: -1222099060443440394
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: New_idleCombatanim_10
+      rect:
+        serializedVersion: 2
+        x: 570
+        y: 0
+        width: 36
+        height: 49
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d0dda0fc820dd4ad0800000000000000
+      internalID: -2716286126543676147
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: New_idleCombatanim_11
+      rect:
+        serializedVersion: 2
+        x: 626
+        y: 0
+        width: 36
+        height: 49
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c917fb4cd6899e5a0800000000000000
+      internalID: -6491489790658121316
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: New_idleCombatanim_12
+      rect:
+        serializedVersion: 2
+        x: 682
+        y: 0
+        width: 36
+        height: 48
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 627720be45b14a030800000000000000
+      internalID: 3504956461535098662
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: New_idleCombatanim_13
+      rect:
+        serializedVersion: 2
+        x: 738
+        y: 0
+        width: 36
+        height: 48
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 54cacdaa277106bd0800000000000000
+      internalID: -2639083600378811323
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: New_idleCombatanim_14
+      rect:
+        serializedVersion: 2
+        x: 794
+        y: 0
+        width: 36
+        height: 48
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2a605e661acc96560800000000000000
+      internalID: 7307596863973426850
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: New_idleCombatanim_15
+      rect:
+        serializedVersion: 2
+        x: 850
+        y: 0
+        width: 36
+        height: 48
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c2babcb94bf82c230800000000000000
+      internalID: 3657643853248965420
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: New_idleCombatanim_16
+      rect:
+        serializedVersion: 2
+        x: 906
+        y: 0
+        width: 36
+        height: 48
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 00cc2b62e16c12470800000000000000
+      internalID: 8368187415431662592
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: New_idleCombatanim_17
+      rect:
+        serializedVersion: 2
+        x: 962
+        y: 0
+        width: 36
+        height: 48
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6395618c8f9322030800000000000000
+      internalID: 3468398403700283702
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: New_idleCombatanim_18
+      rect:
+        serializedVersion: 2
+        x: 1018
+        y: 0
+        width: 36
+        height: 48
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ffb2f16d8098a25f0800000000000000
+      internalID: -780660914350248961
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: New_idleCombatanim_19
+      rect:
+        serializedVersion: 2
+        x: 1074
+        y: 0
+        width: 36
+        height: 48
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a9d3daddb20568a40800000000000000
+      internalID: 5370067755018829210
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      New_idleCombatanim_0: -2510153939195518607
+      New_idleCombatanim_1: 444544508733422034
+      New_idleCombatanim_10: -2716286126543676147
+      New_idleCombatanim_11: -6491489790658121316
+      New_idleCombatanim_12: 3504956461535098662
+      New_idleCombatanim_13: -2639083600378811323
+      New_idleCombatanim_14: 7307596863973426850
+      New_idleCombatanim_15: 3657643853248965420
+      New_idleCombatanim_16: 8368187415431662592
+      New_idleCombatanim_17: 3468398403700283702
+      New_idleCombatanim_18: -780660914350248961
+      New_idleCombatanim_19: 5370067755018829210
+      New_idleCombatanim_2: -8455642940129750264
+      New_idleCombatanim_3: -8957084272662843043
+      New_idleCombatanim_4: 8975322569920424205
+      New_idleCombatanim_5: 5904718390870563254
+      New_idleCombatanim_6: 3680632094524430749
+      New_idleCombatanim_7: -7771703963244641750
+      New_idleCombatanim_8: -7016253741452950662
+      New_idleCombatanim_9: -1222099060443440394
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

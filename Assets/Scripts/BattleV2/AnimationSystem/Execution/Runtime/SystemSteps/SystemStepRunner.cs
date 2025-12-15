@@ -3,6 +3,9 @@ using System.Collections.Generic;
 using BattleV2.AnimationSystem;
 using BattleV2.AnimationSystem.Execution.Runtime.Core;
 using BattleV2.Core;
+using BattleV2.Execution.TimedHits;
+using BattleV2.Providers;
+using UnityEngine;
 
 namespace BattleV2.AnimationSystem.Execution.Runtime.SystemSteps
 {
@@ -13,6 +16,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.SystemSteps
         private const string SystemStepGate = "gate.on";
         private const string SystemStepDamage = "damage.apply";
         private const string SystemStepFallback = "fallback";
+        private const string SystemStepResetFallback = "reset.fallback";
         private const string SystemStepPhaseLock = "phase.lock";
         private const string SystemStepPhaseUnlock = "phase.unlock";
 
@@ -73,6 +77,11 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.SystemSteps
                     result = HandleFallback(step, context);
                     return true;
 
+                case SystemStepResetFallback:
+                    HandleResetFallback(context);
+                    result = StepResult.Completed;
+                    return true;
+
                 default:
                     return false;
             }
@@ -80,6 +89,12 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.SystemSteps
 
         private void HandleWindowOpen(ActionStep step, StepSchedulerContext context, ExecutionState state)
         {
+            if (IsKs1Selection(context))
+            {
+                Debug.Log($"[KS1] Dispatcher windows suppressed action={context.Request.Selection.Action?.id ?? "(unknown)"}");
+                return;
+            }
+
             var parameters = step.Parameters;
             if (!TryGetRequired(parameters, "id", out var id))
             {
@@ -100,6 +115,11 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.SystemSteps
 
         private void HandleWindowClose(ActionStep step, StepSchedulerContext context, ExecutionState state)
         {
+            if (IsKs1Selection(context))
+            {
+                return;
+            }
+
             var parameters = step.Parameters;
             if (!TryGetRequired(parameters, "id", out var id))
             {
@@ -202,6 +222,18 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.SystemSteps
             return StepResult.Abort(reason);
         }
 
+        private void HandleResetFallback(StepSchedulerContext context)
+        {
+            try
+            {
+                context.Wrapper?.ResetToFallback(0f);
+            }
+            catch (Exception ex)
+            {
+                BattleLogger.Warn(logTag, $"reset.fallback failed: {ex.Message}");
+            }
+        }
+
         private void HandlePhaseLock(ActionStep step, StepSchedulerContext context, ExecutionState state, bool locked)
         {
             string reason = step.Parameters.TryGetString("reason", out var value) ? value : step.Id ?? "timeline";
@@ -283,7 +315,15 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.SystemSteps
 
             return set;
         }
+
+        private static bool IsKs1Selection(StepSchedulerContext context)
+        {
+            var selection = context.Request.Selection;
+            var kind = selection.RunnerKind;
+            bool runnerIsKs1 = kind == TimedHitRunnerKind.Default;
+            bool profileIsKs1 = selection.TimedHitProfile != null;
+            return runnerIsKs1 && profileIsKs1;
+        }
     }
 }
-
 

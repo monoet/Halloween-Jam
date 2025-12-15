@@ -18,6 +18,7 @@ MonoBehaviour:
     executionMode: 1
     joinPolicy: 1
     timeoutSeconds: 0
+    kind: payload
     steps:
     - stepId: 
       executorId: animatorClip
@@ -26,6 +27,29 @@ MonoBehaviour:
       overrideConflictPolicy: 0
       delaySeconds: 1
       parameters: []
+    - stepId: ks_window_open
+      executorId: window.open
+      bindingId: 
+      conflictPolicy: 0
+      overrideConflictPolicy: 0
+      delaySeconds: 0.2
+      parameters:
+      - key: id
+        value: ks1_basic
+      - key: tag
+        value: KS1
+      - key: startNormalized
+        value: 0.2
+      - key: endNormalized
+        value: 0.28
+      - key: perfect
+        value: 0.23
+      - key: tolerance
+        value: default_melee
+      - key: index
+        value: 1
+      - key: count
+        value: 1
     - stepId: 
       executorId: timed_hit
       bindingId: 
@@ -33,6 +57,29 @@ MonoBehaviour:
       overrideConflictPolicy: 0
       delaySeconds: 0
       parameters: []
+    - stepId: ks_window_close
+      executorId: window.close
+      bindingId: 
+      conflictPolicy: 0
+      overrideConflictPolicy: 0
+      delaySeconds: 0.28
+      parameters:
+      - key: id
+        value: ks1_basic
+      - key: tag
+        value: KS1
+      - key: startNormalized
+        value: 0.2
+      - key: endNormalized
+        value: 0.28
+      - key: perfect
+        value: 0.23
+      - key: tolerance
+        value: default_melee
+      - key: index
+        value: 1
+      - key: count
+        value: 1
     - stepId: windup_wait
       executorId: wait_seconds
       bindingId: 
@@ -42,15 +89,3 @@ MonoBehaviour:
       parameters:
       - key: duration
         value: 0.2
-  - groupId: basic_attack_end
-    executionMode: 0
-    joinPolicy: 0
-    timeoutSeconds: 0
-    steps:
-    - stepId: end_wait
-      executorId: wait_seconds
-      bindingId: 
-      conflictPolicy: 0
-      overrideConflictPolicy: 0
-      delaySeconds: 2
-      parameters: []

@@ -4,13 +4,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
 using BattleV2.Actions;
-
 using BattleV2.AnimationSystem;
+using BattleV2.AnimationSystem.Execution.Runtime;
 using BattleV2.AnimationSystem.Runtime;
 using BattleV2.Charge;
 using BattleV2.Core;
 using BattleV2.Execution;
 using BattleV2.Execution.TimedHits;
+using BattleV2.Core.Services;
 using BattleV2.Orchestration.Services;
 using BattleV2.Orchestration.Services.Animation;
 using BattleV2.Orchestration.Events;
@@ -19,6 +20,7 @@ using BattleV2.Targeting;
 using BattleV2.UI;
 using HalloweenJam.Combat;
 using BattleV2.Orchestration.Runtime;
+using BattleV2.Marks;
 
 namespace BattleV2.Orchestration
 {
@@ -65,12 +67,14 @@ namespace BattleV2.Orchestration
         [Header("Pipeline Tuning")]
         [SerializeField, Min(0f)] private float preActionDelaySeconds = 0.12f;
 
+
         [Header("Debug")]
         [SerializeField] private bool enableDebugLogs = false;
 
         private IBattleInputProvider inputProvider;
         private CombatContext context;
-        private ITimedHitRunner timedHitRunner;
+        private TimedHitInputRelay timedHitInputRelay;
+        private BattleUIInputDriver inputDriver;
 
         private IBattleTurnService turnService;
         private ICombatantActionValidator actionValidator;
@@ -78,12 +82,17 @@ namespace BattleV2.Orchestration
         private ITargetingCoordinator targetingCoordinator;
         private IActionPipeline actionPipeline;
         private ITriggeredEffectsService triggeredEffects;
+        private ICombatSideService sideService;
+        private readonly RuntimeCPIntent cpIntent = RuntimeCPIntent.Shared;
         private IBattleAnimOrchestrator animOrchestrator;
         private IBattleEventBus eventBus;
         private IEnemyTurnCoordinator enemyTurnCoordinator;
         private IFallbackActionResolver fallbackActionResolver;
         private ITimedHitResultResolver timedResultResolver;
         private PlayerActionExecutor playerActionExecutor;
+        private BattleV2.Marks.MarkService markService;
+        private BattleV2.Marks.MarkInteractionProcessor markProcessor;
+        private CancellationTokenSource battleCts;
         private TargetResolutionService targetResolutionService;
         private CombatContextService contextService;
         private CombatantReferenceService referenceService;
@@ -91,18 +100,25 @@ namespace BattleV2.Orchestration
         private RosterSnapshot rosterSnapshot = RosterSnapshot.Empty;
         private PendingPlayerRequest pendingPlayerRequest;
         private IDisposable combatantDefeatedSubscription;
+        private int cpSelectionCounter;
+        private int executionCounter;
+        private int markSweepCounter;
+        private CombatantState currentTurnActor;
 
         public event Action<BattleSelection, int> OnPlayerActionSelected;
         public event Action<BattleSelection, int, int> OnPlayerActionResolved;
         public event Action<IReadOnlyList<CombatantState>, IReadOnlyList<CombatantState>> OnCombatantsBound;
 
         public BattleActionData LastExecutedAction { get; private set; }
-        public ITimedHitRunner TimedHitRunner => timedHitRunner ?? InstantTimedHitRunner.Shared;
+        public ITimedHitService TimedHitService => animationSystemInstaller != null ? animationSystemInstaller.TimedHitService : null;
         public TargetResolverRegistry TargetResolvers { get; private set; }
         public IReadOnlyList<CombatantState> ActiveAllies => rosterSnapshot.ActiveAllies ?? Array.Empty<CombatantState>();
         public CombatantState PrimaryPlayer => ActiveAllies.Count > 0 ? ActiveAllies[0] : null;
         public CombatantState Player => referenceService?.Player ?? PrimaryPlayer ?? player;
         public CombatantState Enemy => referenceService?.Enemy ?? enemy;
+        public ICpIntentSource CpIntentSource => cpIntent;
+        public ICpIntentSink CpIntentSink => cpIntent;
+        public BattleV2.Marks.MarkService MarkService => markService;
         public IReadOnlyList<CombatantState> Allies => ActiveAllies;
         public IReadOnlyList<CombatantState> Enemies => rosterSnapshot.Enemies ?? Array.Empty<CombatantState>();
         public float PreActionDelaySeconds
@@ -118,6 +134,7 @@ namespace BattleV2.Orchestration
 
         private IReadOnlyList<CombatantState> AlliesList => ActiveAllies;
         private IReadOnlyList<CombatantState> EnemiesList => rosterSnapshot.Enemies ?? Array.Empty<CombatantState>();
+        private TimedHitOverlay timedHitOverlay;
 
         private bool IsAlly(CombatantState combatant)
         {
@@ -140,24 +157,38 @@ namespace BattleV2.Orchestration
 
         private void Awake()
         {
+            ResetBattleCts();
+            timedHitOverlay = FindObjectOfType<TimedHitOverlay>();
             BootstrapServices();
             InitializeCombatants();
             PrepareContext();
+            timedHitInputRelay ??= FindTimedHitInputRelay();
+            inputDriver = FindObjectOfType<BattleUIInputDriver>();
         }
 
         private void Start()
         {
             TrySwitchToAnimationInstaller();
+            // Wire CP intent to combat dispatcher once installer is resolved.
+            cpIntent.SetDispatcher(animationSystemInstaller?.CombatEvents ?? AnimationSystemInstaller.Current?.CombatEvents);
+            cpIntent.SetDefaultActor(Player);
+            if (inputDriver != null && TimedHitService != null)
+            {
+                inputDriver.Initialize(TimedHitService);
+            }
         }
 
         private void OnDisable()
         {
+            CancelBattleCts();
             turnService?.Stop();
             triggeredEffects?.Clear();
             ClearPendingPlayerRequest();
             DestroySpawnedPrefabs();
             rosterCoordinator?.Cleanup();
             rosterSnapshot = RosterSnapshot.Empty;
+            currentTurnActor = null;
+            hudManager?.HighlightCombatant(null);
             UpdatePlayerReference(null, null);
             UpdateEnemyReference(null, null);
             referenceService?.Reset();
@@ -165,6 +196,7 @@ namespace BattleV2.Orchestration
 
         private void OnDestroy()
         {
+            CancelBattleCts();
             if (turnService != null)
             {
                 turnService.OnTurnReady -= HandleTurnReady;
@@ -197,6 +229,7 @@ namespace BattleV2.Orchestration
 
         private void BootstrapServices()
         {
+            sideService = new CombatSideService();
             TargetResolvers = ShapeResolverBootstrap.RegisterDefaults(new TargetResolverRegistry());
 
             if (config != null)
@@ -221,13 +254,56 @@ namespace BattleV2.Orchestration
             {
                 Debug.LogWarning("[BattleManagerV2] No input provider configured. Awaiting runtime provider assignment.", this);
             }
-            timedHitRunner = InstantTimedHitRunner.Shared;
 
             ComboPointScaling.Configure(config != null ? config.comboPointScaling : null);
 
             // Servicios dedicados — por ahora implementaciones por defecto mínimas.
             eventBus = new BattleEventBus();
-            targetingCoordinator = new TargetingCoordinator(TargetResolvers, eventBus);
+            if (timedHitOverlay != null)
+            {
+                if (useAnimationSystemInstaller && AnimationSystemInstaller.Current != null)
+                {
+                    timedHitOverlay.Initialize(AnimationSystemInstaller.Current.EventBus);
+                }
+                else
+                {
+                    timedHitOverlay.Initialize((IAnimationEventBus)eventBus);
+                }
+            }
+            targetingCoordinator = new TargetingCoordinator(TargetResolvers, eventBus, null, new BattleV2.Targeting.Policies.BackAwareResolutionPolicy(), sideService);
+            
+            // Fail Fast / Auto-Wire: Ensure we have an interactor for manual targeting
+            // Search for ACTIVE first
+            var interactor = FindObjectOfType<BattleUITargetInteractor>();
+            
+            // If not found, search for INACTIVE to give a better error
+            if (interactor == null)
+            {
+                var allInteractors = Resources.FindObjectsOfTypeAll<BattleUITargetInteractor>();
+                if (allInteractors != null && allInteractors.Length > 0)
+                {
+                    // Filter out assets (prefabs) if possible, but Resources.FindObjectsOfTypeAll returns everything.
+                    // Better to use FindObjectsOfType(true) in newer Unity, or just warn.
+                    // Assuming Unity 2020+:
+                    interactor = FindObjectOfType<BattleUITargetInteractor>(true);
+                    if (interactor != null)
+                    {
+                        Debug.LogError($"[BattleManagerV2] CRITICAL: Found BattleUITargetInteractor on '{interactor.name}', but the GameObject is DISABLED. It MUST be active to receive events and initialize! Please enable it or move the script to an active object.");
+                        // We cannot use it safely if it's inactive because Awake() hasn't run.
+                        interactor = null; 
+                    }
+                }
+            }
+
+            if (interactor != null)
+            {
+                targetingCoordinator.SetInteractor(interactor);
+            }
+            else
+            {
+                Debug.LogWarning("[BattleManagerV2] No BattleUITargetInteractor found. Manual targeting will fall back to legacy/highlight behavior.");
+            }
+
             actionPipeline = new OrchestrationActionPipeline(eventBus);
             targetResolutionService = new TargetResolutionService(targetingCoordinator);
             contextService = new CombatContextService(config, actionCatalog);
@@ -241,7 +317,10 @@ namespace BattleV2.Orchestration
                 : (config?.timingConfig != null ? config.timingConfig.ToProfile() : BattleTimingProfile.Default);
 
             ConfigureAnimationOrchestrator(timingProfile);
-            triggeredEffects = new TriggeredEffectsService(this, actionPipeline, actionCatalog, eventBus);
+            markService = new MarkService();
+            hudManager?.SetMarkService(markService);
+            markProcessor = new MarkInteractionProcessor(markService, reactionResolver: new NoOpMarkReactionResolver());
+            triggeredEffects = new TriggeredEffectsService(this, actionPipeline, actionCatalog, eventBus, markProcessor);
             timedResultResolver = new TimedHitResultResolver();
             RebuildPlayerActionExecutor();
             actionValidator = new CombatantActionValidator(actionCatalog);
@@ -253,7 +332,10 @@ namespace BattleV2.Orchestration
                 actionPipeline,
                 triggeredEffects,
                 animOrchestrator,
-                eventBus);
+                eventBus,
+                sideService,
+                fallbackActionResolver,
+                markProcessor);
             turnService = new BattleTurnService(eventBus);
             turnService.OnTurnReady += HandleTurnReady;
             battleEndService = new BattleEndService(eventBus);
@@ -455,13 +537,6 @@ namespace BattleV2.Orchestration
             TryFlushPendingPlayerRequest();
         }
 
-        public void SetTimedHitRunner(ITimedHitRunner runner)
-        {
-            string name = runner != null ? runner.GetType().Name : "(null)";
-            LogDebug($"[BattleManagerV2] Timed hit runner set to {name}.\nCall stack:\n{Environment.StackTrace}", this);
-            timedHitRunner = runner;
-        }
-
         public void SetTargetSelectionInteractor(ITargetSelectionInteractor interactor)
         {
             targetingCoordinator?.SetInteractor(interactor);
@@ -476,9 +551,14 @@ namespace BattleV2.Orchestration
 
         public void ResetBattle()
         {
+            ResetBattleCts();
+            executionCounter = 0;
+            markSweepCounter = 0;
             ComboPointScaling.Configure(config != null ? config.comboPointScaling : null);
             triggeredEffects?.Clear();
             ClearPendingPlayerRequest();
+            currentTurnActor = null;
+            hudManager?.HighlightCombatant(null);
             RebuildRoster(preservePlayerVitals: false, preserveEnemyVitals: false);
             PrepareContext();
             TrySwitchToAnimationInstaller();
@@ -528,12 +608,14 @@ namespace BattleV2.Orchestration
 
         private void TrySwitchToAnimationInstaller()
         {
+            animationSystemInstaller ??= AnimationSystemInstaller.Current;
+            if (animationSystemInstaller != null) useAnimationSystemInstaller = true;
+
             if (!useAnimationSystemInstaller)
             {
                 return;
             }
 
-            animationSystemInstaller ??= AnimationSystemInstaller.Current;
             if (animationSystemInstaller?.Orchestrator == null)
             {
                 return;
@@ -546,6 +628,14 @@ namespace BattleV2.Orchestration
             }
 
             animOrchestrator = new BattleAnimationSystemBridge(animationSystemInstaller.Orchestrator);
+            
+            // Re-bind Overlay to the correct bus
+            if (timedHitOverlay != null && animationSystemInstaller.EventBus != null)
+            {
+                Debug.Log("[BattleManagerV2] Re-binding TimedHitOverlay to AnimationSystemInstaller EventBus");
+                timedHitOverlay.Initialize(animationSystemInstaller.EventBus);
+            }
+
             enemyTurnCoordinator = new EnemyTurnCoordinator(
                 actionCatalog,
                 actionValidator,
@@ -553,74 +643,145 @@ namespace BattleV2.Orchestration
                 actionPipeline,
                 triggeredEffects,
                 animOrchestrator,
-                eventBus);
+                eventBus,
+                sideService,
+                fallbackActionResolver,
+                markProcessor);
 
             RebuildPlayerActionExecutor();
         }
 
         private void RebuildPlayerActionExecutor()
         {
-            playerActionExecutor = new PlayerActionExecutor(actionPipeline, timedResultResolver, triggeredEffects, eventBus);
+            playerActionExecutor = new PlayerActionExecutor(actionPipeline, timedResultResolver, triggeredEffects, eventBus, markProcessor);
         }
+
+        private SelectionDraft currentDraft;
 
         private void HandlePlayerSelection(BattleSelection selection)
         {
-            ProcessPlayerSelection(selection);
+            // Start the draft process
+            var actor = currentTurnActor ?? Player;
+            currentDraft = SelectionDraft.Create(actor, selection.Action, 0, "Root"); // TODO: OriginMenu
+            _ = ResolveDraftAsync(currentDraft, selection);
         }
 
-        private async void ProcessPlayerSelection(BattleSelection selection)
+        private async Task ResolveDraftAsync(SelectionDraft draft, BattleSelection initialSelection)
         {
-            var currentPlayer = Player;
-            if (!actionValidator.TryValidate(selection.Action, currentPlayer, context, selection.CpCharge, out var implementation))
+            if (!draft.IsValid)
             {
-                ExecuteFallback();
+                Debug.LogError("[BattleManagerV2] Invalid draft started.");
                 return;
             }
 
+            // 1. Resolve Targets (Build Phase)
             var playerResolution = targetResolutionService != null
                 ? await targetResolutionService.ResolveForPlayerAsync(
-                    currentPlayer,
-                    selection,
+                    draft.Actor,
+                    initialSelection,
                     context,
                     AlliesList,
                     EnemiesList,
                     combatant => ResolveRuntime(combatant, combatant?.CharacterRuntime))
-                : new PlayerTargetResolution(
-                    await targetingCoordinator.ResolveAsync(
-                        currentPlayer,
-                        selection.Action,
-                        TargetSourceType.Manual,
-                        Enemy,
-                        AlliesList,
-                        EnemiesList),
-                    null,
-                    null);
+                : PlayerTargetResolution.Empty;
 
-            var resolution = playerResolution.Result;
-            var targets = resolution.Targets ?? Array.Empty<CombatantState>();
-
-            if (targets.Count == 0)
+            if (this == null || !isActiveAndEnabled)
             {
-                Debug.LogWarning($"[BattleManagerV2] Failed to resolve targets for {selection.Action.id}.");
-                if (!(battleEndService?.TryResolve(rosterSnapshot, currentPlayer, state) ?? false))
-                {
-                    ExecuteFallback();
-                }
+                // Component destroyed or disabled during async resolution
                 return;
             }
 
-            if (playerResolution.PrimaryEnemy != null)
+            // 2. Interpret Result (Strategy Phase)
+            switch (playerResolution.Status)
             {
-                var resolvedRuntime = playerResolution.PrimaryEnemyRuntime ?? ResolveRuntime(playerResolution.PrimaryEnemy, playerResolution.PrimaryEnemy?.CharacterRuntime);
-                UpdateEnemyReference(playerResolution.PrimaryEnemy, resolvedRuntime);
+                case TargetResolutionStatus.Back:
+                    BattleDiagnostics.Log("Orchestrator", "Draft Resolution: BACK. returning to menu.", draft.Actor);
+                    // Do NOT commit. Do NOT end turn.
+                    // The UI Interactor should have already handled the state transition to Menu.
+                    currentDraft = currentDraft.ClearTargets();
+                    // Nota: no re-llamamos RequestPlayerAction aquí para evitar reabrir Root.
+                    // El stack UI ya quedó en el submenú previo (Atk/Mag/Item); el driver sigue en MenuState.
+                    return;
+
+                case TargetResolutionStatus.Cancelled:
+                    BattleDiagnostics.Log("Orchestrator", "Draft Resolution: CANCELLED.", draft.Actor);
+                    currentDraft = SelectionDraft.Empty;
+                    return;
+
+                case TargetResolutionStatus.Confirmed:
+                    // Proceed to Commit
+                    var targets = playerResolution.Result.TargetSet;
+                    currentDraft = currentDraft.WithTargets(targets);
+                    
+                    await CommitSelectionDraft(currentDraft, initialSelection, playerResolution);
+                    return;
+                
+                case TargetResolutionStatus.None:
+                default:
+                    Debug.LogWarning($"[BattleManagerV2] Unexpected resolution status: {playerResolution.Status}. Treating as Cancelled.");
+                    currentDraft = SelectionDraft.Empty;
+                    return;
+            }
+        }
+
+        private async Task CommitSelectionDraft(SelectionDraft draft, BattleSelection selection, PlayerTargetResolution resolution)
+        {
+            if (this == null || !isActiveAndEnabled)
+            {
+                return;
+            }
+
+            if (draft.IsCommitted)
+            {
+                Debug.LogWarning("[BattleManagerV2] Attempted to commit an already committed draft.");
+                return;
+            }
+
+            BattleDiagnostics.Log("Orchestrator", $"Committing Selection: {draft.Action?.id ?? "null"}");
+            
+            var currentPlayer = draft.Actor;
+            int selectionId = ++cpSelectionCounter;
+            int executionId = NextExecutionId();
+
+            // 1) Validate before consuming or ending turn
+            if (!actionValidator.TryValidate(selection.Action, currentPlayer, context, selection.CpCharge, out var implementation))
+            {
+                BattleDiagnostics.Log("Orchestrator", "Validation Failed", currentPlayer);
+                ExecuteFallback();
+                return;
+            }
+
+            // 2) Consume Resources (Commit Phase)
+            bool consumesCp = draft.Action != null &&
+                              (draft.Action.costCP > 0 || selection.ChargeProfile != null || selection.TimedHitProfile != null);
+            
+            int extraCp = consumesCp ? cpIntent.ConsumeOnce(selectionId, "ActionCommit") : 0;
+            
+            // Mark as committed
+            currentDraft = draft.MarkCommitted();
+
+            // End Turn Signal (only confirmed commits reach EndTurn; Cancel/Back never do).
+            cpIntent.EndTurn("CommittedOutcome");
+            
+            if (extraCp > 0)
+            {
+                selection = selection.WithCpCharge(selection.CpCharge + extraCp);
+            }
+
+            // 5. Update Context
+            if (resolution.PrimaryEnemy != null && !resolution.Result.TargetSet.IsGroup)
+            {
+                var resolvedRuntime = resolution.PrimaryEnemyRuntime ?? ResolveRuntime(resolution.PrimaryEnemy, resolution.PrimaryEnemy?.CharacterRuntime);
+                UpdateEnemyReference(resolution.PrimaryEnemy, resolvedRuntime);
             }
 
             RefreshCombatContext();
 
-            var enrichedSelection = selection.WithTargets(resolution.TargetSet);
-            if (playerResolution.PrimaryEnemy != null)
+            // 6. Enrich Selection
+            var enrichedSelection = selection.WithTargets(resolution.Result.TargetSet);
+            if (resolution.PrimaryEnemy != null)
             {
-                var targetTransform = playerResolution.PrimaryEnemy.transform;
+                var targetTransform = resolution.PrimaryEnemy.transform;
                 if (targetTransform != null)
                 {
                     enrichedSelection = enrichedSelection.WithTargetTransform(targetTransform);
@@ -631,15 +792,50 @@ namespace BattleV2.Orchestration
                 enrichedSelection = enrichedSelection.WithTimedHitHandle(new TimedHitExecutionHandle(enrichedSelection.TimedHitResult));
             }
 
+            // 7. Execute
             int cpBefore = currentPlayer != null ? currentPlayer.CurrentCP : 0;
             LastExecutedAction = enrichedSelection.Action;
             OnPlayerActionSelected?.Invoke(enrichedSelection, cpBefore);
 
-            var playbackTask = animOrchestrator != null
-                ? animOrchestrator.PlayAsync(new ActionPlaybackRequest(currentPlayer, enrichedSelection, targets, CalculateAverageSpeed(), TimedHitRunner, enrichedSelection.AnimationRecipeId))
-                : Task.CompletedTask;
+            if (inputDriver != null)
+            {
+                inputDriver.SetMode(BattleInputMode.Execution);
+                inputDriver.SetActiveActor(currentPlayer);
+            }
 
-            state?.Set(BattleState.Resolving);
+            var targetsList = resolution.Result.Targets ?? Array.Empty<CombatantState>();
+            var snapshot = new BattleV2.Orchestration.ExecutionSnapshot(AlliesList, EnemiesList, targetsList);
+
+            var playbackTask = animOrchestrator != null
+                ? animOrchestrator.PlayAsync(new ActionPlaybackRequest(currentPlayer, enrichedSelection, targetsList, CalculateAverageSpeed(), enrichedSelection.AnimationRecipeId))
+                : Task.CompletedTask;
+            var judgmentSeed = System.HashCode.Combine(executionId, currentPlayer != null ? currentPlayer.GetInstanceID() : 0, enrichedSelection.Action != null ? enrichedSelection.Action.id.GetHashCode() : 0);
+            var resourcesPre = ResourceSnapshot.FromCombatant(currentPlayer);
+            var resourcesPost = ResourceSnapshot.FromCombatant(currentPlayer);
+            var actionJudgment = ActionJudgment.FromSelection(enrichedSelection, currentPlayer, enrichedSelection.CpCharge, judgmentSeed, resourcesPre, resourcesPost);
+
+            int baseSpCost = 0;
+            int baseCpCost = 0;
+            if (implementation is IAction costedAction)
+            {
+                baseSpCost = Mathf.Max(0, costedAction.CostSP);
+                baseCpCost = Mathf.Max(0, costedAction.CostCP);
+            }
+            int cpCharge = Mathf.Max(0, enrichedSelection.CpCharge);
+            int totalCpCost = baseCpCost + cpCharge;
+
+            BattleDiagnostics.Log(
+                "PAE.BUITI",
+                $"b=1 phase=BM.Commit actor={(currentPlayer != null ? currentPlayer.DisplayName : "(null)")}#{(currentPlayer != null ? currentPlayer.GetInstanceID() : 0)} actionId={enrichedSelection.Action?.id ?? "(null)"} spBase={baseSpCost} cpBase={baseCpCost} cpCharge={cpCharge} cpTotal={totalCpCost} cpBefore={cpBefore} targets={(targetsList != null ? targetsList.Count : 0)}",
+                currentPlayer);
+            if (baseCpCost > 0 && cpCharge >= baseCpCost)
+            {
+                BattleDiagnostics.Log(
+                    "PAE.BUITI",
+                    $"b=1 phase=BM.Commit.Warn cpCharge_suspicious baseCp={baseCpCost} cpCharge={cpCharge} totalCp={totalCpCost} actor={(currentPlayer != null ? currentPlayer.DisplayName : "(null)")}#{(currentPlayer != null ? currentPlayer.GetInstanceID() : 0)}",
+                    currentPlayer);
+            }
+            
             if (playerActionExecutor == null)
             {
                 Debug.LogError("[BattleManagerV2] PlayerActionExecutor not initialised. Falling back.", this);
@@ -649,14 +845,19 @@ namespace BattleV2.Orchestration
 
             await playerActionExecutor.ExecuteAsync(new PlayerActionExecutionContext
             {
+                ExecutionId = executionId,
                 Manager = this,
                 Player = currentPlayer,
+                PlayerTurnCounter = turnService != null ? turnService.GetTurnCounter(currentPlayer) : 0,
                 Selection = enrichedSelection,
                 Implementation = implementation,
                 CombatContext = context,
-                Targets = targets ?? Array.Empty<CombatantState>(),
+                Snapshot = snapshot,
                 PlaybackTask = playbackTask,
                 ComboPointsBefore = cpBefore,
+                Judgment = actionJudgment,
+                BaseSpCost = baseSpCost,
+                BaseCpCost = baseCpCost,
                 TryResolveBattleEnd = () => battleEndService != null && battleEndService.TryResolve(rosterSnapshot, currentPlayer, state),
                 RefreshCombatContext = RefreshCombatContext,
                 OnActionResolved = (resolved, before, after) => OnPlayerActionResolved?.Invoke(resolved, before, after),
@@ -664,17 +865,18 @@ namespace BattleV2.Orchestration
                 SetState = state != null ? new Action<BattleState>(s => state.Set(s)) : null
             });
 
-            await BattlePacingUtility.DelayGlobalAsync("PlayerTurn", currentPlayer, CancellationToken.None);
+            await BattlePacingUtility.DelayGlobalAsync("PlayerTurn", currentPlayer, battleCts != null ? battleCts.Token : CancellationToken.None);
         }
 
         private void ExecuteFallback()
         {
-            if (fallbackActionResolver == null || Player == null)
+            var actor = currentTurnActor ?? Player;
+            if (fallbackActionResolver == null || actor == null)
             {
                 return;
             }
 
-            if (fallbackActionResolver.TryResolve(Player, context, out var selection))
+            if (fallbackActionResolver.TryResolve(actor, context, out var selection))
             {
                 HandlePlayerSelection(selection);
             }
@@ -721,30 +923,89 @@ namespace BattleV2.Orchestration
 
         private async void HandleTurnReady(CombatantState actor)
         {
-            if (actor == null)
+            try
             {
-                battleEndService?.TryResolve(rosterSnapshot, Player, state);
-                return;
-            }
+                timedHitInputRelay?.SetActor(actor);
 
-            if (battleEndService != null && battleEndService.TryResolve(rosterSnapshot, Player, state))
-            {
-                return;
-            }
-
-            if (IsAlly(actor))
-            {
-                TriggerTurnPhase(actor);
-                state?.Set(BattleState.AwaitingAction);
-                RequestPlayerAction();
-            }
-            else
-            {
-                if (enemyTurnCoordinator != null)
+                if (actor == null)
                 {
-                    var enemyContext = BuildEnemyTurnContext(actor);
-                    await enemyTurnCoordinator.ExecuteAsync(enemyContext);
+                    currentTurnActor = null;
+                    hudManager?.HighlightCombatant(null);
+                    battleEndService?.TryResolve(rosterSnapshot, Player, state);
+                    return;
                 }
+
+                ExpireMarksForOwnerTurn(actor);
+
+                if (battleEndService != null && battleEndService.TryResolve(rosterSnapshot, Player, state))
+                {
+                    return;
+                }
+
+                if (IsAlly(actor))
+                {
+                    currentTurnActor = actor;
+                    cpIntent.SetDefaultActor(actor);
+                    TriggerTurnPhase(actor);
+                    hudManager?.HighlightCombatant(actor);
+                    state?.Set(BattleState.AwaitingAction);
+                    
+                    if (inputDriver != null)
+                    {
+                        inputDriver.SetMode(BattleInputMode.Menu);
+                        inputDriver.SetActiveActor(actor);
+                    }
+
+                    RequestPlayerAction(actor);
+                }
+                else
+                {
+                    currentTurnActor = actor;
+                    hudManager?.HighlightCombatant(null);
+                    cpIntent.EndTurn("EnemyTurn");
+                    if (enemyTurnCoordinator != null)
+                    {
+                        var enemyContext = BuildEnemyTurnContext(actor);
+                        await enemyTurnCoordinator.ExecuteAsync(enemyContext);
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Battle cancelled/reset; safely ignore.
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[BattleManagerV2] HandleTurnReady exception: {ex}");
+            }
+        }
+
+        private void ExpireMarksForOwnerTurn(CombatantState owner)
+        {
+            if (markService == null || owner == null)
+            {
+                return;
+            }
+
+            int turnCounter = turnService != null ? turnService.GetTurnCounter(owner) : 0;
+            if (turnCounter <= 0)
+            {
+                return;
+            }
+
+            int execId = NextMarkSweepId();
+
+            // v1: marks viven en enemigos; si el owner es enemy o player no importa, expira por AppliedById.
+            var enemies = EnemiesList;
+            for (int i = 0; i < enemies.Count; i++)
+            {
+                var target = enemies[i];
+                if (target == null || !target.IsAlive)
+                {
+                    continue;
+                }
+
+                markService.TryExpireMarkForOwnerTurn(target, owner.StableId, turnCounter, execId);
             }
         }
 
@@ -779,10 +1040,10 @@ namespace BattleV2.Orchestration
             }
         }
 
-        private void RequestPlayerAction()
+        private void RequestPlayerAction(CombatantState actor)
         {
             state?.Set(BattleState.AwaitingAction);
-            var currentPlayer = Player;
+            var currentPlayer = actor ?? currentTurnActor ?? Player;
             if (currentPlayer == null || currentPlayer.IsDead())
             {
                 state?.Set(BattleState.Defeat);
@@ -790,6 +1051,36 @@ namespace BattleV2.Orchestration
             }
 
             var available = actionCatalog?.BuildAvailableFor(currentPlayer, context);
+            var allowedIds = currentPlayer?.AllowedActionIds;
+            if (allowedIds != null && allowedIds.Count > 0 && available != null)
+            {
+                var lookup = new HashSet<string>(allowedIds, StringComparer.OrdinalIgnoreCase);
+                var filtered = new List<BattleActionData>(available.Count);
+                for (int i = 0; i < available.Count; i++)
+                {
+                    var candidate = available[i];
+                    if (candidate == null || string.IsNullOrWhiteSpace(candidate.id))
+                    {
+                        continue;
+                    }
+
+                    if (lookup.Contains(candidate.id))
+                    {
+                        filtered.Add(candidate);
+                    }
+                }
+
+                // Si el filtro deja al menos una acción, usamos la intersección.
+                if (filtered.Count > 0)
+                {
+                    available = filtered;
+                }
+                else
+                {
+                    BattleLogger.Warn("BattleManagerV2", $"Actor '{currentPlayer?.name}' has an action filter but no matching actions in catalog.");
+                    available = Array.Empty<BattleActionData>();
+                }
+            }
             var currentEnemy = Enemy;
             if (available == null || available.Count == 0)
             {
@@ -814,10 +1105,14 @@ namespace BattleV2.Orchestration
 
             if (inputProvider == null)
             {
+                cpIntent.SetDefaultActor(currentPlayer);
+                cpIntent.BeginTurn(currentPlayer.CurrentCP);
                 QueuePendingPlayerRequest(actionContext, HandlePlayerSelection, ExecuteFallback);
                 return;
             }
 
+            cpIntent.SetDefaultActor(currentPlayer);
+            cpIntent.BeginTurn(currentPlayer.CurrentCP);
             DispatchToInputProvider(actionContext, HandlePlayerSelection, ExecuteFallback);
         }
 
@@ -847,6 +1142,8 @@ namespace BattleV2.Orchestration
         {
             var target = Player;
             var combatContext = CreateEnemyCombatContext(attacker, target);
+            int executionId = NextExecutionId();
+            int turnCounter = turnService != null ? turnService.GetTurnCounter(attacker) : 0;
 
             return new EnemyTurnContext(
                 this,
@@ -860,7 +1157,10 @@ namespace BattleV2.Orchestration
                 a => turnService?.Advance(a),
                 () => turnService?.Stop(),
                 () => battleEndService != null && battleEndService.TryResolve(rosterSnapshot, Player, state),
-                RefreshCombatContext);
+                RefreshCombatContext,
+                battleCts != null ? battleCts.Token : CancellationToken.None,
+                executionId,
+                turnCounter);
         }
 
         private CombatContext CreateEnemyCombatContext(CombatantState attacker, CombatantState target)
@@ -916,7 +1216,14 @@ namespace BattleV2.Orchestration
                 pendingPlayerRequest = null;
             }
 
-            inputProvider.RequestAction(context, onSelected, onCancel);
+            void CancelWrapper()
+            {
+                // Limpia la selección CP sin terminar el turno.
+                cpIntent.ResetSelection("SelectionCanceled");
+                onCancel?.Invoke();
+            }
+
+            inputProvider.RequestAction(context, onSelected, CancelWrapper);
         }
 
         private void TryFlushPendingPlayerRequest()
@@ -959,6 +1266,51 @@ namespace BattleV2.Orchestration
 
             battleEndService?.TryResolve(rosterSnapshot, Player, state);
         }
+
+        private TimedHitInputRelay FindTimedHitInputRelay()
+        {
+#if UNITY_2023_1_OR_NEWER
+            return FindFirstObjectByType<TimedHitInputRelay>();
+#else
+            return FindObjectOfType<TimedHitInputRelay>();
+#endif
+        }
+
+        private void ResetBattleCts()
+        {
+            CancelBattleCts();
+            battleCts = new CancellationTokenSource();
+        }
+
+        private void CancelBattleCts()
+        {
+            if (battleCts == null)
+            {
+                return;
+            }
+
+            try
+            {
+                battleCts.Cancel();
+            }
+            catch
+            {
+                // ignore
+            }
+
+            battleCts.Dispose();
+            battleCts = null;
+        }
+
+        private int NextExecutionId()
+        {
+            return System.Threading.Interlocked.Increment(ref executionCounter);
+        }
+
+        private int NextMarkSweepId()
+        {
+            return System.Threading.Interlocked.Increment(ref markSweepCounter);
+        }
     }
 
     internal sealed class PendingPlayerRequest
@@ -975,16 +1327,3 @@ namespace BattleV2.Orchestration
         }
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-

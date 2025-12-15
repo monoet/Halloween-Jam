@@ -12,6 +12,22 @@ Guardrails Tags drive persistence; runback must tween (no teleport); filters man
 Future SO Upgrade Path Optional ScriptableObjects (TweenCueSet, SoundCueSet) hydrate router dictionaries in Awake when assigned, otherwise fallback to hardcoded MVP data.
 Risk Mitigation Filters prevent enemy attacks animating player, TweenGate removes jitter, fallback SFX & counters expose gaps, enforced runback prevents teleport resets.
 
+## Locomotion/Tween Fix Log (Nov 2025)
+- Eliminado teleport/drift: run_up / run_back tweenean en espacio local vÃ­a `RecipeTweenObserver`.
+- run_back arranca desde `motionAnchor` (snapshot en `OnRecipeCompleted` de `basic_attack_windup`) o posiciÃ³n actual; tween a `homeLocalPos` con `Ease.OutExpo`.
+- Overrides expuestos para QA: `overrideRunUpDuration/runUpDuration`, `overrideRunBackDuration/runBackDuration`.
+- Root motion off durante run_up/run_back; StepScheduler salta ResetToFallback en motion recipes.
+- Nuevo componente `MotionAnchor` (marker) para asignar en prefab.
+
+### PrÃ³ximos pasos (orden sugerido)
+1. Sonido (FMOD/SFX simple).
+2. Conectar .anim al observer (anim + tween).
+3. Jump-to-enemy (run_up dinÃ¡mico con anchor enemigo).
+4. Hit reactions / knockback corto.
+5. AOE attacks.
+6. Multi-party dynamics.
+7. VFX (cuando locomociÃ³n estÃ© estable).
+
 {
   "version": "2.0.1-architecture",
   "title": "Arquitectura Conceptual â€” Combat Event Listeners (MVP+) â€” Clarifications",
@@ -264,3 +280,10 @@ tag: v0.5.0-so-optin
 Estado parcial (11/10): TweenCueSet/SoundCueSet ScriptableObjects viven en `Assets/Scripts/.../Setup` y el router ya hidrata sus diccionarios antes de aplicar overrides embebidos. Falta exponer un inspector helper (dropdown) y documentar el flujo para equipos de contenido, pero el runtime soporta cargar presets 100% desde assets.
 
 Estado parcial telemetry (11/10): `router.stats` vive en el DevConsole interno (toggle con backtick). El comando imprime counters + top 5 misses y dispara `CombatEventRouter.SnapshotGenerated`. El snapshot opcional tambiÃ©n se emite cada vez que se usa `SnapshotCounters()` en inspector.
+### Timed Hit v2 – Runner/Service Architecture
+
+- **Runners activos**: BasicTimedHitRunner (ventana única, opt-in por acción) y Ks1TimedHitRunner (multi-ventana KS1 consolidado) son las únicas implementaciones soportadas. Ambos publican TimedHitPhaseEvent y TimedHitResultEvent a través de AnimationEventBus, por lo que HUD/anim/audio consumen solo eventos compartidos.
+- **Servicio único**: TimedHitService encapsula la ejecución (RunBasicAsync, RunKs1Async, RunAsync) y el registro de runners (ConfigureRunners, SetRunner, GetRunner). BattleManager, TimedHitMiddleware y los StepExecutors solo conocen al servicio; nunca resuelven componentes concretos.
+- **Selección de runner**: TimedHitRunnerKind viaja en TimedHitRequest. TimedHitService decide si usa KS1 o Basic y opcionalmente acepta un callback por fase (para PhaseDamageMiddleware y telemetría).
+- **HUD/Bridges**: TimedHitHudBridge, Ks1PhaseAnimationBridge, audio hooks y el nuevo TimedHitHooksBridge se conectan al AnimationSystemInstaller.TimedHitService (o directamente al EventBus). Nada depende ya de BattleManager.SetTimedHitRunner.
+- **Compatibilidad futura**: Debug harnesses pueden inyectar runners temporales a través de TimedHitService.SetRunner(kind, runner) sin tocar gameplay; al salir restauran el runner previo.

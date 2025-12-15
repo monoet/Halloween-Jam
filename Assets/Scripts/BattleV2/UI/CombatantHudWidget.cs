@@ -2,6 +2,8 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.UI;
+using BattleV2.Marks;
+using BattleV2.Orchestration;
 
 namespace BattleV2.UI
 {
@@ -29,9 +31,21 @@ namespace BattleV2.UI
         [Header("Optional CP Pips")]
         [SerializeField] private GameObject[] cpPips;
 
+        [Header("Marks")]
+        [SerializeField] private Image markIcon;
+        // MarkService is injected at runtime; not serializable.
+        private MarkService markService;
+        [SerializeField] private bool markFxEnabled = true;
+        [SerializeField, Min(0f)] private float markFlashDuration = 0.3f;
+        [SerializeField] private Color detonateFlashColor = Color.white;
+        [SerializeField] private Vector3 markApplyPunch = new Vector3(0.05f, 0.05f, 0f);
+
         [Header("Highlight")]
         [SerializeField] private GameObject highlightRoot;
         [SerializeField] private Color highlightNameColor = new Color(1f, 0.85f, 0.2f);
+        [SerializeField] private bool pulseHighlight = true;
+        [SerializeField, Min(0f)] private float pulseSpeed = 2f;
+        [SerializeField, Range(0f, 1f)] private float pulseScaleAmount = 0.05f;
 
         [Header("Formatting")]
         [SerializeField] private string hpFormat = "{0}/{1}";
@@ -44,6 +58,14 @@ namespace BattleV2.UI
         private Color originalNameColor = Color.white;
         private bool originalColorCaptured;
         private bool isHighlighted;
+        private bool marksSubscribed;
+        private bool marksInitialized;
+        private bool loggedMissingMarksWiring;
+        private Vector3 originalHighlightScale = Vector3.one;
+        private Coroutine markScaleRoutine;
+        private Coroutine markFlashRoutine;
+        private Coroutine markAnimRoutine;
+        private Vector3 markIconOriginalScale = Vector3.one;
 
         private void Awake()
         {
@@ -76,18 +98,54 @@ namespace BattleV2.UI
         private void OnEnable()
         {
             EnsurePortraitReference();
+            CacheHighlightScale();
             Subscribe(source);
+            if (marksInitialized && markService != null)
+            {
+                SubscribeMarks();
+            }
             ScheduleRefresh();
             SyncAnchorTarget();
             SyncHighlightState();
+            SyncMarks();
+        }
+
+        private void Start()
+        {
+            if ((markService == null || !marksInitialized) && !loggedMissingMarksWiring)
+            {
+                loggedMissingMarksWiring = true;
+                Debug.LogError($"[CombatantHudWidget] MarkService not injected on '{name}'. Ensure HUDManager calls InitializeMarks(markService) before enabling the widget. Marks UI disabled.", this);
+            }
         }
 
         private void OnDisable()
         {
             Unsubscribe(source);
+            UnsubscribeMarks();
             if (worldAnchor != null)
             {
                 worldAnchor.Target = null;
+            }
+        }
+
+        /// <summary>
+        /// Must be called by HUDManager immediately after Instantiate to provide MarkService.
+        /// </summary>
+        public void InitializeMarks(MarkService service)
+        {
+            if (marksSubscribed)
+            {
+                UnsubscribeMarks();
+            }
+
+            markService = service;
+            marksInitialized = true;
+
+            if (isActiveAndEnabled)
+            {
+                SubscribeMarks();
+                SyncMarks();
             }
         }
 
@@ -135,6 +193,7 @@ namespace BattleV2.UI
             Unsubscribe(source);
             source = newSource;
             Subscribe(source);
+            SyncMarks();
             EnsurePortraitReference();
             CaptureOriginalNameColor();
             ScheduleRefresh();
@@ -158,10 +217,40 @@ namespace BattleV2.UI
             }
         }
 
+        private void SubscribeMarks()
+        {
+            if (!marksInitialized || markService == null || marksSubscribed)
+            {
+                return;
+            }
+
+            markService.OnMarkChanged += HandleMarkChanged;
+            marksSubscribed = true;
+        }
+
+        private void UnsubscribeMarks()
+        {
+            if (!marksSubscribed)
+            {
+                return;
+            }
+
+            if (markService != null)
+            {
+                markService.OnMarkChanged -= HandleMarkChanged;
+            }
+            marksSubscribed = false;
+        }
+
         private void LateUpdate()
         {
             if (!pendingRefresh)
             {
+                // Still allow highlight pulse to run
+                if (isHighlighted)
+                {
+                    UpdateHighlightPulse();
+                }
                 return;
             }
 
@@ -172,6 +261,11 @@ namespace BattleV2.UI
 
             pendingRefresh = false;
             ApplyVisuals();
+
+            if (isHighlighted)
+            {
+                UpdateHighlightPulse();
+            }
         }
 
         private void ScheduleRefresh()
@@ -367,6 +461,11 @@ namespace BattleV2.UI
             {
                 nameText.color = highlighted ? highlightNameColor : originalNameColor;
             }
+
+            if (!highlighted && highlightRoot != null)
+            {
+                highlightRoot.transform.localScale = originalHighlightScale;
+            }
         }
 
         private void CaptureOriginalNameColor()
@@ -383,6 +482,235 @@ namespace BattleV2.UI
         private void SyncHighlightState()
         {
             SetHighlighted(isHighlighted);
+        }
+
+        private void CacheHighlightScale()
+        {
+            if (highlightRoot == null)
+            {
+                originalHighlightScale = Vector3.one;
+                return;
+            }
+
+            originalHighlightScale = highlightRoot.transform.localScale;
+            if (markIcon != null)
+            {
+                markIconOriginalScale = markIcon.transform.localScale;
+            }
+        }
+
+        private void UpdateHighlightPulse()
+        {
+            if (!pulseHighlight || highlightRoot == null)
+            {
+                return;
+            }
+
+            float t = Mathf.PingPong(Time.unscaledTime * pulseSpeed, 1f);
+            float scale = 1f + Mathf.Lerp(-pulseScaleAmount, pulseScaleAmount, t);
+            highlightRoot.transform.localScale = originalHighlightScale * scale;
+        }
+
+        private void HandleMarkChanged(MarkEvent evt)
+        {
+            if (evt.Target != source)
+            {
+                return;
+            }
+
+            if (markIcon == null)
+            {
+                return;
+            }
+
+            switch (evt.Reason)
+            {
+                case MarkChangeReason.Applied:
+                case MarkChangeReason.Refreshed:
+                    ApplyMarkVisual(evt.Definition);
+                    break;
+                case MarkChangeReason.Detonated:
+                case MarkChangeReason.Cleared:
+                case MarkChangeReason.Expired:
+                    if (markFxEnabled)
+                    {
+                        if (markFlashRoutine != null)
+                        {
+                            StopCoroutine(markFlashRoutine);
+                        }
+                        markFlashRoutine = StartCoroutine(FlashAndClearMark());
+                    }
+                    else
+                    {
+                        ClearMarkIcon();
+                    }
+                    break;
+                default:
+                    SyncMarks();
+                    break;
+            }
+        }
+
+        private void SyncMarks()
+        {
+            if (markIcon == null)
+            {
+                return;
+            }
+
+            if (source == null || !source.ActiveMark.HasValue)
+            {
+                ClearMarkIcon();
+                return;
+            }
+
+            ApplyMarkVisual(source.ActiveMark.Definition);
+        }
+
+        private void ApplyMarkVisual(MarkDefinition def)
+        {
+            if (markIcon == null)
+            {
+                return;
+            }
+
+            if (markAnimRoutine != null)
+            {
+                StopCoroutine(markAnimRoutine);
+                markAnimRoutine = null;
+            }
+
+            var hasAnim = def != null && def.animatedFrames != null && def.animatedFrames.Length > 0;
+            if (hasAnim)
+            {
+                markIcon.color = def.tint;
+                markAnimRoutine = StartCoroutine(AnimateMarkIcon(def.animatedFrames, def.animatedFrameRate, def.animatedLoop));
+            }
+            else
+            {
+                markIcon.sprite = def != null ? def.icon : null;
+                markIcon.color = def != null ? def.tint : Color.white;
+                markIcon.enabled = markIcon.sprite != null;
+            }
+
+            // Pequeño punch para feedback al aplicar/refresh.
+            if (markFxEnabled && markIcon.enabled)
+            {
+                if (markScaleRoutine != null)
+                {
+                    StopCoroutine(markScaleRoutine);
+                }
+                markIcon.transform.localScale = markIconOriginalScale;
+                markIcon.transform.localScale += markApplyPunch;
+                markScaleRoutine = StartCoroutine(ResetMarkScale());
+            }
+        }
+
+        private void ClearMarkIcon()
+        {
+            if (markIcon == null)
+            {
+                return;
+            }
+
+            if (markAnimRoutine != null)
+            {
+                StopCoroutine(markAnimRoutine);
+                markAnimRoutine = null;
+            }
+            if (markScaleRoutine != null)
+            {
+                StopCoroutine(markScaleRoutine);
+                markScaleRoutine = null;
+            }
+            if (markFlashRoutine != null)
+            {
+                StopCoroutine(markFlashRoutine);
+                markFlashRoutine = null;
+            }
+
+            markIcon.sprite = null;
+            markIcon.enabled = false;
+            markIcon.color = Color.white;
+            markIcon.transform.localScale = markIconOriginalScale;
+        }
+
+        private System.Collections.IEnumerator ResetMarkScale()
+        {
+            yield return null;
+            if (markIcon != null)
+            {
+                markIcon.transform.localScale = markIconOriginalScale;
+            }
+            markScaleRoutine = null;
+        }
+
+        private System.Collections.IEnumerator AnimateMarkIcon(System.Collections.Generic.IReadOnlyList<Sprite> frames, float frameRate, bool loop)
+        {
+            if (markIcon == null || frames == null || frames.Count == 0)
+            {
+                markIcon.enabled = false;
+                yield break;
+            }
+
+            markIcon.enabled = true;
+            var wait = new WaitForSeconds(1f / Mathf.Max(1f, frameRate));
+
+            do
+            {
+                for (int i = 0; i < frames.Count; i++)
+                {
+                    var frame = frames[i];
+                    if (frame != null)
+                    {
+                        markIcon.sprite = frame;
+                    }
+                    yield return wait;
+                }
+            }
+            while (loop);
+
+            markAnimRoutine = null;
+        }
+
+        private System.Collections.IEnumerator FlashAndClearMark()
+        {
+            if (markIcon == null)
+            {
+                yield break;
+            }
+
+            var originalColor = markIcon.color;
+            float t = 0f;
+            while (t < markFlashDuration)
+            {
+                t += Time.deltaTime;
+                float lerp = Mathf.Clamp01(t / markFlashDuration);
+                markIcon.color = Color.Lerp(originalColor, detonateFlashColor, lerp);
+                yield return null;
+            }
+
+            ClearMarkIcon();
+            markFlashRoutine = null;
+        }
+
+        /// <summary>
+        /// Inyección explícita del servicio de marks. Debe llamarse desde el orquestador/HUD manager.
+        /// </summary>
+        public void SetMarkService(MarkService service)
+        {
+            if (marksSubscribed)
+            {
+                UnsubscribeMarks();
+            }
+
+            markService = service;
+
+            if (isActiveAndEnabled)
+            {
+                SubscribeMarks();
+                SyncMarks();
+            }
         }
     }
 }

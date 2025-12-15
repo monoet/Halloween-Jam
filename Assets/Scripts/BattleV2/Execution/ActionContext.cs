@@ -1,9 +1,11 @@
+using System;
+using System.Threading;
 using BattleV2.Actions;
 using BattleV2.Charge;
 using BattleV2.Core;
+using BattleV2.Execution.TimedHits;
 using BattleV2.Orchestration;
 using BattleV2.Providers;
-using System.Threading;
 
 namespace BattleV2.Execution
 {
@@ -20,6 +22,7 @@ namespace BattleV2.Execution
             IAction actionImplementation,
             CombatContext combatContext,
             BattleSelection selection,
+            ActionJudgment judgment = default,
             CancellationToken cancellationToken = default)
         {
             Manager = manager;
@@ -29,6 +32,7 @@ namespace BattleV2.Execution
             ActionImplementation = actionImplementation;
             CombatContext = combatContext;
             Selection = selection;
+            Judgment = judgment;
             CancellationToken = cancellationToken;
         }
 
@@ -40,6 +44,7 @@ namespace BattleV2.Execution
         public CombatContext CombatContext { get; }
         public BattleSelection Selection { get; }
         public int CpCharge => Selection.CpCharge;
+        public ActionJudgment Judgment { get; }
         public CancellationToken CancellationToken { get; }
 
         public bool Cancelled { get; set; }
@@ -47,6 +52,13 @@ namespace BattleV2.Execution
         public bool PhaseDamageApplied { get; set; }
         public int TotalDamageApplied { get; set; }
         public int ComboPointsAwarded { get; set; }
+        public Action<TimedHitPhaseResult> PhaseResultListener { get; set; }
+        public bool EffectsApplied { get; private set; }
+
+        public void MarkEffectsApplied(string reason = null)
+        {
+            EffectsApplied = true;
+        }
     }
 }
 

@@ -42,7 +42,8 @@ namespace BattleV2.Orchestration.Runtime
             bool loop,
             float speed,
             float normalizedStartTime,
-            TransformTween tween)
+            TransformTween tween,
+            string commandId = null)
         {
             Kind = kind;
             AnimationClip = clip;
@@ -52,6 +53,7 @@ namespace BattleV2.Orchestration.Runtime
             Speed = speed <= 0f ? 1f : speed;
             NormalizedStartTime = Mathf.Clamp01(normalizedStartTime);
             Tween = tween;
+            CommandId = commandId;
         }
 
         public PlaybackKind Kind { get; }
@@ -62,12 +64,15 @@ namespace BattleV2.Orchestration.Runtime
         public float Speed { get; }
         public float NormalizedStartTime { get; }
         public TransformTween Tween { get; }
+        /// <summary>Optional command identifier used for debugging/hold offsets.</summary>
+        public string CommandId { get; }
 
         public static AnimationPlaybackRequest ForAnimatorClip(
             AnimationClip clip,
             float speed = 1f,
             float normalizedStartTime = 0f,
-            bool loop = false)
+            bool loop = false,
+            string commandId = null)
         {
             return new AnimationPlaybackRequest(
                 PlaybackKind.AnimatorClip,
@@ -77,7 +82,8 @@ namespace BattleV2.Orchestration.Runtime
                 loop,
                 speed,
                 normalizedStartTime,
-                TransformTween.None);
+                TransformTween.None,
+                commandId);
         }
 
         public static AnimationPlaybackRequest ForSpriteFlipbook(
@@ -93,7 +99,8 @@ namespace BattleV2.Orchestration.Runtime
                 loop,
                 1f,
                 0f,
-                TransformTween.None);
+                TransformTween.None,
+                null);
         }
 
         public static AnimationPlaybackRequest ForTransformTween(TransformTween tween)
@@ -106,7 +113,8 @@ namespace BattleV2.Orchestration.Runtime
                 loop: false,
                 speed: 1f,
                 normalizedStartTime: 0f,
-                tween);
+                tween,
+                null);
         }
     }
 

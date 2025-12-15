@@ -16,4 +16,7 @@ MonoBehaviour:
   - prefab: {fileID: 2209887660875536834, guid: 98ac496b13a25bc449f9648f0a3a3d4b, type: 3}
     spawnOffset: {x: 0, y: 0, z: 0}
     dropTable: {fileID: 0}
+  - prefab: {fileID: 2209887660875536834, guid: 15efc9cb454921f4b90c7690c5694476, type: 3}
+    spawnOffset: {x: 0, y: 0, z: 0}
+    dropTable: {fileID: 0}
   spawnPattern: {fileID: 11400000, guid: f746b41fbb1dae94d9a7cbb8cfb05368, type: 2}

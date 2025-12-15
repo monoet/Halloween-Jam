@@ -11,6 +11,7 @@ using BattleV2.Providers;
 using BattleV2.Targeting;
 using UnityEngine;
 using BattleV2.AnimationSystem.Runtime;
+using BattleV2.Marks;
 
 namespace BattleV2.Orchestration.Services
 {
@@ -33,8 +34,13 @@ namespace BattleV2.Orchestration.Services
             Action<CombatantState> advanceTurn,
             Action stopTurnService,
             Func<bool> tryResolveBattleEnd,
-            Action refreshCombatContext)
+            Action refreshCombatContext,
+            CancellationToken token,
+            int executionId,
+            int attackerTurnCounter)
         {
+            ExecutionId = executionId;
+            AttackerTurnCounter = attackerTurnCounter;
             Manager = manager;
             Attacker = attacker;
             Player = player;
@@ -47,8 +53,11 @@ namespace BattleV2.Orchestration.Services
             StopTurnService = stopTurnService ?? (() => { });
             TryResolveBattleEnd = tryResolveBattleEnd ?? (() => false);
             RefreshCombatContext = refreshCombatContext ?? (() => { });
+            Token = token;
         }
 
+        public int ExecutionId { get; }
+        public int AttackerTurnCounter { get; }
         public BattleManagerV2 Manager { get; }
         public CombatantState Attacker { get; }
         public CombatantState Player { get; }
@@ -61,6 +70,7 @@ namespace BattleV2.Orchestration.Services
         public Action StopTurnService { get; }
         public Func<bool> TryResolveBattleEnd { get; }
         public Action RefreshCombatContext { get; }
+        public CancellationToken Token { get; }
     }
 
     public sealed class EnemyTurnCoordinator : IEnemyTurnCoordinator
@@ -72,6 +82,9 @@ namespace BattleV2.Orchestration.Services
         private readonly ITriggeredEffectsService triggeredEffects;
         private readonly IBattleAnimOrchestrator animOrchestrator;
         private readonly IBattleEventBus eventBus;
+        private readonly BattleV2.Core.Services.ICombatSideService sideService;
+        private readonly IFallbackActionResolver fallbackActionResolver;
+        private readonly BattleV2.Marks.MarkInteractionProcessor markProcessor;
 
         public EnemyTurnCoordinator(
             ActionCatalog actionCatalog,
@@ -80,7 +93,10 @@ namespace BattleV2.Orchestration.Services
             IActionPipeline actionPipeline,
             ITriggeredEffectsService triggeredEffects,
             IBattleAnimOrchestrator animOrchestrator,
-            IBattleEventBus eventBus)
+            IBattleEventBus eventBus,
+            BattleV2.Core.Services.ICombatSideService sideService,
+            IFallbackActionResolver fallbackActionResolver = null,
+            BattleV2.Marks.MarkInteractionProcessor markProcessor = null)
         {
             this.actionCatalog = actionCatalog;
             this.actionValidator = actionValidator;
@@ -89,6 +105,9 @@ namespace BattleV2.Orchestration.Services
             this.triggeredEffects = triggeredEffects;
             this.animOrchestrator = animOrchestrator;
             this.eventBus = eventBus;
+            this.sideService = sideService ?? new BattleV2.Core.Services.CombatSideService();
+            this.fallbackActionResolver = fallbackActionResolver;
+            this.markProcessor = markProcessor;
         }
 
         public async Task ExecuteAsync(EnemyTurnContext context)
@@ -166,11 +185,21 @@ namespace BattleV2.Orchestration.Services
                 return;
             }
 
+            BasicTimedHitProfile basicProfile = null;
+            TimedHitRunnerKind runnerKind = TimedHitRunnerKind.Default;
+            if (implementation is IBasicTimedHitAction basicTimedAction && basicTimedAction.BasicTimedHitProfile != null)
+            {
+                basicProfile = basicTimedAction.BasicTimedHitProfile;
+                runnerKind = TimedHitRunnerKind.Basic;
+            }
+
             var selection = new BattleSelection(
                 actionData,
                 0,
                 implementation.ChargeProfile,
-                null);
+                null,
+                basicTimedHitProfile: basicProfile,
+                runnerKind: runnerKind);
 
             await RunEnemyActionAsync(
                 context,
@@ -183,13 +212,19 @@ namespace BattleV2.Orchestration.Services
             EnemyTurnContext context,
             CombatantState attacker,
             BattleSelection selection,
-            IAction implementation)
+            IAction implementation,
+            bool allowFallback = true)
         {
             try
             {
+                var intent = TargetingIntent.FromAction(selection.Action);
+                bool resourcesCharged = false;
+
+                // Use targeting coordinator to resolve based on action side/scope.
                 var resolution = await targetingCoordinator.ResolveAsync(
                     attacker,
                     selection.Action,
+                    intent,
                     TargetSourceType.Auto,
                     context.Player,
                     context.Allies,
@@ -197,9 +232,15 @@ namespace BattleV2.Orchestration.Services
 
                 if (resolution.Targets.Count == 0)
                 {
+                    if (allowFallback && TryResolveFallback(context, attacker, out var fallbackSelection, out var fallbackImpl))
+                    {
+                        await RunEnemyActionAsync(context, attacker, fallbackSelection, fallbackImpl, allowFallback: false);
+                        return;
+                    }
+
                     context.AdvanceTurn(attacker);
                     context.StateController?.Set(BattleState.AwaitingAction);
-                    await BattlePacingUtility.DelayGlobalAsync("EnemyTurn", attacker, CancellationToken.None);
+                    await BattlePacingUtility.DelayGlobalAsync("EnemyTurn", attacker, context.Token);
                     return;
                 }
 
@@ -220,11 +261,18 @@ namespace BattleV2.Orchestration.Services
                     enrichedSelection = enrichedSelection.WithTimedHitHandle(new TimedHitExecutionHandle(enrichedSelection.TimedHitResult));
                 }
 
+                var snapshot = new ExecutionSnapshot(context.Allies, context.Enemies, resolution.Targets);
+
                 var playbackTask = animOrchestrator != null
-                    ? animOrchestrator.PlayAsync(new ActionPlaybackRequest(attacker, enrichedSelection, resolution.Targets, context.AverageSpeed, context.Manager?.TimedHitRunner, enrichedSelection.AnimationRecipeId))
+                    ? animOrchestrator.PlayAsync(new ActionPlaybackRequest(attacker, enrichedSelection, resolution.Targets, context.AverageSpeed, enrichedSelection.AnimationRecipeId))
                     : Task.CompletedTask;
 
                 var defeatCandidates = CollectDeathCandidates(resolution.Targets);
+
+                var judgmentSeed = System.HashCode.Combine(attacker != null ? attacker.GetInstanceID() : 0, enrichedSelection.Action != null ? enrichedSelection.Action.id.GetHashCode() : 0, resolution.Targets.Count);
+                var resourcesPre = BattleV2.Execution.ResourceSnapshot.FromCombatant(attacker);
+                var resourcesPost = BattleV2.Execution.ResourceSnapshot.FromCombatant(attacker);
+                var judgment = BattleV2.Execution.ActionJudgment.FromSelection(enrichedSelection, attacker, enrichedSelection.CpCharge, judgmentSeed, resourcesPre, resourcesPost);
 
                 var request = new ActionRequest(
                     context.Manager,
@@ -232,22 +280,37 @@ namespace BattleV2.Orchestration.Services
                     resolution.Targets,
                     enrichedSelection,
                     implementation,
-                    context.CombatContext);
+                    context.CombatContext,
+                    judgment);
 
                 var result = await actionPipeline.Run(request);
                 if (!result.Success)
                 {
                     context.AdvanceTurn(attacker);
                     context.StateController?.Set(BattleState.AwaitingAction);
-                    await BattlePacingUtility.DelayGlobalAsync("EnemyTurn", attacker, CancellationToken.None);
+                    await BattlePacingUtility.DelayGlobalAsync("EnemyTurn", attacker, context.Token);
                     return;
                 }
 
+                resourcesPost = BattleV2.Execution.ResourceSnapshot.FromCombatant(attacker);
+                if (resourcesCharged)
+                {
+#if UNITY_EDITOR
+                    Debug.Assert(false, $"[CP/SP] Duplicate charge: action={enrichedSelection.Action?.id ?? "null"} actor={attacker?.name ?? "(null)"}");
+#endif
+                    Debug.LogWarning($"[CP/SP] Duplicate charge detected: action={enrichedSelection.Action?.id ?? "null"} actor={attacker?.name ?? "(null)"}");
+                }
+                resourcesCharged = true;
+                var judgmentWithCosts = judgment.WithPostCost(resourcesPost);
+                var timedGrade = BattleV2.Execution.ActionJudgment.ResolveTimedGrade(result.TimedResult);
+                judgment = judgmentWithCosts.WithTimedGrade(timedGrade);
+
                 triggeredEffects?.Schedule(
+                    context.ExecutionId,
                     attacker,
                     enrichedSelection,
                     result.TimedResult,
-                    resolution.Targets,
+                    snapshot,
                     context.CombatContext);
 
                 if (playbackTask != null)
@@ -262,29 +325,53 @@ namespace BattleV2.Orchestration.Services
                     }
                 }
 
+                markProcessor?.Process(attacker, enrichedSelection, judgment, resolution.Targets, context.ExecutionId, context.AttackerTurnCounter);
                 context.RefreshCombatContext();
 
                 PublishDefeatEvents(defeatCandidates, attacker);
 
                 bool battleEnded = context.TryResolveBattleEnd();
-                eventBus?.Publish(new ActionCompletedEvent(attacker, enrichedSelection.WithTimedResult(result.TimedResult), resolution.Targets));
+                eventBus?.Publish(new ActionCompletedEvent(context.ExecutionId, attacker, enrichedSelection.WithTimedResult(result.TimedResult), resolution.Targets, isTriggered: false, judgment: judgment));
 
                 if (battleEnded)
                 {
-                    await BattlePacingUtility.DelayGlobalAsync("EnemyTurn", attacker, CancellationToken.None);
+                    await BattlePacingUtility.DelayGlobalAsync("EnemyTurn", attacker, context.Token);
                     return;
                 }
 
                 context.StateController?.Set(BattleState.AwaitingAction);
-                await BattlePacingUtility.DelayGlobalAsync("EnemyTurn", attacker, CancellationToken.None);
+                await BattlePacingUtility.DelayGlobalAsync("EnemyTurn", attacker, context.Token);
             }
             catch (Exception ex)
             {
                 Debug.LogError($"[EnemyTurnCoordinator] Enemy action error: {ex}");
                 context.AdvanceTurn(attacker);
                 context.StateController?.Set(BattleState.AwaitingAction);
-                await BattlePacingUtility.DelayGlobalAsync("EnemyTurn", attacker, CancellationToken.None);
+                await BattlePacingUtility.DelayGlobalAsync("EnemyTurn", attacker, context.Token);
             }
+        }
+
+        private bool TryResolveFallback(EnemyTurnContext context, CombatantState attacker, out BattleSelection selection, out IAction implementation)
+        {
+            selection = default;
+            implementation = null;
+
+            if (fallbackActionResolver == null || attacker == null)
+            {
+                return false;
+            }
+
+            if (!fallbackActionResolver.TryResolve(attacker, context.CombatContext, out selection) || selection.Action == null)
+            {
+                return false;
+            }
+
+            if (!actionValidator.TryValidate(selection.Action, attacker, context.CombatContext, selection.CpCharge, out implementation))
+            {
+                return false;
+            }
+
+            return true;
         }
 
         private static List<CombatantState> CollectDeathCandidates(IReadOnlyList<CombatantState> targets)

@@ -1,0 +1,181 @@
+﻿J:/Unreal Projects/UNITY/Halloween Jam\Assets\Audio\BattleAudioDatabase.asset:17 :: EventPath: event:/SFX/combat/attack/windup
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Audio\BattleAudioDatabase.asset:26 :: EventPath: event:/SFX/combat/attack/timed/miss
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Audio\BattleAudioDatabase.asset:35 :: EventPath: event:/SFX/combat/attack/timed/good
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Audio\BattleAudioDatabase.asset:44 :: EventPath: event:/SFX/combat/attack/timed/perfect
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Audio\BattleAudioDatabase.asset:53 :: EventPath: event:/battle/attack_runback
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Audio\BattleAudioDatabase.asset:62 :: EventPath: event:/battle/mark_apply
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Audio\BattleAudioDatabase.asset:71 :: EventPath: event:/battle/mark_detonate
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Audio\BattleAudioDatabase.asset:80 :: EventPath: event:/ui/turn_change
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Audio\BattleAudioDatabase.asset:89 :: EventPath: event:/ui/CP_Increase
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Audio\BattleAudioDatabase.asset:98 :: EventPath: event:/ui/CP_Decrease
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Audio\BattleAudioDatabase.asset:107 :: ExplorationSnapshot: snapshot:/music/exploration
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Audio\BattleAudioDatabase.asset:108 :: CombatSnapshot: snapshot:/music/combat
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Audio\BattleAudioDatabase.asset:109 :: TransitionEvent: event:/stingers/enter_combat
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Scenes\BattleCore_Playground.unity:1039 :: navigateEventPath: event:/SFX/combat/ui/Cursor_Movement
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Scenes\BattleCore_Playground.unity:1041 :: confirmEventPath: event:/SFX/combat/ui/Cursor_Confirm
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Scenes\BattleCore_Playground.unity:1043 :: cancelEventPath: event:/SFX/combat/ui/Cursor_Back
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Scenes\BattleCore_Playground.unity:2230 :: cpIncreaseEventPath: event:/SFX/ui/CP_Increase
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Scenes\BattleCore_Playground.unity:2232 :: cpDecreaseEventPath: event:/SFX/ui/CP_Decrease
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\_Recovery\0 (13).unity:1039 :: navigateEventPath: event:/SFX/combat/ui/Cursor_Movement
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\_Recovery\0 (13).unity:1041 :: confirmEventPath: event:/SFX/combat/ui/Cursor_Confirm
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\_Recovery\0 (13).unity:1043 :: cancelEventPath: event:/SFX/combat/ui/Cursor_Back
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\_Recovery\0 (13).unity:2230 :: cpIncreaseEventPath: event:/SFX/ui/CP_Increase
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\_Recovery\0 (13).unity:2232 :: cpDecreaseEventPath: event:/SFX/ui/CP_Decrease
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\_Recovery\0 (9).unity:964 :: eventPath: event:/Battle/Impact_Generic
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Prefabs\Players\Ciro.prefab:193 :: eventPath: event:/Battle/Impact_Generic
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Prefabs\Players\Lilia01.prefab:193 :: eventPath: event:/Battle/Impact_Generic
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Resources\FMODStudioSettings.asset:383 :: sourceProjectPath: C:/Users/mono/Documents/FMOD/VALE-ISERUS/VALE-ISERUS.fspro
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:13 :: m_Name: event:/SFX/combat/ui/turn_change
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:15 :: Path: event:/SFX/combat/ui/turn_change
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:40 :: m_Name: event:/SFX/combat/mark/detonate
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:42 :: Path: event:/SFX/combat/mark/detonate
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:67 :: m_Name: bank:/Master.bank
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:71 :: StudioPath: bank:/Master
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:85 :: m_Name: event:/SFX/combat/mark/apply
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:87 :: Path: event:/SFX/combat/mark/apply
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:112 :: m_Name: bank:/Master.strings.bank
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:116 :: StudioPath: bank:/Master.strings
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:132 :: m_Name: event:/SFX/combat/attack/windup
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:134 :: Path: event:/SFX/combat/attack/windup
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:159 :: m_Name: event:/SFX/combat/mark/apply
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:161 :: Path: event:/SFX/combat/mark/apply
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:186 :: m_Name: bank:/Master.bank
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:188 :: Path: C:/Users/mono/Documents/FMOD/VALE-ISERUS/Build/Desktop/Master.bank
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:190 :: StudioPath: bank:/Master
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:206 :: m_Name: event:/SFX/combat/ui/Cursor_Movement
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:208 :: Path: event:/SFX/combat/ui/Cursor_Movement
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:233 :: m_Name: event:/SFX/combat/attack/timed_success
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:235 :: Path: event:/SFX/combat/attack/timed_success
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:260 :: m_Name: event:/SFX/combat/attack/timed/miss
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:262 :: Path: event:/SFX/combat/attack/timed/miss
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:287 :: m_Name: event:/SFX/combat/attack/impact
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:289 :: Path: event:/SFX/combat/attack/impact
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:314 :: m_Name: event:/SFX/combat/attack/windup
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:316 :: Path: event:/SFX/combat/attack/windup
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:341 :: m_Name: bank:/Master.strings.bank
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:343 :: Path: C:/Users/mono/Documents/FMOD/VALE-ISERUS/Build/Desktop/Master.strings.bank
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:345 :: StudioPath: bank:/Master.strings
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:361 :: m_Name: bank:/Master.strings.bank
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:363 :: Path: C:/Users/mono/Documents/FMOD/VALE-ISERUS/Build/Desktop/Master.strings.bank
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:365 :: StudioPath: bank:/Master.strings
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:381 :: m_Name: event:/SFX/combat/mark/detonate
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:383 :: Path: event:/SFX/combat/mark/detonate
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:408 :: m_Name: bank:/Master.bank
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:410 :: Path: C:/Users/mono/Documents/FMOD/VALE-ISERUS/Build/Desktop/Master.bank
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:412 :: StudioPath: bank:/Master
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:428 :: m_Name: event:/SFX/combat/ui/turn_change
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:430 :: Path: event:/SFX/combat/ui/turn_change
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:455 :: m_Name: event:/SFX/combat/attack/timed_success
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:457 :: Path: event:/SFX/combat/attack/timed_success
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:482 :: m_Name: event:/SFX/combat/attack/windup
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:484 :: Path: event:/SFX/combat/attack/windup
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:509 :: m_Name: event:/SFX/combat/attack/windup
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:511 :: Path: event:/SFX/combat/attack/windup
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:536 :: m_Name: event:/SFX/combat/ui/turn_change
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:538 :: Path: event:/SFX/combat/ui/turn_change
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:563 :: m_Name: event:/SFX/combat/ui/turn_change
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:565 :: Path: event:/SFX/combat/ui/turn_change
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:590 :: m_Name: event:/SFX/combat/attack/impact
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:592 :: Path: event:/SFX/combat/attack/impact
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:617 :: m_Name: event:/SFX/combat/attack/timed_success
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:619 :: Path: event:/SFX/combat/attack/timed_success
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:644 :: m_Name: event:/SFX/combat/attack/impact
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:646 :: Path: event:/SFX/combat/attack/impact
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:671 :: m_Name: event:/SFX/combat/attack/runback
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:673 :: Path: event:/SFX/combat/attack/runback
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:698 :: m_Name: bank:/Master.strings.bank
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:700 :: Path: C:/Users/mono/Documents/FMOD/VALE-ISERUS/Build/Desktop/Master.strings.bank
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:702 :: StudioPath: bank:/Master.strings
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:718 :: m_Name: event:/SFX/combat/attack/runup
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:720 :: Path: event:/SFX/combat/attack/runup
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:745 :: m_Name: event:/SFX/combat/mark/detonate
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:747 :: Path: event:/SFX/combat/mark/detonate
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:772 :: m_Name: bank:/Master.bank
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:776 :: StudioPath: bank:/Master
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:790 :: m_Name: event:/SFX/combat/ui/CP_Decrease
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:792 :: Path: event:/SFX/combat/ui/CP_Decrease
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:817 :: m_Name: event:/SFX/combat/mark/detonate
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:819 :: Path: event:/SFX/combat/mark/detonate
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:844 :: m_Name: event:/SFX/combat/attack/timed_success
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:846 :: Path: event:/SFX/combat/attack/timed_success
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:871 :: m_Name: event:/SFX/combat/mark/apply
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:873 :: Path: event:/SFX/combat/mark/apply
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:898 :: m_Name: event:/SFX/combat/attack/timed_success
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:900 :: Path: event:/SFX/combat/attack/timed_success
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:925 :: m_Name: bank:/Master.strings.bank
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:929 :: StudioPath: bank:/Master.strings
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:973 :: - key: event:/SFX/combat/attack/windup
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:975 :: - key: event:/SFX/combat/mark/apply
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:977 :: - key: event:/SFX/combat/ui/turn_change
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:979 :: - key: event:/SFX/combat/mark/detonate
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:981 :: - key: event:/SFX/combat/attack/timed/perfect
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:983 :: - key: event:/SFX/combat/attack/runup
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:985 :: - key: event:/SFX/combat/attack/timed/miss
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:987 :: - key: event:/SFX/combat/attack/runback
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:989 :: - key: event:/SFX/combat/ui/Cursor_Back
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:991 :: - key: event:/SFX/combat/ui/Cursor_Movement
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:993 :: - key: event:/SFX/combat/ui/Cursor_Confirm
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:995 :: - key: event:/SFX/combat/ui/CP_Increase
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:997 :: - key: event:/SFX/combat/ui/CP_Decrease
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:999 :: - key: event:/SFX/combat/attack/timed/good
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1011 :: m_Name: event:/SFX/combat/ui/turn_change
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1013 :: Path: event:/SFX/combat/ui/turn_change
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1038 :: m_Name: bank:/Master.strings.bank
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1042 :: StudioPath: bank:/Master.strings
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1058 :: m_Name: event:/SFX/combat/mark/apply
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1060 :: Path: event:/SFX/combat/mark/apply
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1085 :: m_Name: event:/SFX/combat/attack/timed_success
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1087 :: Path: event:/SFX/combat/attack/timed_success
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1112 :: m_Name: bank:/Master.strings.bank
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1116 :: StudioPath: bank:/Master.strings
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1132 :: m_Name: event:/SFX/combat/mark/detonate
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1134 :: Path: event:/SFX/combat/mark/detonate
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1159 :: m_Name: event:/SFX/combat/attack/impact
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1161 :: Path: event:/SFX/combat/attack/impact
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1186 :: m_Name: event:/SFX/combat/attack/windup
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1188 :: Path: event:/SFX/combat/attack/windup
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1213 :: m_Name: bank:/Master.bank
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1215 :: Path: C:/Users/mono/Documents/FMOD/VALE-ISERUS/Build/Desktop/Master.bank
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1217 :: StudioPath: bank:/Master
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1233 :: m_Name: event:/SFX/combat/attack/timed/perfect
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1235 :: Path: event:/SFX/combat/attack/timed/perfect
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1260 :: m_Name: event:/SFX/combat/mark/detonate
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1262 :: Path: event:/SFX/combat/mark/detonate
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1287 :: m_Name: event:/SFX/combat/mark/apply
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1289 :: Path: event:/SFX/combat/mark/apply
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1314 :: m_Name: event:/SFX/combat/attack/windup
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1316 :: Path: event:/SFX/combat/attack/windup
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1341 :: m_Name: event:/SFX/combat/attack/impact
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1343 :: Path: event:/SFX/combat/attack/impact
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1368 :: m_Name: event:/SFX/combat/ui/turn_change
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1370 :: Path: event:/SFX/combat/ui/turn_change
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1395 :: m_Name: event:/SFX/combat/attack/timed/good
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1397 :: Path: event:/SFX/combat/attack/timed/good
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1422 :: m_Name: event:/SFX/combat/ui/Cursor_Confirm
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1424 :: Path: event:/SFX/combat/ui/Cursor_Confirm
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1449 :: m_Name: event:/SFX/combat/attack/impact
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1451 :: Path: event:/SFX/combat/attack/impact
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1476 :: m_Name: event:/SFX/combat/attack/windup
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1478 :: Path: event:/SFX/combat/attack/windup
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1503 :: m_Name: bank:/Master.bank
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1507 :: StudioPath: bank:/Master
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1521 :: m_Name: event:/SFX/combat/mark/detonate
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1523 :: Path: event:/SFX/combat/mark/detonate
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1548 :: m_Name: event:/SFX/combat/mark/apply
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1550 :: Path: event:/SFX/combat/mark/apply
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1575 :: m_Name: event:/SFX/combat/ui/turn_change
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1577 :: Path: event:/SFX/combat/ui/turn_change
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1602 :: m_Name: event:/SFX/combat/ui/Cursor_Back
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1604 :: Path: event:/SFX/combat/ui/Cursor_Back
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1629 :: m_Name: event:/SFX/combat/mark/apply
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1631 :: Path: event:/SFX/combat/mark/apply
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1656 :: m_Name: event:/SFX/combat/ui/CP_Increase
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1658 :: Path: event:/SFX/combat/ui/CP_Increase
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1683 :: m_Name: bank:/Master.bank
+J:/Unreal Projects/UNITY/Halloween Jam\Assets\Plugins\FMOD\Cache\Editor\FMODStudioCache.asset:1687 :: StudioPath: bank:/Master
+J:/Unreal Projects/UNITY/Halloween Jam\ProjectSettings\PackageManagerSettings.asset:24 :: m_Url: https://packages.unity.com
+J:/Unreal Projects/UNITY/Halloween Jam\ProjectSettings\UnityConnectSettings.asset:9 :: m_EventOldUrl: https://api.uca.cloud.unity3d.com/v1/events
+J:/Unreal Projects/UNITY/Halloween Jam\ProjectSettings\UnityConnectSettings.asset:10 :: m_EventUrl: https://cdp.cloud.unity3d.com/v1/events
+J:/Unreal Projects/UNITY/Halloween Jam\ProjectSettings\UnityConnectSettings.asset:11 :: m_ConfigUrl: https://config.uca.cloud.unity3d.com
+J:/Unreal Projects/UNITY/Halloween Jam\ProjectSettings\UnityConnectSettings.asset:12 :: m_DashboardUrl: https://dashboard.unity3d.com
+J:/Unreal Projects/UNITY/Halloween Jam\ProjectSettings\UnityConnectSettings.asset:15 :: m_EventUrl: https://perf-events.cloud.unity3d.com

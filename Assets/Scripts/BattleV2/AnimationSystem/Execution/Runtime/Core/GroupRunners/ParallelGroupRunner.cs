@@ -49,10 +49,10 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Core.GroupRunners
 
                 if (group.JoinPolicy == StepGroupJoinPolicy.Any)
                 {
-                    return await ExecuteJoinAnyAsync(tasks, timeoutTask, linkedCts, state, cancellationToken).ConfigureAwait(false);
+                    return await ExecuteJoinAnyAsync(tasks, timeoutTask, linkedCts, state, cancellationToken);
                 }
 
-                return await ExecuteJoinAllAsync(tasks, timeoutTask, linkedCts, state, cancellationToken).ConfigureAwait(false);
+                return await ExecuteJoinAllAsync(tasks, timeoutTask, linkedCts, state, cancellationToken);
             }
             finally
             {
@@ -94,17 +94,17 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Core.GroupRunners
                 if (timeoutTask != null)
                 {
                     var waitArray = CreateWaitArray(pending, timeoutTask);
-                    completedTask = await Task.WhenAny(waitArray).ConfigureAwait(false);
+                    completedTask = await Task.WhenAny(waitArray);
                 }
                 else
                 {
-                    completedTask = await Task.WhenAny(pending).ConfigureAwait(false);
+                    completedTask = await Task.WhenAny(pending);
                 }
 
                 if (timeoutTask != null && ReferenceEquals(completedTask, timeoutTask))
                 {
                     linkedCts.Cancel();
-                    await DrainPendingAsync(pending).ConfigureAwait(false);
+                    await DrainPendingAsync(pending);
                     state.ImmediateCleanup();
                     return StepGroupResult.Abort("ParallelTimeout");
                 }
@@ -112,19 +112,19 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Core.GroupRunners
                 var finished = (Task<StepResult>)completedTask;
                 pending.Remove(finished);
 
-                var result = await finished.ConfigureAwait(false);
+                var result = await finished;
 
                 if (result.Status == StepRunStatus.Branch && !string.IsNullOrWhiteSpace(result.BranchTargetId))
                 {
                     linkedCts.Cancel();
-                    await DrainPendingAsync(pending).ConfigureAwait(false);
+                    await DrainPendingAsync(pending);
                     return StepGroupResult.Branch(result.BranchTargetId);
                 }
 
                 if (result.Status == StepRunStatus.Abort)
                 {
                     linkedCts.Cancel();
-                    await DrainPendingAsync(pending).ConfigureAwait(false);
+                    await DrainPendingAsync(pending);
                     state.ImmediateCleanup();
                     return StepGroupResult.Abort(result.AbortReason ?? "ParallelAbort");
                 }
@@ -132,7 +132,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Core.GroupRunners
                 if (result.Status == StepRunStatus.Failed)
                 {
                     linkedCts.Cancel();
-                    await DrainPendingAsync(pending).ConfigureAwait(false);
+                    await DrainPendingAsync(pending);
                     state.ImmediateCleanup();
                     return StepGroupResult.Abort("StepFailed");
                 }
@@ -150,18 +150,18 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Core.GroupRunners
         {
             var whenAll = Task.WhenAll(tasks);
             Task completedTask = timeoutTask != null
-                ? await Task.WhenAny(whenAll, timeoutTask).ConfigureAwait(false)
-                : await Task.WhenAny(whenAll).ConfigureAwait(false);
+                ? await Task.WhenAny(whenAll, timeoutTask)
+                : await Task.WhenAny(whenAll);
 
             if (timeoutTask != null && ReferenceEquals(completedTask, timeoutTask))
             {
                 linkedCts.Cancel();
-                await DrainPendingAsync(tasks).ConfigureAwait(false);
+                await DrainPendingAsync(tasks);
                 state.ImmediateCleanup();
                 return StepGroupResult.Abort("ParallelTimeout");
             }
 
-            var results = await whenAll.ConfigureAwait(false);
+            var results = await whenAll;
 
             string branchTarget = null;
             for (int i = 0; i < results.Length; i++)
@@ -223,7 +223,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Core.GroupRunners
 
             try
             {
-                await Task.WhenAll(tasks).ConfigureAwait(false);
+                await Task.WhenAll(tasks);
             }
             catch
             {

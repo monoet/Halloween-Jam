@@ -18,6 +18,7 @@ MonoBehaviour:
     executionMode: 1
     joinPolicy: 1
     timeoutSeconds: 0
+    kind: payload
     steps:
     - stepId: 
       executorId: animatorClip
@@ -25,13 +26,6 @@ MonoBehaviour:
       conflictPolicy: 0
       overrideConflictPolicy: 0
       delaySeconds: 1
-      parameters: []
-    - stepId: 
-      executorId: timed_hit
-      bindingId: 
-      conflictPolicy: 0
-      overrideConflictPolicy: 0
-      delaySeconds: 0
       parameters: []
     - stepId: windup_wait
       executorId: wait_seconds

@@ -15,7 +15,9 @@ namespace BattleV2.Execution.TimedHits
             Ks1TimedHitProfile profile,
             int cpCharge,
             TimedHitRunMode mode,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            BasicTimedHitProfile basicProfile = null,
+            TimedHitRunnerKind runnerKind = TimedHitRunnerKind.Default)
         {
             Attacker = attacker;
             Target = target;
@@ -25,6 +27,8 @@ namespace BattleV2.Execution.TimedHits
             CpCharge = cpCharge;
             Mode = mode;
             CancellationToken = cancellationToken;
+            BasicProfile = basicProfile;
+            RunnerKind = runnerKind;
         }
 
         public CombatantState Attacker { get; }
@@ -35,6 +39,8 @@ namespace BattleV2.Execution.TimedHits
         public int CpCharge { get; }
         public TimedHitRunMode Mode { get; }
         public CancellationToken CancellationToken { get; }
+        public BasicTimedHitProfile BasicProfile { get; }
+        public TimedHitRunnerKind RunnerKind { get; }
     }
 }
 

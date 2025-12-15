@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using BattleV2.Core;
 using BattleV2.Targeting;
 using BattleV2.Providers;
+using BattleV2.Core.Services;
 
 namespace BattleV2.Orchestration.Services
 {
@@ -29,9 +30,11 @@ namespace BattleV2.Orchestration.Services
                 return PlayerTargetResolution.Empty;
             }
 
+            var intent = TargetingIntent.FromAction(selection.Action);
             var resolution = await targetingCoordinator.ResolveAsync(
                 actor,
                 selection.Action,
+                intent,
                 TargetSourceType.Manual,
                 context?.Enemy,
                 allies,
@@ -91,6 +94,7 @@ namespace BattleV2.Orchestration.Services
         public CombatantState PrimaryEnemy { get; }
         public CharacterRuntime PrimaryEnemyRuntime { get; }
 
+        public TargetResolutionStatus Status => Result.Status;
         public bool HasTargets => Result.Targets != null && Result.Targets.Count > 0;
 
         public static PlayerTargetResolution Empty => new PlayerTargetResolution(

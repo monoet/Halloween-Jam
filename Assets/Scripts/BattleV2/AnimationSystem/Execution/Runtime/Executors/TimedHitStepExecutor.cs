@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using BattleV2.Charge;
 using BattleV2.Core;
@@ -24,10 +25,16 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Executors
 
         public async Task ExecuteAsync(StepExecutionContext context)
         {
+            BattleDiagnostics.Log(
+                "Thread.debug00",
+                $"[Thread.debug00][TimedHitStepExecutor.Enter] tid={Thread.CurrentThread.ManagedThreadId} isMain={UnityMainThreadGuard.IsMainThread()} actor={context.Actor?.name ?? "(null)"} actionId={context.Request.Selection.Action?.id ?? "(null)"}",
+                context.Actor);
+            UnityThread.AssertMainThread("TimedHitStepExecutor.Execute");
+
             var selection = context.Request.Selection;
             var handle = selection.TimedHitHandle;
-            var runner = context.TimedHitRunner ?? InstantTimedHitRunner.Shared;
             var profile = selection.TimedHitProfile;
+            var basicProfile = selection.BasicTimedHitProfile;
 
             if (handle == null)
             {
@@ -35,7 +42,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Executors
                 return;
             }
 
-            if (profile == null)
+            if (profile == null && basicProfile == null)
             {
                 handle.TrySetResult(default);
                 return;
@@ -52,12 +59,21 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Executors
                 profile,
                 selection.CpCharge,
                 mode,
-                context.CancellationToken);
+                context.CancellationToken,
+                basicProfile,
+                selection.RunnerKind);
 
             TimedHitResult result;
             try
             {
-                result = await runner.RunAsync(request).ConfigureAwait(false);
+                if (context.TimedHitService != null)
+                {
+                    result = await context.TimedHitService.RunAsync(request);
+                }
+                else
+                {
+                    result = await InstantTimedHitRunner.Shared.RunAsync(request);
+                }
             }
             catch (OperationCanceledException)
             {

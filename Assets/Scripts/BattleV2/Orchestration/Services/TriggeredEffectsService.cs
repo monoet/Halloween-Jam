@@ -8,6 +8,8 @@ using BattleV2.Orchestration.Events;
 using BattleV2.Orchestration;
 using BattleV2.Providers;
 using BattleV2.Targeting;
+using BattleV2.Execution;
+using BattleV2.Marks;
 using UnityEngine;
 
 namespace BattleV2.Orchestration.Services
@@ -15,10 +17,11 @@ namespace BattleV2.Orchestration.Services
     public interface ITriggeredEffectsService
     {
         void Schedule(
+            int executionId,
             CombatantState origin,
             BattleSelection selection,
             TimedHitResult? timedResult,
-            IReadOnlyList<CombatantState> targets,
+            ExecutionSnapshot snapshot,
             CombatContext context);
 
         void Clear();
@@ -33,6 +36,7 @@ namespace BattleV2.Orchestration.Services
         private readonly IActionPipeline actionPipeline;
         private readonly ActionCatalog actionCatalog;
         private readonly IBattleEventBus eventBus;
+        private readonly MarkInteractionProcessor markProcessor;
         private readonly Queue<TriggeredEffectRequest> queue = new();
         private readonly object gate = new();
         private bool processing;
@@ -42,19 +46,22 @@ namespace BattleV2.Orchestration.Services
             BattleManagerV2 manager,
             IActionPipeline actionPipeline,
             ActionCatalog actionCatalog,
-            IBattleEventBus eventBus)
+            IBattleEventBus eventBus,
+            MarkInteractionProcessor markProcessor)
         {
             this.manager = manager;
             this.actionPipeline = actionPipeline;
             this.actionCatalog = actionCatalog;
             this.eventBus = eventBus;
+            this.markProcessor = markProcessor;
         }
 
         public void Schedule(
+            int executionId,
             CombatantState origin,
             BattleSelection selection,
             TimedHitResult? timedResult,
-            IReadOnlyList<CombatantState> targets,
+            ExecutionSnapshot snapshot,
             CombatContext context)
         {
             if (origin == null || selection.Action == null)
@@ -62,18 +69,14 @@ namespace BattleV2.Orchestration.Services
                 return;
             }
 
-            targets ??= Array.Empty<CombatantState>();
-            if (targets.Count == 0)
-            {
-                return;
-            }
-
+            var snapshotTargets = snapshot.Targets ?? Array.Empty<CombatantState>();
             var effectSelection = selection.WithTimedResult(timedResult);
             var request = new TriggeredEffectRequest(
+                executionId,
                 origin,
                 selection.Action,
                 effectSelection,
-                targets,
+                snapshot,
                 context);
 
             Enqueue(request);
@@ -164,17 +167,26 @@ namespace BattleV2.Orchestration.Services
                 return;
             }
 
-            var targets = request.Targets ?? Array.Empty<CombatantState>();
-            if (targets.Count == 0)
+            var targets = request.Snapshot.Targets ?? Array.Empty<CombatantState>();
+            CombatantState primaryTarget = null;
+            for (int i = 0; i < targets.Count; i++)
             {
-                return;
+                var candidate = targets[i];
+                if (candidate == null || !candidate.IsAlive)
+                {
+                    continue;
+                }
+
+                primaryTarget = candidate;
+                break;
             }
 
-            var primaryTarget = targets[0];
-            if (primaryTarget == null || !primaryTarget.IsAlive)
+            if (primaryTarget == null && targets.Count > 0)
             {
-                return;
+                primaryTarget = targets[0];
             }
+
+            primaryTarget ??= request.Context?.Enemy ?? request.Origin;
 
             var services = request.Context?.Services ?? new BattleServices();
             var catalog = request.Context?.Catalog ?? actionCatalog;
@@ -188,18 +200,39 @@ namespace BattleV2.Orchestration.Services
                 catalog);
 
             var selection = request.Selection;
+            int judgmentSeed = System.HashCode.Combine(request.Origin != null ? request.Origin.GetInstanceID() : 0, selection.Action != null ? selection.Action.id.GetHashCode() : 0, targets.Count);
+            var resourcesPre = ResourceSnapshot.FromCombatant(request.Origin);
+            var resourcesPost = ResourceSnapshot.FromCombatant(request.Origin);
+            var judgment = ActionJudgment.FromSelection(selection, request.Origin, selection.CpCharge, judgmentSeed, resourcesPre, resourcesPost);
+            bool resourcesCharged = false;
+
             var actionRequest = new ActionRequest(
                 manager,
                 request.Origin,
                 targets,
                 selection,
                 implementation,
-                effectContext);
+                effectContext,
+                judgment);
 
             try
             {
                 var result = await actionPipeline.Run(actionRequest);
-                eventBus?.Publish(new ActionCompletedEvent(request.Origin, selection.WithTimedResult(result.TimedResult), request.Targets, true));
+                resourcesPost = ResourceSnapshot.FromCombatant(request.Origin);
+                if (resourcesCharged)
+                {
+#if UNITY_EDITOR
+                    Debug.Assert(false, $"[CP/SP] Duplicate charge: action={selection.Action?.id ?? "null"} actor={request.Origin?.name ?? "(null)"}");
+#endif
+                    Debug.LogWarning($"[CP/SP] Duplicate charge detected: action={selection.Action?.id ?? "null"} actor={request.Origin?.name ?? "(null)"}");
+                }
+                resourcesCharged = true;
+                var judgmentWithCosts = judgment.WithPostCost(resourcesPost);
+                var timedGrade = ActionJudgment.ResolveTimedGrade(result.TimedResult);
+                var finalJudgment = judgmentWithCosts.WithTimedGrade(timedGrade);
+                var selectionWithResult = selection.WithTimedResult(result.TimedResult);
+                markProcessor?.Process(request.Origin, selectionWithResult, finalJudgment, targets, request.ExecutionId);
+                eventBus?.Publish(new ActionCompletedEvent(request.ExecutionId, request.Origin, selectionWithResult, targets, true, finalJudgment));
             }
             catch (Exception ex)
             {
@@ -231,23 +264,26 @@ namespace BattleV2.Orchestration.Services
     public readonly struct TriggeredEffectRequest
     {
         public TriggeredEffectRequest(
+            int executionId,
             CombatantState origin,
             BattleActionData action,
             BattleSelection selection,
-            IReadOnlyList<CombatantState> targets,
+            ExecutionSnapshot snapshot,
             CombatContext context)
         {
+            ExecutionId = executionId;
             Origin = origin;
             Action = action;
             Selection = selection;
-            Targets = targets ?? Array.Empty<CombatantState>();
+            Snapshot = snapshot;
             Context = context;
         }
 
+        public int ExecutionId { get; }
         public CombatantState Origin { get; }
         public BattleActionData Action { get; }
         public BattleSelection Selection { get; }
-        public IReadOnlyList<CombatantState> Targets { get; }
+        public ExecutionSnapshot Snapshot { get; }
         public CombatContext Context { get; }
     }
 }

@@ -17,11 +17,11 @@ MonoBehaviour:
     Hits: 1
     RefundMax: 2
     DamageMultiplier: 0.8
-    TimelineDuration: 0.33
-    PerfectWindowCenter: 0.8
+    TimelineDuration: 1
+    PerfectWindowCenter: 0.75
     PerfectWindowRadius: 0.033
     SuccessWindowRadius: 0.133
-    PerfectHitMultiplier: 1.5
+    PerfectHitMultiplier: 1.15
     SuccessHitMultiplier: 1
-    MissHitMultiplier: 0.63
+    MissHitMultiplier: 0.75
     ResultHoldDuration: 0

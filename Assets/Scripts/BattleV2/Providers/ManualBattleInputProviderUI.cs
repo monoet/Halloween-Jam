@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using BattleV2.Actions;
 using BattleV2.Charge;
 using BattleV2.Core;
+using BattleV2.Execution.TimedHits;
 using BattleV2.UI;
 using TMPro;
 using UnityEngine;
@@ -184,7 +185,7 @@ namespace BattleV2.Providers
         {
             int availableCp = pendingContext.Player != null ? pendingContext.Player.CurrentCP : 0;
             int baseCost = Mathf.Max(0, action.costCP);
-            ResolveProfiles(action, out var chargeProfile, out var timedProfile);
+            ResolveProfiles(action, out var chargeProfile, out var timedProfile, out var basicProfile, out var runnerKind);
 
             if (chargeProfile == null)
             {
@@ -193,13 +194,28 @@ namespace BattleV2.Providers
                     : ChargeProfile.CreateRuntimeDefault();
             }
 
-            return new ChargeRequest(pendingContext, action, chargeProfile, availableCp, baseCost, timedProfile);
+            return new ChargeRequest(
+                pendingContext,
+                action,
+                chargeProfile,
+                availableCp,
+                baseCost,
+                timedProfile,
+                basicProfile,
+                runnerKind);
         }
 
-        private void ResolveProfiles(BattleActionData action, out ChargeProfile chargeProfile, out Ks1TimedHitProfile timedProfile)
+        private void ResolveProfiles(
+            BattleActionData action,
+            out ChargeProfile chargeProfile,
+            out Ks1TimedHitProfile timedProfile,
+            out BasicTimedHitProfile basicProfile,
+            out TimedHitRunnerKind runnerKind)
         {
             chargeProfile = defaultChargeProfile;
-            timedProfile = null;
+            timedProfile = action != null ? action.timedHitProfile : null;
+            basicProfile = action != null ? action.basicTimedHitProfile : null;
+            runnerKind = action != null ? action.runnerKind : TimedHitRunnerKind.Default;
 
             var catalog = pendingContext?.Context?.Catalog;
             var impl = catalog != null ? catalog.Resolve(action) : null;
@@ -211,10 +227,21 @@ namespace BattleV2.Providers
                     chargeProfile = impl.ChargeProfile;
                 }
 
-                if (impl is ITimedHitAction timedHitAction)
+                if (timedProfile == null && impl is ITimedHitAction timedHitAction)
                 {
                     timedProfile = timedHitAction.TimedHitProfile;
                 }
+
+                if (basicProfile == null && impl is IBasicTimedHitAction basicTimedAction && basicTimedAction.BasicTimedHitProfile != null)
+                {
+                    basicProfile = basicTimedAction.BasicTimedHitProfile;
+                    runnerKind = TimedHitRunnerKind.Basic;
+                }
+            }
+
+            if (basicProfile != null)
+            {
+                runnerKind = TimedHitRunnerKind.Basic;
             }
         }
 

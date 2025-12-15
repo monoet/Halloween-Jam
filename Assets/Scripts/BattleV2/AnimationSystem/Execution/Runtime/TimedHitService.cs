@@ -1,7 +1,14 @@
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using BattleV2.AnimationSystem;
 using BattleV2.AnimationSystem.Execution.Routers;
+using BattleV2.AnimationSystem.Execution.Runtime.CombatEvents;
+using BattleV2.AnimationSystem.Runtime;
+using BattleV2.Charge;
+using BattleV2.Core;
+using BattleV2.Execution.TimedHits;
+using UnityEngine;
 
 namespace BattleV2.AnimationSystem.Execution.Runtime
 {
@@ -10,6 +17,15 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
         void RegisterInput(CombatantState actor, string source = null, double? timestamp = null);
         void Reset(CombatantState actor);
         void ResetAll();
+        void ConfigureRunners(ITimedHitRunner ks1Runner, ITimedHitRunner basicRunner);
+        void SetRunner(TimedHitRunnerKind kind, ITimedHitRunner runner);
+        ITimedHitRunner GetRunner(TimedHitRunnerKind kind);
+        bool HasActiveWindow(CombatantState actor);
+        void SetInputProvider(ITimedHitInputProvider provider);
+        bool TryConsumeInput(out double timestamp);
+        Task<TimedHitResult> RunAsync(TimedHitRequest request, Action<TimedHitPhaseResult> onPhaseResolved = null);
+        Task<TimedHitResult> RunKs1Async(TimedHitRequest request, Action<TimedHitPhaseResult> onPhaseResolved = null);
+        Task<TimedHitResult> RunBasicAsync(TimedHitRequest request, Action<TimedHitPhaseResult> onPhaseResolved = null);
     }
 
     public sealed class TimedHitService : ITimedHitService
@@ -18,6 +34,11 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
         private readonly ITimedInputBuffer inputBuffer;
         private readonly ITimedHitToleranceProfile toleranceProfile;
         private readonly IAnimationEventBus eventBus;
+        private ITimedHitRunner ks1Runner;
+        private ITimedHitRunner basicRunner;
+        private ITimedHitInputProvider inputProvider;
+        private const bool EnableResultDebugLogs = false;
+
         private readonly Dictionary<CombatantState, List<ActiveWindow>> activeWindows = new();
         private readonly List<IDisposable> subscriptions = new();
         private bool disposed;
@@ -37,6 +58,55 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
             subscriptions.Add(eventBus.Subscribe<AnimationLockEvent>(OnLockEvent));
         }
 
+        public void ConfigureRunners(ITimedHitRunner ks1Runner, ITimedHitRunner basicRunner)
+        {
+            this.ks1Runner = ks1Runner;
+            this.basicRunner = basicRunner;
+        }
+
+        public void SetRunner(TimedHitRunnerKind kind, ITimedHitRunner runner)
+        {
+            if (kind == TimedHitRunnerKind.Basic)
+            {
+                basicRunner = runner;
+            }
+            else
+            {
+                ks1Runner = runner;
+            }
+        }
+
+        public ITimedHitRunner GetRunner(TimedHitRunnerKind kind)
+        {
+            return kind == TimedHitRunnerKind.Basic ? basicRunner : ks1Runner;
+        }
+
+        public bool HasActiveWindow(CombatantState actor)
+        {
+            if (actor == null)
+            {
+                return false;
+            }
+
+            return activeWindows.TryGetValue(actor, out var list) && list != null && list.Count > 0;
+        }
+
+        public void SetInputProvider(ITimedHitInputProvider provider)
+        {
+            inputProvider = provider;
+        }
+
+        public bool TryConsumeInput(out double timestamp)
+        {
+            if (inputProvider != null && inputProvider.TryConsumeInput(out timestamp))
+            {
+                return true;
+            }
+
+            timestamp = 0d;
+            return false;
+        }
+
         public void RegisterInput(CombatantState actor, string source = null, double? timestamp = null)
         {
             if (disposed)
@@ -44,7 +114,14 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
                 throw new ObjectDisposedException(nameof(TimedHitService));
             }
 
-            inputBuffer.Register(actor, source, timestamp);
+            if (inputBuffer == null)
+            {
+                return;
+            }
+
+            var input = inputBuffer.Register(actor, source, timestamp);
+            Debug.Log($"PhasEvInput | [TimedHitService] Input Registered: {source} @ {input.Timestamp:F3} for {actor.name}");
+            BattleDiagnostics.Log("TimedHit", $"Input Registered: {source} @ {input.Timestamp:F3}", actor);
         }
 
         public void Reset(CombatantState actor)
@@ -64,6 +141,42 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
             inputBuffer.ClearAll();
         }
 
+        public Task<TimedHitResult> RunAsync(
+            TimedHitRequest request,
+            Action<TimedHitPhaseResult> onPhaseResolved = null)
+        {
+            if (request.RunnerKind == TimedHitRunnerKind.Basic)
+            {
+                return RunBasicAsync(request, onPhaseResolved);
+            }
+
+            return RunKs1Async(request, onPhaseResolved);
+        }
+
+        public Task<TimedHitResult> RunKs1Async(
+            TimedHitRequest request,
+            Action<TimedHitPhaseResult> onPhaseResolved = null)
+        {
+            // Runtime Configuration Check
+            if (request.Profile != null && inputBuffer is TimedInputBuffer bufferImpl)
+            {
+                var tier = request.Profile.GetTierForCharge(request.CpCharge);
+                if (tier.TimelineDuration > bufferImpl.RetentionSeconds)
+                {
+                    Debug.LogWarning($"[TimedHitService] CONFIG MISMATCH: Profile duration ({tier.TimelineDuration}s) > Buffer retention ({bufferImpl.RetentionSeconds}s). Inputs may be dropped! Increase TimedInputBuffer retention.");
+                }
+            }
+
+            return RunInternalAsync(ks1Runner, request, onPhaseResolved);
+        }
+
+        public Task<TimedHitResult> RunBasicAsync(
+            TimedHitRequest request,
+            Action<TimedHitPhaseResult> onPhaseResolved = null)
+        {
+            return RunInternalAsync(basicRunner, request, onPhaseResolved);
+        }
+
         public void Dispose()
         {
             if (disposed)
@@ -79,6 +192,57 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
 
             subscriptions.Clear();
             activeWindows.Clear();
+        }
+
+        private static Task<TimedHitResult> RunInternalAsync(
+            ITimedHitRunner runner,
+            TimedHitRequest request,
+            Action<TimedHitPhaseResult> onPhaseResolved)
+        {
+            var resolvedRunner = ResolveRunner(runner);
+
+            if (onPhaseResolved == null)
+            {
+                return resolvedRunner.RunAsync(request);
+            }
+
+            void PhaseHandler(TimedHitPhaseResult phase) => onPhaseResolved(phase);
+
+            resolvedRunner.OnPhaseResolved += PhaseHandler;
+            var task = resolvedRunner.RunAsync(request);
+
+            if (task.IsCompleted)
+            {
+                resolvedRunner.OnPhaseResolved -= PhaseHandler;
+                return task;
+            }
+
+            return AwaitAndUnsubscribeAsync(resolvedRunner, task, PhaseHandler);
+        }
+
+        private static async Task<TimedHitResult> AwaitAndUnsubscribeAsync(
+            ITimedHitRunner runner,
+            Task<TimedHitResult> task,
+            Action<TimedHitPhaseResult> handler)
+        {
+            try
+            {
+                return await task.ConfigureAwait(false);
+            }
+            finally
+            {
+                runner.OnPhaseResolved -= handler;
+            }
+        }
+
+        private static ITimedHitRunner ResolveRunner(ITimedHitRunner runner)
+        {
+            if (runner is MonoBehaviour behaviour && !behaviour.isActiveAndEnabled)
+            {
+                return InstantTimedHitRunner.Shared;
+            }
+
+            return runner ?? InstantTimedHitRunner.Shared;
         }
 
         private void OnWindowEvent(AnimationWindowEvent evt)
@@ -140,14 +304,18 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
             string resolvedTag = string.IsNullOrWhiteSpace(tag) ? window.Tag : tag;
             double centerTimestamp = window.ComputeCenterTimestamp(openTimestamp, closeTimestamp);
 
+            BattleDiagnostics.Log("TimedHit", $"Resolving Window: {openTimestamp:F3} - {closeTimestamp:F3}", actor);
+
             if (inputBuffer.TryConsume(actor, openTimestamp, closeTimestamp, tolerance, out var buffered, out var deltaSeconds, centerTimestamp))
             {
                 double deltaMs = Math.Abs(deltaSeconds) * 1000d;
                 var judgment = Classify(deltaMs, tolerance);
+                BattleDiagnostics.Log("TimedHit", $"Result: {judgment} (Delta: {deltaSeconds:F3}s)", actor);
                 PublishResult(actor, resolvedTag, resolvedIndex, resolvedCount, deltaMs, buffered.Timestamp, openTimestamp, closeTimestamp, judgment, consumedInput: true);
             }
             else
             {
+                BattleDiagnostics.Log("TimedHit", "Result: Miss", actor);
                 PublishMiss(actor, resolvedTag, resolvedIndex, resolvedCount, double.PositiveInfinity, double.NaN, openTimestamp, closeTimestamp, consumedInput: false);
             }
         }
@@ -193,8 +361,22 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
                 windowCount,
                 consumedInput,
                 windowOpenedAt,
-                windowClosedAt);
+                windowClosedAt,
+                TimedHitResultScope.RawWindow,
+                weaponKind: "none",
+                element: "neutral",
+                isCritical: false,
+                targetCount: 1);
+
             eventBus.Publish(evt);
+
+            if (EnableResultDebugLogs)
+            {
+                double displayedDelta = double.IsInfinity(deltaMs) ? double.NaN : deltaMs;
+                BattleLogger.Log(
+                    "TimedHitService",
+                    $"Result -> hits {windowIndex}/{windowCount}, delta={displayedDelta:0.#}ms, judgment={judgment}");
+            }
         }
 
         private void PublishMiss(

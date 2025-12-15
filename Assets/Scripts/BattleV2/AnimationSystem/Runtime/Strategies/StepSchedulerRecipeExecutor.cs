@@ -5,6 +5,7 @@ using BattleV2.Actions;
 using BattleV2.AnimationSystem;
 using BattleV2.AnimationSystem.Execution;
 using BattleV2.AnimationSystem.Execution.Runtime;
+using BattleV2.AnimationSystem.Execution.Runtime.Core;
 using BattleV2.AnimationSystem.Execution.Runtime.Recipes;
 using BattleV2.AnimationSystem.Runtime;
 using BattleV2.AnimationSystem.Runtime.Internal;
@@ -94,7 +95,7 @@ namespace BattleV2.AnimationSystem.Strategies
 
             var participants = animContext.Participants ?? Array.Empty<CombatantState>();
             var selection = new BattleSelection(new BattleActionData { id = recipeId }, animationRecipeId: recipeId);
-            var request = new AnimationRequest(actor, selection, participants, 1f, null, recipeId);
+            var request = new AnimationRequest(actor, selection, participants, 1f, recipeId);
 
             await mainThreadInvoker.RunAsync(() =>
             {
@@ -111,10 +112,11 @@ namespace BattleV2.AnimationSystem.Strategies
                     routerBundle,
                     eventBus,
                     timedHitService,
-                    request.TimedHitRunner);
+                    resetPolicy: ResetPolicy.Default,
+                    gate: new ExternalBarrierGate());
 
                 LogSchedulerExecution(actor, recipe.Id, context);
-                await scheduler.ExecuteAsync(recipe, schedulerContext, token).ConfigureAwait(false);
+                await scheduler.ExecuteAsync(recipe, schedulerContext, token);
             }
             finally
             {

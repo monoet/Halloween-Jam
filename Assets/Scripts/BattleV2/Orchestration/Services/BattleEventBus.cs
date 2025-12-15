@@ -1,5 +1,8 @@
 using System;
 using System.Collections.Generic;
+using BattleV2.AnimationSystem;
+using BattleV2.Core;
+using BattleV2.Orchestration.Events;
 
 namespace BattleV2.Orchestration.Services
 {
@@ -12,15 +15,32 @@ namespace BattleV2.Orchestration.Services
     /// <summary>
     /// Simplest synchronous pub/sub. Se reemplazará con versión robusta más adelante.
     /// </summary>
-    public sealed class BattleEventBus : IBattleEventBus
+    public sealed class BattleEventBus : IBattleEventBus, IAnimationEventBus
     {
         private readonly Dictionary<Type, List<Delegate>> subscribers = new();
 
         public void Publish<TEvent>(TEvent evt)
         {
+            UnityThread.AssertMainThread("BattleEventBus.Publish");
+
             if (evt == null)
             {
                 return;
+            }
+
+            if (evt is ActionStartedEvent started)
+            {
+                var actor = started.Actor;
+                var selection = started.Selection;
+                var targets = started.Targets ?? Array.Empty<CombatantState>();
+                string actorLabel = actor != null ? $"{actor.DisplayName}#{actor.GetInstanceID()}" : "(null)";
+                string actionId = selection.Action != null ? selection.Action.id : "(null)";
+                string scope = selection.Action != null ? selection.Action.targetShape.ToString() : "(unknown)";
+
+                BattleDiagnostics.Log(
+                    "ActionStartedEvent",
+                    $"actor={actorLabel} side={(actor != null && actor.IsPlayer ? "Player" : "Enemy")} actionId={actionId} scope={scope} targets={targets.Count}",
+                    actor);
             }
 
             var type = typeof(TEvent);
@@ -40,6 +60,8 @@ namespace BattleV2.Orchestration.Services
 
         public IDisposable Subscribe<TEvent>(Action<TEvent> handler)
         {
+            UnityThread.AssertMainThread("BattleEventBus.Subscribe");
+
             if (handler == null)
             {
                 return Disposable.Empty;
@@ -67,6 +89,16 @@ namespace BattleV2.Orchestration.Services
                     subscribers.Remove(type);
                 }
             });
+        }
+
+        void IAnimationEventBus.Publish<TEvent>(TEvent evt)
+        {
+            Publish(evt);
+        }
+
+        IDisposable IAnimationEventBus.Subscribe<TEvent>(Action<TEvent> handler)
+        {
+            return Subscribe(handler);
         }
 
         private sealed class Subscription : IDisposable

@@ -81,6 +81,67 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
             }
         }
 
+        /// <summary>
+        /// Emits a combat flag from external callers (non-scheduler) using a minimal context
+        /// built from the provided actor and optional single target.
+        /// </summary>
+        public void EmitExternalFlag(
+            string flagId,
+            CombatantState actor,
+            CombatantState target = null,
+            string weaponKind = "none",
+            string element = "neutral",
+            bool isCritical = false,
+            int targetCount = 1)
+        {
+            if (string.IsNullOrWhiteSpace(flagId) || actor == null || Volatile.Read(ref listenerCount) == 0)
+            {
+                return;
+            }
+
+            var root = actor.transform;
+            var actorView = new CombatEventContext.ActorView(
+                actor.GetInstanceID(),
+                ResolveAlignment(actor, assumeAlly: true),
+                actor,
+                root,
+                root);
+
+            var actionView = new CombatEventContext.ActionView(
+                actionId: "timed_hit",
+                family: "timed_hit",
+                weaponKind: string.IsNullOrWhiteSpace(weaponKind) ? "none" : weaponKind,
+                element: string.IsNullOrWhiteSpace(element) ? "neutral" : element,
+                recipeId: null,
+                staggerStepSeconds: 0f);
+
+            var refs = new List<CombatEventContext.CombatantRef>(Math.Max(1, targetCount));
+            if (target != null)
+            {
+                refs.Add(new CombatEventContext.CombatantRef(
+                    target.GetInstanceID(),
+                    ResolveAlignment(target, assumeAlly: false),
+                    target,
+                    target.transform,
+                    null));
+            }
+            else
+            {
+                // if no explicit target, still reflect target count for params
+                for (int i = 0; i < targetCount; i++)
+                {
+                    refs.Add(default);
+                }
+            }
+
+            var ctx = CombatEventContext.Acquire();
+            ctx.Populate(actorView, actionView, refs, perTarget: false, tags: isCritical ? new[] { "crit" } : Array.Empty<string>());
+
+            var list = new List<CombatEventContext>(1) { ctx };
+            Debug.Log($"CED01 [CombatEventDispatcher] EmitExternalFlag flag='{flagId}' actor={actor.name} targets={refs.Count}", actor);
+            Dispatch(flagId, list);
+        }
+
         public void OnRecipeStarted(ActionRecipe recipe, StepSchedulerContext context)
         {
         }
@@ -378,6 +439,12 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
 
             void Invoke()
             {
+                BattleDiagnostics.Log(
+                    "Thread.debug00",
+                    $"[Thread.debug00][CombatEventDispatcher.Dispatch] tid={Thread.CurrentThread.ManagedThreadId} isMain={UnityMainThreadGuard.IsMainThread()} flagId={flagId} ctxCount={contexts.Count}",
+                    null);
+                UnityThread.AssertMainThread("CombatEventDispatcher.Dispatch");
+
                 try
                 {
                     DispatchInternal(flagId, contexts);
@@ -440,7 +507,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
                         {
                             try
                             {
-                                await Task.Delay(TimeSpan.FromSeconds(staggerStepSeconds)).ConfigureAwait(false);
+                                await Task.Delay(TimeSpan.FromSeconds(staggerStepSeconds));
                             }
                             catch (TaskCanceledException)
                             {
@@ -463,6 +530,8 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.CombatEvents
 
         private void DispatchInternal(string flagId, List<CombatEventContext> contexts)
         {
+            UnityThread.AssertMainThread("CombatEventDispatcher.DispatchInternal");
+
             ICombatEventListener[] snapshot;
             lock (listenerGate)
             {

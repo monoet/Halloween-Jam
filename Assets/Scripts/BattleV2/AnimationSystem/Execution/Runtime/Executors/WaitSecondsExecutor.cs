@@ -23,7 +23,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Executors
 
             try
             {
-                await Task.Delay(TimeSpan.FromSeconds(seconds), ctx.CancellationToken).ConfigureAwait(false);
+                await Task.Delay(TimeSpan.FromSeconds(seconds), ctx.CancellationToken);
             }
             catch (OperationCanceledException)
             {

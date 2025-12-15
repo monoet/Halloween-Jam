@@ -1,0 +1,115 @@
+using System;
+using System.Collections;
+using BattleV2.AnimationSystem;
+using BattleV2.AnimationSystem.Execution.Runtime.CombatEvents;
+using BattleV2.AnimationSystem.Runtime;
+using BattleV2.Charge;
+using UnityEngine;
+
+namespace BattleV2.Audio
+{
+    /// <summary>
+    /// Listens to TimedHitResultEvent and emits combat flags for audio (miss/impact/perfect).
+    /// Solo procesa resultados finales agregados (Scope = Final).
+    /// </summary>
+    public sealed class TimedHitAudioBridge : MonoBehaviour
+    {
+        [SerializeField] private AnimationSystemInstaller installer;
+
+        private IDisposable subscription;
+        private IDisposable phaseSubscription;
+        private CombatEventDispatcher dispatcher;
+        private Coroutine subscribeRoutine;
+
+        private void Awake()
+        {
+            installer ??= AnimationSystemInstaller.Current;
+            dispatcher = installer != null ? installer.CombatEvents : null;
+        }
+
+        private void Start()
+        {
+            subscribeRoutine = StartCoroutine(SubscribeWhenReady());
+        }
+
+        private void OnDisable()
+        {
+            if (subscribeRoutine != null)
+            {
+                StopCoroutine(subscribeRoutine);
+                subscribeRoutine = null;
+            }
+
+            subscription?.Dispose();
+            subscription = null;
+
+            phaseSubscription?.Dispose();
+            phaseSubscription = null;
+        }
+
+        private IEnumerator SubscribeWhenReady()
+        {
+            // Espera indefinidamente hasta que EventBus y Dispatcher estén listos
+            while (installer == null || installer.EventBus == null || dispatcher == null)
+            {
+                installer ??= AnimationSystemInstaller.Current;
+                dispatcher ??= installer?.CombatEvents;
+                yield return null;
+            }
+
+            subscription = installer.EventBus.Subscribe<TimedHitResultEvent>(OnTimedHitResult);
+            phaseSubscription = installer.EventBus.Subscribe<TimedHitPhaseEvent>(OnTimedHitPhase);
+
+            Debug.Log($"[AUDIO-BRIDGE] Subscribed | BusHash={installer.EventBus.GetHashCode()} | DispatcherHash={dispatcher?.GetHashCode()}", this);
+        }
+
+        private void OnTimedHitResult(TimedHitResultEvent evt)
+        {
+            string quality = evt.Judgment.ToString().ToUpper();
+            int window = evt.WindowIndex;
+            double offset = evt.DeltaMilliseconds;
+            int safeTargetCount = evt.TargetCount <= 0 ? 1 : evt.TargetCount;
+
+            Debug.Log($"PhasEv01 | RESULT={quality} | Window={window} | OffsetMs={offset:F1} | Scope={evt.Scope} | Targets(raw/used)={evt.TargetCount}/{safeTargetCount} | Open={evt.WindowOpenedAt:F3} | Close={evt.WindowClosedAt:F3} | Input={evt.InputTimestamp:F3}", this);
+            Debug.Log($"[AUDIO-BRIDGE] Event Received | Scope={evt.Scope} | Actor={evt.Actor?.name} | BusHash={installer.EventBus.GetHashCode()}", this);
+
+            if (evt.Scope != TimedHitResultScope.Final)
+            {
+                return;
+            }
+
+            if (dispatcher == null || evt.Actor == null)
+            {
+                return;
+            }
+
+            string flag = evt.Judgment switch
+            {
+                TimedHitJudgment.Perfect => BattleAudioFlags.AttackTimedPerfect,
+                TimedHitJudgment.Good => BattleAudioFlags.AttackTimedGood,
+                _ => BattleAudioFlags.AttackTimedMiss
+            };
+
+            dispatcher.EmitExternalFlag(
+                flag,
+                evt.Actor,
+                target: null,
+                weaponKind: evt.WeaponKind,
+                element: evt.Element,
+                isCritical: evt.IsCritical,
+                targetCount: safeTargetCount);
+        }
+
+        private void OnTimedHitPhase(TimedHitPhaseEvent evt)
+        {
+            string quality = evt.Judgment.ToString().ToUpper();
+            int index = evt.PhaseIndex;
+            int total = evt.TotalPhases;
+            float accuracy = evt.AccuracyNormalized;
+
+            Debug.Log(
+                $"PhasEv02 | PHASE={index}/{total} | JUDGMENT={quality} | Accuracy={accuracy:F2} | Cancelled={evt.Cancelled} | Final={evt.IsFinal}",
+                this);
+        }
+    }
+}

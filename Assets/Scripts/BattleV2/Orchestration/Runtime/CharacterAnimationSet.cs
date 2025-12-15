@@ -21,10 +21,14 @@ namespace BattleV2.Orchestration.Runtime
         [SerializeField]
         private TransformTweenBinding[] tweenBindings = System.Array.Empty<TransformTweenBinding>();
 
+        [SerializeField]
+        private List<CommandTimingBinding> commandTiming = new List<CommandTimingBinding>();
+
         [NonSerialized] private Dictionary<string, AnimationClip> clipLookup;
         [NonSerialized] private Dictionary<string, FlipbookBinding> flipbookLookup;
         [NonSerialized] private Dictionary<string, TransformTween> tweenLookup;
         [NonSerialized] private Dictionary<string, TransformTweenProvider> tweenProviderLookup;
+        [NonSerialized] private Dictionary<string, float> holdOffsetLookup;
         [NonSerialized] private bool cacheDirty = true;
 
         public IReadOnlyList<AnimationClipBinding> ClipBindings => clipBindings ?? System.Array.Empty<AnimationClipBinding>();
@@ -32,6 +36,9 @@ namespace BattleV2.Orchestration.Runtime
         public IReadOnlyList<FlipbookBinding> FlipbookBindings => flipbookBindings ?? System.Array.Empty<FlipbookBinding>();
 
         public IReadOnlyList<TransformTweenBinding> TweenBindings => tweenBindings ?? System.Array.Empty<TransformTweenBinding>();
+        public IReadOnlyList<CommandTimingBinding> CommandTiming => commandTiming != null
+            ? (IReadOnlyList<CommandTimingBinding>)commandTiming
+            : System.Array.Empty<CommandTimingBinding>();
 
         /// <summary>Legacy accessor used by components that still expect clip entries.</summary>
         public IReadOnlyList<AnimationClipBinding> Entries => ClipBindings;
@@ -95,7 +102,7 @@ namespace BattleV2.Orchestration.Runtime
 
         private void EnsureCachesBuilt()
         {
-            if (!cacheDirty && clipLookup != null && flipbookLookup != null && tweenLookup != null && tweenProviderLookup != null)
+            if (!cacheDirty && clipLookup != null && flipbookLookup != null && tweenLookup != null && tweenProviderLookup != null && holdOffsetLookup != null)
             {
                 return;
             }
@@ -104,6 +111,7 @@ namespace BattleV2.Orchestration.Runtime
             flipbookLookup = BuildFlipbookLookup(flipbookBindings);
             tweenLookup = BuildTweenLookup(tweenBindings);
             tweenProviderLookup = BuildTweenProviderLookup(tweenBindings);
+            holdOffsetLookup = BuildHoldOffsetLookup(commandTiming);
             cacheDirty = false;
         }
 
@@ -215,6 +223,45 @@ namespace BattleV2.Orchestration.Runtime
 
             return dictionary;
         }
+
+        private static Dictionary<string, float> BuildHoldOffsetLookup(List<CommandTimingBinding> timings)
+        {
+            var dictionary = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
+            if (timings == null)
+            {
+                return dictionary;
+            }
+
+            foreach (var timing in timings)
+            {
+                if (timing == null || string.IsNullOrWhiteSpace(timing.Id))
+                {
+                    continue;
+                }
+
+                var seconds = Mathf.Max(0f, timing.HoldOffsetSeconds);
+                if (seconds <= 0f)
+                {
+                    continue;
+                }
+
+                dictionary[timing.Id] = seconds;
+            }
+
+            return dictionary;
+        }
+
+        public bool TryGetHoldOffsetSeconds(string commandId, out float seconds)
+        {
+            seconds = 0f;
+            if (string.IsNullOrWhiteSpace(commandId))
+            {
+                return false;
+            }
+
+            EnsureCachesBuilt();
+            return holdOffsetLookup != null && holdOffsetLookup.TryGetValue(commandId, out seconds) && seconds > 0f;
+        }
     }
 
     [Serializable]
@@ -232,5 +279,12 @@ namespace BattleV2.Orchestration.Runtime
         public string Id;
         public TransformTween Tween;
         public TransformTweenProvider TweenProvider;
+    }
+
+    [Serializable]
+    public sealed class CommandTimingBinding
+    {
+        public string Id;
+        public float HoldOffsetSeconds;
     }
 }

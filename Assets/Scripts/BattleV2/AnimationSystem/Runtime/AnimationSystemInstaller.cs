@@ -9,10 +9,12 @@ using BattleV2.AnimationSystem.Execution.Runtime.CombatEvents;
 using BattleV2.AnimationSystem.Execution.Runtime.Telemetry;
 using BattleV2.AnimationSystem.Execution.Routers;
 using BattleV2.AnimationSystem.Execution.Runtime.Tweens;
+using BattleV2.AnimationSystem.Motion;
 using BattleV2.AnimationSystem.Runtime.Internal;
 using BattleV2.AnimationSystem.Timelines;
 using BattleV2.Core;
 using BattleV2.Orchestration.Runtime;
+using BattleV2.Execution.TimedHits;
 using BattleV2.AnimationSystem.Strategies;
 using HalloweenJam.Combat.Animations.StepScheduler;
 using UnityEngine;
@@ -47,12 +49,19 @@ namespace BattleV2.AnimationSystem.Runtime
         [SerializeField] private bool autoScanBindings = true;
         [Header("Timed Hit Settings")]
         [SerializeField] private TimedHitToleranceProfileAsset toleranceProfileAsset;
+        [SerializeField] private Ks1TimedHitRunner ks1TimedHitRunner;
+        [SerializeField] private BasicTimedHitRunner basicTimedHitRunner;
+        [Tooltip("How long (in seconds) to keep input in the buffer before pruning. Must be longer than the longest Timed Hit window.")]
+        [SerializeField, Min(0.5f)] private double inputBufferRetention = 2.0d;
 
         [Header("Recipe Defaults")]
         [Tooltip("Register the built-in PilotActionRecipes (turn_intro, run_up, etc.) for legacy scenes.")]
         [SerializeField] private bool includePilotRecipes = true;
         [Header("Step Scheduler Recipes")]
+        [Tooltip("Auto-load StepRecipeAsset assets from Resources/Battle/StepRecipesV2 at runtime (no scene wiring required).")]
+        [SerializeField] private bool autoLoadStepRecipesFromResources = true;
         [SerializeField] private StepRecipeAsset[] stepRecipeAssets = Array.Empty<StepRecipeAsset>();
+        private static readonly string StepRecipeResourcesPath = "Battle/StepRecipesV2";
 
         private AnimationEventBus eventBus;
         private ActionLockManager lockManager;
@@ -68,6 +77,7 @@ namespace BattleV2.AnimationSystem.Runtime
         private StepScheduler stepScheduler;
         private StepSchedulerHooks schedulerHooks;
         private StepSchedulerMetricsObserver schedulerMetrics;
+        private MotionService motionService;
         private CombatEventDispatcher combatEventDispatcher;
         private ActionRecipeCatalog recipeCatalog;
         private IReadOnlyDictionary<BattlePhase, IPhaseStrategy> phaseStrategyMap;
@@ -87,6 +97,7 @@ namespace BattleV2.AnimationSystem.Runtime
         public StepScheduler StepScheduler => stepScheduler;
         public StepSchedulerHooks SchedulerHooks => schedulerHooks;
         public StepSchedulerMetricsObserver SchedulerMetrics => schedulerMetrics;
+        public MotionService MotionService => motionService;
         public ActionRecipeCatalog RecipeCatalog => recipeCatalog;
         public CombatEventDispatcher CombatEvents => combatEventDispatcher;
         public BattlePacingSettings PacingSettings => pacingSettings;
@@ -145,9 +156,13 @@ namespace BattleV2.AnimationSystem.Runtime
             lockManager = new ActionLockManager();
             timelineCompiler = new TimelineCompiler();
             runtimeBuilder = new TimelineRuntimeBuilder(timelineCompiler, combatClock, eventBus, lockManager);
-            timedInputBuffer = new TimedInputBuffer(combatClock);
+            timedInputBuffer = new TimedInputBuffer(combatClock, inputBufferRetention);
             toleranceProfile = DefaultTimedHitToleranceProfile.FromAsset(toleranceProfileAsset);
             timedHitService = new TimedHitService(combatClock, timedInputBuffer, toleranceProfile, eventBus);
+            ks1TimedHitRunner ??= FindRunnerInstance<Ks1TimedHitRunner>();
+            basicTimedHitRunner ??= FindRunnerInstance<BasicTimedHitRunner>();
+            timedHitService.ConfigureRunners(ks1TimedHitRunner, basicTimedHitRunner);
+            Debug.Log($"[AnimationSystemInstaller] TimedHitService runners | KS1={ks1TimedHitRunner?.GetType().Name ?? "(null)"} | Basic={basicTimedHitRunner?.GetType().Name ?? "(null)"}", this);
 
             clipResolver = new AnimationClipResolver(clipBindings);
             wrapperResolver = new AnimatorWrapperResolver(ResolveActorBindings());
@@ -161,11 +176,21 @@ namespace BattleV2.AnimationSystem.Runtime
             mainThreadInvoker = MainThreadInvoker.Instance;
             tweenBindingResolver = new DefaultTweenBindingResolver();
             tweenBridge = new DefaultTweenBridge(mainThreadInvoker);
+            motionService = new MotionService(mainThreadInvoker);
             stepScheduler = BuildStepScheduler(mainThreadInvoker, tweenBindingResolver, tweenBridge);
+            stepScheduler.RegisterExecutor(new BattleV2.AnimationSystem.Execution.Runtime.Executors.LegacyPlaybackExecutor(
+                sequencerDriver,
+                runtimeBuilder,
+                clipResolver,
+                mainThreadInvoker));
             schedulerHooks = new StepSchedulerHooks(stepScheduler);
             combatEventDispatcher = new CombatEventDispatcher(mainThreadInvoker);
             stepScheduler.RegisterObserver(combatEventDispatcher);
             recipeCatalog = BuildRecipeCatalog(stepScheduler);
+            if (autoLoadStepRecipesFromResources)
+            {
+                RegisterResourcesRecipes();
+            }
             RegisterInspectorRecipes();
             phaseStrategyMap = BuildPhaseStrategyMap();
             sessionController = new OrchestratorSessionController();
@@ -196,6 +221,8 @@ namespace BattleV2.AnimationSystem.Runtime
             {
                 Debug.LogError("[AnimationSystemInstaller] Missing ActionTimelineCatalog reference.", this);
             }
+
+            Debug.Log($"[INSTALLER] Active Installer | Hash={GetHashCode()} | BusHash={eventBus?.GetHashCode()}", this);
         }
 
         private void OnDestroy()
@@ -459,6 +486,7 @@ namespace BattleV2.AnimationSystem.Runtime
             ITweenBridge tweenBridge)
         {
             var scheduler = new StepScheduler();
+            scheduler.ConfigureObserverInvoker(mainThreadInvoker);
             scheduler.ConfigureLifecycle(new ActionLifecycleConfig());
             scheduler.RegisterExecutor(new AnimatorClipExecutor());
             scheduler.RegisterExecutor(new FlipbookExecutor());
@@ -558,7 +586,63 @@ namespace BattleV2.AnimationSystem.Runtime
                 stepScheduler.RegisterRecipe(recipe);
             }
         }
+
+        private void RegisterResourcesRecipes()
+        {
+            if (recipeCatalog == null || stepScheduler == null)
+            {
+                return;
+            }
+
+            var assets = Resources.LoadAll<StepRecipeAsset>(StepRecipeResourcesPath);
+            if (assets == null || assets.Length == 0)
+            {
+                return;
+            }
+
+            for (int i = 0; i < assets.Length; i++)
+            {
+                var asset = assets[i];
+                if (asset == null)
+                {
+                    continue;
+                }
+
+                if (!asset.TryBuild(out var recipe) || recipe == null || recipe.IsEmpty)
+                {
+                    Debug.LogWarning($"[AnimationSystemInstaller] Resources recipe asset '{asset.name}' is empty or invalid. Skipping registration.", asset);
+                    continue;
+                }
+
+                recipeCatalog.Register(recipe);
+                stepScheduler.RegisterRecipe(recipe);
+            }
+        }
+
+        private static T FindRunnerInstance<T>() where T : Component
+        {
+#if UNITY_2023_1_OR_NEWER
+            return UnityEngine.Object.FindFirstObjectByType<T>();
+#else
+            return UnityEngine.Object.FindObjectOfType<T>();
+#endif
+        }
 #if UNITY_EDITOR
+        private void OnValidate()
+        {
+            if (ks1TimedHitRunner == null)
+            {
+                ks1TimedHitRunner = FindRunnerInstance<Ks1TimedHitRunner>();
+                if (ks1TimedHitRunner != null) UnityEditor.EditorUtility.SetDirty(this);
+            }
+
+            if (basicTimedHitRunner == null)
+            {
+                basicTimedHitRunner = FindRunnerInstance<BasicTimedHitRunner>();
+                if (basicTimedHitRunner != null) UnityEditor.EditorUtility.SetDirty(this);
+            }
+        }
+
         [ContextMenu("[Debug] Dump Actor Bindings")]
         private void Debug_DumpActorBindings()
         {

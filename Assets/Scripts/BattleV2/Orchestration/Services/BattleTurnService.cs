@@ -12,6 +12,7 @@ namespace BattleV2.Orchestration.Services
         void Begin();
         void Advance(CombatantState actor);
         void Stop();
+        int GetTurnCounter(CombatantState actor);
     }
 
     public sealed class BattleTurnService : IBattleTurnService
@@ -22,6 +23,7 @@ namespace BattleV2.Orchestration.Services
         private IReadOnlyList<CombatantState> allies = Array.Empty<CombatantState>();
         private IReadOnlyList<CombatantState> enemies = Array.Empty<CombatantState>();
         private bool active;
+        private readonly Dictionary<int, int> turnCounters = new();
 
         public BattleTurnService(IBattleEventBus eventBus)
             : this(new TurnController(eventBus), eventBus)
@@ -42,8 +44,39 @@ namespace BattleV2.Orchestration.Services
             allies = snapshot.Allies ?? Array.Empty<CombatantState>();
             enemies = snapshot.Enemies ?? Array.Empty<CombatantState>();
 
+            // TODO(v2 Validation): Rebuild() during an active battle preserves turn order today
+            // because TurnController.Rebuild keeps the current actor stable. If future changes
+            // alter that behavior (e.g., index reset/queue rebuild), you'll see turn-order jumps
+            // after deaths/spawns. If that ever happens: capture current actor StableId, call
+            // Rebuild, then restore current via SetCurrent(actorId) or skip Rebuild while active.
             turnController.Rebuild(allies, enemies);
-            turnController.Reset();
+
+            if (!active)
+            {
+                turnController.Reset();
+                turnCounters.Clear();
+                return;
+            }
+
+            // Prune counters for combatants no longer in roster (no reset during active battle).
+            var aliveIds = new HashSet<int>();
+            for (int i = 0; i < allies.Count; i++)
+            {
+                if (allies[i] != null) aliveIds.Add(allies[i].StableId);
+            }
+            for (int i = 0; i < enemies.Count; i++)
+            {
+                if (enemies[i] != null) aliveIds.Add(enemies[i].StableId);
+            }
+
+            var keys = new List<int>(turnCounters.Keys);
+            for (int i = 0; i < keys.Count; i++)
+            {
+                if (!aliveIds.Contains(keys[i]))
+                {
+                    turnCounters.Remove(keys[i]);
+                }
+            }
         }
 
         public void Begin()
@@ -62,6 +95,17 @@ namespace BattleV2.Orchestration.Services
         public void Stop()
         {
             active = false;
+        }
+
+        public int GetTurnCounter(CombatantState actor)
+        {
+            if (actor == null)
+            {
+                return 0;
+            }
+
+            int id = actor.StableId;
+            return turnCounters.TryGetValue(id, out var count) ? count : 0;
         }
 
         public void Advance(CombatantState actor)
@@ -100,6 +144,8 @@ namespace BattleV2.Orchestration.Services
                 return;
             }
 
+            int id = next.StableId;
+            turnCounters[id] = turnCounters.TryGetValue(id, out var count) ? count + 1 : 1;
             OnTurnReady?.Invoke(next);
         }
 

@@ -1,4 +1,6 @@
 using BattleV2.Core;
+using UnityEngine;
+using BattleV2.Execution.TimedHits;
 
 namespace BattleV2.AnimationSystem.Execution
 {
@@ -47,6 +49,12 @@ namespace BattleV2.AnimationSystem.Execution
 
         public void PublishWindowEvent(in SequencerScheduledEvent scheduled, bool isOpening)
         {
+            if (IsKs1(request))
+            {
+                UnityEngine.Debug.Log($"[KS1] Dispatcher windows suppressed action={request.Selection.Action?.id ?? "(unknown)"}");
+                return;
+            }
+
             var evt = new AnimationWindowEvent(
                 request.Actor,
                 scheduled.Tag,
@@ -63,6 +71,15 @@ namespace BattleV2.AnimationSystem.Execution
         {
             var evt = new AnimationLockEvent(request.Actor, locked, reason);
             eventBus?.Publish(evt);
+        }
+
+        private static bool IsKs1(AnimationRequest request)
+        {
+            var selection = request.Selection;
+            var kind = selection.RunnerKind;
+            bool runnerIsKs1 = kind == TimedHitRunnerKind.Default;
+            bool profileIsKs1 = selection.TimedHitProfile != null;
+            return runnerIsKs1 && profileIsKs1;
         }
     }
 }

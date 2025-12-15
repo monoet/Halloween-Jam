@@ -1,8 +1,10 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using BattleV2.Actions;
 using BattleV2.Anim;
 using BattleV2.Charge;
+using BattleV2.Core;
 using UnityEngine;
 
 namespace BattleV2.Execution.TimedHits
@@ -13,13 +15,6 @@ namespace BattleV2.Execution.TimedHits
     /// </summary>
     public sealed class PhaseDamageMiddleware : IActionMiddleware
     {
-        private readonly ITimedHitRunner runner;
-
-        public PhaseDamageMiddleware(ITimedHitRunner runner)
-        {
-            this.runner = runner;
-        }
-
         public async Task InvokeAsync(ActionContext context, Func<Task> next)
         {
             if (context == null)
@@ -27,11 +22,11 @@ namespace BattleV2.Execution.TimedHits
                 throw new ArgumentNullException(nameof(context));
             }
 
-            if (runner == null || context.ActionImplementation is not ITimedHitPhaseDamageAction phaseAction)
+            if (context.ActionImplementation is not ITimedHitPhaseDamageAction phaseAction)
             {
                 if (next != null)
                 {
-                    await next().ConfigureAwait(false);
+                    await next();
                 }
                 return;
             }
@@ -40,7 +35,7 @@ namespace BattleV2.Execution.TimedHits
             {
                 if (next != null)
                 {
-                    await next().ConfigureAwait(false);
+                    await next();
                 }
                 return;
             }
@@ -94,6 +89,7 @@ namespace BattleV2.Execution.TimedHits
 
                 TryAwardComboPoint(phase);
 
+                context.MarkEffectsApplied("PhaseDamageMiddleware.HandlePhaseResolved");
                 context.Target.TakeDamage(damageValue);
                 totalDamage += damageValue;
                 appliedAny = true;
@@ -101,17 +97,34 @@ namespace BattleV2.Execution.TimedHits
                 EmitFeedback(phase, damageValue, combinedMultiplier);
             }
 
-            runner.OnPhaseResolved += HandlePhaseResolved;
+            var previousListener = context.PhaseResultListener;
+            context.PhaseResultListener = phase =>
+            {
+                HandlePhaseResolved(phase);
+            };
             try
             {
+                BattleDiagnostics.Log(
+                    "Thread.debug00",
+                    $"[Thread.debug00][MW.{nameof(PhaseDamageMiddleware)}.Enter] tid={Thread.CurrentThread.ManagedThreadId} isMain={UnityMainThreadGuard.IsMainThread()}",
+                    context.Attacker);
+
                 if (next != null)
                 {
-                    await next().ConfigureAwait(false);
+                    BattleDiagnostics.Log(
+                        "Thread.debug00",
+                        $"[Thread.debug00][MW.{nameof(PhaseDamageMiddleware)}.AwaitNext.Before] tid={Thread.CurrentThread.ManagedThreadId} isMain={UnityMainThreadGuard.IsMainThread()}",
+                        context.Attacker);
+                    await next();
+                    BattleDiagnostics.Log(
+                        "Thread.debug00",
+                        $"[Thread.debug00][MW.{nameof(PhaseDamageMiddleware)}.AwaitNext.After] tid={Thread.CurrentThread.ManagedThreadId} isMain={UnityMainThreadGuard.IsMainThread()}",
+                        context.Attacker);
                 }
             }
             finally
             {
-                runner.OnPhaseResolved -= HandlePhaseResolved;
+                context.PhaseResultListener = previousListener;
             }
 
             if (appliedAny)
@@ -146,10 +159,13 @@ namespace BattleV2.Execution.TimedHits
                     return;
                 }
 
-                var manager = context.Manager;
                 var attacker = context.Attacker;
-                if (manager == null || attacker == null || manager.Player != attacker)
+                if (attacker == null || !attacker.IsPlayer)
                 {
+                    BattleDiagnostics.Log(
+                        "AddCp.debugging",
+                        $"skip_timed_cp actor={(attacker != null ? attacker.DisplayName : "(null)")}#{(attacker != null ? attacker.GetInstanceID() : 0)} reason={(attacker == null ? "attacker_null" : "not_player")}",
+                        attacker);
                     return;
                 }
 
@@ -165,6 +181,10 @@ namespace BattleV2.Execution.TimedHits
 
                 if (refundCap > 0 && context.ComboPointsAwarded >= refundCap)
                 {
+                    BattleDiagnostics.Log(
+                        "AddCp.debugging",
+                        $"skip_timed_cp actor={attacker.DisplayName}#{attacker.GetInstanceID()} reason=cap_reached cap={refundCap} awarded={context.ComboPointsAwarded}",
+                        attacker);
                     return;
                 }
 

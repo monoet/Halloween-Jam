@@ -2,6 +2,7 @@ using System.Linq;
 using BattleV2.Actions;
 using BattleV2.Charge;
 using BattleV2.Core;
+using BattleV2.Execution.TimedHits;
 using UnityEngine;
 
 namespace BattleV2.Providers
@@ -21,20 +22,24 @@ namespace BattleV2.Providers
             }
 
             var chosen = context.AvailableActions.First();
-            ResolveProfiles(context, chosen, out var chargeProfile, out var timedProfile);
+            ResolveProfiles(context, chosen, out var chargeProfile, out var timedProfile, out var basicProfile, out var runnerKind);
 
             BattleLogger.Log("AutoProvider", $"Auto-selecting {chosen.id}");
-            onSelected?.Invoke(new BattleSelection(chosen, 0, chargeProfile, timedProfile));
+            onSelected?.Invoke(new BattleSelection(chosen, 0, chargeProfile, timedProfile, basicTimedHitProfile: basicProfile, runnerKind: runnerKind));
         }
 
         private void ResolveProfiles(
             BattleActionContext context,
             BattleActionData action,
             out ChargeProfile chargeProfile,
-            out Ks1TimedHitProfile timedProfile)
+            out Ks1TimedHitProfile timedProfile,
+            out BasicTimedHitProfile basicProfile,
+            out TimedHitRunnerKind runnerKind)
         {
             chargeProfile = defaultChargeProfile;
-            timedProfile = null;
+            timedProfile = action != null ? action.timedHitProfile : null;
+            basicProfile = action != null ? action.basicTimedHitProfile : null;
+            runnerKind = action != null ? action.runnerKind : TimedHitRunnerKind.Default;
 
             var catalog = context?.Context?.Catalog;
             var impl = catalog != null ? catalog.Resolve(action) : null;
@@ -46,10 +51,21 @@ namespace BattleV2.Providers
                     chargeProfile = impl.ChargeProfile;
                 }
 
-                if (impl is ITimedHitAction timedHitAction)
+                if (timedProfile == null && impl is ITimedHitAction timedHitAction)
                 {
                     timedProfile = timedHitAction.TimedHitProfile;
                 }
+
+                if (basicProfile == null && impl is IBasicTimedHitAction basicTimedAction && basicTimedAction.BasicTimedHitProfile != null)
+                {
+                    basicProfile = basicTimedAction.BasicTimedHitProfile;
+                    runnerKind = TimedHitRunnerKind.Basic;
+                }
+            }
+
+            if (basicProfile != null)
+            {
+                runnerKind = TimedHitRunnerKind.Basic;
             }
 
             if (chargeProfile == null)

@@ -259,6 +259,12 @@ namespace BattleV2.AnimationSystem
         Miss
     }
 
+    public enum TimedHitResultScope
+    {
+        RawWindow = 0,
+        Final = 1
+    }
+
     public readonly struct TimedHitResultEvent
     {
         public TimedHitResultEvent(
@@ -271,7 +277,12 @@ namespace BattleV2.AnimationSystem
             int windowCount,
             bool consumedInput,
             double windowOpenedAt,
-            double windowClosedAt)
+            double windowClosedAt,
+            TimedHitResultScope scope = TimedHitResultScope.RawWindow,
+            string weaponKind = "none",
+            string element = "neutral",
+            bool isCritical = false,
+            int targetCount = 1)
         {
             Actor = actor;
             Tag = tag;
@@ -283,6 +294,11 @@ namespace BattleV2.AnimationSystem
             ConsumedInput = consumedInput;
             WindowOpenedAt = windowOpenedAt;
             WindowClosedAt = windowClosedAt;
+            Scope = scope;
+            WeaponKind = string.IsNullOrWhiteSpace(weaponKind) ? "none" : weaponKind;
+            Element = string.IsNullOrWhiteSpace(element) ? "neutral" : element;
+            IsCritical = isCritical;
+            TargetCount = Math.Max(1, targetCount);
         }
 
         public CombatantState Actor { get; }
@@ -295,6 +311,40 @@ namespace BattleV2.AnimationSystem
         public bool ConsumedInput { get; }
         public double WindowOpenedAt { get; }
         public double WindowClosedAt { get; }
+        public TimedHitResultScope Scope { get; }
+        public string WeaponKind { get; }
+        public string Element { get; }
+        public bool IsCritical { get; }
+        public int TargetCount { get; }
+    }
+
+    public readonly struct TimedHitPhaseEvent
+    {
+        public TimedHitPhaseEvent(
+            CombatantState actor,
+            TimedHitJudgment judgment,
+            float accuracyNormalized,
+            int phaseIndex,
+            int totalPhases,
+            bool cancelled,
+            bool isFinal)
+        {
+            Actor = actor;
+            Judgment = judgment;
+            AccuracyNormalized = accuracyNormalized;
+            PhaseIndex = phaseIndex;
+            TotalPhases = totalPhases;
+            Cancelled = cancelled;
+            IsFinal = isFinal;
+        }
+
+        public CombatantState Actor { get; }
+        public TimedHitJudgment Judgment { get; }
+        public float AccuracyNormalized { get; }
+        public int PhaseIndex { get; }
+        public int TotalPhases { get; }
+        public bool Cancelled { get; }
+        public bool IsFinal { get; }
     }
 
     #endregion

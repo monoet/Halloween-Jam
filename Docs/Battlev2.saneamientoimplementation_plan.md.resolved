@@ -1,0 +1,64 @@
+q
+            ### Step 1: Targeting Logic (Decoupled)
+Enable "All" targeting using a DTO to avoid coupling Coordinator to full ActionData.
+
+#### [NEW] [TargetingIntent.cs](file:///j:/Unreal%20Projects/UNITY/Halloween%20Jam/Assets/Scripts/BattleV2/Targeting/TargetingIntent.cs)
+- DTO containing `TargetScope` and `TargetSide` (or `TargetType`).
+
+#### [MODIFY] [TargetingCoordinator.cs](file:///j:/Unreal%20Projects/UNITY/Halloween%20Jam/Assets/Scripts/BattleV2/Orchestration/Services/TargetingCoordinator.cs)
+- Update [ResolveQuery](file:///j:/Unreal%20Projects/UNITY/Halloween%20Jam/Assets/Scripts/BattleV2/Orchestration/Services/TargetingCoordinator.cs#121-135) to accept `TargetingIntent` instead of `BattleActionData`.
+- Implement logic: If `Scope == All`, return `TargetQuery.EnemiesAll` / `AlliesAll`.
+- In [ResolveAsync](file:///j:/Unreal%20Projects/UNITY/Halloween%20Jam/Assets/Scripts/BattleV2/Orchestration/Services/TargetingCoordinator.cs#59-120): If query is "All", bypass `selectionInteractor` (Auto-Confirm).
+
+#### [MODIFY] [TargetResolutionService.cs](file:///j:/Unreal%20Projects/UNITY/Halloween%20Jam/Assets/Scripts/BattleV2/Orchestration/Services/TargetResolutionService.cs)
+- Construct `TargetingIntent` from `BattleActionData` and pass it to Coordinator.
+
+           ### Step 2: Safety Refactors (The Guardrails)
+
+#### [NEW] [ExecutionSnapshot.cs](file:///j:/Unreal%20Projects/UNITY/Halloween%20Jam/Assets/Scripts/BattleV2/Orchestration/Execution/ExecutionSnapshot.cs)
+- **Crucial**: Constructor must create **new Arrays** (deep copy via `.ToArray()`) of `Allies`, `Enemies`, and [Targets](file:///j:/Unreal%20Projects/UNITY/Halloween%20Jam/Assets/Scripts/BattleV2/Orchestration/Services/TargetingCoordinator.cs#195-226). Do not store references to the live lists.
+- Immutable properties backed by these arrays.
+
+#### [MODIFY] [BattleManagerV2.cs](file:///j:/Unreal%20Projects/UNITY/Halloween%20Jam/Assets/Scripts/BattleV2/Orchestration/BattleManagerV2.cs)
+- **PP-001 (Commit Reorder)**: Refactor [CommitSelectionDraft](file:///j:/Unreal%20Projects/UNITY/Halloween%20Jam/Assets/Scripts/BattleV2/Orchestration/BattleManagerV2.cs#696-811) (Template Method):
+    1. `Validate` (Fail -> Return)
+    2. `Consume Resources`
+    3. `Mark Committed`
+    4. `End Turn`
+    5. `Create Snapshot` (Deep Copy)
+    6. [Execute](file:///j:/Unreal%20Projects/UNITY/Halloween%20Jam/Assets/Scripts/BattleV2/Orchestration/BattleManagerV2.cs#812-824) (Pass Snapshot)
+- **Flow Consistency**: Ensure `CancelWrapper` and `Back` paths explicitly **DO NOT** consume CP or trigger `EndTurn`.
+- **PP-007 (Cancellation)**: Add `CancellationTokenSource battleCts`. Cancel on [OnDisable](file:///j:/Unreal%20Projects/UNITY/Halloween%20Jam/Assets/Scripts/BattleV2/Orchestration/BattleManagerV2.cs#170-182)/[Reset](file:///j:/Unreal%20Projects/UNITY/Halloween%20Jam/Assets/Scripts/BattleV2/Orchestration/BattleManagerV2.cs#530-543). Pass token to async methods.
+- **PP-002 (EnemyReference)**: Only update [EnemyReference](file:///j:/Unreal%20Projects/UNITY/Halloween%20Jam/Assets/Scripts/BattleV2/Orchestration/BattleManagerV2.cs#488-494) if `Scope == Single` and `Target == Enemy`.
+
+            #### [MODIFY] [PlayerActionExecutor.cs](file:///j:/Unreal%20Projects/UNITY/Halloween%20Jam/Assets/Scripts/BattleV2/Execution/PlayerActionExecutor.cs)
+- Update `ExecuteAsync` to accept `ExecutionSnapshot`.
+- **Rule**: Logic must iterate `snapshot.Targets`, not `context.Enemy` or live lists.
+- **Safety**: Inside loops, explicitly check `if (target == null || !target.IsAlive) continue;` to handle Unity object destruction during execution.
+
+#### [MODIFY] [TriggeredEffectsService.cs](file:///j:/Unreal%20Projects/UNITY/Halloween%20Jam/Assets/Scripts/BattleV2/Orchestration/Services/TriggeredEffectsService.cs)
+- Update methods to accept `ExecutionSnapshot` or [TargetSet](file:///j:/Unreal%20Projects/UNITY/Halloween%20Jam/Assets/Scripts/BattleV2/Targeting/TargetSet.cs#13-19) where relevant.
+- **Safety**: Apply the same `if (target == null || !target.IsAlive) continue;` check in any target processing loops.
+
+            ### Step 3: Enemy Foundation
+
+#### [MODIFY] [EnemyTurnCoordinator.cs](file:///j:/Unreal%20Projects/UNITY/Halloween%20Jam/Assets/Scripts/BattleV2/Orchestration/Services/EnemyTurnCoordinator.cs)
+- Update to use `TargetingIntent` and [TargetingCoordinator](file:///j:/Unreal%20Projects/UNITY/Halloween%20Jam/Assets/Scripts/BattleV2/Orchestration/Services/TargetingCoordinator.cs#29-257) for target resolution.
+- Remove hardcoded [Player](file:///j:/Unreal%20Projects/UNITY/Halloween%20Jam/Assets/Scripts/BattleV2/Orchestration/BattleManagerV2.cs#934-977) targeting where possible; allow the resolver to determine targets based on action scope/side (even if AI logic is simple for now).
+
+            ### Step 4: Cleanup & Wiring
+
+#### [MODIFY] [BattleUITargetInteractor.cs](file:///j:/Unreal%20Projects/UNITY/Halloween%20Jam/Assets/Scripts/BattleV2/UI/BattleUITargetInteractor.cs)
+- Ensure it handles [TargetSet](file:///j:/Unreal%20Projects/UNITY/Halloween%20Jam/Assets/Scripts/BattleV2/Targeting/TargetSet.cs#13-19) with multiple IDs gracefully.
+
+## Verification Plan
+
+### Manual Verification
+1. **Single Target**: Verify standard flow (Select -> Commit -> Execute).
+2. **All Target**:
+    - Verify [TargetingCoordinator](file:///j:/Unreal%20Projects/UNITY/Halloween%20Jam/Assets/Scripts/BattleV2/Orchestration/Services/TargetingCoordinator.cs#29-257) selects all enemies (Auto-Confirm).
+    - Verify [Commit](file:///j:/Unreal%20Projects/UNITY/Halloween%20Jam/Assets/Scripts/BattleV2/Orchestration/BattleManagerV2.cs#696-811) consumes CP correctly.
+    - **Determinism Check**: Kill an enemy mid-execution (debug cheat). Verify the loop continues correctly using the Snapshot.
+3. **Validation Failure**: Force validation fail. Verify no CP loss/Turn end.
+4. **Cancellation**: Reset battle mid-execution. Verify clean stop.
+5. **Flow Check**: Verify Back/Cancel do not trigger EndTurn or consume CP.

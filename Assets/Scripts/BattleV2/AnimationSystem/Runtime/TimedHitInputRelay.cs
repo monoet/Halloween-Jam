@@ -13,6 +13,7 @@ namespace BattleV2.AnimationSystem.Runtime
         [SerializeField] private AnimationSystemInstaller installer;
         [SerializeField] private BattleManagerV2 battleManager;
         [SerializeField] private KeyCode inputKey = KeyCode.Space;
+        [SerializeField] private bool enableRelay = false;
         [SerializeField] private bool usePlayerActor = true;
         [SerializeField] private CombatantState explicitActor;
         [SerializeField] private string sourceId = "Keyboard";
@@ -24,6 +25,11 @@ namespace BattleV2.AnimationSystem.Runtime
 
         private void Update()
         {
+            if (!enableRelay)
+            {
+                return;
+            }
+
             if (installer == null || installer.TimedHitService == null)
             {
                 return;
@@ -32,9 +38,14 @@ namespace BattleV2.AnimationSystem.Runtime
             if (Input.GetKeyDown(inputKey))
             {
                 var actor = ResolveActor();
-                if (actor != null)
+                Debug.Log($"[TimedHitInputRelay] KeyDown actor={(actor != null ? actor.name : "(null)")}", this);
+                if (actor != null && installer.TimedHitService.HasActiveWindow(actor))
                 {
                     installer.TimedHitService.RegisterInput(actor, sourceId);
+                }
+                else if (actor != null)
+                {
+                    Debug.Log($"[TimedHitInputRelay] Ignored input (no active window) for {actor.name}", this);
                 }
             }
         }
@@ -53,8 +64,14 @@ namespace BattleV2.AnimationSystem.Runtime
 
         public void SetExplicitActor(CombatantState actor)
         {
+            SetActor(actor);
+        }
+
+        public void SetActor(CombatantState actor)
+        {
+            usePlayerActor = false;
             explicitActor = actor;
+            Debug.Log($"[TimedHitInputRelay] Actor updated to {(actor != null ? actor.name : "(null)")}", this);
         }
     }
 }
-

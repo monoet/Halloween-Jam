@@ -1,0 +1,110 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6b1fc64b58fd4474ba2b7e109e2e1a38, type: 3}
+  m_Name: BattleAudioDatabase
+  m_EditorClassIdentifier: Assembly-CSharp::BattleV2.Audio.BattleAudioDatabase
+  sfxEntries:
+  - FlagId: attack/windup
+    EventPath: event:/SFX/combat/attack/windup
+    Use3D: 0
+    WeaponParamName: 
+    ElementParamName: 
+    CritParamName: 
+    TargetsParamName: 
+    SignatureParamName: 
+    MinIntervalMs: 0
+  - FlagId: attack/timed/miss
+    EventPath: event:/SFX/combat/attack/timed/miss
+    Use3D: 0
+    WeaponParamName: 
+    ElementParamName: 
+    CritParamName: 
+    TargetsParamName: 
+    SignatureParamName: 
+    MinIntervalMs: 0
+  - FlagId: attack/good
+    EventPath: event:/SFX/combat/attack/timed/good
+    Use3D: 0
+    WeaponParamName: 
+    ElementParamName: 
+    CritParamName: 
+    TargetsParamName: 
+    SignatureParamName: 
+    MinIntervalMs: 0
+  - FlagId: attack/timed/perfect
+    EventPath: event:/SFX/combat/attack/timed/perfect
+    Use3D: 0
+    WeaponParamName: 
+    ElementParamName: 
+    CritParamName: 
+    TargetsParamName: 
+    SignatureParamName: 
+    MinIntervalMs: 0
+  - FlagId: attack/runback
+    EventPath: event:/battle/attack_runback
+    Use3D: 0
+    WeaponParamName: 
+    ElementParamName: 
+    CritParamName: 
+    TargetsParamName: 
+    SignatureParamName: 
+    MinIntervalMs: 0
+  - FlagId: mark/apply
+    EventPath: event:/battle/mark_apply
+    Use3D: 0
+    WeaponParamName: 
+    ElementParamName: 
+    CritParamName: 
+    TargetsParamName: 
+    SignatureParamName: 
+    MinIntervalMs: 0
+  - FlagId: mark/detonate
+    EventPath: event:/battle/mark_detonate
+    Use3D: 0
+    WeaponParamName: 
+    ElementParamName: 
+    CritParamName: 
+    TargetsParamName: 
+    SignatureParamName: 
+    MinIntervalMs: 0
+  - FlagId: ui/turn_change
+    EventPath: event:/ui/turn_change
+    Use3D: 0
+    WeaponParamName: 
+    ElementParamName: 
+    CritParamName: 
+    TargetsParamName: 
+    SignatureParamName: 
+    MinIntervalMs: 0
+  - FlagId: ui/cp/increase
+    EventPath: event:/ui/CP_Increase
+    Use3D: 0
+    WeaponParamName: 
+    ElementParamName: 
+    CritParamName: 
+    TargetsParamName: 
+    SignatureParamName: 
+    MinIntervalMs: 0
+  - FlagId: ui/cp/decrease
+    EventPath: event:/ui/CP_Decrease
+    Use3D: 0
+    WeaponParamName: 
+    ElementParamName: 
+    CritParamName: 
+    TargetsParamName: 
+    SignatureParamName: 
+    MinIntervalMs: 0
+  musicConfig:
+    ExplorationSnapshot: snapshot:/music/exploration
+    CombatSnapshot: snapshot:/music/combat
+    TransitionEvent: event:/stingers/enter_combat
+    FadeTimeSeconds: 0.5

@@ -17,7 +17,9 @@ namespace BattleV2.Providers
             TargetSet? targets = null,
             TimedHitExecutionHandle timedHitHandle = null,
             string animationRecipeId = null,
-            Transform targetTransform = null)
+            Transform targetTransform = null,
+            BasicTimedHitProfile basicTimedHitProfile = null,
+            TimedHitRunnerKind runnerKind = TimedHitRunnerKind.Default)
         {
             Action = action;
             CpCharge = cpCharge;
@@ -28,6 +30,8 @@ namespace BattleV2.Providers
             TimedHitHandle = timedHitHandle;
             AnimationRecipeId = animationRecipeId;
             TargetTransform = targetTransform;
+            BasicTimedHitProfile = basicTimedHitProfile;
+            RunnerKind = runnerKind;
         }
 
         public BattleActionData Action { get; }
@@ -39,30 +43,37 @@ namespace BattleV2.Providers
         public TimedHitExecutionHandle TimedHitHandle { get; }
         public string AnimationRecipeId { get; }
         public Transform TargetTransform { get; }
+        public BasicTimedHitProfile BasicTimedHitProfile { get; }
+        public TimedHitRunnerKind RunnerKind { get; }
+
+        public BattleSelection WithCpCharge(int cpCharge)
+        {
+            return new BattleSelection(Action, cpCharge, ChargeProfile, TimedHitProfile, TimedHitResult, Targets, TimedHitHandle, AnimationRecipeId, TargetTransform, BasicTimedHitProfile, RunnerKind);
+        }
 
         public BattleSelection WithTargets(TargetSet? targets)
         {
-            return new BattleSelection(Action, CpCharge, ChargeProfile, TimedHitProfile, TimedHitResult, targets, TimedHitHandle, AnimationRecipeId, TargetTransform);
+            return new BattleSelection(Action, CpCharge, ChargeProfile, TimedHitProfile, TimedHitResult, targets, TimedHitHandle, AnimationRecipeId, TargetTransform, BasicTimedHitProfile, RunnerKind);
         }
 
         public BattleSelection WithTimedResult(TimedHitResult? timedHitResult)
         {
-            return new BattleSelection(Action, CpCharge, ChargeProfile, TimedHitProfile, timedHitResult, Targets, TimedHitHandle, AnimationRecipeId, TargetTransform);
+            return new BattleSelection(Action, CpCharge, ChargeProfile, TimedHitProfile, timedHitResult, Targets, TimedHitHandle, AnimationRecipeId, TargetTransform, BasicTimedHitProfile, RunnerKind);
         }
 
         public BattleSelection WithTimedHitHandle(TimedHitExecutionHandle handle)
         {
-            return new BattleSelection(Action, CpCharge, ChargeProfile, TimedHitProfile, TimedHitResult, Targets, handle, AnimationRecipeId, TargetTransform);
+            return new BattleSelection(Action, CpCharge, ChargeProfile, TimedHitProfile, TimedHitResult, Targets, handle, AnimationRecipeId, TargetTransform, BasicTimedHitProfile, RunnerKind);
         }
 
         public BattleSelection WithAnimationRecipeId(string recipeId)
         {
-            return new BattleSelection(Action, CpCharge, ChargeProfile, TimedHitProfile, TimedHitResult, Targets, TimedHitHandle, recipeId, TargetTransform);
+            return new BattleSelection(Action, CpCharge, ChargeProfile, TimedHitProfile, TimedHitResult, Targets, TimedHitHandle, recipeId, TargetTransform, BasicTimedHitProfile, RunnerKind);
         }
 
         public BattleSelection WithTargetTransform(Transform targetTransform)
         {
-            return new BattleSelection(Action, CpCharge, ChargeProfile, TimedHitProfile, TimedHitResult, Targets, TimedHitHandle, AnimationRecipeId, targetTransform);
+            return new BattleSelection(Action, CpCharge, ChargeProfile, TimedHitProfile, TimedHitResult, Targets, TimedHitHandle, AnimationRecipeId, targetTransform, BasicTimedHitProfile, RunnerKind);
         }
     }
 }

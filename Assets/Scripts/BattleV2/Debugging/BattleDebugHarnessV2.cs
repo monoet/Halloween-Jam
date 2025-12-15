@@ -1,9 +1,10 @@
 using System;
 using System.Collections.Generic;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using BattleV2.Actions;
+using BattleV2.AnimationSystem.Execution.Runtime;
+using BattleV2.AnimationSystem.Runtime;
 using BattleV2.Charge;
 using BattleV2.Core;
 using BattleV2.Execution.TimedHits;
@@ -34,13 +35,18 @@ namespace BattleV2.Debugging
         [SerializeField] private bool hijackTimedHitRunner;
         [SerializeField] private DebugManualTargetSelector targetSelector;
 
+        [Header("Control")]
+        [SerializeField] private bool registerAsInputProvider;
+        [SerializeField] private bool allowStateMutation;
+
         [Header("Debug")]
         [SerializeField] private bool enableDebugLogs = false;
 
         public static BattleDebugHarnessV2 Instance { get; private set; }
 
         private BattleManagerV2 manager;
-        private FieldInfo inputProviderField;
+        private ITimedHitService timedHitService;
+        private ITimedHitRunner previousKs1Runner;
         private bool suppressWindow;
         private Vector2 actionScroll;
         private Vector2 logScroll;
@@ -137,9 +143,19 @@ namespace BattleV2.Debugging
                 return;
             }
 
-            manager.SetRuntimeInputProvider(this);
-            manager.SetTimedHitRunner(this);
-            LogDebug("[BattleDebugHarnessV2] Provider registered.");
+            timedHitService = manager.TimedHitService ?? AnimationSystemInstaller.Current?.TimedHitService;
+            if (registerAsInputProvider)
+            {
+                manager.SetRuntimeInputProvider(this);
+                LogDebug("[BattleDebugHarnessV2] Provider registered.");
+            }
+
+            if (hijackTimedHitRunner)
+            {
+                ClaimRunnerOwnership();
+                LogDebug("[BattleDebugHarnessV2] Hijacking timed hit runner (Awake).", this);
+                ensureRunnerCoroutine = StartCoroutine(EnsureTimedRunnerOwnership());
+            }
 
             targetSelector ??= GetComponent<DebugManualTargetSelector>();
             if (targetSelector == null)
@@ -148,13 +164,7 @@ namespace BattleV2.Debugging
             }
             targetSelector.Initialise(manager);
 
-            if (hijackTimedHitRunner)
-            {
-                LogDebug("[BattleDebugHarnessV2] Hijacking timed hit runner (Awake).", this);
-            }
-            ensureRunnerCoroutine = StartCoroutine(EnsureTimedRunnerOwnership());
             AddLog("Arnes listo. Esperando peticiones de accion.");
-            inputProviderField = typeof(BattleManagerV2).GetField("inputProvider", BindingFlags.Instance | BindingFlags.NonPublic);
 
             manager.OnPlayerActionSelected += HandlePlayerActionSelected;
             manager.OnPlayerActionResolved += HandlePlayerActionResolved;
@@ -169,15 +179,10 @@ namespace BattleV2.Debugging
 
             practiceSession.Tick(Time.deltaTime, timedHitKey);
 
-            if (manager != null && GetCurrentProvider() == null)
-            {
-                manager.SetRuntimeInputProvider(this);
-            }
-
-            if (hijackTimedHitRunner && manager != null && !ReferenceEquals(manager.TimedHitRunner, this))
+            if (hijackTimedHitRunner && !HasRunnerOwnership())
             {
                 LogDebug("[BattleDebugHarnessV2] Hijacking timed hit runner (Update).", this);
-                manager.SetTimedHitRunner(this);
+                ClaimRunnerOwnership();
             }
 
             HandleChargeHotkeys();
@@ -199,6 +204,10 @@ namespace BattleV2.Debugging
                 ensureRunnerCoroutine = null;
             }
 
+            if (hijackTimedHitRunner)
+            {
+                RestoreRunnerOwnership();
+            }
             CancelLiveSequence();
 
             if (Instance == this)
@@ -328,7 +337,10 @@ namespace BattleV2.Debugging
 
             var player = pendingContext.Player;
             float maxCp = GetMaxChargeCap(pendingContext, player);
-            pendingContext.MaxCpCharge = Mathf.Max(pendingContext.MaxCpCharge, Mathf.RoundToInt(maxCp));
+            if (allowStateMutation)
+            {
+                pendingContext.MaxCpCharge = Mathf.Max(pendingContext.MaxCpCharge, Mathf.RoundToInt(maxCp));
+            }
             desiredCpCharge = Mathf.Clamp(desiredCpCharge, 0, Mathf.RoundToInt(maxCp));
 
             DrawUtilityButtons(player);
@@ -525,28 +537,35 @@ namespace BattleV2.Debugging
             GUILayout.BeginHorizontal();
             if (GUILayout.Button("Grant 5 CP"))
             {
-                var target = player ?? manager?.Player;
-                if (target != null)
+                if (!allowStateMutation)
                 {
-                    int desired = Mathf.Min(5, target.MaxCP);
-                    int delta = Mathf.Max(0, desired - target.CurrentCP);
-                    if (delta > 0)
-                    {
-                        target.AddCP(delta);
-                        if (pendingContext != null)
-                        {
-                            pendingContext.MaxCpCharge = Mathf.Max(pendingContext.MaxCpCharge, target.CurrentCP);
-                        }
-                        AddLog($"Granted {delta} CP to {target.DisplayName} (CP {target.CurrentCP}/{target.MaxCP}).");
-                    }
-                    else
-                    {
-                        AddLog("El jugador ya tiene minimo 5 CP.");
-                    }
+                    AddLog("Grant CP bloqueado (estado protegido).");
                 }
                 else
                 {
-                    AddLog("No se encontro combatiente para asignar CP.");
+                    var target = player ?? manager?.Player;
+                    if (target != null)
+                    {
+                        int desired = Mathf.Min(5, target.MaxCP);
+                        int delta = Mathf.Max(0, desired - target.CurrentCP);
+                        if (delta > 0)
+                        {
+                            target.AddCP(delta);
+                            if (pendingContext != null)
+                            {
+                                pendingContext.MaxCpCharge = Mathf.Max(pendingContext.MaxCpCharge, target.CurrentCP);
+                            }
+                            AddLog($"Granted {delta} CP to {target.DisplayName} (CP {target.CurrentCP}/{target.MaxCP}).");
+                        }
+                        else
+                        {
+                            AddLog("El jugador ya tiene minimo 5 CP.");
+                        }
+                    }
+                    else
+                    {
+                        AddLog("No se encontro combatiente para asignar CP.");
+                    }
                 }
             }
             GUILayout.EndHorizontal();
@@ -1060,14 +1079,45 @@ namespace BattleV2.Debugging
             public float Accuracy { get; }
         }
 
-        private IBattleInputProvider GetCurrentProvider()
+        private void ClaimRunnerOwnership()
         {
-            if (manager == null || inputProviderField == null)
+            timedHitService ??= manager != null ? manager.TimedHitService : AnimationSystemInstaller.Current?.TimedHitService;
+            if (timedHitService == null)
             {
-                return null;
+                return;
             }
 
-            return inputProviderField.GetValue(manager) as IBattleInputProvider;
+            var current = timedHitService.GetRunner(TimedHitRunnerKind.Default);
+            if (ReferenceEquals(current, this))
+            {
+                return;
+            }
+
+            if (previousKs1Runner == null || ReferenceEquals(previousKs1Runner, this))
+            {
+                previousKs1Runner = current;
+            }
+
+            timedHitService.SetRunner(TimedHitRunnerKind.Default, this);
+        }
+
+        private bool HasRunnerOwnership()
+        {
+            timedHitService ??= manager != null ? manager.TimedHitService : AnimationSystemInstaller.Current?.TimedHitService;
+            return timedHitService != null && ReferenceEquals(timedHitService.GetRunner(TimedHitRunnerKind.Default), this);
+        }
+
+        private void RestoreRunnerOwnership()
+        {
+            if (timedHitService == null)
+            {
+                return;
+            }
+
+            if (ReferenceEquals(timedHitService.GetRunner(TimedHitRunnerKind.Default), this))
+            {
+                timedHitService.SetRunner(TimedHitRunnerKind.Default, previousKs1Runner);
+            }
         }
 
         private async Task<TimedHitResult> RunViaInstantRunner(TimedHitRequest request)
@@ -1101,10 +1151,7 @@ namespace BattleV2.Debugging
             for (int i = 0; i < framesToEnforce && isActiveAndEnabled; i++)
             {
                 yield return null;
-                if (manager != null)
-                {
-                    manager.SetTimedHitRunner(this);
-                }
+                ClaimRunnerOwnership();
             }
 
             ensureRunnerCoroutine = null;
@@ -1112,9 +1159,14 @@ namespace BattleV2.Debugging
 
         public async Task<TimedHitResult> RunAsync(TimedHitRequest request)
         {
-            if (manager != null && !ReferenceEquals(manager.TimedHitRunner, this))
+            if (!hijackTimedHitRunner)
             {
-                manager.SetTimedHitRunner(this);
+                return await RunViaInstantRunner(request);
+            }
+
+            if (!HasRunnerOwnership())
+            {
+                ClaimRunnerOwnership();
             }
 
             if (hijackTimedHitRunner || request.Profile == null)

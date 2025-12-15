@@ -1,6 +1,11 @@
 using System.Collections.Generic;
+using System.Threading;
 using UnityEngine;
+using BattleV2.Audio;
+using BattleV2.Core;
+using BattleV2.Core.Services;
 using BattleV2.Debugging;
+using BattleV2.Marks;
 using UnityEngine.Events;
 
 public enum CombatantFaction
@@ -22,6 +27,8 @@ public class CombatantState : MonoBehaviour
 
     [Header("Faction")]
     [SerializeField] private CombatantFaction faction = CombatantFaction.Player;
+    [SerializeField, Tooltip("Team identifier for side checks. If 0, falls back to faction.")]
+    private int teamId = 0;
 
     [Header("HP Runtime")]
     [SerializeField] private int maxHP;
@@ -38,6 +45,12 @@ public class CombatantState : MonoBehaviour
     [SerializeField, Range(0, 10)] private int maxCP = 5;
     [SerializeField, Range(0, 10)] private int currentCP = 0;
 
+    [Header("Marks (slot único)")]
+    [SerializeField] private MarkSlot activeMark;
+
+    [Header("Audio / Identity")]
+    [SerializeField] private AudioSignatureId audioSignatureId = AudioSignatureId.None;
+
     [Header("Eventos")]
     public UnityEvent OnVitalsChanged = new UnityEvent();
 
@@ -45,11 +58,13 @@ public class CombatantState : MonoBehaviour
     [SerializeField] private bool enableDebugLogs;
 
     [Header("Action Loadout")]
-    [Tooltip("Action ids allowed for this combatant. Empty = inherit from catalog.")]
+    [Tooltip("Filtro de ids permitidos para este combatiente. Empty = catálogo completo; si hay ids, se usa la intersección.")]
     [SerializeField] private List<string> allowedActionIds = new List<string>();
 
     private bool initialized;
     private UnityAction runtimeStatsListener;
+    private static int nextStableId;
+    private int stableCombatantId;
     private string displayName;
     private bool isDowned;
     private bool isAlive = true;
@@ -68,9 +83,13 @@ public class CombatantState : MonoBehaviour
     public FinalStats FinalStats => characterRuntime != null ? characterRuntime.Final : default;
     public bool IsPlayer => faction == CombatantFaction.Player;
     public bool IsEnemy => faction == CombatantFaction.Enemy;
+    public int TeamId => teamId != 0 ? teamId : (int)faction + 1;
     public string DisplayName => string.IsNullOrWhiteSpace(displayName) ? name : displayName;
     public Sprite Portrait => characterRuntime?.Core.portrait ?? characterRuntime?.Archetype?.portrait;
+    public MarkSlot ActiveMark => activeMark;
     public IReadOnlyList<string> AllowedActionIds => allowedActionIds;
+    public AudioSignatureId AudioSignatureId => audioSignatureId;
+    public int StableId => stableCombatantId;
 
     private void Awake()
     {
@@ -89,6 +108,11 @@ public class CombatantState : MonoBehaviour
         }
 
         RefreshLifeFlags();
+
+        if (stableCombatantId == 0)
+        {
+            stableCombatantId = AllocateStableId();
+        }
     }
 
     private void OnEnable()
@@ -109,6 +133,11 @@ public class CombatantState : MonoBehaviour
             return;
         }
 
+        if (teamId == 0)
+        {
+            teamId = (int)faction + 1;
+        }
+
         runtimeStatsListener ??= HandleRuntimeStatsChanged;
 
         if (characterRuntime == null)
@@ -122,6 +151,8 @@ public class CombatantState : MonoBehaviour
 
     public void InitializeFrom(CharacterRuntime character, bool preserveCurrentFraction = false)
     {
+        UnityThread.AssertMainThread("CombatantState.InitializeFrom");
+
         AttachRuntime(character);
 
         int providedHP = character != null ? character.Final.HP : 0;
@@ -162,6 +193,8 @@ public class CombatantState : MonoBehaviour
 
     public void EnsureInitialized(CharacterRuntime character)
     {
+        UnityThread.AssertMainThread("CombatantState.EnsureInitialized");
+
         if (!initialized)
         {
             InitializeFrom(character, preserveCurrentFraction: false);
@@ -173,6 +206,8 @@ public class CombatantState : MonoBehaviour
 
     public void SetCharacterRuntime(CharacterRuntime runtime, bool initialize = true, bool preserveVitals = false)
     {
+        UnityThread.AssertMainThread("CombatantState.SetCharacterRuntime");
+
         AttachRuntime(runtime);
 
         if (initialize)
@@ -183,6 +218,8 @@ public class CombatantState : MonoBehaviour
 
     public void TakeDamage(int amount)
     {
+        UnityThread.AssertMainThread("CombatantState.TakeDamage");
+
         if (amount < 0)
         {
             amount = 0;
@@ -208,6 +245,8 @@ public class CombatantState : MonoBehaviour
 
     public void Heal(int amount)
     {
+        UnityThread.AssertMainThread("CombatantState.Heal");
+
         if (amount < 0)
         {
             amount = 0;
@@ -227,6 +266,8 @@ public class CombatantState : MonoBehaviour
 
     public void SetDowned(bool value)
     {
+        UnityThread.AssertMainThread("CombatantState.SetDowned");
+
         if (isDowned == value)
         {
             return;
@@ -245,6 +286,8 @@ public class CombatantState : MonoBehaviour
 
     public bool SpendCP(int amount)
     {
+        UnityThread.AssertMainThread("CombatantState.SpendCP");
+
         if (amount <= 0)
         {
             return true;
@@ -258,30 +301,88 @@ public class CombatantState : MonoBehaviour
 
         currentCP -= amount;
         Log($"{DisplayName} gasta {amount} CP. CP: {currentCP}/{maxCP}");
+        BattleDiagnostics.Log(
+            "ResourceCharge",
+            $"actor={DisplayName}#{GetInstanceID()} side={(IsPlayer ? "Player" : "Enemy")} type=CP delta=-{amount} before={currentCP + amount} after={currentCP}",
+            this);
         OnVitalsChanged.Invoke();
         return true;
     }
 
     public void AddCP(int amount)
     {
+        UnityThread.AssertMainThread("CombatantState.AddCP");
+
+        int before = currentCP;
         if (amount <= 0)
         {
+            BattleDiagnostics.Log(
+                "AddCp.Debugging01",
+                $"actor={DisplayName}#{GetInstanceID()} side={(IsPlayer ? "Player" : "Enemy")} delta=+0 before={before} after={currentCP} reason=amount<=0",
+                this);
             return;
         }
 
-        int before = currentCP;
         currentCP = Mathf.Min(maxCP, currentCP + amount);
         int gained = currentCP - before;
 
         if (gained > 0)
         {
             Log($"{DisplayName} gana {gained} CP. CP: {currentCP}/{maxCP}");
+            BattleDiagnostics.Log(
+                "AddCp.Debugging01",
+                $"actor={DisplayName}#{GetInstanceID()} side={(IsPlayer ? "Player" : "Enemy")} delta=+{gained} before={before} after={currentCP}",
+                this);
             OnVitalsChanged.Invoke();
+            return;
         }
+
+        // No gain (already at cap or maxCP <= 0) – log for diagnostics.
+        BattleDiagnostics.Log(
+            "AddCp.Debugging01",
+            $"actor={DisplayName}#{GetInstanceID()} side={(IsPlayer ? "Player" : "Enemy")} delta=+0 before={before} after={currentCP} reason={(maxCP <= 0 ? "maxCP<=0" : "capped")}",
+            this);
+    }
+
+    /// <summary>
+    /// Applies archetype-defined starting CP if provided.
+    /// Intended for fresh spawns only (preserveVitals=false).
+    /// </summary>
+    public void ApplyStartingCpFromArchetype()
+    {
+        var runtime = characterRuntime != null ? characterRuntime : GetComponent<CharacterRuntime>();
+        var archetype = runtime != null ? runtime.Archetype : null;
+        if (archetype is not IStartingCpSource source)
+        {
+            return;
+        }
+
+        int overrideCp = source.StartingCpOverride;
+        if (overrideCp < 0)
+        {
+            return;
+        }
+
+        currentCP = Mathf.Clamp(overrideCp, 0, maxCP);
+        OnVitalsChanged.Invoke();
+    }
+
+    internal void SetMarkSlot(MarkSlot slot)
+    {
+        UnityThread.AssertMainThread("CombatantState.SetMarkSlot");
+        activeMark = slot;
+    }
+
+    internal void ClearMarkSlot()
+    {
+        UnityThread.AssertMainThread("CombatantState.ClearMarkSlot");
+        activeMark = MarkSlot.Empty;
     }
 
     public bool SpendSP(int amount)
     {
+        UnityThread.AssertMainThread("CombatantState.SpendSP");
+
         if (amount <= 0)
         {
             return true;
@@ -295,6 +396,10 @@ public class CombatantState : MonoBehaviour
 
         currentSP -= amount;
         Log($"{DisplayName} gasta {amount} SP. SP: {currentSP}/{maxSP}");
+        BattleDiagnostics.Log(
+            "ResourceCharge",
+            $"actor={DisplayName}#{GetInstanceID()} side={(IsPlayer ? "Player" : "Enemy")} type=SP delta=-{amount} before={currentSP + amount} after={currentSP}",
+            this);
         RefreshLifeFlags();
         OnVitalsChanged.Invoke();
         return true;
@@ -302,6 +407,8 @@ public class CombatantState : MonoBehaviour
 
     public void RestoreSP(int amount)
     {
+        UnityThread.AssertMainThread("CombatantState.RestoreSP");
+
         if (amount <= 0)
         {
             return;
@@ -401,6 +508,12 @@ public class CombatantState : MonoBehaviour
         }
 
         displayName = gameObject.name;
+    }
+
+    private static int AllocateStableId()
+    {
+        // Thread-safe and monotonic per runtime; more stable than GetInstanceID for pooling/repro.
+        return Interlocked.Increment(ref nextStableId);
     }
 
     private void Log(string message)

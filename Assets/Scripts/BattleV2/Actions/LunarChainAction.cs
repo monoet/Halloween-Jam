@@ -79,7 +79,8 @@ namespace BattleV2.Actions
                     snapshot.BaseDamagePerHit,
                     minimumDamage,
                     snapshot.TierMultiplier,
-                    snapshot.TotalPhases);
+                    snapshot.TotalPhases,
+                    allowPartialOnMiss: true);
                 return true;
             }
 
@@ -130,21 +131,6 @@ namespace BattleV2.Actions
                 return;
             }
 
-            if (costSp > 0 && !actor.SpendSP(costSp))
-            {
-                BattleLogger.Warn("KS1", "Not enough SP to cast KS1 Lunar Chain.");
-                onComplete?.Invoke();
-                return;
-            }
-
-            int totalCpCost = costCp + Mathf.Max(0, cpCharge);
-            if (totalCpCost > 0 && !actor.SpendCP(totalCpCost))
-            {
-                BattleLogger.Warn("KS1", "Not enough CP to cast KS1 Lunar Chain.");
-                onComplete?.Invoke();
-                return;
-            }
-
             if (!TryBuildDamageSnapshot(actor, context, cpCharge, out var snapshot))
             {
                 BattleLogger.Warn("KS1", "Lunar Chain executed without a valid timed-hit profile; no damage applied.");
@@ -161,6 +147,14 @@ namespace BattleV2.Actions
             if (timedResult.HasValue)
             {
                 var raw = timedResult.Value;
+
+                Debug.Log(
+                    $"[KS1] Final timed-hit result → Judgment={raw.Judgment}, Mult={raw.DamageMultiplier:0.00}, Hits={raw.HitsSucceeded}/{raw.TotalHits}",
+                    this);
+
+                BattleLogger.Log(
+                    "KS1",
+                    $"LunarChain timed-hit -> hits {raw.HitsSucceeded}/{raw.TotalHits}, judgment={raw.Judgment}, mult {raw.DamageMultiplier:F2}, externalDamage={raw.TotalDamageApplied}, phasesResolved={raw.PhaseDamageApplied}");
                 totalHits = raw.TotalHits > 0 ? raw.TotalHits : totalHits;
                 hitsSucceeded = Mathf.Clamp(raw.HitsSucceeded, 0, totalHits);
                 perHitMultiplier = raw.DamageMultiplier > 0f ? raw.DamageMultiplier : perHitMultiplier;
@@ -170,6 +164,16 @@ namespace BattleV2.Actions
             else
             {
                 hitsSucceeded = totalHits;
+            }
+
+            // Ensure we still deal some damage on miss/fail.
+            if (!damageResolvedExternally && hitsSucceeded == 0)
+            {
+                hitsSucceeded = 1;
+                // Miss multiplier: default to 0.8f if tier doesn't provide one.
+                float missMult = snapshot.Tier.MissHitMultiplier > 0f ? snapshot.Tier.MissHitMultiplier : 0.8f;
+                perHitMultiplier = missMult;
+                BattleLogger.Warn("KS1", "Timed hit missed; applying fallback damage with miss multiplier.");
             }
 
             if (damageResolvedExternally)

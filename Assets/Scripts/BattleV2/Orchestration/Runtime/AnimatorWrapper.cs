@@ -1,6 +1,8 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
+using System.Collections.Generic;
 using BattleV2.AnimationSystem.Execution.Routers;
 using BattleV2.AnimationSystem.Execution.Runtime;
 using BattleV2.AnimationSystem.Runtime;
@@ -13,6 +15,24 @@ using UnityEngine.Playables;
 
 namespace BattleV2.Orchestration.Runtime
 {
+    public enum VariantStrategy
+    {
+        PlayBaseOnly,
+        AlwaysLast,
+        Cycle,
+        SequenceOnce
+    }
+
+    [Serializable]
+    public sealed class CommandVariantConfig
+    {
+        public string baseCommandId;
+        public List<string> variants = new List<string>();
+        public VariantStrategy strategy = VariantStrategy.Cycle;
+        public bool fallbackToBaseIfMissing = true;
+        public bool advanceGuardSameFrame = true;
+    }
+
     /// <summary>
     /// Component attached to battle prefabs responsible for handling local animation playback.
     /// Supports Animator clips (without controllers), sprite flipbooks and simple transform tweens.
@@ -29,6 +49,12 @@ namespace BattleV2.Orchestration.Runtime
         [SerializeField] private string combatantIdOverride;
         [SerializeField] private bool autoRegister = true;
         [SerializeField] private bool logPlayback;
+        [SerializeField] private bool registerToGlobalResolver = false;
+        [SerializeField] private List<CommandVariantConfig> commandVariants = new List<CommandVariantConfig>();
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        [Header("Debug")]
+        [SerializeField] private bool debugAw01Enabled = true;
+#endif
 
         [Header("Events")]
         [SerializeField] private UnityEvent<AnimationEventPayload> onAnimationEvent;
@@ -47,6 +73,17 @@ namespace BattleV2.Orchestration.Runtime
         private Vector3 originalLocalPosition;
         private Quaternion originalLocalRotation;
         private Vector3 originalLocalScale;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        private string lastDebugCommandId;
+        private int lastDebugFrame = -1;
+#endif
+        private string lastExecKey;
+        private int lastExecFrame = -1;
+        private readonly Dictionary<string, CommandVariantConfig> variantMap = new Dictionary<string, CommandVariantConfig>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, int> variantIndex = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, int> variantLastFrame = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        private readonly SemaphoreSlim consumeGate = new SemaphoreSlim(1, 1);
+        private bool destroyed;
 
         private void Awake()
         {
@@ -55,6 +92,7 @@ namespace BattleV2.Orchestration.Runtime
             animator ??= GetComponentInChildren<Animator>(true);
             spriteRenderer ??= GetComponentInChildren<SpriteRenderer>(true);
             animatedRoot ??= animator != null ? animator.transform : transform;
+            BuildVariantMap();
 
             if (spriteRenderer != null)
             {
@@ -91,6 +129,7 @@ namespace BattleV2.Orchestration.Runtime
 
         private void OnDestroy()
         {
+            destroyed = true;
             Stop();
             if (graphInitialized && playableGraph.IsValid())
             {
@@ -122,6 +161,7 @@ namespace BattleV2.Orchestration.Runtime
         {
             animationSet = set;
             RegisterAnimationSet();
+            BuildVariantMap();
         }
 
         public void OverrideAnimator(Animator overrideAnimator)
@@ -142,6 +182,275 @@ namespace BattleV2.Orchestration.Runtime
         public Transform AnimatedRoot => animatedRoot != null
             ? animatedRoot
             : animator != null ? animator.transform : transform;
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        public void DebugReceiveCommand(string commandId, string source, string context = null)
+        {
+            if (!debugAw01Enabled || string.IsNullOrWhiteSpace(commandId))
+            {
+                return;
+            }
+
+            int frame = Time.frameCount;
+            if (frame == lastDebugFrame && string.Equals(commandId, lastDebugCommandId, StringComparison.Ordinal))
+            {
+                return; // de-spam: ignore same command in the same frame
+            }
+
+            lastDebugFrame = frame;
+            lastDebugCommandId = commandId;
+
+            var actorName = owner != null ? owner.name : "(null)";
+            Debug.Log($"[DEBUG-AW01] actor='{actorName}' cmd='{commandId}' src='{source}' ctx='{context ?? "(none)"}'", this);
+        }
+#endif
+
+        public async Task ConsumeCommand(string commandId, string source, string context, CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(commandId))
+            {
+                return;
+            }
+
+            await UnityMainThread.SwitchAsync();
+
+            if (destroyed || !this || !isActiveAndEnabled)
+            {
+                return;
+            }
+
+            AnimationPlaybackRequest playbackRequest = default;
+            bool shouldPlay = false;
+            await consumeGate.WaitAsync(ct);
+            try
+            {
+                if (destroyed || !this || !isActiveAndEnabled)
+                {
+                    return;
+                }
+
+                string execKey = BuildExecKey(commandId, context);
+                int frame = Time.frameCount;
+                if (execKey == lastExecKey && frame == lastExecFrame)
+                {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                    if (debugAw01Enabled)
+                    {
+                        Debug.Log($"[DEBUG-AW01] DESPAM key='{execKey}'", this);
+                    }
+#endif
+                    return;
+                }
+
+                lastExecKey = execKey;
+                lastExecFrame = frame;
+
+                string resolvedId = ResolveCommandId(commandId);
+                var resolvedIsVariant = !string.Equals(resolvedId, commandId, StringComparison.OrdinalIgnoreCase);
+                var cfg = TryGetVariantConfig(commandId);
+
+                if (animator == null)
+                {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                    if (debugAw01Enabled)
+                    {
+                        Debug.Log($"[DEBUG-AW01] NO_ANIMATOR actor='{owner?.name ?? "(null)"}'", this);
+                    }
+#endif
+                    return;
+                }
+
+                if (animationSet == null)
+                {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                    if (debugAw01Enabled)
+                    {
+                        Debug.Log($"[DEBUG-AW01] NO_SET actor='{owner?.name ?? "(null)"}'", this);
+                    }
+#endif
+                    return;
+                }
+
+                if (!animationSet.TryGetClip(resolvedId, out var clip))
+                {
+                    if (resolvedIsVariant && cfg != null && cfg.fallbackToBaseIfMissing)
+                    {
+                        animationSet.TryGetClip(commandId, out clip);
+                        if (clip != null)
+                        {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                            if (debugAw01Enabled)
+                            {
+                                Debug.Log($"[DEBUG-AW01] MISSING_VARIANT actor='{owner?.name ?? "(null)"}' base='{commandId}' missing='{resolvedId}' -> fallback='{commandId}'", this);
+                            }
+#endif
+                            resolvedId = commandId;
+                        }
+                    }
+
+                    if (clip == null)
+                    {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                        if (debugAw01Enabled)
+                        {
+                            var available = animationSet.ClipBindings != null
+                                ? string.Join(",", animationSet.ClipBindings.Select(b => b.Id))
+                                : "(none)";
+                            Debug.Log($"[DEBUG-AW01] MISSING actor='{owner?.name ?? "(null)"}' id='{resolvedId}' available=[{available}]", this);
+                        }
+#endif
+                        return;
+                    }
+                }
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                if (debugAw01Enabled)
+                {
+                    Debug.Log($"[DEBUG-AW01] consume actor='{owner?.name ?? "(null)"}' cmd='{commandId}' resolved='{resolvedId}' src='{source}' ctx='{context ?? "(none)"}'", this);
+                }
+#endif
+
+                playbackRequest = AnimationPlaybackRequest.ForAnimatorClip(clip, 1f, 0f, loop: false, commandId: resolvedId);
+                shouldPlay = true;
+            }
+            finally
+            {
+                consumeGate.Release();
+            }
+
+            if (!shouldPlay)
+            {
+                return;
+            }
+
+            try
+            {
+                await PlayAsync(playbackRequest, ct);
+            }
+            catch (OperationCanceledException)
+            {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                if (debugAw01Enabled)
+                {
+                    Debug.Log($"[DEBUG-AW01] CANCELLED actor='{owner?.name ?? "(null)"}' id='{playbackRequest.CommandId ?? "(null)"}'", this);
+                }
+#endif
+            }
+            catch (Exception ex)
+            {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                if (debugAw01Enabled)
+                {
+                    Debug.Log($"[DEBUG-AW01] ERROR actor='{owner?.name ?? "(null)"}' id='{playbackRequest.CommandId ?? "(null)"}' ex='{ex}'", this);
+                }
+#endif
+            }
+        }
+
+        private string BuildExecKey(string commandId, string context)
+        {
+            var actorKey = owner != null ? owner.GetInstanceID().ToString() : "(nullActor)";
+            return $"{actorKey}|{commandId}|{context ?? "(nullCtx)"}";
+        }
+
+        private CommandVariantConfig TryGetVariantConfig(string baseCommandId)
+        {
+            if (string.IsNullOrWhiteSpace(baseCommandId))
+            {
+                return null;
+            }
+
+            variantMap.TryGetValue(baseCommandId, out var cfg);
+            return cfg;
+        }
+
+        private string ResolveCommandId(string baseCommandId)
+        {
+            if (string.IsNullOrWhiteSpace(baseCommandId))
+            {
+                return baseCommandId;
+            }
+
+            if (!variantMap.TryGetValue(baseCommandId, out var cfg) || cfg == null || cfg.variants == null || cfg.variants.Count == 0)
+            {
+                return baseCommandId;
+            }
+
+            int idx = 0;
+            variantIndex.TryGetValue(baseCommandId, out idx);
+            int lastFrame = -1;
+            variantLastFrame.TryGetValue(baseCommandId, out lastFrame);
+            bool sameFrame = lastFrame == Time.frameCount;
+
+            string resolved;
+            switch (cfg.strategy)
+            {
+                case VariantStrategy.PlayBaseOnly:
+                    resolved = baseCommandId;
+                    break;
+                case VariantStrategy.AlwaysLast:
+                    resolved = cfg.variants[cfg.variants.Count - 1];
+                    break;
+                case VariantStrategy.SequenceOnce:
+                    resolved = cfg.variants[Mathf.Clamp(idx, 0, cfg.variants.Count - 1)];
+                    if (!(cfg.advanceGuardSameFrame && sameFrame))
+                    {
+                        idx = Mathf.Min(idx + 1, cfg.variants.Count - 1);
+                    }
+                    break;
+                case VariantStrategy.Cycle:
+                default:
+                    resolved = cfg.variants[idx % cfg.variants.Count];
+                    if (!(cfg.advanceGuardSameFrame && sameFrame))
+                    {
+                        idx = (idx + 1) % cfg.variants.Count;
+                    }
+                    break;
+            }
+
+            variantIndex[baseCommandId] = idx;
+            variantLastFrame[baseCommandId] = Time.frameCount;
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (debugAw01Enabled)
+            {
+                Debug.Log($"[DEBUG-AW01] variant actor='{owner?.name ?? "(null)"}' base='{baseCommandId}' strategy='{cfg.strategy}' -> resolved='{resolved}' nextIdx={idx}", this);
+            }
+#endif
+
+            return resolved;
+        }
+
+        private void BuildVariantMap()
+        {
+            variantMap.Clear();
+            variantIndex.Clear();
+            variantLastFrame.Clear();
+
+            if (commandVariants == null)
+            {
+                return;
+            }
+
+            foreach (var cfg in commandVariants)
+            {
+                if (cfg == null || string.IsNullOrWhiteSpace(cfg.baseCommandId) || cfg.variants == null || cfg.variants.Count == 0)
+                {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                    if (debugAw01Enabled)
+                    {
+                        Debug.Log($"[DEBUG-AW01] variant config skipped actor='{owner?.name ?? "(null)"}' reason='null/empty base or variants'", this);
+                    }
+#endif
+                    continue;
+                }
+
+                variantMap[cfg.baseCommandId] = cfg;
+                variantIndex[cfg.baseCommandId] = 0;
+                variantLastFrame[cfg.baseCommandId] = -1;
+            }
+        }
+
 
         public CombatantId CombatantId
         {
@@ -168,6 +477,11 @@ namespace BattleV2.Orchestration.Runtime
             await UnityMainThread.SwitchAsync();
 
             if (!enabled)
+            {
+                return;
+            }
+
+            if (destroyed || !this || !isActiveAndEnabled)
             {
                 return;
             }
@@ -222,6 +536,26 @@ namespace BattleV2.Orchestration.Runtime
             onAnimationEvent?.Invoke(payload);
         }
 
+        public void ResetVariantScope(string reason = null, string ctx = null)
+        {
+            foreach (var key in variantIndex.Keys.ToArray())
+            {
+                variantIndex[key] = 0;
+            }
+
+            foreach (var key in variantLastFrame.Keys.ToArray())
+            {
+                variantLastFrame[key] = -1;
+            }
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (debugAw01Enabled)
+            {
+                Debug.Log($"[DEBUG-AW01] ResetVariantScope actor='{owner?.name ?? "(null)"}' reason='{reason ?? "(null)"}' ctx='{ctx ?? "(null)"}'", this);
+            }
+#endif
+        }
+
         public void ResetToFallback(float fadeDuration = 0.1f)
         {
 #if false
@@ -236,18 +570,34 @@ namespace BattleV2.Orchestration.Runtime
 
         private void CancelPlayback()
         {
-            if (playbackCts == null)
+            // Snapshot local para evitar race/reentrada sobre playbackCts
+            var cts = playbackCts;
+            if (cts == null)
             {
                 return;
             }
 
-            if (!playbackCts.IsCancellationRequested)
-            {
-                playbackCts.Cancel();
-            }
-
-            playbackCts.Dispose();
+            // Rompemos el vínculo de inmediato: si otra llamada entra a CancelPlayback, verá null y saldrá.
             playbackCts = null;
+
+            try
+            {
+                if (!cts.IsCancellationRequested)
+                {
+                    cts.Cancel();
+                }
+            }
+            catch (ObjectDisposedException)
+            {
+                // Ya estaba disposed, ignorar.
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                UnityEngine.Debug.Log("[DEBUG-AW01] CancelPlayback: CTS already disposed for '" + gameObject.name + "'", this);
+#endif
+            }
+            finally
+            {
+                cts.Dispose();
+            }
         }
 
         private async Task PlayAnimatorClipAsync(AnimationPlaybackRequest request, CancellationToken token)
@@ -258,21 +608,68 @@ namespace BattleV2.Orchestration.Runtime
                 return;
             }
 
+            var cmdId = request.CommandId;
+            float holdSeconds = 0f;
+            bool hasHold = !string.IsNullOrWhiteSpace(cmdId) && animationSet != null && animationSet.TryGetHoldOffsetSeconds(cmdId, out holdSeconds) && holdSeconds > 0f;
+            string holdSkipReason = null;
+            if (!hasHold)
+            {
+                if (animationSet == null) holdSkipReason = "no_set";
+                else if (string.IsNullOrWhiteSpace(cmdId)) holdSkipReason = "no_cmd";
+                else holdSkipReason = "no_hold";
+            }
+
             EnsurePlayableGraph();
             StopAnimatorGraph();
 
-            clipPlayable = AnimationClipPlayable.Create(playableGraph, request.AnimationClip);
+            var clip = request.AnimationClip;
+            clipPlayable = AnimationClipPlayable.Create(playableGraph, clip);
             clipPlayable.SetApplyFootIK(true);
             clipPlayable.SetApplyPlayableIK(false);
-            clipPlayable.SetSpeed(request.Speed);
-            clipPlayable.SetTime(request.NormalizedStartTime * Math.Max(0.01f, request.AnimationClip.length));
-            clipPlayable.SetDuration(request.Loop ? double.PositiveInfinity : request.AnimationClip.length);
+            float clipLength = Mathf.Max(0.01f, clip.length);
+            float startTime = Mathf.Clamp01(request.NormalizedStartTime) * clipLength;
+            clipPlayable.SetTime(startTime);
+            clipPlayable.SetSpeed(hasHold ? 0f : request.Speed);
+            clipPlayable.SetDuration(request.Loop ? double.PositiveInfinity : clipLength);
             clipPlayable.SetPropagateSetTime(true);
 
             animationOutput.SetSourcePlayable(clipPlayable);
             playableGraph.Play();
+            playableGraph.Evaluate(0f);
 
-            LogPlayback($"Playing clip '{request.AnimationClip.name}' (loop={request.Loop}) on '{name}'.");
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (hasHold && debugAw01Enabled)
+            {
+                Debug.Log($"[DEBUG-AW02] hold actor='{owner?.name ?? "(null)"}' id='{cmdId}' seconds={holdSeconds:0.###} startNorm={request.NormalizedStartTime:0.###}", this);
+            }
+            else if (debugAw01Enabled)
+            {
+                Debug.Log($"[DEBUG-AW02] hold_skip actor='{owner?.name ?? "(null)"}' id='{cmdId ?? "(null)"}' reason='{holdSkipReason ?? "no_hold"}'", this);
+            }
+#endif
+
+            if (hasHold)
+            {
+                try
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(holdSeconds), token);
+                }
+                catch (OperationCanceledException)
+                {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                    if (debugAw01Enabled)
+                    {
+                        Debug.Log($"[DEBUG-AW02] hold_cancel actor='{owner?.name ?? "(null)"}' id='{cmdId}'", this);
+                    }
+#endif
+                    throw;
+                }
+
+                clipPlayable.SetSpeed(request.Speed);
+                playableGraph.Evaluate(0f);
+            }
+
+            LogPlayback($"Playing clip '{clip.name}' (loop={request.Loop}) on '{name}'.");
 
             if (request.Loop)
             {
@@ -287,8 +684,9 @@ namespace BattleV2.Orchestration.Runtime
             }
             else
             {
-                var durationSeconds = request.AnimationClip.length / Math.Max(0.01f, Math.Abs(request.Speed));
-                await Task.Delay(TimeSpan.FromSeconds(durationSeconds), token);
+                float speedAbs = Math.Max(0.01f, Math.Abs(request.Speed));
+                float remainingSeconds = Math.Max(0f, (clipLength - startTime)) / speedAbs;
+                await Task.Delay(TimeSpan.FromSeconds(remainingSeconds), token);
             }
         }
 
@@ -410,11 +808,17 @@ namespace BattleV2.Orchestration.Runtime
 
         private CancellationToken GetDestroyCancellationToken()
         {
-            if (destroyCts == null || destroyCts.IsCancellationRequested)
+            if (destroyed)
             {
-                destroyCts?.Dispose();
+                return new CancellationToken(true);
+            }
+
+            if (destroyCts == null)
+            {
                 destroyCts = new CancellationTokenSource();
             }
+
+            // Si ya fue cancelado (OnDestroy), no recreamos ni "revivimos".
             return destroyCts.Token;
         }
         private void LogPlayback(string message)
@@ -433,14 +837,44 @@ namespace BattleV2.Orchestration.Runtime
                 return;
             }
 
-            Debug.Log($"[AnimatorWrapper] {name} using animation set '{animationSet.name}'.");
+            if (logPlayback)
+            {
+                Debug.Log($"[AnimatorWrapper] {name} using animation set '{animationSet.name}'.");
+            }
             animationSet.WarmUpCache();
 
             var installer = AnimationSystemInstaller.Current;
-            if (installer?.ClipResolver == null)
+            if (!registerToGlobalResolver || installer?.ClipResolver == null)
             {
                 return;
             }
+
+            if (animationSet.ClipBindings == null || animationSet.ClipBindings.Count == 0)
+            {
+                return;
+            }
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            // Detect duplicates within the set and collisions with existing resolver entries
+            var seenIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var binding in animationSet.ClipBindings)
+            {
+                if (string.IsNullOrWhiteSpace(binding.Id) || binding.Clip == null)
+                {
+                    continue;
+                }
+
+                if (!seenIds.Add(binding.Id) && debugAw01Enabled)
+                {
+                    Debug.Log($"[DEBUG-AW01] Duplicate clip id '{binding.Id}' in CharacterAnimationSet '{animationSet.name}' on '{name}'. Last wins.", this);
+                }
+
+                if (installer.ClipResolver.TryGetClip(binding.Id, out var existingClip) && existingClip != null && existingClip != binding.Clip && debugAw01Enabled)
+                {
+                    Debug.Log($"[DEBUG-AW01] Clip id collision '{binding.Id}' registering set '{animationSet.name}' on '{name}'. Existing='{existingClip.name}' New='{binding.Clip.name}'", this);
+                }
+            }
+#endif
 
             installer.ClipResolver.RegisterBindings(animationSet.ClipBindings);
         }

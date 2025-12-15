@@ -1,5 +1,7 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
+using BattleV2.Core;
 
 namespace BattleV2.Execution
 {
@@ -24,6 +26,12 @@ namespace BattleV2.Execution
 
             try
             {
+                BattleDiagnostics.Log(
+                    "Thread.debug00",
+                    $"[Thread.debug00][MW.ExecuteActionMiddleware.Enter] tid={Thread.CurrentThread.ManagedThreadId} isMain={UnityMainThreadGuard.IsMainThread()}",
+                    context.Attacker);
+
+                context.MarkEffectsApplied("ExecuteActionMiddleware.BeforeExecute");
                 context.ActionImplementation.Execute(
                     context.Attacker,
                     context.CombatContext,
@@ -36,11 +44,24 @@ namespace BattleV2.Execution
                 tcs.TrySetException(ex);
             }
 
-            await tcs.Task.ConfigureAwait(false);
+            await tcs.Task;
+
+            BattleDiagnostics.Log(
+                "Thread.debug00",
+                $"[Thread.debug00][MW.ExecuteActionMiddleware.AfterExecute] tid={Thread.CurrentThread.ManagedThreadId} isMain={UnityMainThreadGuard.IsMainThread()}",
+                context.Attacker);
 
             if (next != null)
             {
-                await next().ConfigureAwait(false);
+                BattleDiagnostics.Log(
+                    "Thread.debug00",
+                    $"[Thread.debug00][MW.ExecuteActionMiddleware.AwaitNext.Before] tid={Thread.CurrentThread.ManagedThreadId} isMain={UnityMainThreadGuard.IsMainThread()}",
+                    context.Attacker);
+                await next();
+                BattleDiagnostics.Log(
+                    "Thread.debug00",
+                    $"[Thread.debug00][MW.ExecuteActionMiddleware.AwaitNext.After] tid={Thread.CurrentThread.ManagedThreadId} isMain={UnityMainThreadGuard.IsMainThread()}",
+                    context.Attacker);
             }
         }
     }
