@@ -17,7 +17,8 @@ namespace BattleV2.Execution.TimedHits
             TimedHitRunMode mode,
             CancellationToken cancellationToken,
             BasicTimedHitProfile basicProfile = null,
-            TimedHitRunnerKind runnerKind = TimedHitRunnerKind.Default)
+            TimedHitRunnerKind runnerKind = TimedHitRunnerKind.Default,
+            int executionId = 0)
         {
             Attacker = attacker;
             Target = target;
@@ -29,6 +30,7 @@ namespace BattleV2.Execution.TimedHits
             CancellationToken = cancellationToken;
             BasicProfile = basicProfile;
             RunnerKind = runnerKind;
+            ExecutionId = executionId;
         }
 
         public CombatantState Attacker { get; }
@@ -41,7 +43,7 @@ namespace BattleV2.Execution.TimedHits
         public CancellationToken CancellationToken { get; }
         public BasicTimedHitProfile BasicProfile { get; }
         public TimedHitRunnerKind RunnerKind { get; }
+        public int ExecutionId { get; }
     }
 }
-
 

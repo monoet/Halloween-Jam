@@ -80,6 +80,9 @@ namespace BattleV2.UI
         private RootMenuVisibility rootVisibility = RootMenuVisibility.Visible;
         public bool IsRootHidden => rootVisibility == RootMenuVisibility.Hidden;
         public bool IsTargeting => state == UiState.Target;
+        public bool IsTimedHitActive => state == UiState.TimedHit;
+        public bool IsLocked => state == UiState.Locked;
+        public bool IsHidden => state == UiState.Hidden;
 
         private void Update()
         {

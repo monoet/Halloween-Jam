@@ -87,6 +87,7 @@ namespace BattleV2.UI
         private ICpIntentSource cpIntentSource;
         private bool suppressNavigateSfx;
         private int lastSubmitFrame = -1;
+        private int lastCpIntentBlockLogFrame = -1;
 
         public BattleUIRoot UiRoot => uiRoot;
         public ITimedHitService TimedHitService { get; private set; }
@@ -358,14 +359,59 @@ namespace BattleV2.UI
                 return;
             }
 
+            if (uiRoot != null)
+            {
+                string blockReason = null;
+                if (uiRoot.CurrentUIMode != BattleUIRoot.BattleUIMode.CombatUI) blockReason = "UIMode";
+                else if (uiRoot.IsHidden) blockReason = "Hidden";
+                else if (uiRoot.IsLocked) blockReason = "Locked";
+                else if (uiRoot.IsTimedHitActive) blockReason = "TimedHit";
+                else if (uiRoot.IsTargeting) blockReason = "Targeting";
+
+                if (blockReason != null)
+                {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                    if (BattleDiagnostics.DevCpTrace && lastCpIntentBlockLogFrame != Time.frameCount)
+                    {
+                        lastCpIntentBlockLogFrame = Time.frameCount;
+                        BattleDiagnostics.Log(
+                            "CPTRACE",
+                            $"UI_EMIT_BLOCK reason={blockReason} mode={uiRoot.CurrentUIMode} targeting={uiRoot.IsTargeting} timed={uiRoot.IsTimedHitActive} locked={uiRoot.IsLocked} hidden={uiRoot.IsHidden}",
+                            this);
+                    }
+#endif
+                    return;
+                }
+            }
+
+            void ApplyDelta(int delta)
+            {
+                int prev = cpIntentSource.Current;
+                int max = cpIntentSource.Max;
+                bool active = cpIntentSource.IsActiveTurn;
+
+                cpIntentSink.Add(delta, "Hotkey");
+
+                int cur = cpIntentSource.Current;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                if (BattleDiagnostics.DevCpTrace)
+                {
+                    BattleDiagnostics.Log(
+                        "CPTRACE",
+                        $"UI_EMIT delta={delta} prev={prev} cur={cur} max={max} activeTurn={active} reason=Hotkey",
+                        this);
+                }
+#endif
+            }
+
             if (Input.GetKeyDown(decreaseCpKey))
             {
-                cpIntentSink.Add(-1, "Hotkey");
+                ApplyDelta(-1);
             }
 
             if (Input.GetKeyDown(increaseCpKey))
             {
-                cpIntentSink.Add(1, "Hotkey");
+                ApplyDelta(1);
             }
         }
         private bool IsAnyKeyHeld(KeyCode[] keys)
@@ -397,4 +443,3 @@ namespace BattleV2.UI
         }
     }
 }
-

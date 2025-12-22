@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using BattleV2.AnimationSystem;
 using BattleV2.AnimationSystem.Runtime;
 using BattleV2.Charge;
+using BattleV2.Core;
 using UnityEngine;
 
 namespace BattleV2.Execution.TimedHits
@@ -273,6 +274,15 @@ namespace BattleV2.Execution.TimedHits
                 $"[KS1-FINAL] PUBLISH | BusHash={bus.GetHashCode()} | Actor={request.Attacker?.name} | Judgment={result.Judgment} | Scope={evt.Scope}",
                 this);
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (BattleDiagnostics.DevCpTrace)
+            {
+                BattleDiagnostics.Log(
+                    "CPTRACE",
+                    $"TH_RESULT_FINAL exec={request.ExecutionId} judgment={result.Judgment} phase={result.PhaseIndex}/{result.TotalPhases} hits={result.HitsSucceeded}/{result.TotalHits}",
+                    request.Attacker);
+            }
+#endif
             bus.Publish(evt);
         }
 

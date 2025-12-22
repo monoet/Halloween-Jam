@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using BattleV2.AnimationSystem;
 using BattleV2.AnimationSystem.Runtime;
 using BattleV2.Charge;
+using BattleV2.Core;
 using UnityEngine;
 using BattleV2.AnimationSystem.Execution.Runtime.CombatEvents;
 
@@ -238,6 +239,15 @@ namespace BattleV2.Execution.TimedHits
                 isCritical: false,
                 targetCount: 1);
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (BattleDiagnostics.DevCpTrace)
+            {
+                BattleDiagnostics.Log(
+                    "CPTRACE",
+                    $"TH_RESULT_FINAL exec={activeRequest.ExecutionId} judgment={judgment} deltaMs={deltaMs:0.#} phase={phaseIndex}/{totalPhases} consumed={consumedInput}",
+                    activeRequest.Attacker);
+            }
+#endif
             bus.Publish(evt);
 
             if (enableDebugLogs)

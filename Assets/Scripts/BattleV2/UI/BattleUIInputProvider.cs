@@ -17,6 +17,9 @@ namespace BattleV2.UI
         [SerializeField] private BattleUIRoot uiRoot;
         [SerializeField] private ChargeProfile fallbackChargeProfile;
 
+        [Header("CP Intent (Source of Truth)")]
+        [SerializeField] private RuntimeCPIntent cpIntent;
+
         private BattleActionContext pendingContext;
         private Action<BattleSelection> pendingOnSelected;
         private Action pendingOnCancel;
@@ -40,6 +43,7 @@ namespace BattleV2.UI
         private void Awake()
         {
             uiRoot ??= GetComponent<BattleUIRoot>();
+            cpIntent ??= RuntimeCPIntent.Shared;
         }
 
         public void RequestAction(BattleActionContext context, Action<BattleSelection> onSelected, Action onCancel)
@@ -142,17 +146,19 @@ namespace BattleV2.UI
                 return;
             }
 
-            int cp = Mathf.Clamp(pendingCp, 0, Mathf.Max(0, pendingContext.MaxCpCharge));
+            cpIntent ??= RuntimeCPIntent.Shared;
+            int intentCp = cpIntent != null ? cpIntent.Current : 0;
+            int cp = Mathf.Clamp(intentCp, 0, Mathf.Max(0, pendingContext.MaxCpCharge));
             ResolveProfiles(pendingContext, action, out var chargeProfile, out var timedProfile);
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             if (BattleDiagnostics.DevCpTrace)
             {
                 int playerCp = pendingContext.Player != null ? pendingContext.Player.CurrentCP : 0;
-                bool clamped = cp != pendingCp;
+                bool clamped = cp != intentCp;
                 BattleDiagnostics.Log(
                     "CPTRACE",
-                    $"UI_COMMIT action={action.id} pendingCp={pendingCp} maxCpCharge={pendingContext.MaxCpCharge} playerCp={playerCp} finalCp={cp} clamped={clamped}",
+                    $"UI_COMMIT action={action.id} intentCp={intentCp} intentMax={(cpIntent != null ? cpIntent.Max : 0)} maxCpCharge={pendingContext.MaxCpCharge} playerCp={playerCp} finalCp={cp} clamped={clamped} activeTurn={(cpIntent != null && cpIntent.IsActiveTurn)}",
                     this);
             }
 #endif

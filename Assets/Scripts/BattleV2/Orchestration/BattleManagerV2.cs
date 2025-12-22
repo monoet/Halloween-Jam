@@ -761,18 +761,45 @@ namespace BattleV2.Orchestration
             bool consumesCp = draft.Action != null &&
                               (draft.Action.costCP > 0 || selection.ChargeProfile != null || selection.TimedHitProfile != null);
             
-            int extraCp = consumesCp ? cpIntent.ConsumeOnce(selectionId, "ActionCommit") : 0;
+            int uiCpCharge = Mathf.Max(0, selection.CpCharge);
+            int consumedIntentCp = consumesCp ? cpIntent.ConsumeOnce(selectionId, "ActionCommit") : 0;
+
+            // IMPORTANT:
+            // - Some providers (new UI path) already set selection.CpCharge from RuntimeCPIntent.
+            // - We still ConsumeOnce to clear the intent state / prevent duplicate consumption, but MUST NOT add it twice.
+            // If UI didn't provide cpCharge, fall back to the consumed intent.
+            int finalCpCharge = uiCpCharge > 0 ? uiCpCharge : Mathf.Max(0, consumedIntentCp);
+            if (finalCpCharge != selection.CpCharge)
+            {
+                selection = selection.WithCpCharge(finalCpCharge);
+            }
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (BattleDiagnostics.DevCpTrace)
+            {
+                BattleDiagnostics.Log(
+                    "CPTRACE",
+                    $"INTENT_CONSUME exec={executionId} selectionId={selectionId} actionId={selection.Action?.id ?? "(null)"} consumesCp={consumesCp} uiCp={uiCpCharge} consumedCp={consumedIntentCp} finalCp={finalCpCharge} intentCur={cpIntent.Current} intentMax={cpIntent.Max} activeTurn={cpIntent.IsActiveTurn} reason=ActionCommit",
+                    currentPlayer);
+            }
+#endif
             
             // Mark as committed
             currentDraft = draft.MarkCommitted();
 
             // End Turn Signal (only confirmed commits reach EndTurn; Cancel/Back never do).
             cpIntent.EndTurn("CommittedOutcome");
-            
-            if (extraCp > 0)
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (BattleDiagnostics.DevCpTrace)
             {
-                selection = selection.WithCpCharge(selection.CpCharge + extraCp);
+                BattleDiagnostics.Log(
+                    "CPTRACE",
+                    $"INTENT_END_TURN exec={executionId} actionId={selection.Action?.id ?? "(null)"} reason=CommittedOutcome activeTurn={cpIntent.IsActiveTurn}",
+                    currentPlayer);
             }
+#endif
+            
+            // NOTE: Do not add consumed CP here; selection.CpCharge already reflects the chosen CP (or we set it above).
 
             // 5. Update Context
             if (resolution.PrimaryEnemy != null && !resolution.Result.TargetSet.IsGroup)
@@ -795,7 +822,7 @@ namespace BattleV2.Orchestration
             }
             if (enrichedSelection.TimedHitProfile != null)
             {
-                enrichedSelection = enrichedSelection.WithTimedHitHandle(new TimedHitExecutionHandle(enrichedSelection.TimedHitResult));
+                enrichedSelection = enrichedSelection.WithTimedHitHandle(new TimedHitExecutionHandle(enrichedSelection.TimedHitResult, executionId));
             }
 
             // 7. Execute
@@ -969,6 +996,15 @@ namespace BattleV2.Orchestration
                     currentTurnActor = actor;
                     hudManager?.HighlightCombatant(null);
                     cpIntent.EndTurn("EnemyTurn");
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                    if (BattleDiagnostics.DevCpTrace)
+                    {
+                        BattleDiagnostics.Log(
+                            "CPTRACE",
+                            $"INTENT_END_TURN exec=0 reason=EnemyTurn actor={actor.DisplayName}#{actor.GetInstanceID()} activeTurn={cpIntent.IsActiveTurn}",
+                            actor);
+                    }
+#endif
                     if (enemyTurnCoordinator != null)
                     {
                         var enemyContext = BuildEnemyTurnContext(actor);
@@ -1113,12 +1149,30 @@ namespace BattleV2.Orchestration
             {
                 cpIntent.SetDefaultActor(currentPlayer);
                 cpIntent.BeginTurn(currentPlayer.CurrentCP);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                if (BattleDiagnostics.DevCpTrace)
+                {
+                    BattleDiagnostics.Log(
+                        "CPTRACE",
+                        $"INTENT_BEGIN_TURN actor={currentPlayer.DisplayName}#{currentPlayer.GetInstanceID()} max={currentPlayer.CurrentCP} reason=RequestPlayerAction(noProvider)",
+                        currentPlayer);
+                }
+#endif
                 QueuePendingPlayerRequest(actionContext, HandlePlayerSelection, ExecuteFallback);
                 return;
             }
 
             cpIntent.SetDefaultActor(currentPlayer);
             cpIntent.BeginTurn(currentPlayer.CurrentCP);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (BattleDiagnostics.DevCpTrace)
+            {
+                BattleDiagnostics.Log(
+                    "CPTRACE",
+                    $"INTENT_BEGIN_TURN actor={currentPlayer.DisplayName}#{currentPlayer.GetInstanceID()} max={currentPlayer.CurrentCP} reason=RequestPlayerAction",
+                    currentPlayer);
+            }
+#endif
             DispatchToInputProvider(actionContext, HandlePlayerSelection, ExecuteFallback);
         }
 
@@ -1226,6 +1280,16 @@ namespace BattleV2.Orchestration
             {
                 // Limpia la selección CP sin terminar el turno.
                 cpIntent.ResetSelection("SelectionCanceled");
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                if (BattleDiagnostics.DevCpTrace)
+                {
+                    var actor = currentTurnActor ?? context?.Player ?? Player;
+                    BattleDiagnostics.Log(
+                        "CPTRACE",
+                        $"INTENT_RESET_SELECTION exec=0 reason=SelectionCanceled actor={(actor != null ? actor.DisplayName : "(null)")}#{(actor != null ? actor.GetInstanceID() : 0)} activeTurn={cpIntent.IsActiveTurn}",
+                        actor);
+                }
+#endif
                 onCancel?.Invoke();
             }
 

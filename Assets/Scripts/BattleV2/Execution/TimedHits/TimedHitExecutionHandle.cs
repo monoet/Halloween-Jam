@@ -14,16 +14,19 @@ namespace BattleV2.Execution.TimedHits
     {
         private readonly TaskCompletionSource<TimedHitResult?> completionSource;
 
-        public TimedHitExecutionHandle(TimedHitResult? initialResult = null)
+        public TimedHitExecutionHandle(TimedHitResult? initialResult = null, int executionId = 0)
         {
             completionSource = new TaskCompletionSource<TimedHitResult?>(TaskCreationOptions.RunContinuationsAsynchronously);
             if (initialResult.HasValue)
             {
                 completionSource.TrySetResult(initialResult);
             }
+
+            ExecutionId = executionId;
         }
 
         public bool IsCompleted => completionSource.Task.IsCompleted;
+        public int ExecutionId { get; }
 
         public Task<TimedHitResult?> AsTask() => completionSource.Task;
 

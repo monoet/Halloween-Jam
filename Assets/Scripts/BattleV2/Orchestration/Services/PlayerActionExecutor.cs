@@ -226,6 +226,15 @@ namespace BattleV2.Orchestration.Services
 
                 bool battleEnded = context.TryResolveBattleEnd != null && context.TryResolveBattleEnd();
                 var completedTargets = context.Snapshot.Targets ?? Array.Empty<CombatantState>();
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                if (BattleDiagnostics.DevCpTrace)
+                {
+                    BattleDiagnostics.Log(
+                        "CPTRACE",
+                        $"TURN_CLOSE_PUBLISH exec={context.ExecutionId} actor={context.Player?.DisplayName ?? "(null)"}#{(context.Player != null ? context.Player.GetInstanceID() : 0)} action={resolvedSelection.Action?.id ?? "(null)"} cp={resolvedSelection.CpCharge} isTriggered=false",
+                        context.Player);
+                }
+#endif
                 eventBus?.Publish(new ActionCompletedEvent(context.ExecutionId, context.Player, resolvedSelection, completedTargets, isTriggered: false, judgment: finalJudgment));
 
                 if (battleEnded)
@@ -241,6 +250,15 @@ namespace BattleV2.Orchestration.Services
                 int actorId = context.Player != null ? context.Player.GetInstanceID() : 0;
                 var actionId = context.Selection.Action?.id ?? "(null)";
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                if (BattleDiagnostics.DevCpTrace)
+                {
+                    BattleDiagnostics.Log(
+                        "CPTRACE",
+                        $"EXCEPTION exec={context.ExecutionId} where=PlayerActionExecutor actionId={actionId} exType={(ex != null ? ex.GetType().Name : "(null)")} exMsg={(ex != null ? ex.Message : "(null)")}",
+                        context.Player);
+                }
+#endif
                 BattleDiagnostics.Log(
                     "PAE.BUITI",
                     $"b=1 phase=PAE.Exception actor={actorName}#{actorId} actionId={actionId} cpSpent={cpSpent} spSpent={spSpent}",

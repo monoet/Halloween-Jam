@@ -258,7 +258,7 @@ namespace BattleV2.Orchestration.Services
                 }
                 if (enrichedSelection.TimedHitProfile != null)
                 {
-                    enrichedSelection = enrichedSelection.WithTimedHitHandle(new TimedHitExecutionHandle(enrichedSelection.TimedHitResult));
+                    enrichedSelection = enrichedSelection.WithTimedHitHandle(new TimedHitExecutionHandle(enrichedSelection.TimedHitResult, context.ExecutionId));
                 }
 
                 var snapshot = new ExecutionSnapshot(context.Allies, context.Enemies, resolution.Targets);
@@ -331,6 +331,15 @@ namespace BattleV2.Orchestration.Services
                 PublishDefeatEvents(defeatCandidates, attacker);
 
                 bool battleEnded = context.TryResolveBattleEnd();
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                if (BattleDiagnostics.DevCpTrace)
+                {
+                    BattleDiagnostics.Log(
+                        "CPTRACE",
+                        $"TURN_CLOSE_PUBLISH exec={context.ExecutionId} actor={attacker?.DisplayName ?? "(null)"}#{(attacker != null ? attacker.GetInstanceID() : 0)} action={enrichedSelection.Action?.id ?? "(null)"} cp={enrichedSelection.CpCharge} isTriggered=false",
+                        attacker);
+                }
+#endif
                 eventBus?.Publish(new ActionCompletedEvent(context.ExecutionId, attacker, enrichedSelection.WithTimedResult(result.TimedResult), resolution.Targets, isTriggered: false, judgment: judgment));
 
                 if (battleEnded)
@@ -344,6 +353,15 @@ namespace BattleV2.Orchestration.Services
             }
             catch (Exception ex)
             {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                if (BattleDiagnostics.DevCpTrace)
+                {
+                    BattleDiagnostics.Log(
+                        "CPTRACE",
+                        $"EXCEPTION exec={context.ExecutionId} where=EnemyTurnCoordinator exType={(ex != null ? ex.GetType().Name : "(null)")} exMsg={(ex != null ? ex.Message : "(null)")}",
+                        attacker);
+                }
+#endif
                 Debug.LogError($"[EnemyTurnCoordinator] Enemy action error: {ex}");
                 context.AdvanceTurn(attacker);
                 context.StateController?.Set(BattleState.AwaitingAction);

@@ -23,6 +23,16 @@ namespace BattleV2.Execution.TimedHits
 
         public async Task InvokeAsync(ActionContext context, Func<Task> next)
         {
+            int execId = context?.Selection.TimedHitHandle != null ? context.Selection.TimedHitHandle.ExecutionId : 0;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (BattleDiagnostics.DevCpTrace)
+            {
+                BattleDiagnostics.Log(
+                    "CPTRACE",
+                    $"TH_BEGIN exec={execId} action={context?.Selection.Action?.id ?? "(null)"} cp={context?.Selection.CpCharge ?? 0} hasHandle={(context?.Selection.TimedHitHandle != null)} hasResult={(context?.Selection.TimedHitResult.HasValue ?? false)}",
+                    context?.Attacker);
+            }
+#endif
             BattleDiagnostics.Log(
                 "Thread.debug00",
                 $"[Thread.debug00][MW.{nameof(TimedHitMiddleware)}.Enter] tid={Thread.CurrentThread.ManagedThreadId} isMain={UnityMainThreadGuard.IsMainThread()}",
@@ -37,6 +47,15 @@ namespace BattleV2.Execution.TimedHits
                 if (resolved.Cancelled)
                 {
                     context.Cancelled = true;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                    if (BattleDiagnostics.DevCpTrace)
+                    {
+                        BattleDiagnostics.Log(
+                            "CPTRACE",
+                            $"TH_END exec={execId} outcome=Cancelled source=SelectionResult",
+                            context?.Attacker);
+                    }
+#endif
                     return;
                 }
 
@@ -52,6 +71,15 @@ namespace BattleV2.Execution.TimedHits
                         $"[Thread.debug00][MW.{nameof(TimedHitMiddleware)}.AwaitNext.After] tid={Thread.CurrentThread.ManagedThreadId} isMain={UnityMainThreadGuard.IsMainThread()}",
                         context.Attacker);
                 }
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                if (BattleDiagnostics.DevCpTrace)
+                {
+                    BattleDiagnostics.Log(
+                        "CPTRACE",
+                        $"TH_END exec={execId} outcome=Resolved source=SelectionResult",
+                        context?.Attacker);
+                }
+#endif
                 return;
             }
 
@@ -69,12 +97,30 @@ namespace BattleV2.Execution.TimedHits
                         "Thread.debug00",
                         $"[Thread.debug00][MW.{nameof(TimedHitMiddleware)}.Handle.Wait.After] tid={Thread.CurrentThread.ManagedThreadId} isMain={UnityMainThreadGuard.IsMainThread()}",
                         context.Attacker);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                    if (BattleDiagnostics.DevCpTrace)
+                    {
+                        BattleDiagnostics.Log(
+                            "CPTRACE",
+                            $"TH_HANDLE_WAIT_DONE exec={execId} hasValue={awaited.HasValue} cancelled={(awaited.HasValue && awaited.Value.Cancelled)}",
+                            context?.Attacker);
+                    }
+#endif
                     if (awaited.HasValue)
                     {
                         context.TimedResult = awaited.Value;
                         if (awaited.Value.Cancelled)
                         {
                             context.Cancelled = true;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                            if (BattleDiagnostics.DevCpTrace)
+                            {
+                                BattleDiagnostics.Log(
+                                    "CPTRACE",
+                                    $"TH_END exec={execId} outcome=Cancelled source=HandleWait",
+                                    context?.Attacker);
+                            }
+#endif
                             return;
                         }
                     }
@@ -86,6 +132,15 @@ namespace BattleV2.Execution.TimedHits
                 catch (OperationCanceledException)
                 {
                     context.Cancelled = true;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                    if (BattleDiagnostics.DevCpTrace)
+                    {
+                        BattleDiagnostics.Log(
+                            "CPTRACE",
+                            $"TH_END exec={execId} outcome=Cancelled source=HandleWaitException",
+                            context?.Attacker);
+                    }
+#endif
                     return;
                 }
 
@@ -101,6 +156,16 @@ namespace BattleV2.Execution.TimedHits
                         $"[Thread.debug00][MW.{nameof(TimedHitMiddleware)}.AwaitNext.After] tid={Thread.CurrentThread.ManagedThreadId} isMain={UnityMainThreadGuard.IsMainThread()}",
                         context.Attacker);
                 }
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                if (BattleDiagnostics.DevCpTrace)
+                {
+                    var resolved = context.TimedResult;
+                    BattleDiagnostics.Log(
+                        "CPTRACE",
+                        $"TH_END exec={execId} outcome=Resolved source=HandleWait hasResult={resolved.HasValue} cancelled={(resolved.HasValue && resolved.Value.Cancelled)}",
+                        context?.Attacker);
+                }
+#endif
                 return;
             }
 
@@ -137,7 +202,8 @@ namespace BattleV2.Execution.TimedHits
                 TimedHitRunMode.Execute,
                 context.CancellationToken,
                 basicProfile,
-                runnerKind);
+                runnerKind,
+                execId);
 
             TimedHitResult result;
             try
@@ -170,12 +236,30 @@ namespace BattleV2.Execution.TimedHits
             catch (OperationCanceledException)
             {
                 context.Cancelled = true;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                if (BattleDiagnostics.DevCpTrace)
+                {
+                    BattleDiagnostics.Log(
+                        "CPTRACE",
+                        $"TH_END exec={execId} outcome=Cancelled source=RunAsyncException",
+                        context?.Attacker);
+                }
+#endif
                 return;
             }
 
             if (result.Cancelled)
             {
                 context.Cancelled = true;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                if (BattleDiagnostics.DevCpTrace)
+                {
+                    BattleDiagnostics.Log(
+                        "CPTRACE",
+                        $"TH_END exec={execId} outcome=Cancelled source=RunAsyncResult",
+                        context?.Attacker);
+                }
+#endif
                 return;
             }
 
@@ -193,6 +277,15 @@ namespace BattleV2.Execution.TimedHits
                     $"[Thread.debug00][MW.{nameof(TimedHitMiddleware)}.AwaitNext.After] tid={Thread.CurrentThread.ManagedThreadId} isMain={UnityMainThreadGuard.IsMainThread()}",
                     context.Attacker);
             }
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (BattleDiagnostics.DevCpTrace)
+            {
+                BattleDiagnostics.Log(
+                    "CPTRACE",
+                    $"TH_END exec={execId} outcome=Resolved source=RunAsync judgment={result.Judgment}",
+                    context?.Attacker);
+            }
+#endif
         }
 
         private static Task<TimedHitResult> RunWithFallbackAsync(

@@ -127,6 +127,15 @@ namespace BattleV2.Orchestration.Services
                 return;
             }
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (BattleDiagnostics.DevCpTrace)
+            {
+                BattleDiagnostics.Log(
+                    "CPTRACE",
+                    $"TURN_CLOSE_RECEIVE exec={evt.ExecutionId} actor={evt.Actor?.DisplayName ?? "(null)"}#{(evt.Actor != null ? evt.Actor.GetInstanceID() : 0)} isTriggered={evt.IsTriggered} action={evt.Selection.Action?.id ?? "(null)"} cp={evt.Selection.CpCharge}",
+                    evt.Actor);
+            }
+#endif
             Advance(evt.Actor);
         }
 
@@ -146,6 +155,15 @@ namespace BattleV2.Orchestration.Services
 
             int id = next.StableId;
             turnCounters[id] = turnCounters.TryGetValue(id, out var count) ? count + 1 : 1;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (BattleDiagnostics.DevCpTrace)
+            {
+                BattleDiagnostics.Log(
+                    "CPTRACE",
+                    $"TURN_ADVANCE next={next.DisplayName}#{next.GetInstanceID()} stableId={next.StableId} turnCount={turnCounters[id]}",
+                    next);
+            }
+#endif
             OnTurnReady?.Invoke(next);
         }
 

@@ -61,7 +61,8 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Executors
                 mode,
                 context.CancellationToken,
                 basicProfile,
-                selection.RunnerKind);
+                selection.RunnerKind,
+                handle.ExecutionId);
 
             TimedHitResult result;
             try
@@ -87,6 +88,15 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Executors
             }
 
             handle.TrySetResult(result);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (BattleDiagnostics.DevCpTrace)
+            {
+                BattleDiagnostics.Log(
+                    "CPTRACE",
+                    $"TH_HANDLE_SET exec={handle.ExecutionId} action={selection.Action?.id ?? "(null)"} cp={selection.CpCharge} cancelled={result.Cancelled} judgment={result.Judgment}",
+                    context.Actor);
+            }
+#endif
 
             if (result.Cancelled)
             {

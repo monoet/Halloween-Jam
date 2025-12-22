@@ -200,10 +200,29 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
             Action<TimedHitPhaseResult> onPhaseResolved)
         {
             var resolvedRunner = ResolveRunner(runner);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (BattleDiagnostics.DevCpTrace)
+            {
+                BattleDiagnostics.Log(
+                    "CPTRACE",
+                    $"TH_SVC_BEGIN exec={request.ExecutionId} runner={resolvedRunner?.GetType().Name ?? "(null)"} kind={request.RunnerKind} action={request.ActionData?.id ?? "(null)"} cp={request.CpCharge}",
+                    request.Attacker);
+            }
+#endif
 
             if (onPhaseResolved == null)
             {
-                return resolvedRunner.RunAsync(request);
+                var direct = resolvedRunner.RunAsync(request);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                if (BattleDiagnostics.DevCpTrace && direct.IsCompleted)
+                {
+                    BattleDiagnostics.Log(
+                        "CPTRACE",
+                        $"TH_SVC_END exec={request.ExecutionId} completedSync=true status={direct.Status}",
+                        request.Attacker);
+                }
+#endif
+                return direct;
             }
 
             void PhaseHandler(TimedHitPhaseResult phase) => onPhaseResolved(phase);
@@ -214,20 +233,40 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
             if (task.IsCompleted)
             {
                 resolvedRunner.OnPhaseResolved -= PhaseHandler;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                if (BattleDiagnostics.DevCpTrace)
+                {
+                    BattleDiagnostics.Log(
+                        "CPTRACE",
+                        $"TH_SVC_END exec={request.ExecutionId} completedSync=true status={task.Status}",
+                        request.Attacker);
+                }
+#endif
                 return task;
             }
 
-            return AwaitAndUnsubscribeAsync(resolvedRunner, task, PhaseHandler);
+            return AwaitAndUnsubscribeAsync(resolvedRunner, task, PhaseHandler, request);
         }
 
         private static async Task<TimedHitResult> AwaitAndUnsubscribeAsync(
             ITimedHitRunner runner,
             Task<TimedHitResult> task,
-            Action<TimedHitPhaseResult> handler)
+            Action<TimedHitPhaseResult> handler,
+            TimedHitRequest request)
         {
             try
             {
-                return await task.ConfigureAwait(false);
+                var result = await task.ConfigureAwait(false);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                if (BattleDiagnostics.DevCpTrace)
+                {
+                    BattleDiagnostics.Log(
+                        "CPTRACE",
+                        $"TH_SVC_END exec={request.ExecutionId} completedSync=false cancelled={result.Cancelled} judgment={result.Judgment}",
+                        request.Attacker);
+                }
+#endif
+                return result;
             }
             finally
             {
