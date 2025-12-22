@@ -86,6 +86,15 @@ namespace BattleV2.Actions
             }
 
             totalDamage = Mathf.Max(minimumDamage, Mathf.RoundToInt(totalDamage * timedMultiplier));
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (BattleV2.Core.BattleDiagnostics.DevCpTrace)
+            {
+                BattleV2.Core.BattleDiagnostics.Log(
+                    "CPTRACE",
+                    $"exec={BattleV2.Charge.ComboPointScaling.CurrentTraceExecutionId} action={actionId} cpCharge={cpCharge} cpMult={cpMultiplier:F3} dmgPre={scaledDamage:F1} dmgPostCP={scaledDamage * cpMultiplier:F1} dmgFinal={totalDamage} timedMult={timedMultiplier:F2}",
+                    actor);
+            }
+#endif
 
             BattleLogger.Log(
                 "Action",

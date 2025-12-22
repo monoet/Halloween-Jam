@@ -80,6 +80,15 @@ namespace BattleV2.Actions
             float cpMultiplier = ComboPointScaling.GetDamageMultiplier(cpCharge);
 
             int totalDamage = Mathf.Max(minimumDamage, Mathf.RoundToInt(scaledDamage * cpMultiplier));
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (BattleV2.Core.BattleDiagnostics.DevCpTrace)
+            {
+                BattleV2.Core.BattleDiagnostics.Log(
+                    "CPTRACE",
+                    $"exec={BattleV2.Charge.ComboPointScaling.CurrentTraceExecutionId} action={actionId} cpCharge={cpCharge} cpMult={cpMultiplier:F3} dmgPre={scaledDamage:F1} dmgPostCP={scaledDamage * cpMultiplier:F1} timed={(timedResult.HasValue ? timedResult.Value.DamageMultiplier : 1f):F2} dmgFinal={totalDamage}",
+                    actor);
+            }
+#endif
 
             BattleLogger.Log(
                 "MagicAttack",
@@ -138,6 +147,15 @@ namespace BattleV2.Actions
             }
 
             int finalDamagePerTarget = Mathf.Max(minimumDamage, Mathf.RoundToInt(totalDamageBase * timedMultiplier));
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (BattleV2.Core.BattleDiagnostics.DevCpTrace)
+            {
+                BattleV2.Core.BattleDiagnostics.Log(
+                    "CPTRACE",
+                    $"exec={BattleV2.Charge.ComboPointScaling.CurrentTraceExecutionId} action={actionId} cpCharge={selection.CpCharge} cpMult={cpMultiplier:F3} dmgPre={scaledDamageBase:F1} dmgPostCP={scaledDamageBase * cpMultiplier:F1} timed={timedMultiplier:F2} dmgFinal={finalDamagePerTarget} targets={targets?.Count ?? 0}",
+                    actor);
+            }
+#endif
 
             for (int i = 0; i < targets.Count; i++)
             {

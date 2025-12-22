@@ -132,6 +132,21 @@ namespace BattleV2.UI
             if (cpPanel != null && context != null)
             {
                 cpPanel.ConfigureMax(context.MaxCpCharge);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                if (BattleV2.Core.BattleDiagnostics.DevCpTrace)
+                {
+                    var playerCp = currentActor != null ? currentActor.CurrentCP : 0;
+                    string actionName = "(pending)";
+                    if (context.AvailableActions != null && context.AvailableActions.Count == 1 && context.AvailableActions[0] != null)
+                    {
+                        actionName = context.AvailableActions[0].id ?? "(pending)";
+                    }
+                    BattleV2.Core.BattleDiagnostics.Log(
+                        "CPTRACE",
+                        $"UI_CHARGE_PANEL action={actionName}\u2009visible={(cpPanel.gameObject != null && cpPanel.gameObject.activeSelf)} enabled={!(!cpPanel.enabled)} max={context.MaxCpCharge} playerCp={playerCp} reason=SetActionContext",
+                        this);
+                }
+#endif
             }
         }
 
@@ -187,6 +202,15 @@ namespace BattleV2.UI
             if (cpPanel != null)
             {
                 cpPanel.OnChargeCommitted += amount => OnChargeCommitted?.Invoke(amount);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                if (BattleV2.Core.BattleDiagnostics.DevCpTrace)
+                {
+                    BattleV2.Core.BattleDiagnostics.Log(
+                        "CPTRACE",
+                        $"UI_BIND action=(pending) control={cpPanel.name} instance={cpPanel.GetInstanceID()} bound=true",
+                        this);
+                }
+#endif
             }
 
             if (targetPanel != null)
@@ -471,4 +495,3 @@ namespace BattleV2.UI
         }
     }
 }
-

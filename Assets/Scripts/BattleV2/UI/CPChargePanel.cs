@@ -55,6 +55,15 @@ namespace BattleV2.UI
         private void OnSliderChanged(float value)
         {
             OnChargeCommitted?.Invoke(Mathf.RoundToInt(value));
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (BattleV2.Core.BattleDiagnostics.DevCpTrace)
+            {
+                BattleV2.Core.BattleDiagnostics.Log(
+                    "CPTRACE",
+                    $"UI_EMIT action=(unknown) amount={Mathf.RoundToInt(value)} source=slider max={maxCp} playerCp=? controlInstance={GetInstanceID()}",
+                    this);
+            }
+#endif
         }
     }
 }

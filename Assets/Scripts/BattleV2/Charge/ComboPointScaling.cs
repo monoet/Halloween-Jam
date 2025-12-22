@@ -5,6 +5,10 @@ namespace BattleV2.Charge
     /// </summary>
     public static class ComboPointScaling
     {
+        private static readonly System.Threading.AsyncLocal<int> traceExecutionId = new System.Threading.AsyncLocal<int>();
+        private static readonly System.Threading.AsyncLocal<string> traceActionId = new System.Threading.AsyncLocal<string>();
+        private static readonly System.Threading.AsyncLocal<bool> traceEnabled = new System.Threading.AsyncLocal<bool>();
+
         /// <summary>
         /// Active scaling profile injected at runtime via BattleConfig.
         /// </summary>
@@ -29,16 +33,36 @@ namespace BattleV2.Charge
             }
 
             var profile = ActiveProfile;
+            bool usedProfile = false;
+            bool usedFallback = false;
             if (profile != null)
             {
                 float value = profile.GetMultiplier(cpCharge);
                 if (value > 0f)
                 {
+                    usedProfile = true;
                     return value;
                 }
             }
 
-            return DefaultProceduralMultiplier(cpCharge);
+            usedFallback = true;
+            float fallback = DefaultProceduralMultiplier(cpCharge);
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (BattleV2.Core.BattleDiagnostics.DevCpTrace && cpCharge > 0 && traceEnabled.Value)
+            {
+                float baseline = profile != null ? UnityEngine.Mathf.Max(0.01f, profile.GetMultiplier(1)) : DefaultProceduralMultiplier(1);
+                if (cpCharge >= 2 && fallback < baseline)
+                {
+                    UnityEngine.Debug.LogError($"[CPTRACE] FATAL CP SCALING REGRESSION exec={traceExecutionId.Value} action={traceActionId.Value ?? "(null)"} cp={cpCharge} baseline1={baseline:F3} final={fallback:F3} profile={(profile != null ? profile.name : "null")}");
+                }
+
+                UnityEngine.Debug.Log(
+                    $"[CPTRACE] CPS exec={traceExecutionId.Value} action={traceActionId.Value ?? "(null)"} cp={cpCharge} profile={(profile != null ? profile.name : "null")} usedProfile={usedProfile} usedFallback={usedFallback} final={fallback:F3}");
+            }
+#endif
+
+            return fallback;
         }
 
         /// <summary>
@@ -61,5 +85,31 @@ namespace BattleV2.Charge
 
             return 1f + (bonusPercent / 100f);
         }
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        private struct TraceScope : System.IDisposable
+        {
+            public void Dispose()
+            {
+                traceEnabled.Value = false;
+                traceExecutionId.Value = 0;
+                traceActionId.Value = null;
+            }
+        }
+
+        /// <summary>
+        /// Dev-only: associates trace metadata with the current thread for CP scaling logs.
+        /// </summary>
+        public static System.IDisposable BeginTrace(int executionId, string actionId)
+        {
+            traceExecutionId.Value = executionId;
+            traceActionId.Value = actionId;
+            traceEnabled.Value = true;
+            return new TraceScope();
+        }
+
+        public static int CurrentTraceExecutionId => traceEnabled.Value ? traceExecutionId.Value : 0;
+        public static string CurrentTraceActionId => traceEnabled.Value ? traceActionId.Value : null;
+#endif
     }
 }

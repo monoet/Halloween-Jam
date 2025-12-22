@@ -10,6 +10,15 @@ namespace BattleV2.Core
     /// </summary>
     public static class BattleDiagnostics
     {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        /// <summary>
+        /// Dev-only toggle for CP trace logs. Default false to avoid noise in prod.
+        /// </summary>
+        public static bool DevCpTrace = false;
+#else
+        public const bool DevCpTrace = false;
+#endif
+
         private struct LogEntry
         {
             public double Timestamp;

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using BattleV2.Actions;
 using BattleV2.Charge;
+using BattleV2.Core;
 using BattleV2.Execution.TimedHits;
 using BattleV2.Providers;
 using UnityEngine;
@@ -21,6 +22,21 @@ namespace BattleV2.UI
         private Action pendingOnCancel;
         private int pendingCp;
 
+        private void ResetPendingCp(string reason, string actionId = null, int maxCp = 0, int playerCp = 0)
+        {
+            int prev = pendingCp;
+            pendingCp = 0;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (BattleDiagnostics.DevCpTrace && prev != 0)
+            {
+                BattleDiagnostics.Log(
+                    "CPTRACE",
+                    $"UI_RESET reason={reason} action={(actionId ?? "(unknown)")} pending={prev}->0 max={maxCp} playerCp={playerCp}",
+                    this);
+            }
+#endif
+        }
+
         private void Awake()
         {
             uiRoot ??= GetComponent<BattleUIRoot>();
@@ -39,7 +55,7 @@ namespace BattleV2.UI
             pendingContext = context;
             pendingOnSelected = onSelected;
             pendingOnCancel = onCancel;
-            pendingCp = 0;
+            ResetPendingCp("RequestAction", actionId: "(pending)", maxCp: pendingContext != null ? pendingContext.MaxCpCharge : 0, playerCp: pendingContext?.Player != null ? pendingContext.Player.CurrentCP : 0);
 
             if (uiRoot != null)
             {
@@ -86,7 +102,23 @@ namespace BattleV2.UI
 
         private void HandleChargeCommitted(int amount)
         {
+            int prev = pendingCp;
             pendingCp = Mathf.Max(0, amount);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (BattleDiagnostics.DevCpTrace && pendingContext != null && pendingCp != prev)
+            {
+                int playerCp = pendingContext.Player != null ? pendingContext.Player.CurrentCP : 0;
+                string actionName = "(pending)";
+                if (pendingContext.AvailableActions != null && pendingContext.AvailableActions.Count == 1 && pendingContext.AvailableActions[0] != null)
+                {
+                    actionName = pendingContext.AvailableActions[0].id ?? "(pending)";
+                }
+                BattleDiagnostics.Log(
+                    "CPTRACE",
+                    $"UI_CHARGE action={actionName} amount={amount} pending={prev}->{pendingCp} max={pendingContext.MaxCpCharge} playerCp={playerCp}",
+                    this);
+            }
+#endif
         }
 
         private void HandleCancel()
@@ -112,6 +144,18 @@ namespace BattleV2.UI
 
             int cp = Mathf.Clamp(pendingCp, 0, Mathf.Max(0, pendingContext.MaxCpCharge));
             ResolveProfiles(pendingContext, action, out var chargeProfile, out var timedProfile);
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (BattleDiagnostics.DevCpTrace)
+            {
+                int playerCp = pendingContext.Player != null ? pendingContext.Player.CurrentCP : 0;
+                bool clamped = cp != pendingCp;
+                BattleDiagnostics.Log(
+                    "CPTRACE",
+                    $"UI_COMMIT action={action.id} pendingCp={pendingCp} maxCpCharge={pendingContext.MaxCpCharge} playerCp={playerCp} finalCp={cp} clamped={clamped}",
+                    this);
+            }
+#endif
 
             var selection = new BattleSelection(action, cp, chargeProfile, timedProfile);
             pendingOnSelected?.Invoke(selection);
@@ -166,7 +210,7 @@ namespace BattleV2.UI
             pendingContext = null;
             pendingOnSelected = null;
             pendingOnCancel = null;
-            pendingCp = 0;
+            ResetPendingCp("ClearPending", actionId: "(clear)", maxCp: 0, playerCp: 0);
         }
 
         private void ResolveProfiles(BattleActionContext context, BattleActionData action, out ChargeProfile chargeProfile, out Ks1TimedHitProfile timedProfile)

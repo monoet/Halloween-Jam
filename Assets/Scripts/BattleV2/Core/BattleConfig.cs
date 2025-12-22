@@ -16,6 +16,10 @@ namespace BattleV2.Core
         [Header("Services & Scaling")]
         public BattleServices services = new();
         public ComboPointScalingProfile comboPointScaling;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        [Tooltip("Dev-only: enable CP trace logs (CPTRACE). Avoid enabling in release builds.")]
+        public bool enableCpTraceLogs = false;
+#endif
 
         [Header("Timing")]
         public BattleTimingConfig timingConfig;

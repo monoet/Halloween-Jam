@@ -111,16 +111,21 @@ namespace BattleV2.Orchestration.Services
                     context.Player);
 
                 ActionResult result;
-                try
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                using (BattleV2.Charge.ComboPointScaling.BeginTrace(context.ExecutionId, context.Selection.Action?.id ?? "(null)"))
+#endif
                 {
-                    result = await actionPipeline.Run(request);
-                    pipelineEffectsApplied = result.EffectsApplied;
-                }
-                catch (Exception)
-                {
-                    // Assume effects may have applied before the throw to avoid phantom refunds.
-                    pipelineEffectsApplied = true;
-                    throw;
+                    try
+                    {
+                        result = await actionPipeline.Run(request);
+                        pipelineEffectsApplied = result.EffectsApplied;
+                    }
+                    catch (Exception)
+                    {
+                        // Assume effects may have applied before the throw to avoid phantom refunds.
+                        pipelineEffectsApplied = true;
+                        throw;
+                    }
                 }
 
                 BattleDiagnostics.Log(
@@ -177,6 +182,15 @@ namespace BattleV2.Orchestration.Services
                     "ActionCharge",
                     $"actor={(context.Player != null ? context.Player.DisplayName : "(null)")}#{(context.Player != null ? context.Player.GetInstanceID() : 0)} actionId={context.Selection.Action?.id ?? "(null)"} cpPre={preCost.CpCurrent} cpPost={afterAction.CpCurrent} spPre={preCost.SpCurrent} spPost={afterAction.SpCurrent} cpCharge={context.Selection.CpCharge}",
                     context.Player);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                if (BattleDiagnostics.DevCpTrace)
+                {
+                    BattleDiagnostics.Log(
+                        "CPTRACE",
+                        $"exec={context.ExecutionId} phase=ActionCharge action={context.Selection.Action?.id ?? "(null)"} cpBase={cpBase} cpCharge={cpCharge} cpTotal={cpCost} cpPre={preCost.CpCurrent} cpPost={afterAction.CpCurrent} spPre={preCost.SpCurrent} spPost={afterAction.SpCurrent}",
+                        context.Player);
+                }
+#endif
                 if (cpCost > 0 && cpSpent <= 0)
                 {
                     Debug.LogWarning($"[CP/SP] Expected CP charge but none occurred: action={context.Selection.Action?.id ?? "null"} actor={context.Player?.name ?? "(null)"}");

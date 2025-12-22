@@ -256,6 +256,9 @@ namespace BattleV2.Orchestration
             }
 
             ComboPointScaling.Configure(config != null ? config.comboPointScaling : null);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            BattleV2.Core.BattleDiagnostics.DevCpTrace = config != null && config.enableCpTraceLogs;
+#endif
 
             // Servicios dedicados — por ahora implementaciones por defecto mínimas.
             eventBus = new BattleEventBus();
@@ -555,6 +558,9 @@ namespace BattleV2.Orchestration
             executionCounter = 0;
             markSweepCounter = 0;
             ComboPointScaling.Configure(config != null ? config.comboPointScaling : null);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            BattleV2.Core.BattleDiagnostics.DevCpTrace = config != null && config.enableCpTraceLogs;
+#endif
             triggeredEffects?.Clear();
             ClearPendingPlayerRequest();
             currentTurnActor = null;
