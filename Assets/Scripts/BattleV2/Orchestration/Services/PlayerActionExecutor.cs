@@ -92,6 +92,7 @@ namespace BattleV2.Orchestration.Services
                 judgment = judgment.WithPostCost(postCost);
 
                 var request = new ActionRequest(
+                    context.ExecutionId,
                     context.Manager,
                     context.Player,
                     targets,

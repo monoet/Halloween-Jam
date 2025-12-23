@@ -9,6 +9,7 @@ using BattleV2.Execution.TimedHits;
 using BattleV2.Orchestration.Events;
 using BattleV2.Providers;
 using BattleV2.Targeting;
+using BattleV2.Targeting.Policies;
 using UnityEngine;
 using BattleV2.AnimationSystem.Runtime;
 using BattleV2.Marks;
@@ -36,11 +37,13 @@ namespace BattleV2.Orchestration.Services
             Func<bool> tryResolveBattleEnd,
             Action refreshCombatContext,
             CancellationToken token,
+            uint battleSeed,
             int executionId,
             int attackerTurnCounter)
         {
             ExecutionId = executionId;
             AttackerTurnCounter = attackerTurnCounter;
+            BattleSeed = battleSeed;
             Manager = manager;
             Attacker = attacker;
             Player = player;
@@ -58,6 +61,7 @@ namespace BattleV2.Orchestration.Services
 
         public int ExecutionId { get; }
         public int AttackerTurnCounter { get; }
+        public uint BattleSeed { get; }
         public BattleManagerV2 Manager { get; }
         public CombatantState Attacker { get; }
         public CombatantState Player { get; }
@@ -130,6 +134,47 @@ namespace BattleV2.Orchestration.Services
                 return;
             }
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (BattleDiagnostics.DevFlowTrace)
+            {
+                string source = "Empty";
+                string ids = "[]";
+
+                if (attacker != null && attacker.ActionLoadout != null)
+                {
+                    bool assetHasIds = attacker.ActionLoadout.ActionIds != null && attacker.ActionLoadout.ActionIds.Count > 0;
+                    if (assetHasIds)
+                    {
+                        source = "Asset";
+                    }
+                    else
+                    {
+                        source = attacker.AllowLegacyActionFallback ? "AssetEmpty->LegacyFallback" : "AssetEmpty->None";
+                    }
+                }
+                else if (attacker != null && attacker.AllowedActionIds != null && attacker.AllowedActionIds.Count > 0)
+                {
+                    source = "Legacy";
+                }
+
+                var effectiveIds = attacker != null ? attacker.AllowedActionIds : null;
+                if (effectiveIds != null && effectiveIds.Count > 0)
+                {
+                    var parts = new string[Mathf.Min(effectiveIds.Count, 10)];
+                    for (int i = 0; i < parts.Length; i++)
+                    {
+                        parts[i] = effectiveIds[i] ?? "(null)";
+                    }
+                    ids = $"[{string.Join(",", parts)}{(effectiveIds.Count > parts.Length ? ",..+" + (effectiveIds.Count - parts.Length) : string.Empty)}]";
+                }
+
+                BattleDiagnostics.Log(
+                    "BATTLEFLOW",
+                    $"LOADOUT_EFFECTIVE actor={attacker?.DisplayName ?? "(null)"}#{(attacker != null ? attacker.GetInstanceID() : 0)} source={source} ids={ids}",
+                    attacker);
+            }
+#endif
+
             var combatContext = context.CombatContext;
             var available = actionCatalog?.BuildAvailableFor(attacker, combatContext);
             if (available == null || available.Count == 0)
@@ -140,30 +185,37 @@ namespace BattleV2.Orchestration.Services
                 return;
             }
 
-            var allowedIds = attacker.AllowedActionIds;
-            if (allowedIds != null && allowedIds.Count > 0)
+            bool strictAllowedIds = attacker != null && attacker.ActionLoadout != null;
+            available = (System.Collections.Generic.IReadOnlyList<BattleActionData>)BattleV2.Orchestration.Services.ActionAvailabilityService.FilterAllowedIds(
+                available,
+                attacker != null ? attacker.AllowedActionIds : null,
+                strictAllowedIds,
+                attacker);
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (BattleDiagnostics.DevFlowTrace)
             {
-                var allowedLookup = new HashSet<string>(allowedIds, System.StringComparer.OrdinalIgnoreCase);
-                var filtered = new List<BattleActionData>(available.Count);
-                for (int i = 0; i < available.Count; i++)
+                string availableIds;
+                if (available == null || available.Count == 0)
                 {
-                    var candidate = available[i];
-                    if (candidate == null)
+                    availableIds = "[]";
+                }
+                else
+                {
+                    var parts = new string[Mathf.Min(available.Count, 10)];
+                    for (int i = 0; i < parts.Length; i++)
                     {
-                        continue;
+                        parts[i] = available[i]?.id ?? "(null)";
                     }
-
-                    if (!string.IsNullOrWhiteSpace(candidate.id) && allowedLookup.Contains(candidate.id))
-                    {
-                        filtered.Add(candidate);
-                    }
+                    availableIds = $"[{string.Join(",", parts)}{(available.Count > parts.Length ? ",..+" + (available.Count - parts.Length) : string.Empty)}]";
                 }
 
-                if (filtered.Count > 0)
-                {
-                    available = filtered;
-                }
-            }
+                 BattleDiagnostics.Log(
+                     "BATTLEFLOW",
+                    $"ENEMY_ACTION_POOL exec={context.ExecutionId} actor={attacker?.DisplayName ?? "(null)"}#{(attacker != null ? attacker.GetInstanceID() : 0)} allowedFilter={(attacker != null && attacker.AllowedActionIds != null && attacker.AllowedActionIds.Count > 0)} available={availableIds}",
+                     attacker);
+             }
+#endif
 
             BattleActionData actionData = null;
             IAction implementation = null;
@@ -176,6 +228,16 @@ namespace BattleV2.Orchestration.Services
                     break;
                 }
             }
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (BattleDiagnostics.DevFlowTrace)
+            {
+                BattleDiagnostics.Log(
+                    "BATTLEFLOW",
+                    $"ENEMY_ACTION_PICK exec={context.ExecutionId} actor={attacker?.DisplayName ?? "(null)"}#{(attacker != null ? attacker.GetInstanceID() : 0)} action={(actionData != null ? actionData.id : "(none)")}",
+                    attacker);
+            }
+#endif
 
             if (actionData == null || implementation == null)
             {
@@ -220,15 +282,135 @@ namespace BattleV2.Orchestration.Services
                 var intent = TargetingIntent.FromAction(selection.Action);
                 bool resourcesCharged = false;
 
+                IReadOnlyList<CombatantState> alliesForTargeting = context.Allies;
+                var action = selection.Action;
+                List<CombatantState> candidatesAlive = null;
+                CombatantState picked = null;
+                TargetPickResult pick = default;
+                if (attacker != null &&
+                    attacker.IsEnemy &&
+                    action != null &&
+                    action.targetShape == TargetShape.Single &&
+                    context.Allies != null &&
+                    context.Allies.Count > 1)
+                {
+                    candidatesAlive = CollectAliveTargets(context.Allies);
+                    if (candidatesAlive.Count > 0)
+                    {
+                        int spawnInstanceId = attacker.SpawnInstanceId != 0 ? attacker.SpawnInstanceId : attacker.GetInstanceID();
+                        uint actionHash = unchecked((uint)EnemyTargetingDebug.StableHash(action.id));
+                        int seed = EnemyTargetingDebug.MixSeed(
+                            context.BattleSeed,
+                            unchecked((uint)spawnInstanceId),
+                            unchecked((uint)context.AttackerTurnCounter),
+                            actionHash);
+
+                        var policy = EnemyTargetingPolicyRegistry.Get("RandomAlive");
+                        var policyContext = new TargetingContext(
+                            context.ExecutionId,
+                            attacker,
+                            action.id,
+                            TargetShape.Single,
+                            candidatesAlive,
+                            seed);
+
+                        pick = policy.PickTarget(policyContext);
+                        picked = pick.Picked;
+                        if (picked != null)
+                        {
+                            alliesForTargeting = ReorderFirst(context.Allies, picked);
+                        }
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                        if (BattleDiagnostics.DevFlowTrace)
+                        {
+                            string pickedStr = picked != null
+                                ? $"{picked.DisplayName}#{picked.GetInstanceID()}"
+                                : "(null)";
+                            BattleDiagnostics.Log(
+                                "BATTLEFLOW",
+                                $"AI_TARGET_PICK exec={context.ExecutionId} battleSeed={context.BattleSeed} spawnId={spawnInstanceId} turnIdx={context.AttackerTurnCounter} action={action.id} actionHash={actionHash} shape=Single policy={policy.Id} seed={seed} rollIdx={pick.Index} roll01={pick.Roll01:0.0000} candidates={EnemyTargetingDebug.FormatCandidates(candidatesAlive)} picked={pickedStr}",
+                                attacker);
+                        }
+#endif
+                    }
+                }
+
                 // Use targeting coordinator to resolve based on action side/scope.
-                var resolution = await targetingCoordinator.ResolveAsync(
-                    attacker,
-                    selection.Action,
-                    intent,
-                    TargetSourceType.Auto,
-                    context.Player,
-                    context.Allies,
-                    context.Enemies);
+                  var resolution = await targetingCoordinator.ResolveAsync(
+                      attacker,
+                      selection.Action,
+                      intent,
+                      TargetSourceType.Auto,
+                      context.Player,
+                      alliesForTargeting,
+                      context.Enemies);
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                if (BattleDiagnostics.DevFlowTrace &&
+                    attacker != null &&
+                    action != null &&
+                    action.targetShape == TargetShape.Single)
+                {
+                    if (resolution.Targets != null && resolution.Targets.Count > 1)
+                    {
+                        BattleDiagnostics.Log(
+                            "BATTLEFLOW",
+                            $"WARN_TARGET_SHAPE_SINGLE_GOT_MULTI exec={context.ExecutionId} actor={attacker.DisplayName}#{attacker.GetInstanceID()} action={action.id} resolvedCount={resolution.Targets.Count}",
+                            attacker);
+                    }
+
+                    if (candidatesAlive != null && candidatesAlive.Count > 0)
+                    {
+                        // Note: picked is only set when we ran the policy branch.
+                        // If resolved differs from picked, log it for visibility.
+                        var resolvedPrimary = resolution.Targets != null && resolution.Targets.Count > 0 ? resolution.Targets[0] : null;
+                        if (picked != null && resolvedPrimary != null && picked != resolvedPrimary)
+                        {
+                            BattleDiagnostics.Log(
+                                "BATTLEFLOW",
+                                $"WARN_PICK_MISMATCH exec={context.ExecutionId} actor={attacker.DisplayName}#{attacker.GetInstanceID()} action={action.id} picked={picked.DisplayName}#{picked.GetInstanceID()} resolved={resolvedPrimary.DisplayName}#{resolvedPrimary.GetInstanceID()}",
+                                attacker);
+                        }
+                    }
+                }
+#endif
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                if (BattleDiagnostics.DevFlowTrace)
+                {
+                    string setIds;
+                    if (resolution.TargetSet.IsGroup)
+                    {
+                        setIds = resolution.TargetSet.Ids != null ? $"[{string.Join(",", resolution.TargetSet.Ids)}]" : "[]";
+                    }
+                    else
+                    {
+                        setIds = $"[{resolution.TargetSet.SingleId}]";
+                    }
+
+                    string targetsStr;
+                    if (resolution.Targets == null || resolution.Targets.Count == 0)
+                    {
+                        targetsStr = "[]";
+                    }
+                    else
+                    {
+                        var parts = new string[Mathf.Min(resolution.Targets.Count, 6)];
+                        for (int i = 0; i < parts.Length; i++)
+                        {
+                            var t = resolution.Targets[i];
+                            parts[i] = t != null ? $"{t.DisplayName}#{t.GetInstanceID()}" : "(null)";
+                        }
+                        targetsStr = $"[{string.Join(",", parts)}{(resolution.Targets.Count > parts.Length ? ",..+" + (resolution.Targets.Count - parts.Length) : string.Empty)}]";
+                    }
+
+                    BattleDiagnostics.Log(
+                        "BATTLEFLOW",
+                        $"TARGET_RESOLVE exec={context.ExecutionId} actor={attacker?.DisplayName ?? "(null)"}#{(attacker != null ? attacker.GetInstanceID() : 0)} action={selection.Action?.id ?? "(null)"} shape={selection.Action?.targetShape} setGroup={resolution.TargetSet.IsGroup} setIds={setIds} targets={targetsStr}",
+                        attacker);
+                }
+#endif
 
                 if (resolution.Targets.Count == 0)
                 {
@@ -275,6 +457,7 @@ namespace BattleV2.Orchestration.Services
                 var judgment = BattleV2.Execution.ActionJudgment.FromSelection(enrichedSelection, attacker, enrichedSelection.CpCharge, judgmentSeed, resourcesPre, resourcesPost);
 
                 var request = new ActionRequest(
+                    context.ExecutionId,
                     context.Manager,
                     attacker,
                     resolution.Targets,
@@ -374,6 +557,48 @@ namespace BattleV2.Orchestration.Services
                 context.StateController?.Set(BattleState.AwaitingAction);
                 await BattlePacingUtility.DelayGlobalAsync("EnemyTurn", attacker, context.Token);
             }
+        }
+
+        private static List<CombatantState> CollectAliveTargets(IReadOnlyList<CombatantState> list)
+        {
+            if (list == null || list.Count == 0)
+            {
+                return new List<CombatantState>(0);
+            }
+
+            var alive = new List<CombatantState>(list.Count);
+            for (int i = 0; i < list.Count; i++)
+            {
+                var c = list[i];
+                if (c != null && c.IsAlive)
+                {
+                    alive.Add(c);
+                }
+            }
+
+            return alive;
+        }
+
+        private static IReadOnlyList<CombatantState> ReorderFirst(IReadOnlyList<CombatantState> list, CombatantState first)
+        {
+            if (list == null || list.Count <= 1 || first == null)
+            {
+                return list;
+            }
+
+            var reordered = new List<CombatantState>(list.Count);
+            reordered.Add(first);
+            for (int i = 0; i < list.Count; i++)
+            {
+                var c = list[i];
+                if (c == null || c == first)
+                {
+                    continue;
+                }
+                reordered.Add(c);
+            }
+
+            return reordered;
         }
 
         private bool TryResolveFallback(EnemyTurnContext context, CombatantState attacker, out BattleSelection selection, out IAction implementation)

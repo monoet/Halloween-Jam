@@ -243,8 +243,10 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   enableDebugLogs: 1
+  actionLoadout: {fileID: 0}
+  allowLegacyActionFallback: 0
   allowedActionIds:
-  - magic_bolt
+  - basic_attack
 --- !u!114 &7435201213487041278
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -261,6 +263,7 @@ MonoBehaviour:
   combatantState: {fileID: 3334198569571169196}
   availableActions:
   - {fileID: 0}
+  battleV2AvailableActionIds: []
   attackStrategy: {fileID: 11400000, guid: 04c831de83be67c41b3e574193b3742b, type: 2}
   initializeOnAwake: 1
 --- !u!114 &4480268491100758734
@@ -330,6 +333,7 @@ MonoBehaviour:
   forward: 0.1
   minorBack: 0.135
   recoil: -0.177
+  disableWindupTween: 0
 --- !u!1 &1764982086385956112
 GameObject:
   m_ObjectHideFlags: 0

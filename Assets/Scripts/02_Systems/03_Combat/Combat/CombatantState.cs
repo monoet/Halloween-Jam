@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System;
 using System.Threading;
 using UnityEngine;
 using BattleV2.Audio;
@@ -58,8 +59,14 @@ public class CombatantState : MonoBehaviour
     [SerializeField] private bool enableDebugLogs;
 
     [Header("Action Loadout")]
+    [Tooltip("Optional source of truth for allowed actions. If set and non-empty, overrides the local list.")]
+    [SerializeField] private CombatantActionLoadout actionLoadout;
+    [Tooltip("If ActionLoadout is assigned but empty, allows falling back to the legacy per-prefab list.")]
+    [SerializeField] private bool allowLegacyActionFallback = false;
     [Tooltip("Filtro de ids permitidos para este combatiente. Empty = catálogo completo; si hay ids, se usa la intersección.")]
     [SerializeField] private List<string> allowedActionIds = new List<string>();
+
+    [NonSerialized] private int spawnInstanceId;
 
     private bool initialized;
     private UnityAction runtimeStatsListener;
@@ -87,9 +94,40 @@ public class CombatantState : MonoBehaviour
     public string DisplayName => string.IsNullOrWhiteSpace(displayName) ? name : displayName;
     public Sprite Portrait => characterRuntime?.Core.portrait ?? characterRuntime?.Archetype?.portrait;
     public MarkSlot ActiveMark => activeMark;
-    public IReadOnlyList<string> AllowedActionIds => allowedActionIds;
+    public CombatantActionLoadout ActionLoadout => actionLoadout;
+    public bool AllowLegacyActionFallback => allowLegacyActionFallback;
+
+    public IReadOnlyList<string> AllowedActionIds
+    {
+        get
+        {
+            var fromAsset = actionLoadout != null ? actionLoadout.ActionIds : null;
+            if (fromAsset != null && fromAsset.Count > 0)
+            {
+                return fromAsset;
+            }
+
+            if (actionLoadout != null && !allowLegacyActionFallback)
+            {
+                return System.Array.Empty<string>();
+            }
+
+            return allowedActionIds;
+        }
+    }
     public AudioSignatureId AudioSignatureId => audioSignatureId;
     public int StableId => stableCombatantId;
+    public int SpawnInstanceId => spawnInstanceId;
+
+    public void TryAssignSpawnInstanceId(int id)
+    {
+        if (spawnInstanceId != 0)
+        {
+            return;
+        }
+
+        spawnInstanceId = id;
+    }
 
     private void Awake()
     {

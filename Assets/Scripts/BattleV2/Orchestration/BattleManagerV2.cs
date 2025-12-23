@@ -484,6 +484,7 @@ namespace BattleV2.Orchestration
             UpdateEnemyReference(rosterSnapshot.Enemy, rosterSnapshot.EnemyRuntime);
 
             ApplyContextUpdate(result.ContextUpdate);
+            AssignSpawnInstanceIds(rosterSnapshot);
 
             if (context == null)
             {
@@ -501,6 +502,36 @@ namespace BattleV2.Orchestration
                     services,
                     actionCatalog);
             }
+        }
+
+        private void AssignSpawnInstanceIds(RosterSnapshot snapshot)
+        {
+            void AssignList(IReadOnlyList<CombatantState> list)
+            {
+                if (list == null)
+                {
+                    return;
+                }
+
+                for (int i = 0; i < list.Count; i++)
+                {
+                    var combatant = list[i];
+                    if (combatant == null)
+                    {
+                        continue;
+                    }
+
+                    if (combatant.SpawnInstanceId == 0)
+                    {
+                        spawnInstanceCounter++;
+                        combatant.TryAssignSpawnInstanceId(spawnInstanceCounter);
+                    }
+                }
+            }
+
+            AssignList(snapshot.ActiveAllies);
+            AssignList(snapshot.ReserveAllies);
+            AssignList(snapshot.Enemies);
         }
 
         private void UpdatePlayerReference(CombatantState value, CharacterRuntime runtime)
@@ -547,6 +578,17 @@ namespace BattleV2.Orchestration
 
         public void StartBattle()
         {
+            if (battleSeed == 0)
+            {
+                battleSeed = overrideBattleSeed ? debugBattleSeed : unchecked((uint)UnityEngine.Random.Range(int.MinValue, int.MaxValue));
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                if (BattleDiagnostics.DevFlowTrace)
+                {
+                    BattleDiagnostics.Log("BATTLEFLOW", $"BATTLE_SEED seed={battleSeed}", this);
+                }
+#endif
+            }
+
             state?.ResetToIdle();
             state?.Set(BattleState.AwaitingAction);
             turnService?.Begin();
@@ -557,6 +599,14 @@ namespace BattleV2.Orchestration
             ResetBattleCts();
             executionCounter = 0;
             markSweepCounter = 0;
+            spawnInstanceCounter = 0;
+            battleSeed = overrideBattleSeed ? debugBattleSeed : unchecked((uint)UnityEngine.Random.Range(int.MinValue, int.MaxValue));
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (BattleDiagnostics.DevFlowTrace)
+            {
+                BattleDiagnostics.Log("BATTLEFLOW", $"BATTLE_SEED seed={battleSeed}", this);
+            }
+#endif
             ComboPointScaling.Configure(config != null ? config.comboPointScaling : null);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             BattleV2.Core.BattleDiagnostics.DevCpTrace = config != null && config.enableCpTraceLogs;
@@ -663,6 +713,12 @@ namespace BattleV2.Orchestration
         }
 
         private SelectionDraft currentDraft;
+
+        [Header("Debug / RNG")]
+        [SerializeField] private bool overrideBattleSeed = false;
+        [SerializeField] private uint debugBattleSeed = 12345;
+        private uint battleSeed;
+        private int spawnInstanceCounter;
 
         private void HandlePlayerSelection(BattleSelection selection)
         {
@@ -1106,9 +1162,54 @@ namespace BattleV2.Orchestration
                 return;
             }
 
-            var available = actionCatalog?.BuildAvailableFor(currentPlayer, context);
-            var allowedIds = currentPlayer?.AllowedActionIds;
-            if (allowedIds != null && allowedIds.Count > 0 && available != null)
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (BattleDiagnostics.DevFlowTrace)
+            {
+                string source = "Empty";
+                string ids = "[]";
+
+                if (currentPlayer.ActionLoadout != null)
+                {
+                    bool assetHasIds = currentPlayer.ActionLoadout.ActionIds != null && currentPlayer.ActionLoadout.ActionIds.Count > 0;
+                    if (assetHasIds)
+                    {
+                        source = "Asset";
+                    }
+                    else
+                    {
+                        source = currentPlayer.AllowLegacyActionFallback ? "AssetEmpty->LegacyFallback" : "AssetEmpty->None";
+                    }
+                }
+                else if (currentPlayer.AllowedActionIds != null && currentPlayer.AllowedActionIds.Count > 0)
+                {
+                    source = "Legacy";
+                }
+
+                var effectiveIds = currentPlayer.AllowedActionIds;
+                if (effectiveIds != null && effectiveIds.Count > 0)
+                {
+                    var parts = new string[Mathf.Min(effectiveIds.Count, 10)];
+                    for (int i = 0; i < parts.Length; i++)
+                    {
+                        parts[i] = effectiveIds[i] ?? "(null)";
+                    }
+                    ids = $"[{string.Join(",", parts)}{(effectiveIds.Count > parts.Length ? ",..+" + (effectiveIds.Count - parts.Length) : string.Empty)}]";
+                }
+
+                BattleDiagnostics.Log(
+                    "BATTLEFLOW",
+                    $"LOADOUT_EFFECTIVE actor={currentPlayer.DisplayName}#{currentPlayer.GetInstanceID()} source={source} ids={ids}",
+                    currentPlayer);
+            }
+#endif
+
+            var available = BattleV2.Orchestration.Services.ActionAvailabilityService.BuildAvailableFor(
+                actionCatalog,
+                currentPlayer,
+                context,
+                strictAllowedIds: true);
+            var allowedIds = (System.Collections.Generic.IReadOnlyList<string>)null; // handled by ActionAvailabilityService
+            if (false) // handled by ActionAvailabilityService
             {
                 var lookup = new HashSet<string>(allowedIds, StringComparer.OrdinalIgnoreCase);
                 var filtered = new List<BattleActionData>(available.Count);
@@ -1233,6 +1334,7 @@ namespace BattleV2.Orchestration
                 () => battleEndService != null && battleEndService.TryResolve(rosterSnapshot, Player, state),
                 RefreshCombatContext,
                 battleCts != null ? battleCts.Token : CancellationToken.None,
+                battleSeed,
                 executionId,
                 turnCounter);
         }

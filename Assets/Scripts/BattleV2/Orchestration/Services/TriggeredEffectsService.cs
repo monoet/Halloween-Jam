@@ -207,6 +207,7 @@ namespace BattleV2.Orchestration.Services
             bool resourcesCharged = false;
 
             var actionRequest = new ActionRequest(
+                request.ExecutionId,
                 manager,
                 request.Origin,
                 targets,
@@ -217,6 +218,15 @@ namespace BattleV2.Orchestration.Services
 
             try
             {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                if (BattleDiagnostics.DevFlowTrace)
+                {
+                    BattleDiagnostics.Log(
+                        "BATTLEFLOW",
+                        $"TRIGGER_BEGIN exec={request.ExecutionId} origin={request.Origin?.DisplayName ?? "(null)"}#{(request.Origin != null ? request.Origin.GetInstanceID() : 0)} action={selection.Action?.id ?? "(null)"} targets={(targets != null ? targets.Count : 0)}",
+                        request.Origin);
+                }
+#endif
                 var result = await actionPipeline.Run(actionRequest);
                 resourcesPost = ResourceSnapshot.FromCombatant(request.Origin);
                 if (resourcesCharged)
@@ -233,6 +243,15 @@ namespace BattleV2.Orchestration.Services
                 var selectionWithResult = selection.WithTimedResult(result.TimedResult);
                 markProcessor?.Process(request.Origin, selectionWithResult, finalJudgment, targets, request.ExecutionId);
                 eventBus?.Publish(new ActionCompletedEvent(request.ExecutionId, request.Origin, selectionWithResult, targets, true, finalJudgment));
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                if (BattleDiagnostics.DevFlowTrace)
+                {
+                    BattleDiagnostics.Log(
+                        "BATTLEFLOW",
+                        $"TRIGGER_END exec={request.ExecutionId} origin={request.Origin?.DisplayName ?? "(null)"}#{(request.Origin != null ? request.Origin.GetInstanceID() : 0)} action={selection.Action?.id ?? "(null)"} targets={(targets != null ? targets.Count : 0)}",
+                        request.Origin);
+                }
+#endif
             }
             catch (Exception ex)
             {

@@ -14,6 +14,7 @@ namespace BattleV2.Orchestration.Services
     public readonly struct ActionRequest
     {
         public ActionRequest(
+            int executionId,
             BattleManagerV2 manager,
             CombatantState actor,
             IReadOnlyList<CombatantState> targets,
@@ -22,6 +23,7 @@ namespace BattleV2.Orchestration.Services
             CombatContext combatContext,
             Execution.ActionJudgment judgment = default)
         {
+            ExecutionId = executionId;
             Manager = manager;
             Actor = actor;
             Targets = targets;
@@ -31,6 +33,7 @@ namespace BattleV2.Orchestration.Services
             Judgment = judgment;
         }
 
+        public int ExecutionId { get; }
         public BattleManagerV2 Manager { get; }
         public CombatantState Actor { get; }
         public IReadOnlyList<CombatantState> Targets { get; }
@@ -88,6 +91,16 @@ namespace BattleV2.Orchestration.Services
                 return ActionResult.Failure();
             }
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (BattleDiagnostics.DevFlowTrace)
+            {
+                BattleDiagnostics.Log(
+                    "BATTLEFLOW",
+                    $"PIPELINE_ENTER exec={request.ExecutionId} actor={request.Actor?.DisplayName ?? "(null)"}#{request.Actor?.GetInstanceID() ?? 0} action={request.Selection.Action?.id ?? "(null)"} shape={request.Selection.Action?.targetShape} targets={FormatTargets(request.Targets)}",
+                    request.Actor);
+            }
+#endif
+
             if (request.Implementation is BattleV2.Actions.IActionMultiTarget multiTarget)
             {
                 return await RunMultiTargetAsync(request, multiTarget);
@@ -110,6 +123,33 @@ namespace BattleV2.Orchestration.Services
             {
                 targets = new[] { request.PrimaryTarget };
             }
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (BattleDiagnostics.DevFlowTrace)
+            {
+                BattleDiagnostics.Log(
+                    "BATTLEFLOW",
+                    $"PIPE_MULTI_TARGET exec={request.ExecutionId} actor={request.Actor?.DisplayName ?? "(null)"}#{request.Actor?.GetInstanceID() ?? 0} action={request.Selection.Action?.id ?? "(null)"} shape={request.Selection.Action?.targetShape} recipients={FormatTargets(targets)}",
+                    request.Actor);
+            }
+
+            if (request.Selection.Action != null &&
+                request.Selection.Action.targetShape == BattleV2.Targeting.TargetShape.Single &&
+                targets.Count > 1)
+            {
+                BattleDiagnostics.Log(
+                    "BATTLEFLOW",
+                    $"WARN_TARGET_MISMATCH exec={request.ExecutionId} actor={request.Actor?.DisplayName ?? "(null)"}#{request.Actor?.GetInstanceID() ?? 0} action={request.Selection.Action?.id ?? "(null)"} expected=Single actualCount={targets.Count} recipients={FormatTargets(targets)}",
+                    request.Actor);
+
+                targets = new[] { targets[0] };
+
+                BattleDiagnostics.Log(
+                    "BATTLEFLOW",
+                    $"TARGET_MISMATCH_CLAMP exec={request.ExecutionId} actor={request.Actor?.DisplayName ?? "(null)"}#{request.Actor?.GetInstanceID() ?? 0} action={request.Selection.Action?.id ?? "(null)"} clampedRecipients={FormatTargets(targets)}",
+                    request.Actor);
+            }
+#endif
 
             try
             {
@@ -139,6 +179,16 @@ namespace BattleV2.Orchestration.Services
 
             CombatantState effectiveTarget = request.PrimaryTarget ?? request.CombatContext?.Enemy;
             var combatContext = FreezeContext(request.CombatContext, effectiveTarget);
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (BattleDiagnostics.DevFlowTrace)
+            {
+                BattleDiagnostics.Log(
+                    "BATTLEFLOW",
+                    $"PIPE_LEGACY exec={request.ExecutionId} actor={request.Actor?.DisplayName ?? "(null)"}#{request.Actor?.GetInstanceID() ?? 0} action={request.Selection.Action?.id ?? "(null)"} target={(effectiveTarget != null ? effectiveTarget.DisplayName + "#" + effectiveTarget.GetInstanceID() : "(null)")}",
+                    request.Actor);
+            }
+#endif
 
             var actionContext = new Execution.ActionContext(
                 request.Manager,
@@ -187,6 +237,40 @@ namespace BattleV2.Orchestration.Services
                 request.Actor);
 
             return ActionResult.From(actionContext.TimedResult, actionContext.ComboPointsAwarded, actionContext.EffectsApplied);
+        }
+
+        private static string FormatTargets(IReadOnlyList<CombatantState> targets)
+        {
+            if (targets == null || targets.Count == 0)
+            {
+                return "[]";
+            }
+
+            const int max = 6;
+            var count = targets.Count;
+            var result = new System.Text.StringBuilder(capacity: 64);
+            result.Append('[');
+            int limit = count < max ? count : max;
+            for (int i = 0; i < limit; i++)
+            {
+                var t = targets[i];
+                if (i > 0) result.Append(',');
+                if (t == null)
+                {
+                    result.Append("(null)");
+                    continue;
+                }
+                result.Append(t.DisplayName);
+                result.Append('#');
+                result.Append(t.GetInstanceID());
+            }
+            if (count > max)
+            {
+                result.Append(",..+");
+                result.Append(count - max);
+            }
+            result.Append(']');
+            return result.ToString();
         }
 
         private static CombatContext FreezeContext(CombatContext context, CombatantState target)

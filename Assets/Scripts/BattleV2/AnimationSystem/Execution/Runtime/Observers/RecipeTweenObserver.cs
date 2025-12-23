@@ -850,18 +850,25 @@ private bool anchorMarkedThisTurn;
                     $"TWEEN_START actor={owner?.name ?? "(null)"} recipeId=run_back key={locomotionKey} duration={duration:0.###} ease={Ease.OutExpo}");
 
                 await motionService.ReturnHomeAsync(
-                        locomotionKey,
-                        tweenTarget,
-                        duration,
-                        Ease.OutExpo,
-                        StepConflictPolicy.CancelRunning,
-                        System.Threading.CancellationToken.None,
-                        overrideStartLocalPos: overrideStart,
-                        reason: "run_back")
-                    .ConfigureAwait(false);
+                         locomotionKey,
+                         tweenTarget,
+                         duration,
+                         Ease.OutExpo,
+                         StepConflictPolicy.CancelRunning,
+                         System.Threading.CancellationToken.None,
+                         overrideStartLocalPos: overrideStart,
+                         reason: "run_back")
+                     .ConfigureAwait(false);
 
                 LocomotionTrace(() =>
                     $"TWEEN_COMPLETE actor={owner?.name ?? "(null)"} recipeId=run_back key={locomotionKey}");
+
+                if (context.Wrapper is BattleV2.Orchestration.Runtime.AnimatorWrapper aw)
+                {
+                    BattleV2.AnimationSystem.Runtime.IdleEnsureUtility.EnsureIdleNextTick(
+                        aw,
+                        "RecipeTweenObserver.RunBackComplete");
+                }
             }
             catch (OperationCanceledException)
             {

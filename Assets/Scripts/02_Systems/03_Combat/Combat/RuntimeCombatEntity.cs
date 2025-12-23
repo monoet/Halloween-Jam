@@ -15,7 +15,8 @@ namespace HalloweenJam.Combat
         [Header("Stats Runtime")]
         [SerializeField] private CharacterRuntime characterRuntime;
         [SerializeField] private CombatantState combatantState;
-        [SerializeField] private ActionData[] availableActions = Array.Empty<ActionData>();
+        [SerializeField, HideInInspector] private ActionData[] availableActions = Array.Empty<ActionData>();
+        [SerializeField, HideInInspector] private string[] battleV2AvailableActionIds = Array.Empty<string>();
 
         [Header("Combat Behavior")]
         [SerializeField] private AttackStrategyBase attackStrategy;
@@ -61,6 +62,7 @@ namespace HalloweenJam.Combat
         public event Action<ICombatEntity> OnDefeated;
 
         private ActionData queuedAction;
+        private string lastBattleV2ActionIdsSignature;
 
         private void Awake()
         {
@@ -70,6 +72,8 @@ namespace HalloweenJam.Combat
             {
                 InitializeVitals();
             }
+
+            RecomputeAvailableActions("Awake");
         }
 
         private void OnEnable()
@@ -77,6 +81,7 @@ namespace HalloweenJam.Combat
             Subscribe();
             previousAliveState = IsAlive;
             RaiseHealthChanged();
+            RecomputeAvailableActions("OnEnable");
         }
 
         private void OnDisable()
@@ -206,6 +211,42 @@ namespace HalloweenJam.Combat
             }
 
             availableActions = actions is ActionData[] array ? array : new List<ActionData>(actions).ToArray();
+        }
+
+        public IReadOnlyList<string> CurrentAvailableActionIds => battleV2AvailableActionIds;
+
+        public void RecomputeAvailableActions(string reason)
+        {
+            var ids = combatantState != null ? combatantState.AllowedActionIds : null;
+            if (ids == null || ids.Count == 0)
+            {
+                battleV2AvailableActionIds = Array.Empty<string>();
+                lastBattleV2ActionIdsSignature = null;
+                return;
+            }
+
+            var next = new string[ids.Count];
+            for (int i = 0; i < ids.Count; i++)
+            {
+                next[i] = ids[i];
+            }
+
+            battleV2AvailableActionIds = next;
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (BattleV2.Core.BattleDiagnostics.DevFlowTrace)
+            {
+                var signature = string.Join("|", next);
+                if (!string.Equals(signature, lastBattleV2ActionIdsSignature, StringComparison.Ordinal))
+                {
+                    BattleV2.Core.BattleDiagnostics.Log(
+                        "BATTLEFLOW",
+                        $"AVAILABLE_ACTIONS_UPDATE actor={DisplayName}#{(combatantState != null ? combatantState.GetInstanceID() : 0)} reason={reason} source=CombatantState.AllowedActionIds after=[{signature}]",
+                        combatantState != null ? combatantState : this);
+                    lastBattleV2ActionIdsSignature = signature;
+                }
+            }
+#endif
         }
 
         private sealed class FallbackAttackStrategy : IAttackStrategy
