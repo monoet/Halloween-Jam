@@ -247,6 +247,13 @@ namespace BattleV2.Execution.TimedHits
                     $"TH_RESULT_FINAL exec={activeRequest.ExecutionId} judgment={judgment} deltaMs={deltaMs:0.#} phase={phaseIndex}/{totalPhases} consumed={consumedInput}",
                     activeRequest.Attacker);
             }
+            if (BattleDiagnostics.DevFlowTrace)
+            {
+                BattleDiagnostics.Log(
+                    "BATTLEFLOW",
+                    $"TH_RESULT_FINAL exec={activeRequest.ExecutionId} judgment={judgment} deltaMs={deltaMs:0.#} phase={phaseIndex}/{totalPhases} consumed={consumedInput}",
+                    activeRequest.Attacker);
+            }
 #endif
             bus.Publish(evt);
 

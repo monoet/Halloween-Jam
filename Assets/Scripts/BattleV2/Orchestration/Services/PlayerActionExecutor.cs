@@ -234,6 +234,13 @@ namespace BattleV2.Orchestration.Services
                         $"TURN_CLOSE_PUBLISH exec={context.ExecutionId} actor={context.Player?.DisplayName ?? "(null)"}#{(context.Player != null ? context.Player.GetInstanceID() : 0)} action={resolvedSelection.Action?.id ?? "(null)"} cp={resolvedSelection.CpCharge} isTriggered=false",
                         context.Player);
                 }
+                if (BattleDiagnostics.DevFlowTrace)
+                {
+                    BattleDiagnostics.Log(
+                        "BATTLEFLOW",
+                        $"TURN_CLOSE_PUBLISH exec={context.ExecutionId} actor={context.Player?.DisplayName ?? "(null)"}#{(context.Player != null ? context.Player.GetInstanceID() : 0)} action={resolvedSelection.Action?.id ?? "(null)"} cp={resolvedSelection.CpCharge} isTriggered=false",
+                        context.Player);
+                }
 #endif
                 eventBus?.Publish(new ActionCompletedEvent(context.ExecutionId, context.Player, resolvedSelection, completedTargets, isTriggered: false, judgment: finalJudgment));
 

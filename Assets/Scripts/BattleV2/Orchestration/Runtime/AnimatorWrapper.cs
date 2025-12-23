@@ -558,14 +558,188 @@ namespace BattleV2.Orchestration.Runtime
 
         public void ResetToFallback(float fadeDuration = 0.1f)
         {
-#if false
-            Debug.Log($"TTDebug06 [RESET_TO_FALLBACK] actor={owner?.name ?? "(null)"} position={transform.position} fade={fadeDuration}", this);
+            ResetToFallback(fadeDuration, playFallbackLoop: false);
+        }
+
+        public void ResetToFallback(float fadeDuration, bool playFallbackLoop)
+        {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (BattleDiagnostics.DevAnimTrace)
+            {
+                BattleDiagnostics.Log(
+                    "ANIMTRACE",
+                    $"RESET_TO_FALLBACK actor={owner?.name ?? "(null)"} wrapper=Orchestration.AnimatorWrapper hasAnimator={(animator != null)} hasSet={(animationSet != null)} fade={fadeDuration} playFallbackLoop={playFallbackLoop} note=LegacyWrapperStopsPlayback_NoFallbackClip",
+                    this);
+            }
 #endif
             var tweenObserver = GetComponentInChildren<BattleV2.AnimationSystem.Execution.Runtime.Observers.RecipeTweenObserver>(true);
             tweenObserver?.ResetToHomeImmediate();
             // Legacy Mono wrapper does not track a dedicated fallback clip, so stopping playback
             // returns the rig to its authored bind pose / sprite state.
             Stop();
+
+            if (!playFallbackLoop)
+            {
+                return;
+            }
+
+            RequestIdleLoop(reason: "ResetToFallback(playFallbackLoop=true)");
+        }
+
+        private int lastIdleRequestFrame = -1;
+        private string lastIdleRequestId;
+
+        public void RequestIdleLoop(string reason)
+        {
+            if (destroyed || !this || !isActiveAndEnabled)
+            {
+                return;
+            }
+
+            if (!TryResolveIdleLoopClip(out var clipId, out var clip))
+            {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                if (BattleDiagnostics.DevAnimTrace)
+                {
+                    BattleDiagnostics.Log(
+                        "ANIMTRACE",
+                        $"IDLE_MISSING actor={owner?.name ?? "(null)"} reason={(string.IsNullOrWhiteSpace(reason) ? "(none)" : reason)}",
+                        this);
+                }
+                if (BattleDiagnostics.DevFlowTrace)
+                {
+                    BattleDiagnostics.Log(
+                        "BATTLEFLOW",
+                        $"IDLE_MISSING actor={owner?.name ?? "(null)"} reason={(string.IsNullOrWhiteSpace(reason) ? "(none)" : reason)}",
+                        context: null);
+                }
+#endif
+                return;
+            }
+
+            int frame = Time.frameCount;
+            if (frame == lastIdleRequestFrame && string.Equals(lastIdleRequestId, clipId, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            lastIdleRequestFrame = frame;
+            lastIdleRequestId = clipId;
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (BattleDiagnostics.DevAnimTrace)
+            {
+                BattleDiagnostics.Log(
+                    "ANIMTRACE",
+                    $"IDLE_REQUEST actor={owner?.name ?? "(null)"} clipId={clipId} clip={(clip != null ? clip.name : "(null)")} loop=true reason={(string.IsNullOrWhiteSpace(reason) ? "(none)" : reason)}",
+                    this);
+            }
+            if (BattleDiagnostics.DevFlowTrace)
+            {
+                BattleDiagnostics.Log(
+                    "BATTLEFLOW",
+                    $"IDLE_REQUEST actor={owner?.name ?? "(null)"} clipId={clipId} clip={(clip != null ? clip.name : "(null)")} loop=true reason={(string.IsNullOrWhiteSpace(reason) ? "(none)" : reason)}",
+                    context: null);
+            }
+#endif
+
+            _ = PlayAsync(AnimationPlaybackRequest.ForAnimatorClip(clip, speed: 1f, normalizedStartTime: 0f, loop: true, commandId: clipId));
+        }
+
+        private bool TryResolveIdleLoopClip(out string clipId, out AnimationClip clip)
+        {
+            clipId = null;
+            clip = null;
+            if (animationSet == null)
+            {
+                return false;
+            }
+
+            string actorName = owner != null ? owner.name : null;
+            string displayName = null;
+            try { displayName = owner != null ? owner.DisplayName : null; } catch { displayName = null; }
+
+            bool TryGet(string id, out AnimationClip foundClip)
+            {
+                foundClip = null;
+                if (string.IsNullOrWhiteSpace(id))
+                {
+                    return false;
+                }
+
+                return animationSet.TryGetClip(id, out foundClip) && foundClip != null;
+            }
+
+            // Prefer explicit "IdleCombat" conventions if present in the set.
+            string id;
+            AnimationClip resolved;
+
+            id = $"{displayName}/IdleCombat";
+            if (TryGet(id, out resolved)) { clipId = id; clip = resolved; return true; }
+            id = $"{actorName}/IdleCombat";
+            if (TryGet(id, out resolved)) { clipId = id; clip = resolved; return true; }
+            id = $"{displayName}_Idle";
+            if (TryGet(id, out resolved)) { clipId = id; clip = resolved; return true; }
+            id = $"{actorName}_Idle";
+            if (TryGet(id, out resolved)) { clipId = id; clip = resolved; return true; }
+            id = $"{displayName}_IdleCombat";
+            if (TryGet(id, out resolved)) { clipId = id; clip = resolved; return true; }
+            id = $"{actorName}_IdleCombat";
+            if (TryGet(id, out resolved)) { clipId = id; clip = resolved; return true; }
+            id = "IdleCombat";
+            if (TryGet(id, out resolved)) { clipId = id; clip = resolved; return true; }
+            id = "idle";
+            if (TryGet(id, out resolved)) { clipId = id; clip = resolved; return true; }
+
+            // Heuristic scan: prefer any binding that looks like an idle combat loop.
+            var bindings = animationSet.ClipBindings;
+            if (bindings == null || bindings.Count == 0)
+            {
+                return false;
+            }
+
+            string BestMatchId()
+            {
+                for (int i = 0; i < bindings.Count; i++)
+                {
+                    var id = bindings[i].Id;
+                    if (string.IsNullOrWhiteSpace(id))
+                    {
+                        continue;
+                    }
+                    if (id.IndexOf("IdleCombat", StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        return id;
+                    }
+                }
+
+                for (int i = 0; i < bindings.Count; i++)
+                {
+                    var id = bindings[i].Id;
+                    if (string.IsNullOrWhiteSpace(id))
+                    {
+                        continue;
+                    }
+                    if (id.EndsWith("_Idle", StringComparison.OrdinalIgnoreCase) ||
+                        id.EndsWith("/Idle", StringComparison.OrdinalIgnoreCase) ||
+                        id.Equals("idle", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return id;
+                    }
+                }
+
+                return null;
+            }
+
+            id = BestMatchId();
+            if (TryGet(id, out resolved))
+            {
+                clipId = id;
+                clip = resolved;
+                return true;
+            }
+
+            return false;
         }
 
         private void CancelPlayback()
@@ -618,6 +792,16 @@ namespace BattleV2.Orchestration.Runtime
                 else if (string.IsNullOrWhiteSpace(cmdId)) holdSkipReason = "no_cmd";
                 else holdSkipReason = "no_hold";
             }
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (BattleDiagnostics.DevAnimTrace)
+            {
+                BattleDiagnostics.Log(
+                    "ANIMTRACE",
+                    $"PLAY_CLIP actor={owner?.name ?? "(null)"} cmdId={cmdId ?? "(null)"} clip={request.AnimationClip.name} loop={request.Loop} speed={request.Speed:0.###} appliedSpeed={(hasHold ? 0f : request.Speed):0.###} hasHold={hasHold} holdSeconds={holdSeconds:0.###} holdSkip={(holdSkipReason ?? "(n/a)")}",
+                    this);
+            }
+#endif
 
             EnsurePlayableGraph();
             StopAnimatorGraph();

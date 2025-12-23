@@ -79,7 +79,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Core
             }
         }
 
-        public void Register(Task task, ResourceKey resourceKey, string channel, string reason)
+        public void Register(Task task, ResourceKey resourceKey, string channel, string reason, Action cancel = null)
         {
             if (!Enabled)
             {
@@ -100,7 +100,8 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Core
                     channel: channel ?? string.Empty,
                     reason: reason ?? string.Empty,
                     resourceKey: resourceKey,
-                    task: task);
+                    task: task,
+                    cancel: cancel);
 
                 currentGroup.Add(entry);
                 all.Add(entry);
@@ -173,11 +174,13 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Core
             }
             catch (OperationCanceledException) when (token.IsCancellationRequested)
             {
+                CancelPending(groupId, tokenCancelled: true);
                 throw;
             }
             catch (OperationCanceledException)
             {
                 // DEV timeout: swallow to keep battle running.
+                CancelPending(groupId, tokenCancelled: false);
             }
             finally
             {
@@ -232,17 +235,56 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Core
             }
             catch (OperationCanceledException) when (token.IsCancellationRequested)
             {
+                CancelPending(scopeId: "(all)", tokenCancelled: true);
                 throw;
             }
             catch (OperationCanceledException)
             {
                 // DEV timeout: swallow to keep battle running.
+                CancelPending(scopeId: "(all)", tokenCancelled: false);
             }
             finally
             {
                 if (BattleDebug.IsEnabled("EG"))
                 {
                     BattleDebug.Log("EG", 4, $"AwaitAll done count={tasks.Count} ms={sw.ElapsedMilliseconds}");
+                }
+            }
+        }
+
+        private void CancelPending(string scopeId, bool tokenCancelled)
+        {
+            List<Action> cancels;
+            lock (sync)
+            {
+                cancels = all
+                    .Where(e =>
+                        e.Task != null &&
+                        !e.Task.IsCompleted &&
+                        e.Cancel != null &&
+                        (scopeId == "(all)" || string.Equals(e.GroupId, scopeId, StringComparison.Ordinal)))
+                    .Select(e => e.Cancel)
+                    .ToList();
+            }
+
+            if (cancels.Count == 0)
+            {
+                return;
+            }
+
+            if (BattleDebug.IsEnabled("EG"))
+            {
+                BattleDebug.Warn("EG", 915, $"cancelling {cancels.Count} pending barriers scope={scopeId} tokenCancelled={tokenCancelled}");
+            }
+
+            for (int i = 0; i < cancels.Count; i++)
+            {
+                try
+                {
+                    cancels[i]?.Invoke();
+                }
+                catch
+                {
                 }
             }
         }
@@ -299,13 +341,14 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Core
 
         private readonly struct BarrierEntry
         {
-            public BarrierEntry(string groupId, string channel, string reason, ResourceKey resourceKey, Task task)
+            public BarrierEntry(string groupId, string channel, string reason, ResourceKey resourceKey, Task task, Action cancel)
             {
                 GroupId = groupId;
                 Channel = channel;
                 Reason = reason;
                 ResourceKey = resourceKey;
                 Task = task;
+                Cancel = cancel;
             }
 
             public string GroupId { get; }
@@ -313,6 +356,7 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.Core
             public string Reason { get; }
             public ResourceKey ResourceKey { get; }
             public Task Task { get; }
+            public Action Cancel { get; }
         }
     }
 }

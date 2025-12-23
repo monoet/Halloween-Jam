@@ -15,8 +15,27 @@ namespace BattleV2.Core
         /// Dev-only toggle for CP trace logs. Default false to avoid noise in prod.
         /// </summary>
         public static bool DevCpTrace = false;
+
+        /// <summary>
+        /// Dev-only toggle for animation lifecycle trace logs (idle/reset/plan-final hooks). Default false to avoid noise in prod.
+        /// </summary>
+        public static bool DevAnimTrace = false;
+
+        /// <summary>
+        /// Dev-only toggle for locomotion/tween trace logs (LOCOMOTIONTRACE). Default false to avoid noise in prod.
+        /// </summary>
+        public static bool DevLocomotionTrace = false;
+
+        /// <summary>
+        /// Dev-only toggle for unified battle flow logs (BATTLEFLOW). Use this when you need a single searchable tag
+        /// that correlates UI→Commit→TimedHit→Damage→TurnClose.
+        /// </summary>
+        public static bool DevFlowTrace = false;
 #else
         public const bool DevCpTrace = false;
+        public const bool DevAnimTrace = false;
+        public const bool DevLocomotionTrace = false;
+        public const bool DevFlowTrace = false;
 #endif
 
         private struct LogEntry

@@ -226,7 +226,14 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.SystemSteps
         {
             try
             {
-                context.Wrapper?.ResetToFallback(0f);
+                if (context.Wrapper is BattleV2.Orchestration.Runtime.AnimatorWrapper legacyWrapper)
+                {
+                    legacyWrapper.ResetToFallback(0f, playFallbackLoop: true);
+                }
+                else
+                {
+                    context.Wrapper?.ResetToFallback(0f);
+                }
             }
             catch (Exception ex)
             {
@@ -326,4 +333,3 @@ namespace BattleV2.AnimationSystem.Execution.Runtime.SystemSteps
         }
     }
 }
-

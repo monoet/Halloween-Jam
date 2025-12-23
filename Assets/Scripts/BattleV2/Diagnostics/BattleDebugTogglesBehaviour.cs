@@ -1,4 +1,5 @@
 using UnityEngine;
+using BattleV2.Core;
 
 namespace BattleV2.Diagnostics
 {
@@ -16,6 +17,18 @@ namespace BattleV2.Diagnostics
         [SerializeField] private bool enableEX = false;
         [Tooltip("AP logging channel (plan/recipe-chain instrumentation).")]
         [SerializeField] private bool enableAPLogs = false;
+
+        [Header("Diagnostics Logs (Dev Only)")]
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        [Tooltip("Enable CP trace logs (CPTRACE).")]
+        [SerializeField] private bool enableCpTraceLogs = false;
+        [Tooltip("Enable animation trace logs (ANIMTRACE).")]
+        [SerializeField] private bool enableAnimTraceLogs = false;
+        [Tooltip("Enable locomotion trace logs (LOCOMOTIONTRACE).")]
+        [SerializeField] private bool enableLocomotionTraceLogs = false;
+        [Tooltip("Enable unified flow trace logs (BATTLEFLOW).")]
+        [SerializeField] private bool enableFlowTraceLogs = false;
+#endif
 
         [Header("Experimental Feature Flags")]
         [Tooltip("Enables experimental multi-recipe injection (e.g. move_to_target before basic_attack).")]
@@ -50,6 +63,13 @@ namespace BattleV2.Diagnostics
             ApplyChannel("EX", enableEX);
             ApplyChannel("AP", enableAPLogs);
             ApplyChannel("APF", enableAPFeature);
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            BattleDiagnostics.DevCpTrace = enableCpTraceLogs;
+            BattleDiagnostics.DevAnimTrace = enableAnimTraceLogs;
+            BattleDiagnostics.DevLocomotionTrace = enableLocomotionTraceLogs;
+            BattleDiagnostics.DevFlowTrace = enableFlowTraceLogs;
+#endif
         }
 
         private void ApplyChannel(string channel, bool enabled)

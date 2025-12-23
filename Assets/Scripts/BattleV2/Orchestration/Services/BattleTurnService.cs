@@ -135,6 +135,13 @@ namespace BattleV2.Orchestration.Services
                     $"TURN_CLOSE_RECEIVE exec={evt.ExecutionId} actor={evt.Actor?.DisplayName ?? "(null)"}#{(evt.Actor != null ? evt.Actor.GetInstanceID() : 0)} isTriggered={evt.IsTriggered} action={evt.Selection.Action?.id ?? "(null)"} cp={evt.Selection.CpCharge}",
                     evt.Actor);
             }
+            if (BattleDiagnostics.DevFlowTrace)
+            {
+                BattleDiagnostics.Log(
+                    "BATTLEFLOW",
+                    $"TURN_CLOSE_RECEIVE exec={evt.ExecutionId} actor={evt.Actor?.DisplayName ?? "(null)"}#{(evt.Actor != null ? evt.Actor.GetInstanceID() : 0)} isTriggered={evt.IsTriggered} action={evt.Selection.Action?.id ?? "(null)"} cp={evt.Selection.CpCharge}",
+                    evt.Actor);
+            }
 #endif
             Advance(evt.Actor);
         }
@@ -160,6 +167,13 @@ namespace BattleV2.Orchestration.Services
             {
                 BattleDiagnostics.Log(
                     "CPTRACE",
+                    $"TURN_ADVANCE next={next.DisplayName}#{next.GetInstanceID()} stableId={next.StableId} turnCount={turnCounters[id]}",
+                    next);
+            }
+            if (BattleDiagnostics.DevFlowTrace)
+            {
+                BattleDiagnostics.Log(
+                    "BATTLEFLOW",
                     $"TURN_ADVANCE next={next.DisplayName}#{next.GetInstanceID()} stableId={next.StableId} turnCount={turnCounters[id]}",
                     next);
             }

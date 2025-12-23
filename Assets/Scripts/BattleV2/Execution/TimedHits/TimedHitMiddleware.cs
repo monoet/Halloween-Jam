@@ -32,6 +32,13 @@ namespace BattleV2.Execution.TimedHits
                     $"TH_BEGIN exec={execId} action={context?.Selection.Action?.id ?? "(null)"} cp={context?.Selection.CpCharge ?? 0} hasHandle={(context?.Selection.TimedHitHandle != null)} hasResult={(context?.Selection.TimedHitResult.HasValue ?? false)}",
                     context?.Attacker);
             }
+            if (BattleDiagnostics.DevFlowTrace)
+            {
+                BattleDiagnostics.Log(
+                    "BATTLEFLOW",
+                    $"TH_BEGIN exec={execId} action={context?.Selection.Action?.id ?? "(null)"} cp={context?.Selection.CpCharge ?? 0} hasHandle={(context?.Selection.TimedHitHandle != null)} hasResult={(context?.Selection.TimedHitResult.HasValue ?? false)}",
+                    context?.Attacker);
+            }
 #endif
             BattleDiagnostics.Log(
                 "Thread.debug00",
@@ -52,6 +59,13 @@ namespace BattleV2.Execution.TimedHits
                     {
                         BattleDiagnostics.Log(
                             "CPTRACE",
+                            $"TH_END exec={execId} outcome=Cancelled source=SelectionResult",
+                            context?.Attacker);
+                    }
+                    if (BattleDiagnostics.DevFlowTrace)
+                    {
+                        BattleDiagnostics.Log(
+                            "BATTLEFLOW",
                             $"TH_END exec={execId} outcome=Cancelled source=SelectionResult",
                             context?.Attacker);
                     }
@@ -76,6 +90,13 @@ namespace BattleV2.Execution.TimedHits
                 {
                     BattleDiagnostics.Log(
                         "CPTRACE",
+                        $"TH_END exec={execId} outcome=Resolved source=SelectionResult",
+                        context?.Attacker);
+                }
+                if (BattleDiagnostics.DevFlowTrace)
+                {
+                    BattleDiagnostics.Log(
+                        "BATTLEFLOW",
                         $"TH_END exec={execId} outcome=Resolved source=SelectionResult",
                         context?.Attacker);
                 }
@@ -105,6 +126,13 @@ namespace BattleV2.Execution.TimedHits
                             $"TH_HANDLE_WAIT_DONE exec={execId} hasValue={awaited.HasValue} cancelled={(awaited.HasValue && awaited.Value.Cancelled)}",
                             context?.Attacker);
                     }
+                    if (BattleDiagnostics.DevFlowTrace)
+                    {
+                        BattleDiagnostics.Log(
+                            "BATTLEFLOW",
+                            $"TH_HANDLE_WAIT_DONE exec={execId} hasValue={awaited.HasValue} cancelled={(awaited.HasValue && awaited.Value.Cancelled)}",
+                            context?.Attacker);
+                    }
 #endif
                     if (awaited.HasValue)
                     {
@@ -117,6 +145,13 @@ namespace BattleV2.Execution.TimedHits
                             {
                                 BattleDiagnostics.Log(
                                     "CPTRACE",
+                                    $"TH_END exec={execId} outcome=Cancelled source=HandleWait",
+                                    context?.Attacker);
+                            }
+                            if (BattleDiagnostics.DevFlowTrace)
+                            {
+                                BattleDiagnostics.Log(
+                                    "BATTLEFLOW",
                                     $"TH_END exec={execId} outcome=Cancelled source=HandleWait",
                                     context?.Attacker);
                             }
@@ -137,6 +172,13 @@ namespace BattleV2.Execution.TimedHits
                     {
                         BattleDiagnostics.Log(
                             "CPTRACE",
+                            $"TH_END exec={execId} outcome=Cancelled source=HandleWaitException",
+                            context?.Attacker);
+                    }
+                    if (BattleDiagnostics.DevFlowTrace)
+                    {
+                        BattleDiagnostics.Log(
+                            "BATTLEFLOW",
                             $"TH_END exec={execId} outcome=Cancelled source=HandleWaitException",
                             context?.Attacker);
                     }
@@ -162,6 +204,14 @@ namespace BattleV2.Execution.TimedHits
                     var resolved = context.TimedResult;
                     BattleDiagnostics.Log(
                         "CPTRACE",
+                        $"TH_END exec={execId} outcome=Resolved source=HandleWait hasResult={resolved.HasValue} cancelled={(resolved.HasValue && resolved.Value.Cancelled)}",
+                        context?.Attacker);
+                }
+                if (BattleDiagnostics.DevFlowTrace)
+                {
+                    var resolved = context.TimedResult;
+                    BattleDiagnostics.Log(
+                        "BATTLEFLOW",
                         $"TH_END exec={execId} outcome=Resolved source=HandleWait hasResult={resolved.HasValue} cancelled={(resolved.HasValue && resolved.Value.Cancelled)}",
                         context?.Attacker);
                 }
@@ -244,6 +294,13 @@ namespace BattleV2.Execution.TimedHits
                         $"TH_END exec={execId} outcome=Cancelled source=RunAsyncException",
                         context?.Attacker);
                 }
+                if (BattleDiagnostics.DevFlowTrace)
+                {
+                    BattleDiagnostics.Log(
+                        "BATTLEFLOW",
+                        $"TH_END exec={execId} outcome=Cancelled source=RunAsyncException",
+                        context?.Attacker);
+                }
 #endif
                 return;
             }
@@ -256,6 +313,13 @@ namespace BattleV2.Execution.TimedHits
                 {
                     BattleDiagnostics.Log(
                         "CPTRACE",
+                        $"TH_END exec={execId} outcome=Cancelled source=RunAsyncResult",
+                        context?.Attacker);
+                }
+                if (BattleDiagnostics.DevFlowTrace)
+                {
+                    BattleDiagnostics.Log(
+                        "BATTLEFLOW",
                         $"TH_END exec={execId} outcome=Cancelled source=RunAsyncResult",
                         context?.Attacker);
                 }
@@ -282,6 +346,13 @@ namespace BattleV2.Execution.TimedHits
             {
                 BattleDiagnostics.Log(
                     "CPTRACE",
+                    $"TH_END exec={execId} outcome=Resolved source=RunAsync judgment={result.Judgment}",
+                    context?.Attacker);
+            }
+            if (BattleDiagnostics.DevFlowTrace)
+            {
+                BattleDiagnostics.Log(
+                    "BATTLEFLOW",
                     $"TH_END exec={execId} outcome=Resolved source=RunAsync judgment={result.Judgment}",
                     context?.Attacker);
             }

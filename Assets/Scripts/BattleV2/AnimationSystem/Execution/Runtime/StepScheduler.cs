@@ -253,6 +253,15 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
             {
                 if (!(context.SkipResetToFallback || skipByMotion))
                 {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                    if (BattleV2.Core.BattleDiagnostics.DevAnimTrace)
+                    {
+                        BattleV2.Core.BattleDiagnostics.Log(
+                            "ANIMTRACE",
+                            $"RESET_CALL actor={context.Actor?.name ?? "(null)"} recipe={recipe?.Id ?? "(null)"} wrapper={(context.Wrapper != null ? context.Wrapper.GetType().Name : "(null)")} reason=RecipeFinally",
+                            context.Actor);
+                    }
+#endif
                     context.Wrapper?.ResetToFallback();
                 }
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
@@ -815,7 +824,8 @@ namespace BattleV2.AnimationSystem.Execution.Runtime
             }
 
             return string.Equals(id, "run_up", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(id, "run_back", StringComparison.OrdinalIgnoreCase);
+                || string.Equals(id, "run_back", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(id, "idle", StringComparison.OrdinalIgnoreCase);
         }
 
         private static void LogPoseSnapshot(CombatantState actor, string phaseLabel, bool isPre)

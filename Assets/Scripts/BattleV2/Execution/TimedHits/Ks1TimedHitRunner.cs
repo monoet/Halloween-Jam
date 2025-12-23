@@ -282,6 +282,13 @@ namespace BattleV2.Execution.TimedHits
                     $"TH_RESULT_FINAL exec={request.ExecutionId} judgment={result.Judgment} phase={result.PhaseIndex}/{result.TotalPhases} hits={result.HitsSucceeded}/{result.TotalHits}",
                     request.Attacker);
             }
+            if (BattleDiagnostics.DevFlowTrace)
+            {
+                BattleDiagnostics.Log(
+                    "BATTLEFLOW",
+                    $"TH_RESULT_FINAL exec={request.ExecutionId} judgment={result.Judgment} phase={result.PhaseIndex}/{result.TotalPhases} hits={result.HitsSucceeded}/{result.TotalHits}",
+                    request.Attacker);
+            }
 #endif
             bus.Publish(evt);
         }

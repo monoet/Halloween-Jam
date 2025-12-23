@@ -1,6 +1,7 @@
 ﻿using System.Threading.Tasks;
 using BattleV2.AnimationSystem.Execution.Runtime.Recipes;
 using BattleV2.Core;
+using BattleV2.Orchestration.Runtime;
 
 namespace BattleV2.AnimationSystem.Strategies
 {
@@ -34,6 +35,7 @@ namespace BattleV2.AnimationSystem.Strategies
             }
 
             var animationContext = context.AnimationContext;
+            var primaryActor = animationContext.PrimaryActor;
 
             try
             {
@@ -41,6 +43,7 @@ namespace BattleV2.AnimationSystem.Strategies
                 await orchestrator.PlayRecipeAsync(PilotActionRecipes.TurnIntroId, animationContext).ConfigureAwait(true);
                 await orchestrator.PlayRecipeAsync(PilotActionRecipes.RunUpId, animationContext).ConfigureAwait(true);
                 await orchestrator.PlayRecipeAsync(PilotActionRecipes.IdleId, animationContext).ConfigureAwait(true);
+                BattleV2.AnimationSystem.Runtime.IdleEnsureUtility.EnsureIdleNextTick(primaryActor, "TurnPhaseStrategy.PostRunUp");
             }
             catch (System.Exception ex)
             {

@@ -161,6 +161,15 @@ namespace BattleV2.UI
                     $"UI_COMMIT action={action.id} intentCp={intentCp} intentMax={(cpIntent != null ? cpIntent.Max : 0)} maxCpCharge={pendingContext.MaxCpCharge} playerCp={playerCp} finalCp={cp} clamped={clamped} activeTurn={(cpIntent != null && cpIntent.IsActiveTurn)}",
                     this);
             }
+            if (BattleDiagnostics.DevFlowTrace)
+            {
+                int playerCp = pendingContext.Player != null ? pendingContext.Player.CurrentCP : 0;
+                bool clamped = cp != intentCp;
+                BattleDiagnostics.Log(
+                    "BATTLEFLOW",
+                    $"UI_COMMIT action={action.id} intentCp={intentCp} intentMax={(cpIntent != null ? cpIntent.Max : 0)} maxCpCharge={pendingContext.MaxCpCharge} playerCp={playerCp} finalCp={cp} clamped={clamped}",
+                    this);
+            }
 #endif
 
             var selection = new BattleSelection(action, cp, chargeProfile, timedProfile);

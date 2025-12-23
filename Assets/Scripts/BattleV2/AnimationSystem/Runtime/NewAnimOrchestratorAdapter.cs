@@ -178,9 +178,10 @@ namespace BattleV2.AnimationSystem.Runtime
             var isRouter = !string.IsNullOrWhiteSpace(recipeId) &&
                 recipeId.StartsWith("router:", StringComparison.OrdinalIgnoreCase);
 
-            if (!isRouter && !recipeCatalog.TryResolveRecipe(recipeId, out _))
+            if (!isRouter &&
+                !(recipeCatalog.TryResolveRecipe(recipeId, out _) || stepScheduler.TryGetRecipe(recipeId, out _)))
             {
-                BattleLogger.Warn("AnimOrchestrator", $"Skipped recipe {recipeId} (not found in catalog).");
+                BattleLogger.Warn("AnimOrchestrator", $"Skipped recipe {recipeId} (not found in catalog or scheduler).");
                 return Task.CompletedTask;
             }
 
@@ -721,6 +722,15 @@ namespace BattleV2.AnimationSystem.Runtime
                 {
                     if (needsResetFallback)
                     {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                        if (BattleDiagnostics.DevAnimTrace)
+                        {
+                            BattleDiagnostics.Log(
+                                "ANIMTRACE",
+                                $"RESET_INJECT actor={request.Actor?.name ?? "(null)"} action={request.Selection.Action?.id ?? "(null)"} needsResetFallback=true resetPolicy={context.ResetPolicy}",
+                                request.Actor);
+                        }
+#endif
                         EnsureResetFallbackInFinally(plan);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
                         ValidateFinallyDevOnly(plan);
@@ -749,6 +759,15 @@ namespace BattleV2.AnimationSystem.Runtime
                                 var finalContext = needsResetFallback
                                     ? context.WithResetPolicy(ResetPolicy.DeferUntilPlanFinally)
                                     : context.WithResetPolicy(ResetPolicy.Default);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                                if (BattleDiagnostics.DevAnimTrace && string.Equals(recipeToRun.Id, "reset/fallback", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    BattleDiagnostics.Log(
+                                        "ANIMTRACE",
+                                        $"RESET_APPLY actor={request.Actor?.name ?? "(null)"} action={request.Selection.Action?.id ?? "(null)"} recipeId={recipeToRun.Id}",
+                                        request.Actor);
+                                }
+#endif
                                 await scheduler.ExecuteAsync(recipeToRun, finalContext, CancellationToken.None);
                                 if (debugPlan)
                                 {

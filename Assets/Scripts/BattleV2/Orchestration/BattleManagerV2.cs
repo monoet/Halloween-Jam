@@ -782,6 +782,13 @@ namespace BattleV2.Orchestration
                     $"INTENT_CONSUME exec={executionId} selectionId={selectionId} actionId={selection.Action?.id ?? "(null)"} consumesCp={consumesCp} uiCp={uiCpCharge} consumedCp={consumedIntentCp} finalCp={finalCpCharge} intentCur={cpIntent.Current} intentMax={cpIntent.Max} activeTurn={cpIntent.IsActiveTurn} reason=ActionCommit",
                     currentPlayer);
             }
+            if (BattleDiagnostics.DevFlowTrace)
+            {
+                BattleDiagnostics.Log(
+                    "BATTLEFLOW",
+                    $"INTENT_CONSUME exec={executionId} selectionId={selectionId} actionId={selection.Action?.id ?? "(null)"} consumesCp={consumesCp} uiCp={uiCpCharge} consumedCp={consumedIntentCp} finalCp={finalCpCharge} intentCur={cpIntent.Current} intentMax={cpIntent.Max}",
+                    currentPlayer);
+            }
 #endif
             
             // Mark as committed
@@ -795,6 +802,13 @@ namespace BattleV2.Orchestration
                 BattleDiagnostics.Log(
                     "CPTRACE",
                     $"INTENT_END_TURN exec={executionId} actionId={selection.Action?.id ?? "(null)"} reason=CommittedOutcome activeTurn={cpIntent.IsActiveTurn}",
+                    currentPlayer);
+            }
+            if (BattleDiagnostics.DevFlowTrace)
+            {
+                BattleDiagnostics.Log(
+                    "BATTLEFLOW",
+                    $"INTENT_END_TURN exec={executionId} actionId={selection.Action?.id ?? "(null)"} reason=CommittedOutcome",
                     currentPlayer);
             }
 #endif

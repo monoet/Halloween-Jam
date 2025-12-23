@@ -60,6 +60,13 @@ namespace BattleV2.Charge
                 UnityEngine.Debug.Log(
                     $"[CPTRACE] CPS exec={traceExecutionId.Value} action={traceActionId.Value ?? "(null)"} cp={cpCharge} profile={(profile != null ? profile.name : "null")} usedProfile={usedProfile} usedFallback={usedFallback} final={fallback:F3}");
             }
+            if (BattleV2.Core.BattleDiagnostics.DevFlowTrace && cpCharge > 0 && traceEnabled.Value)
+            {
+                BattleV2.Core.BattleDiagnostics.Log(
+                    "BATTLEFLOW",
+                    $"CPS exec={traceExecutionId.Value} action={traceActionId.Value ?? "(null)"} cp={cpCharge} usedProfile={usedProfile} usedFallback={usedFallback} final={fallback:F3}",
+                    context: null);
+            }
 #endif
 
             return fallback;

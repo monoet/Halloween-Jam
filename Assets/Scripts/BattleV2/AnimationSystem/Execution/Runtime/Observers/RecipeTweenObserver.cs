@@ -174,7 +174,17 @@ private bool anchorMarkedThisTurn;
             var selection = context.Request.Selection;
             var actionId = selection.Action != null ? selection.Action.id : "(null)";
             var recipeOverride = selection.AnimationRecipeId ?? "(null)";
-            if (AnimatorRegistry.Instance.TryGetWrapper(owner, out var wrapper) && wrapper is BattleV2.Orchestration.Runtime.AnimatorWrapper aw)
+            // Prefer the wrapper instance actually used by the scheduler for this recipe execution.
+            BattleV2.Orchestration.Runtime.AnimatorWrapper aw = context.Wrapper as BattleV2.Orchestration.Runtime.AnimatorWrapper;
+            if (aw == null)
+            {
+                if (AnimatorRegistry.Instance.TryGetWrapper(owner, out var registeredWrapper))
+                {
+                    aw = registeredWrapper as BattleV2.Orchestration.Runtime.AnimatorWrapper;
+                }
+            }
+
+            if (aw != null)
             {
                 var resetKey = $"{owner.GetInstanceID()}|{actionId}|{recipeOverride}|{context.Request.GetHashCode()}";
                 if (!string.Equals(resetKey, lastVariantResetKey, StringComparison.Ordinal))
@@ -199,6 +209,9 @@ private bool anchorMarkedThisTurn;
                     case "run_up_target":
                         // Opcional: solo comando si quieres consumir anim/clip asociado
                         _ = aw.ConsumeCommand(recipe.Id, "RecipeTweenObserver", ctx, System.Threading.CancellationToken.None);
+                        break;
+                    case "idle":
+                        aw.RequestIdleLoop($"RecipeTweenObserver {ctx}");
                         break;
                 }
             }
@@ -622,7 +635,20 @@ private bool anchorMarkedThisTurn;
                         : "run_up";
                     context.Gate?.ExpectBarrier("Locomotion", reason);
                     var task = RunUpAsync(def, group.Id, targetPos);
-                    context.Gate?.Register(task, locomotionKey, "Locomotion", reason);
+                    context.Gate?.Register(task, locomotionKey, "Locomotion", reason, cancel: () =>
+                    {
+                        RunOnMainThread(() =>
+                        {
+                            if (BattleV2.Core.BattleDiagnostics.DevLocomotionTrace)
+                            {
+                                BattleV2.Core.BattleDiagnostics.Log(
+                                    "LOCOMOTIONTRACE",
+                                    $"TWEEN_CANCEL actor={owner?.name ?? "(null)"} recipeId={group.Id} reason={reason} key={locomotionKey}",
+                                    context: null);
+                            }
+                            motionService.Cancel(locomotionKey, reason: $"gate_cancel:{reason}");
+                        });
+                    });
                     return;
                 }
 
@@ -650,7 +676,20 @@ private bool anchorMarkedThisTurn;
                     SetRootMotion(false);
                     context.Gate?.ExpectBarrier("Locomotion", "move_to_target");
                     var task = RunUpAsync(def, "move_to_target", targetPos);
-                    context.Gate?.Register(task, locomotionKey, "Locomotion", "move_to_target");
+                    context.Gate?.Register(task, locomotionKey, "Locomotion", "move_to_target", cancel: () =>
+                    {
+                        RunOnMainThread(() =>
+                        {
+                            if (BattleV2.Core.BattleDiagnostics.DevLocomotionTrace)
+                            {
+                                BattleV2.Core.BattleDiagnostics.Log(
+                                    "LOCOMOTIONTRACE",
+                                    $"TWEEN_CANCEL actor={owner?.name ?? "(null)"} recipeId=move_to_target reason=move_to_target key={locomotionKey}",
+                                    context: null);
+                            }
+                            motionService.Cancel(locomotionKey, reason: "gate_cancel:move_to_target");
+                        });
+                    });
                     return;
                 }
 
@@ -667,7 +706,20 @@ private bool anchorMarkedThisTurn;
                         : "run_back";
                     context.Gate?.ExpectBarrier("Locomotion", reason);
                     var task = RunBackAsync(def, context);
-                    context.Gate?.Register(task, locomotionKey, "Locomotion", reason);
+                    context.Gate?.Register(task, locomotionKey, "Locomotion", reason, cancel: () =>
+                    {
+                        RunOnMainThread(() =>
+                        {
+                            if (BattleV2.Core.BattleDiagnostics.DevLocomotionTrace)
+                            {
+                                BattleV2.Core.BattleDiagnostics.Log(
+                                    "LOCOMOTIONTRACE",
+                                    $"TWEEN_CANCEL actor={owner?.name ?? "(null)"} recipeId={group.Id} reason={reason} key={locomotionKey}",
+                                    context: null);
+                            }
+                            motionService.Cancel(locomotionKey, reason: $"gate_cancel:{reason}");
+                        });
+                    });
                     return;
                 }
             }
@@ -746,6 +798,9 @@ private bool anchorMarkedThisTurn;
 
             try
             {
+                LocomotionTrace(() =>
+                    $"TWEEN_START actor={owner?.name ?? "(null)"} recipeId={recipeId} key={locomotionKey} to={targetLocalPos} duration={durationOverride:0.###} ease={def.ease}");
+
                 await motionService.MoveToLocalAsync(
                         locomotionKey,
                         tweenTarget,
@@ -756,9 +811,19 @@ private bool anchorMarkedThisTurn;
                         System.Threading.CancellationToken.None,
                         reason: recipeId)
                     .ConfigureAwait(false);
+
+                LocomotionTrace(() =>
+                    $"TWEEN_COMPLETE actor={owner?.name ?? "(null)"} recipeId={recipeId} key={locomotionKey}");
+            }
+            catch (OperationCanceledException)
+            {
+                LocomotionTrace(() =>
+                    $"TWEEN_CANCEL actor={owner?.name ?? "(null)"} recipeId={recipeId} key={locomotionKey}");
             }
             catch
             {
+                LocomotionTrace(() =>
+                    $"TWEEN_FAIL actor={owner?.name ?? "(null)"} recipeId={recipeId} key={locomotionKey}");
             }
         }
 
@@ -781,6 +846,9 @@ private bool anchorMarkedThisTurn;
 
             try
             {
+                LocomotionTrace(() =>
+                    $"TWEEN_START actor={owner?.name ?? "(null)"} recipeId=run_back key={locomotionKey} duration={duration:0.###} ease={Ease.OutExpo}");
+
                 await motionService.ReturnHomeAsync(
                         locomotionKey,
                         tweenTarget,
@@ -791,9 +859,19 @@ private bool anchorMarkedThisTurn;
                         overrideStartLocalPos: overrideStart,
                         reason: "run_back")
                     .ConfigureAwait(false);
+
+                LocomotionTrace(() =>
+                    $"TWEEN_COMPLETE actor={owner?.name ?? "(null)"} recipeId=run_back key={locomotionKey}");
+            }
+            catch (OperationCanceledException)
+            {
+                LocomotionTrace(() =>
+                    $"TWEEN_CANCEL actor={owner?.name ?? "(null)"} recipeId=run_back key={locomotionKey}");
             }
             catch
             {
+                LocomotionTrace(() =>
+                    $"TWEEN_FAIL actor={owner?.name ?? "(null)"} recipeId=run_back key={locomotionKey}");
             }
             finally
             {
@@ -825,6 +903,9 @@ private bool anchorMarkedThisTurn;
 
             try
             {
+                LocomotionTrace(() =>
+                    $"TWEEN_START actor={owner?.name ?? "(null)"} recipeId=run_up_target key={locomotionKey} to={targetPos} duration={duration:0.###} ease={Ease.OutCubic}");
+
                 await motionService.MoveToLocalAsync(
                         locomotionKey,
                         tweenTarget,
@@ -835,9 +916,19 @@ private bool anchorMarkedThisTurn;
                         System.Threading.CancellationToken.None,
                         reason: "run_up_target")
                     .ConfigureAwait(false);
+
+                LocomotionTrace(() =>
+                    $"TWEEN_COMPLETE actor={owner?.name ?? "(null)"} recipeId=run_up_target key={locomotionKey}");
+            }
+            catch (OperationCanceledException)
+            {
+                LocomotionTrace(() =>
+                    $"TWEEN_CANCEL actor={owner?.name ?? "(null)"} recipeId=run_up_target key={locomotionKey}");
             }
             catch
             {
+                LocomotionTrace(() =>
+                    $"TWEEN_FAIL actor={owner?.name ?? "(null)"} recipeId=run_up_target key={locomotionKey}");
             }
         }
 
@@ -854,6 +945,21 @@ private bool anchorMarkedThisTurn;
             }
 
             return cachedAnimator;
+        }
+
+        private void LocomotionTrace(Func<string> buildMessage)
+        {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (!BattleV2.Core.BattleDiagnostics.DevLocomotionTrace || buildMessage == null)
+            {
+                return;
+            }
+
+            RunOnMainThread(() =>
+            {
+                BattleV2.Core.BattleDiagnostics.Log("LOCOMOTIONTRACE", buildMessage(), context: null);
+            });
+#endif
         }
 
         private void RunOnMainThread(Action action)
