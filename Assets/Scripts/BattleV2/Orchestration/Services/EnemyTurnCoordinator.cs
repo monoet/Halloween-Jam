@@ -491,19 +491,23 @@ namespace BattleV2.Orchestration.Services
                       alliesForTargeting,
                       enemiesForTargeting);
 
+                var resolvedTargets = TargetSnapshot.Snapshot(resolution.Targets);
+                LogP2LiteValidateShadow(context, attacker, selection.Action, sameSide, opponents, resolvedTargets);
+                LogP2LiteRequest(context, attacker, selection.Action, sameSide, opponents, resolvedTargets, TargetResolveFailReason.Ok);
+
                 // Guardrail: never allow self-target for offensive actions by default.
                 if (attacker != null &&
                     action != null &&
                     action.targetAudience == TargetAudience.Enemies &&
-                    resolution.Targets != null &&
-                    resolution.Targets.Contains(attacker))
+                    resolvedTargets != null &&
+                    System.Array.IndexOf(resolvedTargets, attacker) >= 0)
                 {
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
                     if (BattleDiagnostics.DevFlowTrace)
                     {
                         BattleDiagnostics.Log(
                             "BATTLEFLOW",
-                            $"WARN_RESOLVE_RETURNED_SELF exec={context.ExecutionId} attacker={attacker.DisplayName}#{attacker.GetInstanceID()} action={action.id} audience={action.targetAudience} shape={action.targetShape} resolvedCount={resolution.Targets.Count}",
+                            $"WARN_RESOLVE_RETURNED_SELF exec={context.ExecutionId} attacker={attacker.DisplayName}#{attacker.GetInstanceID()} action={action.id} audience={action.targetAudience} shape={action.targetShape} resolvedCount={resolvedTargets.Length}",
                             attacker);
                         BattleDiagnostics.Log(
                             "BATTLEFLOW",
@@ -517,28 +521,17 @@ namespace BattleV2.Orchestration.Services
                     return;
                 }
 
-                var resolvedTargets = resolution.Targets ?? Array.Empty<CombatantState>();
-                resolvedTargets = SelectResolvedTargetsEffective(
-                    context,
-                    attacker,
-                    action,
-                    sameSide,
-                    opponents,
-                    resolvedTargets);
-                LogP2LiteResolveShadow(context, attacker, selection.Action, sameSide, opponents, resolvedTargets);
-                LogP2LiteRequest(context, attacker, selection.Action, sameSide, opponents, resolvedTargets, TargetResolveFailReason.Ok);
-
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
                 if (BattleDiagnostics.DevFlowTrace &&
                     attacker != null &&
                     action != null &&
                     action.targetShape == TargetShape.Single)
                 {
-                    if (resolvedTargets != null && resolvedTargets.Count > 1)
+                    if (resolvedTargets != null && resolvedTargets.Length > 1)
                     {
                         BattleDiagnostics.Log(
                             "BATTLEFLOW",
-                            $"WARN_TARGET_SHAPE_SINGLE_GOT_MULTI exec={context.ExecutionId} actor={attacker.DisplayName}#{attacker.GetInstanceID()} action={action.id} resolvedCount={resolvedTargets.Count}",
+                            $"WARN_TARGET_SHAPE_SINGLE_GOT_MULTI exec={context.ExecutionId} actor={attacker.DisplayName}#{attacker.GetInstanceID()} action={action.id} resolvedCount={resolvedTargets.Length}",
                             attacker);
                     }
 
@@ -546,7 +539,7 @@ namespace BattleV2.Orchestration.Services
                     {
                         // Note: picked is only set when we ran the policy branch.
                         // If resolved differs from picked, log it for visibility.
-                        var resolvedPrimary = resolvedTargets != null && resolvedTargets.Count > 0 ? resolvedTargets[0] : null;
+                        var resolvedPrimary = resolvedTargets != null && resolvedTargets.Length > 0 ? resolvedTargets[0] : null;
                         if (picked != null && resolvedPrimary != null && picked != resolvedPrimary)
                         {
                             BattleDiagnostics.Log(
@@ -572,19 +565,19 @@ namespace BattleV2.Orchestration.Services
                     }
 
                     string targetsStr;
-                    if (resolvedTargets == null || resolvedTargets.Count == 0)
+                    if (resolvedTargets == null || resolvedTargets.Length == 0)
                     {
                         targetsStr = "[]";
                     }
                     else
                     {
-                        var parts = new string[Mathf.Min(resolvedTargets.Count, 6)];
+                        var parts = new string[Mathf.Min(resolvedTargets.Length, 6)];
                         for (int i = 0; i < parts.Length; i++)
                         {
                             var t = resolvedTargets[i];
                             parts[i] = t != null ? $"{t.DisplayName}#{t.GetInstanceID()}" : "(null)";
                         }
-                        targetsStr = $"[{string.Join(",", parts)}{(resolvedTargets.Count > parts.Length ? ",..+" + (resolvedTargets.Count - parts.Length) : string.Empty)}]";
+                        targetsStr = $"[{string.Join(",", parts)}{(resolvedTargets.Length > parts.Length ? ",..+" + (resolvedTargets.Length - parts.Length) : string.Empty)}]";
                     }
 
                     BattleDiagnostics.Log(
@@ -594,7 +587,7 @@ namespace BattleV2.Orchestration.Services
                 }
 #endif
 
-                if (resolvedTargets.Count == 0)
+                if (resolvedTargets.Length == 0)
                 {
                     if (allowFallback && TryResolveFallback(context, attacker, out var fallbackSelection, out var fallbackImpl))
                     {
@@ -609,7 +602,7 @@ namespace BattleV2.Orchestration.Services
                 }
 
                 var enrichedSelection = selection.WithTargets(resolution.TargetSet);
-                var primaryTarget = resolvedTargets != null && resolvedTargets.Count > 0
+                var primaryTarget = resolvedTargets != null && resolvedTargets.Length > 0
                     ? resolvedTargets[0]
                     : null;
                 if (primaryTarget != null)
@@ -633,7 +626,7 @@ namespace BattleV2.Orchestration.Services
 
                 var defeatCandidates = CollectDeathCandidates(resolvedTargets);
 
-                var judgmentSeed = System.HashCode.Combine(attacker != null ? attacker.GetInstanceID() : 0, enrichedSelection.Action != null ? enrichedSelection.Action.id.GetHashCode() : 0, resolvedTargets.Count);
+                var judgmentSeed = System.HashCode.Combine(attacker != null ? attacker.GetInstanceID() : 0, enrichedSelection.Action != null ? enrichedSelection.Action.id.GetHashCode() : 0, resolvedTargets.Length);
                 var resourcesPre = BattleV2.Execution.ResourceSnapshot.FromCombatant(attacker);
                 var resourcesPost = BattleV2.Execution.ResourceSnapshot.FromCombatant(attacker);
                 var judgment = BattleV2.Execution.ActionJudgment.FromSelection(enrichedSelection, attacker, enrichedSelection.CpCharge, judgmentSeed, resourcesPre, resourcesPost);
@@ -952,17 +945,15 @@ namespace BattleV2.Orchestration.Services
                 return;
             }
 
-            var helper = TryResolveTargetsLite.Resolve(attacker, action, sameSide, opponents);
+            var validation = ValidateResolvedTargetsLite.Validate(attacker, action, resolvedTargets, sameSide, opponents);
             string actionId = action != null ? action.id : "(null)";
-            // Snapshot current resolution to avoid aliasing and sort ids for stable diffs.
             var currentSnapshot = TargetSnapshot.Snapshot(resolvedTargets);
             string resolvedIds = StableIdsSorted(currentSnapshot);
-            string helperIds = StableIdsSorted(helper.Recipients);
-            int ok = helper.HasRecipients ? 1 : 0;
-            string reason = helper.FailReason.ToString();
+            int ok = validation.FailReason == TargetResolveFailReason.Ok ? 1 : 0;
+            string reason = validation.FailReason.ToString();
 
             // Skip log for non-offensive shapes.
-            if (helper.FailReason == TargetResolveFailReason.NotOffensiveSingle)
+            if (validation.FailReason == TargetResolveFailReason.NotOffensiveSingle)
             {
                 BattleDiagnostics.Log(
                     "P2L",
@@ -973,31 +964,8 @@ namespace BattleV2.Orchestration.Services
 
             BattleDiagnostics.Log(
                 "P2L",
-                $"P2L|RESOLVE|exec={context.ExecutionId}|att={attacker?.DisplayName ?? "(null)"}|act={actionId}|ok={ok}|reason={reason}|rec={helperIds ?? "[]"}",
+                $"P2L|VALIDATE|exec={context.ExecutionId}|att={attacker?.DisplayName ?? "(null)"}|act={actionId}|ok={ok}|reason={reason}|rec={resolvedIds ?? "[]"}|containsSelf={(validation.ContainsSelf ? 1 : 0)}",
                 attacker);
-
-            if (!TargetsEqualByIdSorted(currentSnapshot, helper.Recipients))
-            {
-                BattleDiagnostics.Log(
-                    "P2L",
-                    $"P2L|DIFF|exec={context.ExecutionId}|where=RESOLVE|old={resolvedIds ?? "[]"}|new={helperIds ?? "[]"}",
-                    attacker);
-            }
-        }
-
-        private static bool TargetsEqualByIdSorted(IReadOnlyList<CombatantState> a, IReadOnlyList<CombatantState> b)
-        {
-            int countA = a != null ? a.Count : 0;
-            int countB = b != null ? b.Count : 0;
-            if (countA != countB) return false;
-            var idsA = BuildSortedIds(a);
-            var idsB = BuildSortedIds(b);
-            if (idsA.Length != idsB.Length) return false;
-            for (int i = 0; i < idsA.Length; i++)
-            {
-                if (idsA[i] != idsB[i]) return false;
-            }
-            return true;
         }
 
         private static int[] BuildSortedIds(IReadOnlyList<CombatantState> list)
@@ -1090,7 +1058,7 @@ namespace BattleV2.Orchestration.Services
             }
         }
 
-        private IReadOnlyList<CombatantState> SelectResolvedTargetsEffective(
+        private void LogP2LiteValidateShadow(
             EnemyTurnContext context,
             CombatantState attacker,
             BattleActionData action,
@@ -1098,122 +1066,31 @@ namespace BattleV2.Orchestration.Services
             IReadOnlyList<CombatantState> opponents,
             IReadOnlyList<CombatantState> resolvedTargets)
         {
-            var resolvedSnapshot = TargetSnapshot.Snapshot(resolvedTargets);
-
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            if (ShouldUseP2LiteResolve(attacker))
+            if (!BattleDiagnostics.DevFlowTrace || !BattleDiagnostics.EnableP2LiteResolveShadow)
             {
-                var helper = TryResolveTargetsLite.Resolve(attacker, action, sameSide, opponents);
-
-                if (helper.FailReason == TargetResolveFailReason.NotOffensiveSingle)
-                {
-                    return resolvedSnapshot;
-                }
-
-                bool equalSets = TargetsEqualByIdSorted(resolvedSnapshot, helper.Recipients);
-                if (!equalSets)
-                {
-                    if (BattleDiagnostics.DevFlowTrace && BattleDiagnostics.EnableP2LiteResolveShadow)
-                    {
-                        var oldIds = StableIdsSorted(resolvedSnapshot);
-                        var newIds = StableIdsSorted(helper.Recipients);
-                        BattleDiagnostics.Log(
-                            "P2L",
-                            $"P2L|FLIP_ABORT|exec={context.ExecutionId}|where=RESOLVE|old={oldIds ?? "[]"}|new={newIds ?? "[]"}",
-                            attacker);
-                    }
-                    return resolvedSnapshot;
-                }
-
-                // Sets are equivalent; preserve old ordering when using helper recipients.
-                var ordered = BuildTargetsWithOldOrder(resolvedSnapshot, helper.Recipients);
-                return ordered;
-            }
-#endif
-
-            return resolvedSnapshot;
-        }
-
-        private static IReadOnlyList<CombatantState> BuildTargetsWithOldOrder(
-            IReadOnlyList<CombatantState> oldOrder,
-            IReadOnlyList<CombatantState> helperRecipients)
-        {
-            if (helperRecipients == null || helperRecipients.Count == 0)
-            {
-                return oldOrder;
-            }
-            if (oldOrder == null || oldOrder.Count == 0)
-            {
-                return helperRecipients;
+                return;
             }
 
-            var helperSet = new System.Collections.Generic.HashSet<int>();
-            for (int i = 0; i < helperRecipients.Count; i++)
+            var validation = ValidateResolvedTargetsLite.Validate(attacker, action, resolvedTargets, sameSide, opponents);
+            string actionId = action != null ? action.id : "(null)";
+            string recIds = StableIdsSorted(validation.Recipients);
+            int ok = validation.FailReason == TargetResolveFailReason.Ok ? 1 : 0;
+            int containsSelf = validation.ContainsSelf ? 1 : 0;
+
+            // Skip log for actions we aren't validating (non-offensive single).
+            if (validation.FailReason == TargetResolveFailReason.NotOffensiveSingle)
             {
-                var h = helperRecipients[i];
-                if (h != null)
-                {
-                    helperSet.Add(h.GetInstanceID());
-                }
+                BattleDiagnostics.Log(
+                    "P2L",
+                    $"P2L|SKIP|exec={context.ExecutionId}|act={actionId}|shape={action?.targetShape}|aud={action?.targetAudience}|why=NotOffensiveSingle",
+                    attacker);
+                return;
             }
 
-            var ordered = new System.Collections.Generic.List<CombatantState>(oldOrder.Count);
-            var used = new System.Collections.Generic.HashSet<int>();
-
-            // Preserve old ordering for any helper recipient.
-            for (int i = 0; i < oldOrder.Count; i++)
-            {
-                var o = oldOrder[i];
-                if (o == null) continue;
-                int id = o.GetInstanceID();
-                if (helperSet.Contains(id))
-                {
-                    ordered.Add(o);
-                    used.Add(id);
-                }
-            }
-
-            // Append any helper recipient not present in old order (should be rare).
-            for (int i = 0; i < helperRecipients.Count; i++)
-            {
-                var h = helperRecipients[i];
-                if (h == null) continue;
-                int id = h.GetInstanceID();
-                if (used.Contains(id)) continue;
-                ordered.Add(h);
-            }
-
-            return ordered;
-        }
-
-        private static bool ShouldUseP2LiteResolve(CombatantState attacker)
-        {
-            if (!BattleDiagnostics.UseP2LiteResolve)
-            {
-                return false;
-            }
-
-            if (BattleDiagnostics.P2LiteOnlyForEnemies && (attacker == null || !attacker.IsEnemy))
-            {
-                return false;
-            }
-
-            var filter = BattleDiagnostics.P2LiteFilterAttackerId;
-            if (!string.IsNullOrEmpty(filter))
-            {
-                var name = attacker?.DisplayName ?? attacker?.name;
-                int id = attacker != null ? attacker.GetInstanceID() : 0;
-
-                bool nameMatch = !string.IsNullOrEmpty(name) && string.Equals(name, filter, StringComparison.OrdinalIgnoreCase);
-                bool idMatch = id != 0 && string.Equals(id.ToString(), filter, StringComparison.OrdinalIgnoreCase);
-
-                if (!nameMatch && !idMatch)
-                {
-                    return false;
-                }
-            }
-
-            return true;
+            BattleDiagnostics.Log(
+                "P2L",
+                $"P2L|VALIDATE|exec={context.ExecutionId}|att={attacker?.DisplayName ?? "(null)"}|act={actionId}|ok={ok}|reason={validation.FailReason}|rec={recIds ?? "[]"}|containsSelf={containsSelf}",
+                attacker);
         }
 
         private static readonly object reqLogGuard = new object();
@@ -1221,3 +1098,4 @@ namespace BattleV2.Orchestration.Services
 #endif
     }
 }
+

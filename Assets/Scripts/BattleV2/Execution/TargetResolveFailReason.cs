@@ -11,6 +11,8 @@ namespace BattleV2.Execution
         NotOffensiveSingle = 3,
         InvalidShape = 4,
         NullAction = 5,
+        InvalidTargets = 6,
+        UnauthorizedSelf = 7,
         Unknown = 99
     }
 }
