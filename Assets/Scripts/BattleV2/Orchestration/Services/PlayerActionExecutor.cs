@@ -10,6 +10,7 @@ using BattleV2.Execution.TimedHits;
 using BattleV2.Orchestration;
 using BattleV2.Orchestration.Events;
 using BattleV2.Providers;
+using BattleV2.Targeting;
 using UnityEngine;
 
 namespace BattleV2.Orchestration.Services
@@ -67,6 +68,10 @@ namespace BattleV2.Orchestration.Services
                     context.Player);
 
                 var targets = context.Snapshot.Targets ?? Array.Empty<CombatantState>();
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                LogP2LiteValidateShadow(context, targets);
+                LogP2LiteRequest(context, targets, TargetResolveFailReason.Ok);
+#endif
                 var defeatCandidates = CollectDeathCandidates(targets);
 
                 var chargeResult = ChargeSelectionCosts(context, spCost, cpBase, cpCharge, cpCost);
@@ -538,6 +543,115 @@ namespace BattleV2.Orchestration.Services
 
             return result;
         }
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        private static int p2lLastReqExecId = int.MinValue;
+
+        private static bool TryMarkP2LReqLogged(int execId)
+        {
+            if (p2lLastReqExecId == execId)
+            {
+                return false;
+            }
+            p2lLastReqExecId = execId;
+            return true;
+        }
+
+        private void LogP2LiteValidateShadow(PlayerActionExecutionContext context, IReadOnlyList<CombatantState> resolvedTargets)
+        {
+            if (!BattleDiagnostics.DevFlowTrace || !BattleDiagnostics.EnableP2LiteResolveShadowPlayer)
+            {
+                return;
+            }
+
+            var action = context.Selection.Action;
+            if (action == null ||
+                action.targetAudience != TargetAudience.Enemies ||
+                action.targetShape != TargetShape.Single)
+            {
+                BattleDiagnostics.Log(
+                    "P2L",
+                    $"P2L|SKIP|exec={context.ExecutionId}|act={action?.id ?? "(null)"}|shape={action?.targetShape}|aud={action?.targetAudience}|why=NotOffensiveSingle",
+                    context.Player);
+                return;
+            }
+
+            var validation = ValidateResolvedTargetsLite.Validate(
+                context.Player,
+                action,
+                resolvedTargets,
+                context.Snapshot.Allies,
+                context.Snapshot.Enemies);
+
+            string actionId = action.id;
+            var snapshot = TargetSnapshot.Snapshot(resolvedTargets);
+            string recIds = StableIdsSorted(snapshot);
+            int ok = validation.FailReason == TargetResolveFailReason.Ok ? 1 : 0;
+            int containsSelf = validation.ContainsSelf ? 1 : 0;
+
+            BattleDiagnostics.Log(
+                "P2L",
+                $"P2L|VALIDATE|exec={context.ExecutionId}|att={context.Player?.DisplayName ?? "(null)"}|act={actionId}|ok={ok}|reason={validation.FailReason}|rec={recIds ?? "[]"}|containsSelf={containsSelf}",
+                context.Player);
+        }
+
+        private void LogP2LiteRequest(PlayerActionExecutionContext context, IReadOnlyList<CombatantState> resolvedTargets, TargetResolveFailReason reason)
+        {
+            if (!BattleDiagnostics.DevFlowTrace || !BattleDiagnostics.EnableP2LiteReqLog)
+            {
+                return;
+            }
+
+            if (!TryMarkP2LReqLogged(context.ExecutionId))
+            {
+                BattleDiagnostics.Log(
+                    "P2L",
+                    $"P2L|REQ_DUP|exec={context.ExecutionId}|att={context.Player?.DisplayName ?? "(null)"}",
+                    context.Player);
+                return;
+            }
+
+            var req = new ExecutionRequestLite(
+                context.ExecutionId,
+                context.Player,
+                context.Selection.Action,
+                resolvedTargets,
+                context.Snapshot.Allies,
+                context.Snapshot.Enemies,
+                reason);
+
+            string actionId = context.Selection.Action != null ? context.Selection.Action.id : "(null)";
+            string recIds = StableIdsSorted(req.Recipients);
+
+            BattleDiagnostics.Log(
+                "P2L",
+                $"P2L|REQ|exec={req.ExecutionId}|att={context.Player?.DisplayName ?? "(null)"}|act={actionId}|rec={recIds ?? "[]"}|reason={req.FailReason}",
+                context.Player);
+        }
+
+        private static string StableIdsSorted(IReadOnlyList<CombatantState> list)
+        {
+            if (!BattleDiagnostics.DevFlowTrace) return null;
+            if (list == null || list.Count == 0) return "[]";
+            var ids = new int[list.Count];
+            int n = 0;
+            for (int i = 0; i < list.Count; i++)
+            {
+                var c = list[i];
+                if (c == null) continue;
+                ids[n++] = c.GetInstanceID();
+            }
+            Array.Resize(ref ids, n);
+            if (ids.Length == 0) return "[]";
+            Array.Sort(ids);
+            var parts = new string[ids.Length];
+            for (int i = 0; i < ids.Length; i++)
+            {
+                parts[i] = ids[i].ToString();
+            }
+            return $"[{string.Join(",", parts)}]";
+        }
+#endif
 
         private void PublishDefeatEvents(List<CombatantState> candidates, CombatantState killer)
         {

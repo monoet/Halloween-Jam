@@ -28,14 +28,62 @@ namespace BattleV2.Core
 
         /// <summary>
         /// Dev-only toggle for unified battle flow logs (BATTLEFLOW). Use this when you need a single searchable tag
-        /// that correlates UI→Commit→TimedHit→Damage→TurnClose.
+        /// that correlates multiple phases in the turn.
         /// </summary>
         public static bool DevFlowTrace = false;
+
+        /// <summary>
+        /// Dev-only toggle for P2-lite target snapshot logging.
+        /// </summary>
+        public static bool EnableP2LiteSnapshotLog = false;
+
+        /// <summary>
+        /// Dev-only toggle for P2-lite list shadow logging (LISTS/DIFF).
+        /// </summary>
+        public static bool EnableP2LiteListsShadow = false;
+
+        /// <summary>
+        /// Dev-only toggle for P2-lite resolve shadow logging (RESOLVE/DIFF/SKIP).
+        /// </summary>
+        public static bool EnableP2LiteResolveShadow = false;
+
+        /// <summary>
+        /// Dev-only toggle for P2-lite request logging (REQ).
+        /// </summary>
+        public static bool EnableP2LiteReqLog = false;
+
+        /// <summary>
+        /// Dev-only toggle for P2-lite resolve validation in player flow.
+        /// </summary>
+        public static bool EnableP2LiteResolveShadowPlayer = false;
+
+        /// <summary>
+        /// Dev-only toggle to actually use the P2-lite resolve output (when safe).
+        /// </summary>
+        public static bool UseP2LiteResolve = false;
+
+        /// <summary>
+        /// If true, only enemies will use P2-lite resolve when enabled.
+        /// </summary>
+        public static bool P2LiteOnlyForEnemies = true;
+
+        /// <summary>
+        /// Optional attacker filter (name or instanceId) for P2-lite resolve; empty = no filter.
+        /// </summary>
+        public static string P2LiteFilterAttackerId = string.Empty;
 #else
         public const bool DevCpTrace = false;
         public const bool DevAnimTrace = false;
         public const bool DevLocomotionTrace = false;
         public const bool DevFlowTrace = false;
+        public const bool EnableP2LiteSnapshotLog = false;
+        public const bool EnableP2LiteListsShadow = false;
+        public const bool EnableP2LiteResolveShadow = false;
+        public const bool EnableP2LiteReqLog = false;
+        public const bool EnableP2LiteResolveShadowPlayer = false;
+        public const bool UseP2LiteResolve = false;
+        public const bool P2LiteOnlyForEnemies = true;
+        public const string P2LiteFilterAttackerId = "";
 #endif
 
         private struct LogEntry
@@ -66,7 +114,7 @@ namespace BattleV2.Core
                     Context = context
                 });
             }
-            
+
             // Optional: Mirror to Unity Console
             Debug.Log($"[{category}] {message}", context);
         }

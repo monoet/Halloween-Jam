@@ -13,6 +13,7 @@ using BattleV2.Targeting.Policies;
 using UnityEngine;
 using BattleV2.AnimationSystem.Runtime;
 using BattleV2.Marks;
+using System.Linq;
 
 namespace BattleV2.Orchestration.Services
 {
@@ -282,57 +283,201 @@ namespace BattleV2.Orchestration.Services
                 var intent = TargetingIntent.FromAction(selection.Action);
                 bool resourcesCharged = false;
 
-                IReadOnlyList<CombatantState> alliesForTargeting = context.Allies;
+                // IMPORTANT: orientar listas desde la perspectiva del atacante.
+                // sameSide   = aliados del atacante (su escuadrón)
+                // opponents  = oponentes del atacante (objetivos ofensivos)
+                IReadOnlyList<CombatantState> sameSide = context.Enemies ?? Array.Empty<CombatantState>();
+                IReadOnlyList<CombatantState> opponents = context.Allies ?? Array.Empty<CombatantState>();
+
+                LogP2LiteListsShadow(context, attacker, selection.Action, sameSide, opponents);
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                if (BattleDiagnostics.DevFlowTrace)
+                {
+                    bool selfInOpponents = attacker != null && opponents.Contains(attacker);
+                    bool selfInSameSide = attacker != null && sameSide.Contains(attacker);
+                    bool attackerIsEnemy = attacker != null && attacker.IsEnemy;
+                    int sameSideAlive = CountAlive(sameSide);
+                    int opponentsAlive = CountAlive(opponents);
+                    int selfIndexOpponents = selfInOpponents ? IndexOf(opponents, attacker) : -1;
+                    string sampleSameSide = FormatSample(sameSide, attacker, IndexOf(sameSide, attacker));
+                    string sampleOpponents = FormatSample(opponents, attacker, selfIndexOpponents);
+                    BattleDiagnostics.Log(
+                        "BATTLEFLOW",
+                        $"TARGET_LISTS exec={context.ExecutionId} attacker={attacker?.DisplayName ?? "(null)"}#{(attacker != null ? attacker.GetInstanceID() : 0)} sameSideN={sameSide.Count} opponentsN={opponents.Count} sameSideAliveN={sameSideAlive} opponentsAliveN={opponentsAlive} selfInOpponents={selfInOpponents} selfIdxOpponents={selfIndexOpponents} selfInSameSide={selfInSameSide} sampleSameSide={sampleSameSide} sampleOpponents={sampleOpponents}",
+                        attacker);
+                    if (selfInOpponents)
+                    {
+                        BattleDiagnostics.Log(
+                            "BATTLEFLOW",
+                            $"WARN_TARGET_LISTS_SELF_IN_OPPONENTS exec={context.ExecutionId} attacker={attacker?.DisplayName ?? "(null)"}#{(attacker != null ? attacker.GetInstanceID() : 0)} selfIdxOpponents={selfIndexOpponents} sampleOpponents={sampleOpponents}",
+                            attacker);
+                    }
+                    // Heurística sencilla: solo gritar si la mayoría absoluta parecen same-side (evitar falsos positivos).
+                    if (attackerIsEnemy && opponents.Count >= 2)
+                    {
+                        int sameTeamInOpponents = 0;
+                        for (int i = 0; i < opponents.Count; i++)
+                        {
+                            var opp = opponents[i];
+                            if (opp != null && opp.IsEnemy == attacker.IsEnemy)
+                            {
+                                sameTeamInOpponents++;
+                            }
+                        }
+                        bool likelySwap = sameTeamInOpponents == opponents.Count ||
+                                          (opponents.Count >= 3 && sameTeamInOpponents >= opponents.Count - 1);
+                        if (attacker != null && sameTeamInOpponents > 0 && likelySwap)
+                        {
+                            BattleDiagnostics.Log(
+                                "BATTLEFLOW",
+                                $"WARN_TARGET_LISTS_OPPONENTS_LOOK_LIKE_SAMESIDE exec={context.ExecutionId} attacker={attacker.DisplayName}#{attacker.GetInstanceID()} sameTeamCount={sameTeamInOpponents}/{opponents.Count} sampleOpponents={sampleOpponents}",
+                                attacker);
+                        }
+                    }
+                }
+#endif
+
                 var action = selection.Action;
+                bool isOffensiveSingle = attacker != null &&
+                                         attacker.IsEnemy &&
+                                         action != null &&
+                                         action.targetAudience == TargetAudience.Enemies &&
+                                         action.targetShape == TargetShape.Single;
+
+                IReadOnlyList<CombatantState> alliesForTargeting = sameSide;
+                IReadOnlyList<CombatantState> enemiesForTargeting = opponents;
                 List<CombatantState> candidatesAlive = null;
                 CombatantState picked = null;
                 TargetPickResult pick = default;
-                if (attacker != null &&
-                    attacker.IsEnemy &&
-                    action != null &&
-                    action.targetShape == TargetShape.Single &&
-                    context.Allies != null &&
-                    context.Allies.Count > 1)
+
+                if (isOffensiveSingle &&
+                    enemiesForTargeting != null)
                 {
-                    candidatesAlive = CollectAliveTargets(context.Allies);
-                    if (candidatesAlive.Count > 0)
+                    candidatesAlive = CollectAliveTargets(enemiesForTargeting);
+
+                    if (candidatesAlive.Count == 0)
                     {
-                        int spawnInstanceId = attacker.SpawnInstanceId != 0 ? attacker.SpawnInstanceId : attacker.GetInstanceID();
-                        uint actionHash = unchecked((uint)EnemyTargetingDebug.StableHash(action.id));
-                        int seed = EnemyTargetingDebug.MixSeed(
-                            context.BattleSeed,
-                            unchecked((uint)spawnInstanceId),
-                            unchecked((uint)context.AttackerTurnCounter),
-                            actionHash);
-
-                        var policy = EnemyTargetingPolicyRegistry.Get("RandomAlive");
-                        var policyContext = new TargetingContext(
-                            context.ExecutionId,
-                            attacker,
-                            action.id,
-                            TargetShape.Single,
-                            candidatesAlive,
-                            seed);
-
-                        pick = policy.PickTarget(policyContext);
-                        picked = pick.Picked;
-                        if (picked != null)
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                        if (BattleDiagnostics.DevFlowTrace)
                         {
-                            alliesForTargeting = ReorderFirst(context.Allies, picked);
+                            BattleDiagnostics.Log(
+                                "BATTLEFLOW",
+                                $"NOOP_NO_VALID_TARGET exec={context.ExecutionId} attacker={attacker.DisplayName}#{attacker.GetInstanceID()} action={action.id} reason=NoOpponentsAlive consumeTurn=true",
+                                attacker);
                         }
+#endif
+                        context.AdvanceTurn(attacker);
+                        context.StateController?.Set(BattleState.AwaitingAction);
+                        await BattlePacingUtility.DelayGlobalAsync("EnemyTurn", attacker, context.Token);
+                        return;
+                    }
+
+                    if (candidatesAlive.Count > 1)
+                    {
+                        // Default: offensive actions should never self-target unless a strategy/estado explícito lo permita.
+                        bool allowSelfTarget = false;
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
                         if (BattleDiagnostics.DevFlowTrace)
                         {
-                            string pickedStr = picked != null
-                                ? $"{picked.DisplayName}#{picked.GetInstanceID()}"
-                                : "(null)";
                             BattleDiagnostics.Log(
                                 "BATTLEFLOW",
-                                $"AI_TARGET_PICK exec={context.ExecutionId} battleSeed={context.BattleSeed} spawnId={spawnInstanceId} turnIdx={context.AttackerTurnCounter} action={action.id} actionHash={actionHash} shape=Single policy={policy.Id} seed={seed} rollIdx={pick.Index} roll01={pick.Roll01:0.0000} candidates={EnemyTargetingDebug.FormatCandidates(candidatesAlive)} picked={pickedStr}",
+                                $"AI_TARGET_CANDIDATES exec={context.ExecutionId} attacker={attacker.DisplayName}#{attacker.GetInstanceID()} action={action.id} audience={action.targetAudience} shape=Single candidates={EnemyTargetingDebug.FormatCandidates(candidatesAlive)} allowSelfTarget={allowSelfTarget}",
                                 attacker);
                         }
 #endif
+
+                        var filtered = allowSelfTarget
+                            ? candidatesAlive.ToList()
+                            : candidatesAlive.Where(c => c != attacker).ToList();
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                        if (BattleDiagnostics.DevFlowTrace)
+                        {
+                            BattleDiagnostics.Log(
+                                "BATTLEFLOW",
+                                $"AI_TARGET_FILTER exec={context.ExecutionId} allowSelfTarget={allowSelfTarget} beforeN={candidatesAlive.Count} afterN={filtered.Count} filtered={EnemyTargetingDebug.FormatCandidates(filtered)}",
+                                attacker);
+                        }
+#endif
+
+                        if (filtered.Count > 0)
+                        {
+                            int spawnInstanceId = attacker.SpawnInstanceId != 0 ? attacker.SpawnInstanceId : attacker.GetInstanceID();
+                            uint actionHash = unchecked((uint)EnemyTargetingDebug.StableHash(action.id));
+                            int seed = EnemyTargetingDebug.MixSeed(
+                                context.BattleSeed,
+                                unchecked((uint)spawnInstanceId),
+                                unchecked((uint)context.AttackerTurnCounter),
+                                actionHash);
+
+                            var policy = EnemyTargetingPolicyRegistry.Get("RandomAlive");
+                            var policyContext = new TargetingContext(
+                                context.ExecutionId,
+                                attacker,
+                                action.id,
+                                TargetShape.Single,
+                                filtered,
+                                seed);
+
+                            pick = policy.PickTarget(policyContext);
+                            picked = pick.Picked;
+                            if (!allowSelfTarget && picked == attacker)
+                            {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                                if (BattleDiagnostics.DevFlowTrace)
+                                {
+                                    BattleDiagnostics.Log(
+                                        "BATTLEFLOW",
+                                        $"WARN_SELF_TARGET_PICKED exec={context.ExecutionId} attacker={attacker.DisplayName}#{attacker.GetInstanceID()} action={action.id} pickedSelfWhileAllowSelfTargetFalse seed={seed}",
+                                        attacker);
+                                }
+#endif
+                                picked = filtered.FirstOrDefault(c => c != attacker);
+                            }
+
+                            if (picked != null)
+                            {
+                                enemiesForTargeting = ReorderFirst(enemiesForTargeting, picked);
+                            }
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                            if (BattleDiagnostics.DevFlowTrace)
+                            {
+                                string pickedStr = picked != null
+                                    ? $"{picked.DisplayName}#{picked.GetInstanceID()}"
+                                    : "(null)";
+                                BattleDiagnostics.Log(
+                                    "BATTLEFLOW",
+                                    $"AI_TARGET_PICK exec={context.ExecutionId} battleSeed={context.BattleSeed} spawnId={spawnInstanceId} turnIdx={context.AttackerTurnCounter} action={action.id} actionHash={actionHash} shape=Single policy={policy.Id} seed={seed} rollIdx={pick.Index} roll01={pick.Roll01:0.0000} candidates={EnemyTargetingDebug.FormatCandidates(filtered)} picked={pickedStr}",
+                                    attacker);
+                            }
+#endif
+                        }
+                        else
+                        {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                            if (BattleDiagnostics.DevFlowTrace)
+                            {
+                                BattleDiagnostics.Log(
+                                    "BATTLEFLOW",
+                                    $"WARN_NO_VALID_TARGET exec={context.ExecutionId} attacker={attacker.DisplayName}#{attacker.GetInstanceID()} action={action.id} reason=FilteredEmpty allowSelfTarget={allowSelfTarget}",
+                                    attacker);
+                            }
+#endif
+                            if (BattleDiagnostics.DevFlowTrace)
+                            {
+                                BattleDiagnostics.Log(
+                                    "BATTLEFLOW",
+                                    $"NOOP_NO_VALID_TARGET exec={context.ExecutionId} attacker={attacker.DisplayName}#{attacker.GetInstanceID()} action={action.id} reason=FilteredEmpty consumeTurn=true",
+                                    attacker);
+                            }
+                            context.AdvanceTurn(attacker);
+                            context.StateController?.Set(BattleState.AwaitingAction);
+                            await BattlePacingUtility.DelayGlobalAsync("EnemyTurn", attacker, context.Token);
+                            return;
+                        }
                     }
                 }
 
@@ -344,7 +489,37 @@ namespace BattleV2.Orchestration.Services
                       TargetSourceType.Auto,
                       context.Player,
                       alliesForTargeting,
-                      context.Enemies);
+                      enemiesForTargeting);
+
+                var resolvedTargets = TargetSnapshot.Snapshot(resolution.Targets);
+                LogP2LiteValidateShadow(context, attacker, selection.Action, sameSide, opponents, resolvedTargets);
+                LogP2LiteRequest(context, attacker, selection.Action, sameSide, opponents, resolvedTargets, TargetResolveFailReason.Ok);
+
+                // Guardrail: never allow self-target for offensive actions by default.
+                if (attacker != null &&
+                    action != null &&
+                    action.targetAudience == TargetAudience.Enemies &&
+                    resolvedTargets != null &&
+                    System.Array.IndexOf(resolvedTargets, attacker) >= 0)
+                {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                    if (BattleDiagnostics.DevFlowTrace)
+                    {
+                        BattleDiagnostics.Log(
+                            "BATTLEFLOW",
+                            $"WARN_RESOLVE_RETURNED_SELF exec={context.ExecutionId} attacker={attacker.DisplayName}#{attacker.GetInstanceID()} action={action.id} audience={action.targetAudience} shape={action.targetShape} resolvedCount={resolvedTargets.Length}",
+                            attacker);
+                        BattleDiagnostics.Log(
+                            "BATTLEFLOW",
+                            $"NOOP_SELF_TARGET_DENIED exec={context.ExecutionId} attacker={attacker.DisplayName}#{attacker.GetInstanceID()} action={action.id} audience={action.targetAudience} shape={action.targetShape} consumeTurn=true",
+                            attacker);
+                    }
+#endif
+                    context.AdvanceTurn(attacker);
+                    context.StateController?.Set(BattleState.AwaitingAction);
+                    await BattlePacingUtility.DelayGlobalAsync("EnemyTurn", attacker, context.Token);
+                    return;
+                }
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
                 if (BattleDiagnostics.DevFlowTrace &&
@@ -352,11 +527,11 @@ namespace BattleV2.Orchestration.Services
                     action != null &&
                     action.targetShape == TargetShape.Single)
                 {
-                    if (resolution.Targets != null && resolution.Targets.Count > 1)
+                    if (resolvedTargets != null && resolvedTargets.Length > 1)
                     {
                         BattleDiagnostics.Log(
                             "BATTLEFLOW",
-                            $"WARN_TARGET_SHAPE_SINGLE_GOT_MULTI exec={context.ExecutionId} actor={attacker.DisplayName}#{attacker.GetInstanceID()} action={action.id} resolvedCount={resolution.Targets.Count}",
+                            $"WARN_TARGET_SHAPE_SINGLE_GOT_MULTI exec={context.ExecutionId} actor={attacker.DisplayName}#{attacker.GetInstanceID()} action={action.id} resolvedCount={resolvedTargets.Length}",
                             attacker);
                     }
 
@@ -364,7 +539,7 @@ namespace BattleV2.Orchestration.Services
                     {
                         // Note: picked is only set when we ran the policy branch.
                         // If resolved differs from picked, log it for visibility.
-                        var resolvedPrimary = resolution.Targets != null && resolution.Targets.Count > 0 ? resolution.Targets[0] : null;
+                        var resolvedPrimary = resolvedTargets != null && resolvedTargets.Length > 0 ? resolvedTargets[0] : null;
                         if (picked != null && resolvedPrimary != null && picked != resolvedPrimary)
                         {
                             BattleDiagnostics.Log(
@@ -390,19 +565,19 @@ namespace BattleV2.Orchestration.Services
                     }
 
                     string targetsStr;
-                    if (resolution.Targets == null || resolution.Targets.Count == 0)
+                    if (resolvedTargets == null || resolvedTargets.Length == 0)
                     {
                         targetsStr = "[]";
                     }
                     else
                     {
-                        var parts = new string[Mathf.Min(resolution.Targets.Count, 6)];
+                        var parts = new string[Mathf.Min(resolvedTargets.Length, 6)];
                         for (int i = 0; i < parts.Length; i++)
                         {
-                            var t = resolution.Targets[i];
+                            var t = resolvedTargets[i];
                             parts[i] = t != null ? $"{t.DisplayName}#{t.GetInstanceID()}" : "(null)";
                         }
-                        targetsStr = $"[{string.Join(",", parts)}{(resolution.Targets.Count > parts.Length ? ",..+" + (resolution.Targets.Count - parts.Length) : string.Empty)}]";
+                        targetsStr = $"[{string.Join(",", parts)}{(resolvedTargets.Length > parts.Length ? ",..+" + (resolvedTargets.Length - parts.Length) : string.Empty)}]";
                     }
 
                     BattleDiagnostics.Log(
@@ -412,7 +587,7 @@ namespace BattleV2.Orchestration.Services
                 }
 #endif
 
-                if (resolution.Targets.Count == 0)
+                if (resolvedTargets.Length == 0)
                 {
                     if (allowFallback && TryResolveFallback(context, attacker, out var fallbackSelection, out var fallbackImpl))
                     {
@@ -427,8 +602,8 @@ namespace BattleV2.Orchestration.Services
                 }
 
                 var enrichedSelection = selection.WithTargets(resolution.TargetSet);
-                var primaryTarget = resolution.Targets != null && resolution.Targets.Count > 0
-                    ? resolution.Targets[0]
+                var primaryTarget = resolvedTargets != null && resolvedTargets.Length > 0
+                    ? resolvedTargets[0]
                     : null;
                 if (primaryTarget != null)
                 {
@@ -443,15 +618,15 @@ namespace BattleV2.Orchestration.Services
                     enrichedSelection = enrichedSelection.WithTimedHitHandle(new TimedHitExecutionHandle(enrichedSelection.TimedHitResult, context.ExecutionId));
                 }
 
-                var snapshot = new ExecutionSnapshot(context.Allies, context.Enemies, resolution.Targets);
+                var snapshot = new ExecutionSnapshot(context.Allies, context.Enemies, resolvedTargets);
 
                 var playbackTask = animOrchestrator != null
-                    ? animOrchestrator.PlayAsync(new ActionPlaybackRequest(attacker, enrichedSelection, resolution.Targets, context.AverageSpeed, enrichedSelection.AnimationRecipeId))
+                    ? animOrchestrator.PlayAsync(new ActionPlaybackRequest(attacker, enrichedSelection, resolvedTargets, context.AverageSpeed, enrichedSelection.AnimationRecipeId))
                     : Task.CompletedTask;
 
-                var defeatCandidates = CollectDeathCandidates(resolution.Targets);
+                var defeatCandidates = CollectDeathCandidates(resolvedTargets);
 
-                var judgmentSeed = System.HashCode.Combine(attacker != null ? attacker.GetInstanceID() : 0, enrichedSelection.Action != null ? enrichedSelection.Action.id.GetHashCode() : 0, resolution.Targets.Count);
+                var judgmentSeed = System.HashCode.Combine(attacker != null ? attacker.GetInstanceID() : 0, enrichedSelection.Action != null ? enrichedSelection.Action.id.GetHashCode() : 0, resolvedTargets.Length);
                 var resourcesPre = BattleV2.Execution.ResourceSnapshot.FromCombatant(attacker);
                 var resourcesPost = BattleV2.Execution.ResourceSnapshot.FromCombatant(attacker);
                 var judgment = BattleV2.Execution.ActionJudgment.FromSelection(enrichedSelection, attacker, enrichedSelection.CpCharge, judgmentSeed, resourcesPre, resourcesPost);
@@ -460,7 +635,7 @@ namespace BattleV2.Orchestration.Services
                     context.ExecutionId,
                     context.Manager,
                     attacker,
-                    resolution.Targets,
+                    resolvedTargets,
                     enrichedSelection,
                     implementation,
                     context.CombatContext,
@@ -508,7 +683,7 @@ namespace BattleV2.Orchestration.Services
                     }
                 }
 
-                markProcessor?.Process(attacker, enrichedSelection, judgment, resolution.Targets, context.ExecutionId, context.AttackerTurnCounter);
+                markProcessor?.Process(attacker, enrichedSelection, judgment, resolvedTargets, context.ExecutionId, context.AttackerTurnCounter);
                 context.RefreshCombatContext();
 
                 PublishDefeatEvents(defeatCandidates, attacker);
@@ -530,7 +705,7 @@ namespace BattleV2.Orchestration.Services
                         attacker);
                 }
 #endif
-                eventBus?.Publish(new ActionCompletedEvent(context.ExecutionId, attacker, enrichedSelection.WithTimedResult(result.TimedResult), resolution.Targets, isTriggered: false, judgment: judgment));
+                eventBus?.Publish(new ActionCompletedEvent(context.ExecutionId, attacker, enrichedSelection.WithTimedResult(result.TimedResult), resolvedTargets, isTriggered: false, judgment: judgment));
 
                 if (battleEnded)
                 {
@@ -577,6 +752,48 @@ namespace BattleV2.Orchestration.Services
             }
 
             return alive;
+        }
+
+        private static int CountAlive(IReadOnlyList<CombatantState> list)
+        {
+            if (list == null || list.Count == 0) return 0;
+            int alive = 0;
+            for (int i = 0; i < list.Count; i++)
+            {
+                var c = list[i];
+                if (c != null && c.IsAlive) alive++;
+            }
+            return alive;
+        }
+
+        private static string FormatSample(IReadOnlyList<CombatantState> list, CombatantState attacker, int attackerIndex)
+        {
+            if (list == null || list.Count == 0) return "[]";
+            int take = Math.Min(list.Count, 3);
+            var parts = new string[take];
+            for (int i = 0; i < take; i++)
+            {
+                var c = list[i];
+                bool isAttacker = c != null && attacker != null && c == attacker;
+                parts[i] = c != null ? $"{c.DisplayName}#{c.GetInstanceID()}{(isAttacker ? "*ATTACKER*" : string.Empty)}" : "(null)";
+            }
+            string suffix = list.Count > take ? $",..+{list.Count - take}" : string.Empty;
+            // Si el atacante está fuera del sample, forzamos visibilidad en el último slot.
+            if (attackerIndex >= take && attackerIndex >= 0 && attacker != null)
+            {
+                parts[take - 1] = $"{attacker.DisplayName}#{attacker.GetInstanceID()}*ATTACKER*@idx={attackerIndex}";
+            }
+            return $"[{string.Join(",", parts)}{suffix}]";
+        }
+
+        private static int IndexOf(IReadOnlyList<CombatantState> list, CombatantState target)
+        {
+            if (list == null || list.Count == 0 || target == null) return -1;
+            for (int i = 0; i < list.Count; i++)
+            {
+                if (list[i] == target) return i;
+            }
+            return -1;
         }
 
         private static IReadOnlyList<CombatantState> ReorderFirst(IReadOnlyList<CombatantState> list, CombatantState first)
@@ -665,5 +882,220 @@ namespace BattleV2.Orchestration.Services
                 }
             }
         }
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        private void LogP2LiteListsShadow(
+            EnemyTurnContext context,
+            CombatantState attacker,
+            BattleActionData action,
+            IReadOnlyList<CombatantState> sameSideOld,
+            IReadOnlyList<CombatantState> opponentsOld)
+        {
+            if (!BattleDiagnostics.DevFlowTrace || !BattleDiagnostics.EnableP2LiteListsShadow)
+            {
+                return;
+            }
+
+            var lists = TargetLists.BuildFromAttacker(attacker, context.Allies, context.Enemies);
+            var oldSameIds = TargetSnapshot.StableIds(sameSideOld);
+            var oldOppIds = TargetSnapshot.StableIds(opponentsOld);
+            var sameIds = TargetSnapshot.StableIds(lists.SameSide);
+            var oppIds = TargetSnapshot.StableIds(lists.Opponents);
+            string actionId = action != null ? action.id : "(null)";
+            int selfInOpp = lists.SelfInOpponents ? 1 : 0;
+
+            BattleDiagnostics.Log(
+                "P2L",
+                $"P2L|LISTS|exec={context.ExecutionId}|att={attacker?.DisplayName ?? "(null)"}|act={actionId}|same={sameIds ?? "[]"}|opp={oppIds ?? "[]"}|selfInOpp={selfInOpp}",
+                attacker);
+
+            bool diffSame = !ListsEqualByRef(sameSideOld, lists.SameSide);
+            bool diffOpp = !ListsEqualByRef(opponentsOld, lists.Opponents);
+            if (diffSame || diffOpp)
+            {
+                BattleDiagnostics.Log(
+                    "P2L",
+                    $"P2L|DIFF|exec={context.ExecutionId}|where=LISTS|oldSame={oldSameIds ?? "[]"}|newSame={sameIds ?? "[]"}|oldOpp={oldOppIds ?? "[]"}|newOpp={oppIds ?? "[]"}",
+                    attacker);
+            }
+        }
+
+        private static bool ListsEqualByRef(IReadOnlyList<CombatantState> a, IReadOnlyList<CombatantState> b)
+        {
+            int countA = a != null ? a.Count : 0;
+            int countB = b != null ? b.Count : 0;
+            if (countA != countB) return false;
+            for (int i = 0; i < countA; i++)
+            {
+                if (a[i] != b[i]) return false;
+            }
+            return true;
+        }
+
+        private void LogP2LiteResolveShadow(
+            EnemyTurnContext context,
+            CombatantState attacker,
+            BattleActionData action,
+            IReadOnlyList<CombatantState> sameSide,
+            IReadOnlyList<CombatantState> opponents,
+            IReadOnlyList<CombatantState> resolvedTargets)
+        {
+            if (!BattleDiagnostics.DevFlowTrace || !BattleDiagnostics.EnableP2LiteResolveShadow)
+            {
+                return;
+            }
+
+            var validation = ValidateResolvedTargetsLite.Validate(attacker, action, resolvedTargets, sameSide, opponents);
+            string actionId = action != null ? action.id : "(null)";
+            var currentSnapshot = TargetSnapshot.Snapshot(resolvedTargets);
+            string resolvedIds = StableIdsSorted(currentSnapshot);
+            int ok = validation.FailReason == TargetResolveFailReason.Ok ? 1 : 0;
+            string reason = validation.FailReason.ToString();
+
+            // Skip log for non-offensive shapes.
+            if (validation.FailReason == TargetResolveFailReason.NotOffensiveSingle)
+            {
+                BattleDiagnostics.Log(
+                    "P2L",
+                    $"P2L|SKIP|exec={context.ExecutionId}|act={actionId}|shape={action?.targetShape}|aud={action?.targetAudience}|why=NotOffensiveSingle",
+                    attacker);
+                return;
+            }
+
+            BattleDiagnostics.Log(
+                "P2L",
+                $"P2L|VALIDATE|exec={context.ExecutionId}|att={attacker?.DisplayName ?? "(null)"}|act={actionId}|ok={ok}|reason={reason}|rec={resolvedIds ?? "[]"}|containsSelf={(validation.ContainsSelf ? 1 : 0)}",
+                attacker);
+        }
+
+        private static int[] BuildSortedIds(IReadOnlyList<CombatantState> list)
+        {
+            if (list == null || list.Count == 0) return System.Array.Empty<int>();
+            var ids = new int[list.Count];
+            int n = 0;
+            for (int i = 0; i < list.Count; i++)
+            {
+                var c = list[i];
+                if (c == null) continue;
+                ids[n++] = c.GetInstanceID();
+            }
+            System.Array.Resize(ref ids, n);
+            System.Array.Sort(ids);
+            return ids;
+        }
+
+        private static string StableIdsSorted(IReadOnlyList<CombatantState> list)
+        {
+            if (!BattleDiagnostics.DevFlowTrace) return null;
+            var ids = BuildSortedIds(list);
+            if (ids.Length == 0) return "[]";
+            var parts = new string[ids.Length];
+            for (int i = 0; i < ids.Length; i++)
+            {
+                parts[i] = ids[i].ToString();
+            }
+            return $"[{string.Join(",", parts)}]";
+        }
+
+        private void LogP2LiteRequest(
+            EnemyTurnContext context,
+            CombatantState attacker,
+            BattleActionData action,
+            IReadOnlyList<CombatantState> sameSide,
+            IReadOnlyList<CombatantState> opponents,
+            IReadOnlyList<CombatantState> resolvedTargets,
+            TargetResolveFailReason reason)
+        {
+            if (!BattleDiagnostics.DevFlowTrace || !BattleDiagnostics.EnableP2LiteReqLog)
+            {
+                return;
+            }
+
+            if (!TryMarkReqLogged(context.ExecutionId, out bool duplicate))
+            {
+                return;
+            }
+
+            if (duplicate)
+            {
+                BattleDiagnostics.Log(
+                    "P2L",
+                    $"P2L|REQ_DUP|exec={context.ExecutionId}",
+                    attacker);
+                return;
+            }
+
+            var req = new ExecutionRequestLite(
+                context.ExecutionId,
+                attacker,
+                action,
+                resolvedTargets,
+                sameSide,
+                opponents,
+                reason);
+
+            string actionId = action != null ? action.id : "(null)";
+            string recIds = StableIdsSorted(req.Recipients);
+
+            BattleDiagnostics.Log(
+                "P2L",
+                $"P2L|REQ|exec={req.ExecutionId}|att={attacker?.DisplayName ?? "(null)"}|act={actionId}|rec={recIds ?? "[]"}|reason={req.FailReason}",
+                attacker);
+        }
+
+        private static bool TryMarkReqLogged(int execId, out bool duplicate)
+        {
+            lock (reqLogGuard)
+            {
+                if (reqLoggedExecs.Contains(execId))
+                {
+                    duplicate = true;
+                    return true;
+                }
+                reqLoggedExecs.Add(execId);
+                duplicate = false;
+                return true;
+            }
+        }
+
+        private void LogP2LiteValidateShadow(
+            EnemyTurnContext context,
+            CombatantState attacker,
+            BattleActionData action,
+            IReadOnlyList<CombatantState> sameSide,
+            IReadOnlyList<CombatantState> opponents,
+            IReadOnlyList<CombatantState> resolvedTargets)
+        {
+            if (!BattleDiagnostics.DevFlowTrace || !BattleDiagnostics.EnableP2LiteResolveShadow)
+            {
+                return;
+            }
+
+            var validation = ValidateResolvedTargetsLite.Validate(attacker, action, resolvedTargets, sameSide, opponents);
+            string actionId = action != null ? action.id : "(null)";
+            string recIds = StableIdsSorted(validation.Recipients);
+            int ok = validation.FailReason == TargetResolveFailReason.Ok ? 1 : 0;
+            int containsSelf = validation.ContainsSelf ? 1 : 0;
+
+            // Skip log for actions we aren't validating (non-offensive single).
+            if (validation.FailReason == TargetResolveFailReason.NotOffensiveSingle)
+            {
+                BattleDiagnostics.Log(
+                    "P2L",
+                    $"P2L|SKIP|exec={context.ExecutionId}|act={actionId}|shape={action?.targetShape}|aud={action?.targetAudience}|why=NotOffensiveSingle",
+                    attacker);
+                return;
+            }
+
+            BattleDiagnostics.Log(
+                "P2L",
+                $"P2L|VALIDATE|exec={context.ExecutionId}|att={attacker?.DisplayName ?? "(null)"}|act={actionId}|ok={ok}|reason={validation.FailReason}|rec={recIds ?? "[]"}|containsSelf={containsSelf}",
+                attacker);
+        }
+
+        private static readonly object reqLogGuard = new object();
+        private static readonly System.Collections.Generic.HashSet<int> reqLoggedExecs = new System.Collections.Generic.HashSet<int>();
+#endif
     }
 }
+
