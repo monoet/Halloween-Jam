@@ -101,6 +101,6 @@ Ejemplos:
 - [x] Chunk 0: enums + snapshots listos (sin uso). Flag rollback: `EnableP2LiteSnapshotLog`.
 - [x] Chunk 1: helper de listas en shadow, logs sin diffs. Flag rollback: `EnableP2LiteListsShadow`.
 - [x] Chunk 2: resolve lite en shadow, logs sin diffs. Flag rollback: `EnableP2LiteResolveShadow`. Skip tag para no-single.
-- [ ] Chunk 3: request lite para logging, sin pipeline. Flag rollback: `EnableP2LiteReqLog`.
+- [x] Chunk 3: request lite para logging, sin pipeline. Flag rollback: `EnableP2LiteReqLog`.
 - [ ] Chunk 4: flag `UseP2LiteResolve` + filtros por attacker/action; diffs vigilados. Rollback: apagar flag.
 - [ ] Chunk 5: replicar a Player (opcional) con mismos flags.

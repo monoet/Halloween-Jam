@@ -492,6 +492,7 @@ namespace BattleV2.Orchestration.Services
                       enemiesForTargeting);
 
                 LogP2LiteResolveShadow(context, attacker, selection.Action, sameSide, opponents, resolution.Targets);
+                LogP2LiteRequest(context, attacker, selection.Action, sameSide, opponents, resolution.Targets, TargetResolveFailReason.Ok);
 
                 // Guardrail: never allow self-target for offensive actions by default.
                 if (attacker != null &&
@@ -1019,6 +1020,70 @@ namespace BattleV2.Orchestration.Services
             }
             return $"[{string.Join(",", parts)}]";
         }
+
+        private void LogP2LiteRequest(
+            EnemyTurnContext context,
+            CombatantState attacker,
+            BattleActionData action,
+            IReadOnlyList<CombatantState> sameSide,
+            IReadOnlyList<CombatantState> opponents,
+            IReadOnlyList<CombatantState> resolvedTargets,
+            TargetResolveFailReason reason)
+        {
+            if (!BattleDiagnostics.DevFlowTrace || !BattleDiagnostics.EnableP2LiteReqLog)
+            {
+                return;
+            }
+
+            if (!TryMarkReqLogged(context.ExecutionId, out bool duplicate))
+            {
+                return;
+            }
+
+            if (duplicate)
+            {
+                BattleDiagnostics.Log(
+                    "P2L",
+                    $"P2L|REQ_DUP|exec={context.ExecutionId}",
+                    attacker);
+                return;
+            }
+
+            var req = new ExecutionRequestLite(
+                context.ExecutionId,
+                attacker,
+                action,
+                resolvedTargets,
+                sameSide,
+                opponents,
+                reason);
+
+            string actionId = action != null ? action.id : "(null)";
+            string recIds = StableIdsSorted(req.Recipients);
+
+            BattleDiagnostics.Log(
+                "P2L",
+                $"P2L|REQ|exec={req.ExecutionId}|att={attacker?.DisplayName ?? "(null)"}|act={actionId}|rec={recIds ?? "[]"}|reason={req.FailReason}",
+                attacker);
+        }
+
+        private static bool TryMarkReqLogged(int execId, out bool duplicate)
+        {
+            lock (reqLogGuard)
+            {
+                if (reqLoggedExecs.Contains(execId))
+                {
+                    duplicate = true;
+                    return true;
+                }
+                reqLoggedExecs.Add(execId);
+                duplicate = false;
+                return true;
+            }
+        }
+
+        private static readonly object reqLogGuard = new object();
+        private static readonly System.Collections.Generic.HashSet<int> reqLoggedExecs = new System.Collections.Generic.HashSet<int>();
 #endif
     }
 }
