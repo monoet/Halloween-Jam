@@ -28,14 +28,26 @@ namespace BattleV2.Core
 
         /// <summary>
         /// Dev-only toggle for unified battle flow logs (BATTLEFLOW). Use this when you need a single searchable tag
-        /// that correlates UI→Commit→TimedHit→Damage→TurnClose.
+        /// that correlates multiple phases in the turn.
         /// </summary>
         public static bool DevFlowTrace = false;
+
+        /// <summary>
+        /// Dev-only toggle for P2-lite target snapshot logging.
+        /// </summary>
+        public static bool EnableP2LiteSnapshotLog = false;
+
+        /// <summary>
+        /// Dev-only toggle for P2-lite list shadow logging (LISTS/DIFF).
+        /// </summary>
+        public static bool EnableP2LiteListsShadow = false;
 #else
         public const bool DevCpTrace = false;
         public const bool DevAnimTrace = false;
         public const bool DevLocomotionTrace = false;
         public const bool DevFlowTrace = false;
+        public const bool EnableP2LiteSnapshotLog = false;
+        public const bool EnableP2LiteListsShadow = false;
 #endif
 
         private struct LogEntry
@@ -66,7 +78,7 @@ namespace BattleV2.Core
                     Context = context
                 });
             }
-            
+
             // Optional: Mirror to Unity Console
             Debug.Log($"[{category}] {message}", context);
         }

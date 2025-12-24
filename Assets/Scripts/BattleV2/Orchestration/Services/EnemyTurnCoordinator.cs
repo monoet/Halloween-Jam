@@ -289,6 +289,8 @@ namespace BattleV2.Orchestration.Services
                 IReadOnlyList<CombatantState> sameSide = context.Enemies ?? Array.Empty<CombatantState>();
                 IReadOnlyList<CombatantState> opponents = context.Allies ?? Array.Empty<CombatantState>();
 
+                LogP2LiteListsShadow(context, attacker, selection.Action, sameSide, opponents);
+
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
                 if (BattleDiagnostics.DevFlowTrace)
                 {
@@ -876,5 +878,55 @@ namespace BattleV2.Orchestration.Services
                 }
             }
         }
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        private void LogP2LiteListsShadow(
+            EnemyTurnContext context,
+            CombatantState attacker,
+            BattleActionData action,
+            IReadOnlyList<CombatantState> sameSideOld,
+            IReadOnlyList<CombatantState> opponentsOld)
+        {
+            if (!BattleDiagnostics.DevFlowTrace || !BattleDiagnostics.EnableP2LiteListsShadow)
+            {
+                return;
+            }
+
+            var lists = TargetLists.BuildFromAttacker(attacker, context.Allies, context.Enemies);
+            var oldSameIds = TargetSnapshot.StableIds(sameSideOld);
+            var oldOppIds = TargetSnapshot.StableIds(opponentsOld);
+            var sameIds = TargetSnapshot.StableIds(lists.SameSide);
+            var oppIds = TargetSnapshot.StableIds(lists.Opponents);
+            string actionId = action != null ? action.id : "(null)";
+            int selfInOpp = lists.SelfInOpponents ? 1 : 0;
+
+            BattleDiagnostics.Log(
+                "P2L",
+                $"P2L|LISTS|exec={context.ExecutionId}|att={attacker?.DisplayName ?? "(null)"}|act={actionId}|same={sameIds ?? "[]"}|opp={oppIds ?? "[]"}|selfInOpp={selfInOpp}",
+                attacker);
+
+            bool diffSame = !ListsEqualByRef(sameSideOld, lists.SameSide);
+            bool diffOpp = !ListsEqualByRef(opponentsOld, lists.Opponents);
+            if (diffSame || diffOpp)
+            {
+                BattleDiagnostics.Log(
+                    "P2L",
+                    $"P2L|DIFF|exec={context.ExecutionId}|where=LISTS|oldSame={oldSameIds ?? "[]"}|newSame={sameIds ?? "[]"}|oldOpp={oldOppIds ?? "[]"}|newOpp={oppIds ?? "[]"}",
+                    attacker);
+            }
+        }
+
+        private static bool ListsEqualByRef(IReadOnlyList<CombatantState> a, IReadOnlyList<CombatantState> b)
+        {
+            int countA = a != null ? a.Count : 0;
+            int countB = b != null ? b.Count : 0;
+            if (countA != countB) return false;
+            for (int i = 0; i < countA; i++)
+            {
+                if (a[i] != b[i]) return false;
+            }
+            return true;
+        }
+#endif
     }
 }

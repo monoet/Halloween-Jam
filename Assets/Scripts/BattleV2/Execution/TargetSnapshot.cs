@@ -13,13 +13,6 @@ namespace BattleV2.Execution
     /// </summary>
     public static class TargetSnapshot
     {
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-        /// <summary>
-        /// Dev-only toggle in case snapshot logging is added later.
-        /// </summary>
-        public static bool EnableP2LiteSnapshotLog = false;
-#endif
-
         public static CombatantState[] Snapshot(IReadOnlyList<CombatantState> source)
         {
             if (source == null || source.Count == 0)
