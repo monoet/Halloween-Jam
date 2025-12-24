@@ -53,6 +53,11 @@ namespace BattleV2.Core
         public static bool EnableP2LiteReqLog = false;
 
         /// <summary>
+        /// Dev-only toggle for P2-lite resolve validation in player flow.
+        /// </summary>
+        public static bool EnableP2LiteResolveShadowPlayer = false;
+
+        /// <summary>
         /// Dev-only toggle to actually use the P2-lite resolve output (when safe).
         /// </summary>
         public static bool UseP2LiteResolve = false;
@@ -75,6 +80,7 @@ namespace BattleV2.Core
         public const bool EnableP2LiteListsShadow = false;
         public const bool EnableP2LiteResolveShadow = false;
         public const bool EnableP2LiteReqLog = false;
+        public const bool EnableP2LiteResolveShadowPlayer = false;
         public const bool UseP2LiteResolve = false;
         public const bool P2LiteOnlyForEnemies = true;
         public const string P2LiteFilterAttackerId = "";

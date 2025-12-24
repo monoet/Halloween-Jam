@@ -103,4 +103,4 @@ Ejemplos:
 - [x] Chunk 2: resolve lite en shadow, logs sin diffs. Flag rollback: `EnableP2LiteResolveShadow`. Skip tag para no-single.
 - [x] Chunk 3: request lite para logging, sin pipeline. Flag rollback: `EnableP2LiteReqLog`.
 - [x] Chunk 4: flag `UseP2LiteResolve` + filtros por attacker/action; diffs vigilados. Rollback: apagar flag.
-- [ ] Chunk 5: replicar a Player (opcional) con mismos flags.
+- [x] Chunk 5: replicar a Player (shadow-only) con mismos flags.
