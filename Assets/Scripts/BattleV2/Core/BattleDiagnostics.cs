@@ -41,6 +41,11 @@ namespace BattleV2.Core
         /// Dev-only toggle for P2-lite list shadow logging (LISTS/DIFF).
         /// </summary>
         public static bool EnableP2LiteListsShadow = false;
+
+        /// <summary>
+        /// Dev-only toggle for P2-lite resolve shadow logging (RESOLVE/DIFF/SKIP).
+        /// </summary>
+        public static bool EnableP2LiteResolveShadow = false;
 #else
         public const bool DevCpTrace = false;
         public const bool DevAnimTrace = false;
@@ -48,6 +53,7 @@ namespace BattleV2.Core
         public const bool DevFlowTrace = false;
         public const bool EnableP2LiteSnapshotLog = false;
         public const bool EnableP2LiteListsShadow = false;
+        public const bool EnableP2LiteResolveShadow = false;
 #endif
 
         private struct LogEntry

@@ -491,6 +491,8 @@ namespace BattleV2.Orchestration.Services
                       alliesForTargeting,
                       enemiesForTargeting);
 
+                LogP2LiteResolveShadow(context, attacker, selection.Action, sameSide, opponents, resolution.Targets);
+
                 // Guardrail: never allow self-target for offensive actions by default.
                 if (attacker != null &&
                     action != null &&
@@ -926,6 +928,96 @@ namespace BattleV2.Orchestration.Services
                 if (a[i] != b[i]) return false;
             }
             return true;
+        }
+
+        private void LogP2LiteResolveShadow(
+            EnemyTurnContext context,
+            CombatantState attacker,
+            BattleActionData action,
+            IReadOnlyList<CombatantState> sameSide,
+            IReadOnlyList<CombatantState> opponents,
+            IReadOnlyList<CombatantState> resolvedTargets)
+        {
+            if (!BattleDiagnostics.DevFlowTrace || !BattleDiagnostics.EnableP2LiteResolveShadow)
+            {
+                return;
+            }
+
+            var helper = TryResolveTargetsLite.Resolve(attacker, action, sameSide, opponents);
+            string actionId = action != null ? action.id : "(null)";
+            // Snapshot current resolution to avoid aliasing and sort ids for stable diffs.
+            var currentSnapshot = TargetSnapshot.Snapshot(resolvedTargets);
+            string resolvedIds = StableIdsSorted(currentSnapshot);
+            string helperIds = StableIdsSorted(helper.Recipients);
+            int ok = helper.HasRecipients ? 1 : 0;
+            string reason = helper.FailReason.ToString();
+
+            // Skip log for non-offensive shapes.
+            if (helper.FailReason == TargetResolveFailReason.NotOffensiveSingle)
+            {
+                BattleDiagnostics.Log(
+                    "P2L",
+                    $"P2L|SKIP|exec={context.ExecutionId}|act={actionId}|shape={action?.targetShape}|aud={action?.targetAudience}|why=NotOffensiveSingle",
+                    attacker);
+                return;
+            }
+
+            BattleDiagnostics.Log(
+                "P2L",
+                $"P2L|RESOLVE|exec={context.ExecutionId}|att={attacker?.DisplayName ?? "(null)"}|act={actionId}|ok={ok}|reason={reason}|rec={helperIds ?? "[]"}",
+                attacker);
+
+            if (!TargetsEqualByIdSorted(currentSnapshot, helper.Recipients))
+            {
+                BattleDiagnostics.Log(
+                    "P2L",
+                    $"P2L|DIFF|exec={context.ExecutionId}|where=RESOLVE|old={resolvedIds ?? "[]"}|new={helperIds ?? "[]"}",
+                    attacker);
+            }
+        }
+
+        private static bool TargetsEqualByIdSorted(IReadOnlyList<CombatantState> a, IReadOnlyList<CombatantState> b)
+        {
+            int countA = a != null ? a.Count : 0;
+            int countB = b != null ? b.Count : 0;
+            if (countA != countB) return false;
+            var idsA = BuildSortedIds(a);
+            var idsB = BuildSortedIds(b);
+            if (idsA.Length != idsB.Length) return false;
+            for (int i = 0; i < idsA.Length; i++)
+            {
+                if (idsA[i] != idsB[i]) return false;
+            }
+            return true;
+        }
+
+        private static int[] BuildSortedIds(IReadOnlyList<CombatantState> list)
+        {
+            if (list == null || list.Count == 0) return System.Array.Empty<int>();
+            var ids = new int[list.Count];
+            int n = 0;
+            for (int i = 0; i < list.Count; i++)
+            {
+                var c = list[i];
+                if (c == null) continue;
+                ids[n++] = c.GetInstanceID();
+            }
+            System.Array.Resize(ref ids, n);
+            System.Array.Sort(ids);
+            return ids;
+        }
+
+        private static string StableIdsSorted(IReadOnlyList<CombatantState> list)
+        {
+            if (!BattleDiagnostics.DevFlowTrace) return null;
+            var ids = BuildSortedIds(list);
+            if (ids.Length == 0) return "[]";
+            var parts = new string[ids.Length];
+            for (int i = 0; i < ids.Length; i++)
+            {
+                parts[i] = ids[i].ToString();
+            }
+            return $"[{string.Join(",", parts)}]";
         }
 #endif
     }
